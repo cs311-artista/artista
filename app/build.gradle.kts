@@ -4,15 +4,16 @@ plugins {
     alias(libs.plugins.jetbrainsKotlinAndroid)
     alias(libs.plugins.ktfmt)
     alias(libs.plugins.sonar)
+    alias(libs.plugins.gms)
     id("jacoco")
 }
 
 android {
-    namespace = "com.android.sample"
+    namespace = "com.artista.artista"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.android.sample"
+        applicationId = "com.artista.artista"
         minSdk = 28
         targetSdk = 34
         versionCode = 1
@@ -149,6 +150,11 @@ dependencies {
 
     // ----------       Robolectric     ------------
     testImplementation(libs.robolectric)
+
+    // ----------       Firebase     ------------
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.firestore)
+    implementation(libs.firebase.auth)
 }
 
 tasks.withType<Test> {
