@@ -33,7 +33,7 @@ jobs:
           GOOGLE_SERVICES: ${{ secrets.GOOGLE_SERVICES }}
         run: |
           if [ -n "$GOOGLE_SERVICES" ]; then
-            echo "$GOOGLE_SERVICES" | base64 --decode > ./app/google-sevices.json
+            echo "$GOOGLE_SERVICES" | base64 --decode > ./app/google-services.json
           else
             echo "::warning::GOOGLE_SERVICES secret is not set. google-services.json will not be created."
           fi
@@ -97,13 +97,13 @@ jobs:
           ./gradlew assemble lint --parallel --build-cache
 
       # Run Unit tests
-      - name: Run tests
+      - name: Run Unit tests
         run: |
           # To run the CI with debug information, add --info
           ./gradlew check --parallel --build-cache
 
       # Run connected tests on the emulator
-      - name: run tests
+      - name: Run Connected tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 34

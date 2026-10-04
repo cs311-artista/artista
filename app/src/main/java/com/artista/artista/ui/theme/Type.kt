@@ -1,4 +1,4 @@
-package com.android.sample.ui.theme
+package com.artista.artista.ui.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
