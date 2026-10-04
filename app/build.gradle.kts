@@ -5,7 +5,7 @@ plugins {
   alias(libs.plugins.kotlinCompose)
   alias(libs.plugins.ktfmt)
   alias(libs.plugins.sonar)
-    alias(libs.plugins.gms)
+  alias(libs.plugins.gms)
   id("jacoco")
 }
 
