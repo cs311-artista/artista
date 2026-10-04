@@ -9,11 +9,11 @@ plugins {
 }
 
 android {
-  namespace = "com.android.sample"
+  namespace = "com.artista.artista"
   compileSdk = 37
 
   defaultConfig {
-    applicationId = "com.android.sample"
+    applicationId = "com.artista.artista"
     minSdk = 28
     targetSdk = 34
     versionCode = 1
