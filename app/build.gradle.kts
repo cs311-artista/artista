@@ -10,15 +10,15 @@ plugins {
 }
 
 android {
-    namespace = "com.artista.artista"
-    compileSdk = 34
+  namespace = "com.artista.artista"
+  compileSdk = 37
 
-    defaultConfig {
-        applicationId = "com.artista.artista"
-        minSdk = 28
-        targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+  defaultConfig {
+    applicationId = "com.artista.artista"
+    minSdk = 28
+    targetSdk = 34
+    versionCode = 1
+    versionName = "1.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     vectorDrawables { useSupportLibrary = true }
@@ -151,11 +151,6 @@ dependencies {
 
   // ----------       Robolectric     ------------
   testImplementation(libs.robolectric)
-
-    // ----------       Firebase     ------------
-implementation(platform(libs.firebase.bom))
-implementation(libs.firebase.firestore)
-implementation(libs.firebase.auth)
 }
 
 tasks.withType<Test> {
