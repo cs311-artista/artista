@@ -1,4 +1,4 @@
-package com.android.sample
+package com.artista.artista
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
