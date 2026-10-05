@@ -5,4 +5,5 @@ plugins {
     id("org.sonarqube") version "7.5.0.8588" apply false
     alias(libs.plugins.kotlinCompose) apply false
     alias(libs.plugins.ktfmt) apply false
+    alias(libs.plugins.gms) apply false
 }
