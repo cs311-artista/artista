@@ -124,6 +124,10 @@ dependencies {
   testImplementation(libs.junit)
   globalTestImplementation(libs.androidx.junit)
   globalTestImplementation(libs.androidx.espresso.core)
+  // ---------- Firebase ----------
+  implementation(platform(libs.firebase.bom))
+  implementation(libs.firebase.firestore)
+  implementation(libs.firebase.auth)
 
   // ------------- Jetpack Compose ------------------
   val composeBom = platform(libs.compose.bom)
@@ -180,7 +184,13 @@ tasks.register("jacocoTestReport", JacocoReport::class) {
       )
 
   val debugTree =
-      fileTree("${project.layout.buildDirectory.get()}/tmp/kotlin-classes/debug") {
+      fileTree(project.layout.buildDirectory) {
+        include(
+            // AGP 9 compiles Kotlin with its built-in compiler, which writes here
+            "intermediates/built_in_kotlinc/debug/compileDebugKotlin/classes/**",
+            // Fallback for the AGP 8 layout
+            "tmp/kotlin-classes/debug/**",
+        )
         exclude(fileFilter)
       }
 
