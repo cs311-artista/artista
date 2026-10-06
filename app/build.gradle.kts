@@ -124,6 +124,10 @@ dependencies {
   testImplementation(libs.junit)
   globalTestImplementation(libs.androidx.junit)
   globalTestImplementation(libs.androidx.espresso.core)
+  // ---------- Firebase ----------
+  implementation(platform(libs.firebase.bom))
+  implementation(libs.firebase.firestore)
+  implementation(libs.firebase.auth)
 
   // ------------- Jetpack Compose ------------------
   val composeBom = platform(libs.compose.bom)
