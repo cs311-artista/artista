@@ -185,13 +185,13 @@ tasks.register("jacocoTestReport", JacocoReport::class) {
 
   val debugTree =
       fileTree(project.layout.buildDirectory) {
-          include(
-              // AGP 9 compiles Kotlin with its built-in compiler, which writes here
-              "intermediates/built_in_kotlinc/debug/compileDebugKotlin/classes/**",
-              // Fallback for the AGP 8 layout
-              "tmp/kotlin-classes/debug/**",
-          )
-          exclude(fileFilter)
+        include(
+            // AGP 9 compiles Kotlin with its built-in compiler, which writes here
+            "intermediates/built_in_kotlinc/debug/compileDebugKotlin/classes/**",
+            // Fallback for the AGP 8 layout
+            "tmp/kotlin-classes/debug/**",
+        )
+        exclude(fileFilter)
       }
 
   val mainSrc = "${project.layout.projectDirectory}/src/main/java"
