@@ -42,9 +42,9 @@ class UserRepositoryFirestoreTest : FirebaseEmulatedTest() {
     val user =
         userWith(
             uid = testUserId,
-            artists = null,
-            types = null,
-            timePeriods = null,
+            artists = emptyList(),
+            types = emptyList(),
+            timePeriods = emptyList(),
         )
 
     repository.createUser(user)
@@ -123,9 +123,9 @@ class UserRepositoryFirestoreTest : FirebaseEmulatedTest() {
    */
   private fun userWith(
       uid: String,
-      artists: List<String>? = listOf("Van Gogh"),
-      types: List<String>? = listOf("Drawing"),
-      timePeriods: List<String>? = listOf("19th century"),
+      artists: List<String> = listOf("Van Gogh"),
+      types: List<String> = listOf("Drawing"),
+      timePeriods: List<String> = listOf("19th century"),
   ): User =
       User(
           uid = uid,
