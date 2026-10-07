@@ -2,4 +2,10 @@
     <string name="app_name">SampleApp</string>
     <string name="title_activity_main">MainActivity</string>
     <string name="title_activity_second">SecondActivity</string>
+
+    <!-- User profile screen -->
+    <string name="profile_picture_placeholder">Profile\nPicture</string>
+    <string name="profile_username_placeholder">USERNAME</string>
+    <string name="profile_preferences">PREFERENCES (ARTIST)</string>
+    <string name="profile_saved_artwork">SAVED ARTWORK</string>
 </resources>
