@@ -120,10 +120,16 @@ dependencies {
   implementation(libs.androidx.appcompat)
   implementation(libs.material)
   implementation(libs.androidx.lifecycle.runtime.ktx)
+  implementation(libs.kotlinx.coroutines.play.services)
   implementation(platform(libs.compose.bom))
   testImplementation(libs.junit)
   globalTestImplementation(libs.androidx.junit)
   globalTestImplementation(libs.androidx.espresso.core)
+  testImplementation(libs.kotlinx.coroutines.test)
+  // ---------- Firebase ----------
+  implementation(platform(libs.firebase.bom))
+  implementation(libs.firebase.firestore)
+  implementation(libs.firebase.auth)
 
   // ------------- Jetpack Compose ------------------
   val composeBom = platform(libs.compose.bom)
