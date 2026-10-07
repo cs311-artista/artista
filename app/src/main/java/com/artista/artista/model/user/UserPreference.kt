@@ -9,7 +9,7 @@ package com.artista.artista.model.user
  * @author 5kyPhy
  */
 data class UserPreference(
-    val artists: List<String>?,
-    val type: List<String>?,
-    val timePeriod: List<String>?,
+    val artists: List<String>? = null,
+    val type: List<String>? = null,
+    val timePeriod: List<String>? = null,
 )
