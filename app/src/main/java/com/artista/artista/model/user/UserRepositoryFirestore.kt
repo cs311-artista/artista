@@ -11,9 +11,14 @@ const val USER_COLLECTION_PATH = "Users"
  * Firestore-backed implementation of the user repository.
  *
  * @param db the Firestore instance used to persist user profiles
+ * @param collectionPath the Firestore collection containing the user profiles
+ * @author krfpn
  * @author Copilot (223556219+Copilot@users.noreply.github.com)
  */
-class UserRepositoryFirestore(private val db: FirebaseFirestore) : UserRepository {
+class UserRepositoryFirestore(
+    private val db: FirebaseFirestore,
+    private val collectionPath: String = USER_COLLECTION_PATH,
+) : UserRepository {
   /**
    * Creates a user profile using the user's authentication UID as the document ID.
    *
@@ -22,7 +27,7 @@ class UserRepositoryFirestore(private val db: FirebaseFirestore) : UserRepositor
    */
   override suspend fun createUser(user: User) {
     // Using the authentication UID as the document ID keeps Auth and Firestore identities aligned.
-    db.collection(USER_COLLECTION_PATH).document(user.uid).set(user).await()
+    db.collection(collectionPath).document(user.uid).set(user).await()
   }
 
   /**
@@ -34,7 +39,7 @@ class UserRepositoryFirestore(private val db: FirebaseFirestore) : UserRepositor
    */
   override suspend fun getUser(userId: String): User {
     // Awaiting the Task keeps Firestore asynchronous without blocking the calling coroutine.
-    val document = db.collection(USER_COLLECTION_PATH).document(userId).get().await()
+    val document = db.collection(collectionPath).document(userId).get().await()
 
     if (!document.exists()) {
       throw NoSuchElementException("User '$userId' was not found")
@@ -57,12 +62,12 @@ class UserRepositoryFirestore(private val db: FirebaseFirestore) : UserRepositor
     }
 
     // Check existence first because set() would otherwise create a missing user document.
-    val document = db.collection(USER_COLLECTION_PATH).document(userId).get().await()
+    val document = db.collection(collectionPath).document(userId).get().await()
     if (!document.exists()) {
       throw NoSuchElementException("User '$userId' was not found")
     }
 
-    db.collection(USER_COLLECTION_PATH).document(userId).set(newValue).await()
+    db.collection(collectionPath).document(userId).set(newValue).await()
   }
 
   /**
@@ -72,7 +77,13 @@ class UserRepositoryFirestore(private val db: FirebaseFirestore) : UserRepositor
    * @throws Exception if Firestore cannot delete the profile
    */
   override suspend fun deleteUser(userId: String) {
-    db.collection(USER_COLLECTION_PATH).document(userId).delete().await()
+    // Check existence first because Firestore delete() succeeds for a missing document.
+    val document = db.collection(collectionPath).document(userId).get().await()
+    if (!document.exists()) {
+      throw NoSuchElementException("User '$userId' was not found")
+    }
+    // Reuse the reference from the verified snapshot instead of creating a new reference.
+    document.reference.delete().await()
   }
 
   /**
