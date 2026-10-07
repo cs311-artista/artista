@@ -2,17 +2,28 @@
 package com.artista.artista.ui.search
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.artista.artista.model.artwork.Artwork
+import com.artista.artista.model.artwork.ArtworkRepository
+import com.artista.artista.model.artwork.WikiDataRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 
 /**
  * Holds search input, recommendations, and artwork results for the search screen.
  *
+ * @param artworkRepository provides the current user's saved artworks for suggestions
+ * @param wikiDataRepository searches Wikidata for submitted queries
  * @author IJJA3141
  */
-class SearchScreenViewModel : ViewModel() {
+class SearchScreenViewModel(
+    private val artworkRepository: ArtworkRepository,
+    private val wikiDataRepository: WikiDataRepository,
+) : ViewModel() {
+  private var savedArtworks: List<Artwork> = emptyList()
+
   private val _searchQuery = MutableStateFlow("")
 
   /** The text currently entered in the search field. */
@@ -28,6 +39,13 @@ class SearchScreenViewModel : ViewModel() {
   /** Artwork results to display below the search field. */
   val artworks: StateFlow<List<Artwork>> = _artworks.asStateFlow()
 
+  init {
+    viewModelScope.launch {
+      savedArtworks = artworkRepository.getSavedArtworks()
+      updateRecommendations(_searchQuery.value)
+    }
+  }
+
   /**
    * Updates the search text.
    *
@@ -36,6 +54,7 @@ class SearchScreenViewModel : ViewModel() {
    */
   fun onSearchQueryChanged(query: String) {
     _searchQuery.value = query
+    updateRecommendations(query)
   }
 
   /**
@@ -46,7 +65,8 @@ class SearchScreenViewModel : ViewModel() {
    */
   fun onSearchSubmitted(query: String) {
     _searchQuery.value = query
-    // TODO: Search the artwork repository and publish the results.
+    _recommendations.value = emptyList()
+    viewModelScope.launch { _artworks.value = wikiDataRepository.searchArtworks(query) }
   }
 
   /**
@@ -57,6 +77,20 @@ class SearchScreenViewModel : ViewModel() {
    */
   @Suppress("UNUSED_PARAMETER")
   fun onRecommendationSelected(recommendation: String) {
-    // TODO: Define and implement recommendation selection behavior.
+    // TODO: should navigate to artwork screen
+  }
+
+  private fun updateRecommendations(query: String) {
+    _recommendations.value =
+        if (query.isBlank()) {
+          emptyList()
+        } else {
+          savedArtworks
+              .asSequence()
+              .filter { artwork -> artwork.name.contains(query, ignoreCase = true) }
+              .map(Artwork::name)
+              .distinct()
+              .toList()
+        }
   }
 }

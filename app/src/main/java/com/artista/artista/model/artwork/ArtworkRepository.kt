@@ -8,14 +8,10 @@ package com.artista.artista.model.artwork
  */
 interface ArtworkRepository {
   /**
-   * Searches for artworks matching a user-provided query.
+   * Retrieves artworks saved by the current user.
    *
-   * Implementations delegate source-specific request construction and return mapped domain
-   * artworks.
-   *
-   * @param query the user's search text
-   * @return matching artworks
+   * @return the current user's saved artworks
    * @author IJJA3141
    */
-  suspend fun searchArtworks(query: String): List<Artwork>
+  suspend fun getSavedArtworks(): List<Artwork>
 }
