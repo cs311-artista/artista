@@ -55,6 +55,9 @@ class SearchScreenViewModel(
   fun onSearchQueryChanged(query: String) {
     _searchQuery.value = query
     updateRecommendations(query)
+    if (query.isBlank()) {
+      _artworks.value = emptyList()
+    }
   }
 
   /**
@@ -66,6 +69,11 @@ class SearchScreenViewModel(
   fun onSearchSubmitted(query: String) {
     _searchQuery.value = query
     _recommendations.value = emptyList()
+    if (query.isBlank()) {
+      _artworks.value = emptyList()
+      return
+    }
+
     viewModelScope.launch { _artworks.value = wikiDataRepository.searchArtworks(query) }
   }
 
