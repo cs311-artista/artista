@@ -116,41 +116,53 @@ fun DependencyHandlerScope.globalTestImplementation(dep: Any) {
 }
 
 dependencies {
+  // Core AndroidX and Material
   implementation(libs.androidx.core.ktx)
   implementation(libs.androidx.appcompat)
   implementation(libs.material)
   implementation(libs.androidx.lifecycle.runtime.ktx)
+  implementation(libs.kotlinx.coroutines.play.services)
+
+  // Firebase
+  implementation(platform(libs.firebase.bom))
+  androidTestImplementation(platform(libs.firebase.bom))
+  implementation(libs.firebase.firestore)
+  implementation(libs.firebase.auth)
+
+  // Google authentication and Credential Manager
+  implementation(libs.play.services.auth)
+  implementation(libs.androidx.credentials)
+  implementation(libs.androidx.credentials.play.services.auth)
+  implementation(libs.google.id)
+
+  // Jetpack Compose
   implementation(platform(libs.compose.bom))
+  testImplementation(platform(libs.compose.bom))
+  androidTestImplementation(platform(libs.compose.bom))
+  implementation(libs.compose.ui)
+  implementation(libs.compose.ui.graphics)
+  implementation(libs.compose.material3)
+  implementation(libs.compose.material.icons.core)
+  implementation(libs.compose.activity)
+  implementation(libs.compose.viewmodel)
+  implementation(libs.androidx.navigation.compose)
+  implementation(libs.compose.preview)
+  debugImplementation(libs.compose.tooling)
+
+  // Android and Compose test libraries
   testImplementation(libs.junit)
   testImplementation(libs.kotlinx.coroutines.test)
   globalTestImplementation(libs.androidx.junit)
   globalTestImplementation(libs.androidx.espresso.core)
-
-  // ------------- Jetpack Compose ------------------
-  val composeBom = platform(libs.compose.bom)
-  implementation(composeBom)
-  globalTestImplementation(composeBom)
-
-  implementation(libs.compose.ui)
-  implementation(libs.compose.ui.graphics)
-  // Material Design 3
-  implementation(libs.compose.material3)
-  // Integration with activities
-  implementation(libs.compose.activity)
-  // Integration with ViewModels
-  implementation(libs.compose.viewmodel)
-  // Android Studio Preview support
-  implementation(libs.compose.preview)
-  debugImplementation(libs.compose.tooling)
-  // UI Tests
+  androidTestImplementation(libs.androidx.espresso.intents)
   globalTestImplementation(libs.compose.test.junit)
   debugImplementation(libs.compose.test.manifest)
 
-  // --------- Kaspresso test framework ----------
+  // Kaspresso test framework
   globalTestImplementation(libs.kaspresso)
   globalTestImplementation(libs.kaspresso.compose)
 
-  // ----------       Robolectric     ------------
+  // Robolectric
   testImplementation(libs.robolectric)
 }
 
@@ -181,7 +193,13 @@ tasks.register("jacocoTestReport", JacocoReport::class) {
       )
 
   val debugTree =
-      fileTree("${project.layout.buildDirectory.get()}/tmp/kotlin-classes/debug") {
+      fileTree(project.layout.buildDirectory) {
+        include(
+            // AGP 9 compiles Kotlin with its built-in compiler, which writes here
+            "intermediates/built_in_kotlinc/debug/compileDebugKotlin/classes/**",
+            // Fallback for the AGP 8 layout
+            "tmp/kotlin-classes/debug/**",
+        )
         exclude(fileFilter)
       }
 
@@ -194,4 +212,8 @@ tasks.register("jacocoTestReport", JacocoReport::class) {
         include("outputs/code_coverage/debugAndroidTest/connected/*/coverage.ec")
       }
   )
+}
+
+configurations.forEach { configuration ->
+  configuration.exclude(group = "com.google.protobuf", module = "protobuf-lite")
 }
