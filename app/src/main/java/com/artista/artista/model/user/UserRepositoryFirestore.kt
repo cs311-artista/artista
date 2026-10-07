@@ -1,7 +1,7 @@
 package com.artista.artista.model.user
 
+import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.toObject
 import kotlinx.coroutines.tasks.await
 
 /** The Firestore collection containing application user profiles. */
@@ -40,8 +40,7 @@ class UserRepositoryFirestore(private val db: FirebaseFirestore) : UserRepositor
       throw NoSuchElementException("User '$userId' was not found")
     }
 
-    return document.toObject<User>()
-        ?: throw IllegalStateException("User '$userId' contains invalid data")
+    return documentToUser(document)
   }
 
   /**
@@ -74,5 +73,56 @@ class UserRepositoryFirestore(private val db: FirebaseFirestore) : UserRepositor
    */
   override suspend fun deleteUser(userId: String) {
     db.collection(USER_COLLECTION_PATH).document(userId).delete().await()
+  }
+
+  /**
+   * Converts a Firestore document into a `User`.
+   *
+   * @param document the Firestore document to convert
+   * @return the `user` represented by the document
+   * @throws IllegalStateException if required fields are missing or have invalid types
+   */
+  private fun documentToUser(document: DocumentSnapshot): User {
+    // The UID is required because it is the stable identity shared with Firebase Authentication.
+    val uid =
+        document.getString("uid")
+            ?: throw IllegalStateException("User document '${document.id}' is missing its UID")
+
+    // Preferences are stored as a nested map, so validate that structure before reading its fields.
+    val preferenceData =
+        document.get("preference") as? Map<*, *>
+            ?: throw IllegalStateException(
+                "User document '${document.id}' is missing its preferences"
+            )
+
+    // Validate every stored preference item before exposing it as a typed domain list.
+    fun readStringList(fieldName: String): List<String> {
+      // An absent preference means that the user has not selected any values for that category.
+      val value = preferenceData[fieldName] ?: return emptyList()
+      val values =
+          value as? List<*>
+              ?: throw IllegalStateException(
+                  "User document '${document.id}' has an invalid '$fieldName' preference"
+              )
+      return values.map { item ->
+        // Reject malformed values instead of allowing untyped Firestore data into the domain model.
+        item as? String
+            ?: throw IllegalStateException(
+                "User document '${document.id}' has a non-string '$fieldName' preference"
+            )
+      }
+    }
+
+    return User(
+        uid = uid,
+        // A username is optional in the domain model, so a missing field remains null.
+        userName = document.getString("userName"),
+        preference =
+            UserPreference(
+                artists = readStringList("artists"),
+                type = readStringList("type"),
+                timePeriod = readStringList("timePeriod"),
+            ),
+    )
   }
 }
