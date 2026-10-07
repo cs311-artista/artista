@@ -56,6 +56,18 @@ class SearchScreenViewModelTest {
   }
 
   @Test
+  fun onSearchSubmitted_handlesArtworksWithoutAnArtist() = runTest {
+    val viewModel = SearchScreenViewModel(fakeArtworkRepository(), fakeWikiRepository())
+
+    advanceUntilIdle()
+    viewModel.onSearchSubmitted("untitled")
+    advanceUntilIdle()
+
+    assertEquals(listOf("Untitled study"), viewModel.artworks.value.map { it.name })
+    assertEquals(null, viewModel.artworks.value.single().artistName)
+  }
+
+  @Test
   fun blankQueries_doNotProduceRecommendations() = runTest {
     val viewModel = SearchScreenViewModel(fakeArtworkRepository(), fakeWikiRepository())
 
@@ -92,6 +104,13 @@ class SearchScreenViewModelTest {
                     conceptionDate = null,
                     dimension = null,
                 ),
+                Artwork(
+                    name = "Untitled study",
+                    artistName = null,
+                    location = null,
+                    conceptionDate = null,
+                    dimension = null,
+                ),
             )
       }
 
@@ -113,10 +132,17 @@ class SearchScreenViewModelTest {
                         conceptionDate = null,
                         dimension = null,
                     ),
+                    Artwork(
+                        name = "Untitled study",
+                        artistName = null,
+                        location = null,
+                        conceptionDate = null,
+                        dimension = null,
+                    ),
                 )
                 .filter {
                   it.name.contains(query, ignoreCase = true) ||
-                      it.artistName.contains(query, ignoreCase = true)
+                      it.artistName?.contains(query, ignoreCase = true) == true
                 }
       }
 }

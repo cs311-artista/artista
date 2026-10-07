@@ -165,6 +165,6 @@ private fun ArtworkResults(artworks: List<Artwork>, modifier: Modifier = Modifie
 private fun ArtworkResult(artwork: Artwork) {
   ListItem(
       headlineContent = { Text(artwork.name, style = MaterialTheme.typography.titleMedium) },
-      supportingContent = { Text(artwork.artistName) },
+      supportingContent = { Text(artwork.artistName ?: "Unknown Artist") },
   )
 }

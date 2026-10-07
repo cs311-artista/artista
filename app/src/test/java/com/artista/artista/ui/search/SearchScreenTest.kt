@@ -9,6 +9,7 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
@@ -113,6 +114,22 @@ class SearchScreenTest {
     composeTestRule.onAllNodesWithTag("search_recommendation").assertCountEquals(0)
   }
 
+  @Test
+  fun searchResults_displayFallbackArtistWhenArtistIsMissing() = runTest {
+    val viewModel = SearchScreenViewModel(fakeArtworkRepository(), fakeWikiRepository())
+
+    advanceUntilIdle()
+    viewModel.onSearchSubmitted("untitled")
+    advanceUntilIdle()
+
+    composeTestRule.setContent {
+      MaterialTheme { SearchScreen(onTabSelected = {}, viewModel = viewModel) }
+    }
+
+    composeTestRule.onNodeWithText("Untitled study").assertIsDisplayed()
+    composeTestRule.onNodeWithText("Unknown Artist").assertIsDisplayed()
+  }
+
   private fun fakeArtworkRepository(): ArtworkRepository =
       object : ArtworkRepository {
         override suspend fun getSavedArtworks(): List<Artwork> =
@@ -127,6 +144,13 @@ class SearchScreenTest {
                 Artwork(
                     name = "Girl with a Pearl Earring",
                     artistName = "Johannes Vermeer",
+                    location = null,
+                    conceptionDate = null,
+                    dimension = null,
+                ),
+                Artwork(
+                    name = "Untitled study",
+                    artistName = null,
                     location = null,
                     conceptionDate = null,
                     dimension = null,
@@ -152,10 +176,17 @@ class SearchScreenTest {
                         conceptionDate = null,
                         dimension = null,
                     ),
+                    Artwork(
+                        name = "Untitled study",
+                        artistName = null,
+                        location = null,
+                        conceptionDate = null,
+                        dimension = null,
+                    ),
                 )
                 .filter {
                   it.name.contains(query, ignoreCase = true) ||
-                      it.artistName.contains(query, ignoreCase = true)
+                      it.artistName?.contains(query, ignoreCase = true) == true
                 }
       }
 }
