@@ -79,6 +79,8 @@ fun UserProfileScreen(
           modifier = Modifier.fillMaxWidth(),
           verticalArrangement = Arrangement.spacedBy(24.dp),
       ) {
+        // Styled like the buttons on purpose: the username will become editable on click (#55),
+        // which will also remove the read-only branch of ProfileField.
         ProfileField(
             text = uiState.username ?: stringResource(R.string.profile_username_placeholder),
             textModifier = Modifier.testTag(UserProfileTestTags.USERNAME),
