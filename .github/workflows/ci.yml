@@ -96,45 +96,62 @@ jobs:
           # To run the CI with debug information, add --info
           ./gradlew assemble lint --parallel --build-cache
 
+      # Set up Node.js for the Firebase CLI.
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Install Firebase CLI
+        run: npm install --global firebase-tools
+
       # Run Unit tests
       - name: Run Unit tests
         run: |
           # To run the CI with debug information, add --info
           ./gradlew check --parallel --build-cache
 
-      # Start Firebase Firestore emulator only
-      - name: Start Firebase Firestore emulator
+      # Start the Firebase emulators required by the connected tests.
+      - name: Start Firebase Auth and Firestore emulators
         env:
           FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
         run: |
-          set -euo pipefail
+          set -Eeuo pipefail
 
           if [ -z "$FIREBASE_PROJECT_ID" ]; then
             FIREBASE_PROJECT_ID="$(jq -r '.project_info.project_id' app/google-services.json)"
           fi
 
-          # Prevent stale processes from blocking the configured Firestore port.
-          fuser -k 8080/tcp 2>/dev/null || true
+          if [ -z "$FIREBASE_PROJECT_ID" ] || [ "$FIREBASE_PROJECT_ID" = "null" ]; then
+            echo "Firebase project ID is not configured."
+            exit 1
+          fi
 
-          npm install --global firebase-tools
+          for port in 8080 9099; do
+            fuser -k "${port}/tcp" 2>/dev/null || true
+          done
 
-          nohup firebase emulators:start \
-            --only firestore \
+          firebase emulators:start \
+            --only auth,firestore \
             --config firebase.json \
             --project "$FIREBASE_PROJECT_ID" \
+            --host 0.0.0.0 \
             > "$RUNNER_TEMP/firebase-emulator.log" 2>&1 &
 
-          echo $! > "$RUNNER_TEMP/firebase-emulator.pid"
+          emulator_pid=$!
+          echo "$emulator_pid" > "$RUNNER_TEMP/firebase-emulator.pid"
 
           for attempt in {1..30}; do
-            if curl --silent --fail \
-              "http://127.0.0.1:8080/emulator/v1/projects/$FIREBASE_PROJECT_ID/databases/(default)/documents" \
-              >/dev/null; then
-              echo "Firestore emulator is ready"
+            if nc -z 127.0.0.1 9099 && \
+              curl --silent --fail \
+                "http://127.0.0.1:8080/emulator/v1/projects/$FIREBASE_PROJECT_ID/databases/(default)/documents" \
+                >/dev/null; then
+              echo "Firebase Auth and Firestore emulators are ready"
               exit 0
             fi
 
-            if ! kill -0 "$(cat "$RUNNER_TEMP/firebase-emulator.pid")" 2>/dev/null; then
+            if ! kill -0 "$emulator_pid" 2>/dev/null; then
+              echo "Firebase emulator stopped unexpectedly:"
               cat "$RUNNER_TEMP/firebase-emulator.log"
               exit 1
             fi
@@ -142,6 +159,7 @@ jobs:
             sleep 2
           done
 
+          echo "Timed out waiting for Firebase Auth and Firestore emulators:"
           cat "$RUNNER_TEMP/firebase-emulator.log"
           exit 1
 
@@ -165,7 +183,9 @@ jobs:
             kill "$(cat "$RUNNER_TEMP/firebase-emulator.pid")" 2>/dev/null || true
           fi
 
-          fuser -k 8080/tcp 2>/dev/null || true
+          for port in 8080 9099; do
+            fuser -k "${port}/tcp" 2>/dev/null || true
+          done
 
           if [ -f "$RUNNER_TEMP/firebase-emulator.log" ]; then
             cat "$RUNNER_TEMP/firebase-emulator.log"
