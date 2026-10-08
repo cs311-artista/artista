@@ -52,9 +52,9 @@ jobs:
           java-version: "21"
 
       # Caching is a very useful part of a CI, as a workflow is executed in a clean environment every time,
-      # this means that one would need to re-download and re-process gradle files for every run. Which is very time consuming.
+      # this means that one would need to re-download and re-process Gradle files for every run. Which is very time-consuming.
       #
-      # To avoid that, we cache the the gradle folder to reuse it later.
+      # To avoid that, we cache the Gradle folder to reuse it later.
       - name: Gradle cache
         uses: gradle/actions/setup-gradle@v6
 
@@ -90,7 +90,7 @@ jobs:
         run: |
           ./gradlew ktfmtCheck
 
-      # This step runs gradle commands to build the application
+      # This step runs Gradle commands to build the application
       - name: Assemble
         run: |
           # To run the CI with debug information, add --info
@@ -101,6 +101,42 @@ jobs:
         run: |
           # To run the CI with debug information, add --info
           ./gradlew check --parallel --build-cache
+
+      # Start Firebase Firestore emulator only
+      - name: Start Firebase Firestore emulator
+        env:
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+        run: |
+          set -e
+
+          if [ -z "$FIREBASE_PROJECT_ID" ]; then
+            FIREBASE_PROJECT_ID=$(jq -r '.project_info.project_id' app/google-services.json)
+          fi
+
+          npm install --global firebase-tools
+
+          nohup firebase emulators:start \
+            --only firestore \
+            --project "$FIREBASE_PROJECT_ID" \
+            > "$RUNNER_TEMP/firebase-emulator.log" 2>&1 &
+
+          echo $! > "$RUNNER_TEMP/firebase-emulator.pid"
+
+          for attempt in {1..30}; do
+            if curl --silent --fail \
+              "http://127.0.0.1:8080/emulator/v1/projects/$FIREBASE_PROJECT_ID/databases/(default)/documents" \
+              >/dev/null; then
+              echo "Firestore emulator is ready"
+              break
+            fi
+
+            if [ "$attempt" -eq 30 ]; then
+              cat "$RUNNER_TEMP/firebase-emulator.log"
+              exit 1
+            fi
+
+            sleep 2
+          done
 
       # Run connected tests on the emulator
       - name: Run Connected tests
@@ -113,6 +149,18 @@ jobs:
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
           script: ./gradlew connectedCheck --parallel --build-cache
+
+      # Stop Firebase emulator
+      - name: Stop Firebase emulator
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/firebase-emulator.pid" ]; then
+              kill "$(cat "$RUNNER_TEMP/firebase-emulator.pid")" || true
+          fi
+
+          if [ -f "$RUNNER_TEMP/firebase-emulator.log" ]; then
+                  cat "$RUNNER_TEMP/firebase-emulator.log"
+          fi
 
       # This step generates the coverage report which will be uploaded to sonar
       - name: Generate Coverage Report
