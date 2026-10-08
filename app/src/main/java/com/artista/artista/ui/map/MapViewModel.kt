@@ -1,6 +1,7 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 package com.artista.artista.ui.map
 
+import android.location.Location
 import androidx.annotation.StringRes
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
@@ -9,6 +10,17 @@ import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
 import java.util.concurrent.Executor
+
+/** Provides the current device location to the map ViewModel. */
+fun interface LocationProvider {
+
+  /**
+   * Reads the current device location.
+   *
+   * @param onLocation Callback receiving the location, or null when unavailable.
+   */
+  fun getCurrentLocation(onLocation: (Location?) -> Unit)
+}
 
 /**
  * Stores the location state displayed by the map.
@@ -27,7 +39,9 @@ data class MapViewUiState(
  *
  * @author Felix Burchardt
  */
-class MapViewModel : ViewModel() {
+class MapViewModel(
+    private val locationProvider: LocationProvider? = null,
+) : ViewModel() {
 
   val uiState: MapViewUiState
     get() = _uiState.value
@@ -79,19 +93,23 @@ class MapViewModel : ViewModel() {
       return
     }
 
+    if (locationProvider != null) {
+      locationProvider.getCurrentLocation { updateFromLocation(it) }
+      return
+    }
+    acquireLocationFromGoogle(locationClient)
+  }
+
+  private fun updateFromLocation(location: Location?) {
+    if (location != null) updateUserLocation(UserLocation(location.latitude, location.longitude))
+    else setLocationError(R.string.map_location_unavailable_error)
+  }
+
+  private fun acquireLocationFromGoogle(locationClient: FusedLocationProviderClient) {
     try {
       locationClient
-          .getCurrentLocation(
-              Priority.PRIORITY_HIGH_ACCURACY,
-              CancellationTokenSource().token,
-          )
-          .addOnSuccessListener(DIRECT_EXECUTOR) { location ->
-            if (location != null) {
-              updateUserLocation(UserLocation(location.latitude, location.longitude))
-            } else {
-              setLocationError(R.string.map_location_unavailable_error)
-            }
-          }
+          .getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, CancellationTokenSource().token)
+          .addOnSuccessListener(DIRECT_EXECUTOR) { updateFromLocation(it) }
           .addOnFailureListener(DIRECT_EXECUTOR) {
             setLocationError(R.string.map_location_acquisition_error)
           }

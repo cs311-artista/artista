@@ -1,5 +1,6 @@
 package com.artista.artista.ui.map
 
+import android.location.Location
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
@@ -9,6 +10,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.artista.artista.ui.navigation.NavigationTestTags
 import com.artista.artista.ui.theme.ArtistaTheme
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -60,7 +62,45 @@ class MapScreenTest {
     composeTestRule.onNodeWithTag(NavigationTestTags.BOTTOM_NAVIGATION_MENU).assertIsDisplayed()
   }
 
+  /** Verifies that the map displays a marker at the device's current location. */
+  @Test
+  fun mapScreen_displaysMarkerAtDeviceLocation() {
+    val mapViewModel = MapViewModel { callback -> callback(mockDeviceLocation()) }
+    composeTestRule.setContent { ArtistaTheme { MapScreen(mapViewModel = mapViewModel) } }
+
+    composeTestRule.waitForIdle()
+
+    composeTestRule.onNodeWithTag(MapScreenTestTags.MAP).assertIsDisplayed()
+    assertEquals(
+        UserLocation(MOCK_LATITUDE, MOCK_LONGITUDE),
+        mapViewModel.uiState.userLocation,
+    )
+  }
+
+  /** Verifies that the marker is not positioned when the mocked device has no location. */
+  @Test
+  fun mapScreen_doesNotDisplayMarkerWhenDeviceLocationIsUnavailable() {
+    val mapViewModel = MapViewModel { callback -> callback(null) }
+    composeTestRule.setContent { ArtistaTheme { MapScreen(mapViewModel = mapViewModel) } }
+
+    composeTestRule.waitForIdle()
+
+    composeTestRule.onNodeWithTag(MapScreenTestTags.MAP).assertIsDisplayed()
+    assertEquals(null, mapViewModel.uiState.userLocation)
+  }
+
   private fun setMapScreenContent() {
     composeTestRule.setContent { ArtistaTheme { MapScreen() } }
   }
+
+  private companion object {
+    const val MOCK_LATITUDE = 46.5201
+    const val MOCK_LONGITUDE = 6.6332
+  }
+
+  private fun mockDeviceLocation(): Location =
+      Location("mock").apply {
+        latitude = MOCK_LATITUDE
+        longitude = MOCK_LONGITUDE
+      }
 }
