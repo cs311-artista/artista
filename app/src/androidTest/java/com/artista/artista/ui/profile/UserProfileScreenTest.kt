@@ -11,6 +11,7 @@ import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.artista.artista.R
 import com.artista.artista.model.user.User
 import com.artista.artista.model.user.UserPreference
 import com.artista.artista.ui.navigation.NavigationTestTags
@@ -51,7 +52,9 @@ class UserProfileScreenTest {
     val viewModel = UserProfileViewModel().apply { setUser(userNamed(null)) }
     setProfileContent(viewModel = viewModel)
 
-    composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME).assertTextEquals("USERNAME")
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.USERNAME)
+        .assertTextEquals(composeTestRule.activity.getString(R.string.profile_username_placeholder))
   }
 
   /** Verifies that the username of the user is displayed. */
@@ -81,10 +84,10 @@ class UserProfileScreenTest {
 
     composeTestRule
         .onNodeWithTag(UserProfileTestTags.PREFERENCES_BUTTON)
-        .assertTextContains("PREFERENCES (ARTIST)")
+        .assertTextContains(composeTestRule.activity.getString(R.string.profile_preferences))
     composeTestRule
         .onNodeWithTag(UserProfileTestTags.SAVED_ARTWORK_BUTTON)
-        .assertTextContains("SAVED ARTWORK")
+        .assertTextContains(composeTestRule.activity.getString(R.string.profile_saved_artwork))
   }
 
   /** Verifies that the profile tab is the one selected in the bottom navigation. */
