@@ -58,6 +58,7 @@ compose-material-icons-core = { group = "androidx.compose.material", name = "mat
 compose-activity = { group = "androidx.activity", name = "activity-compose", version.ref = "composeActivity" }
 compose-viewmodel = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-compose", version.ref = "composeViewModel" }
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
+androidx-compose-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended" }
 
 # Firebase
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
