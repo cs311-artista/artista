@@ -2,4 +2,7 @@
     <string name="app_name">Artista</string>
     <string name="title_activity_main">MainActivity</string>
     <string name="title_activity_second">SecondActivity</string>
+    <string name="map_location_permission_error">Location permission is required to show your position.</string>
+    <string name="map_location_unavailable_error">Current location is unavailable.</string>
+    <string name="map_location_acquisition_error">Unable to read current location.</string>
 </resources>
