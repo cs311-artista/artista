@@ -16,8 +16,10 @@ composeActivity = "1.13.0"
 composeViewModel = "2.11.0"
 navigationCompose = "2.9.5"
 lifecycleRuntimeKtx = "2.11.0"
+mapsCompose = "9.0.0"
+playServicesLocation = "21.3.0"
 
-# Firebase and Google authentication
+# Firebase
 # Every com.google.firebase artifact is versioned by this BOM. KTX artifacts were removed
 # from the BOM in 34.0.0 - their APIs now live in the main artifacts.
 # This had to be downgraded to match a compatible Kotlin version.
@@ -76,6 +78,10 @@ compose-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifes
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
 androidx-espresso-intents = { group = "androidx.test.espresso", name = "espresso-intents", version.ref = "espressoIntents" }
+
+# Google Maps
+maps-compose = { group = "com.google.maps.android", name = "maps-compose", version.ref = "mapsCompose" }
+play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playServicesLocation" }
 
 # Additional test libraries
 kaspresso = { group = "com.kaspersky.android-components", name = "kaspresso", version.ref = "kaspresso" }
