@@ -62,9 +62,9 @@ class MapScreenTest {
     composeTestRule.onNodeWithTag(NavigationTestTags.BOTTOM_NAVIGATION_MENU).assertIsDisplayed()
   }
 
-  /** Verifies that the map displays a marker at the device's current location. */
+  /** Verifies that the map get the device's current location properly from the ViewModel. */
   @Test
-  fun mapScreen_displaysMarkerAtDeviceLocation() {
+  fun mapScreen_getsLocationProperlyFromViewModel() {
     val mapViewModel = MapViewModel { callback -> callback(mockDeviceLocation()) }
     composeTestRule.setContent { ArtistaTheme { MapScreen(mapViewModel = mapViewModel) } }
 

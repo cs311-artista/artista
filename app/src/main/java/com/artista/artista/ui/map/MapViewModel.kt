@@ -128,7 +128,7 @@ class MapViewModel(
  *
  * @property latitude Latitude in degrees.
  * @property longitude Longitude in degrees.
- * @author Felix Felix Burchardt
+ * @author Felix Burchardt
  */
 data class UserLocation(
     val latitude: Double,
