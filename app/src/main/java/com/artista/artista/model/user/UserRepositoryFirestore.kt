@@ -27,7 +27,14 @@ class UserRepositoryFirestore(
    */
   override suspend fun createUser(user: User) {
     // Using the authentication UID as the document ID keeps Auth and Firestore identities aligned.
-    db.collection(collectionPath).document(user.uid).set(user).await()
+    val documentReference = db.collection(collectionPath).document(user.uid)
+    val document = documentReference.get().await()
+    if (document.exists()) {
+      throw IllegalStateException("User '${user.uid}' already exists")
+    }
+
+    // Only create the profile after confirming that the UID is not already stored.
+    documentReference.set(user).await()
   }
 
   /**

@@ -12,6 +12,7 @@ interface UserRepository {
    * Creates a new User in the repository.
    *
    * @param user The User object to create.
+   * @throws Exception if the user-id is already taken.
    */
   suspend fun createUser(user: User)
 
