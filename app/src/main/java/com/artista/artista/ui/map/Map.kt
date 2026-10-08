@@ -27,7 +27,6 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.artista.artista.ui.navigation.BottomNavigationMenu
-import com.artista.artista.ui.navigation.NavigationTestTags
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaTheme
 import com.google.android.gms.location.LocationServices
@@ -141,8 +140,7 @@ fun MapScreen(
     }
 
     BottomNavigationMenu(
-        modifier =
-            Modifier.align(Alignment.BottomCenter),
+        modifier = Modifier.align(Alignment.BottomCenter),
         selectedTab = Tab.Map,
         onTabSelected = { tab -> onNavigationBarTabSelected(tab) },
     )
