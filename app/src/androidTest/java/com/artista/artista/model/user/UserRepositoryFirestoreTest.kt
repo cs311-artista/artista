@@ -2,6 +2,8 @@ package com.artista.artista.model.user
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.artista.artista.utils.FirebaseEmulatedTest
+import com.artista.artista.utils.FirebaseEmulator
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -91,10 +93,66 @@ class UserRepositoryFirestoreTest : FirebaseEmulatedTest() {
     assertRepositoryThrows { repository.updateUser(testUserId, userWith(uid = testUserId)) }
   }
 
+  /** Checks that updating a user with a different identifier throws an exception. */
+  @Test
+  fun updateUserThrowsWhenUserIdDoesNotMatchReplacementUserId() = runTest {
+    val replacementUser = userWith(uid = "$testUserId-replacement")
+
+    assertRepositoryThrows { repository.updateUser(testUserId, replacementUser) }
+  }
+
   /** Checks that deleting an unknown identifier reports a missing user. */
   @Test
   fun deleteUserThrowsWhenUserDoesNotExist() = runTest {
     assertRepositoryThrows { repository.deleteUser(testUserId) }
+  }
+
+  /** Checks that reading a document without a UID throws an exception. */
+  @Test
+  fun getUserThrowsWhenStoredUserIsMissingUid() = runTest {
+    seedRawUserDocument(
+        mapOf(
+            "userName" to "Malformed User",
+            "preference" to validPreferenceData(),
+        )
+    )
+
+    assertRepositoryThrows { repository.getUser(testUserId) }
+  }
+
+  /** Checks that reading a document without preferences throws an exception. */
+  @Test
+  fun getUserThrowsWhenStoredUserIsMissingPreferences() = runTest {
+    seedRawUserDocument(mapOf("uid" to testUserId, "userName" to "Malformed User"))
+
+    assertRepositoryThrows { repository.getUser(testUserId) }
+  }
+
+  /** Checks that a preference field with an invalid value type throws an exception. */
+  @Test
+  fun getUserThrowsWhenPreferenceFieldHasInvalidType() = runTest {
+    seedRawUserDocument(
+        mapOf(
+            "uid" to testUserId,
+            "preference" to validPreferenceData().apply { this["artists"] = "not-a-list" },
+        )
+    )
+
+    assertRepositoryThrows { repository.getUser(testUserId) }
+  }
+
+  /** Checks that a preference list containing a non-string value throws an exception. */
+  @Test
+  fun getUserThrowsWhenPreferenceListContainsNonStringValue() = runTest {
+    seedRawUserDocument(
+        mapOf(
+            "uid" to testUserId,
+            "preference" to
+                validPreferenceData().apply { this["artists"] = listOf("Van Gogh", 42) },
+        )
+    )
+
+    assertRepositoryThrows { repository.getUser(testUserId) }
   }
 
   /**
@@ -136,5 +194,35 @@ class UserRepositoryFirestoreTest : FirebaseEmulatedTest() {
                   type = types,
                   timePeriod = timePeriods,
               ),
+      )
+
+  /**
+   * Helper function that seeds a raw Firestore document for malformed-data tests.
+   *
+   * It bypasses the repository so tests can provide malformed-data that a valid [User] cannot have.
+   *
+   * @param data the fields to store in the test document.
+   */
+  private suspend fun seedRawUserDocument(data: Map<String, Any>) {
+    FirebaseEmulator.firestore
+        .collection(USER_COLLECTION_PATH)
+        .document(testUserId)
+        .set(data)
+        .await()
+  }
+
+  /**
+   * Helper function that creates valid raw preference data.
+   *
+   * Tests copy and modify the returned map to test specific malformed preference throw or behave as
+   * expected.
+   *
+   * @return a mutable preference map that individual tests can corrupt.
+   */
+  private fun validPreferenceData(): MutableMap<String, Any> =
+      mutableMapOf(
+          "artists" to listOf("Van Gogh"),
+          "type" to listOf("Drawing"),
+          "timePeriod" to listOf("19th century"),
       )
 }
