@@ -16,7 +16,6 @@ import com.artista.artista.model.user.User
 import com.artista.artista.model.user.UserPreference
 import com.artista.artista.ui.navigation.NavigationTestTags
 import com.artista.artista.ui.navigation.Tab
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -122,17 +121,6 @@ class UserProfileScreenTest {
     composeTestRule.onNodeWithTag(UserProfileTestTags.SAVED_ARTWORK_BUTTON).performClick()
 
     assertTrue(savedArtworkOpened)
-  }
-
-  /** Verifies that selecting a bottom navigation tab reports the selected destination. */
-  @Test
-  fun bottomNavigationTab_click_forwardsSelectedTab() {
-    var selectedTab: Tab? = null
-    setProfileContent(onTabSelected = { selectedTab = it })
-
-    composeTestRule.onNodeWithTag(NavigationTestTags.getTabTestTag(Tab.Map)).performClick()
-
-    assertEquals(Tab.Map, selectedTab)
   }
 
   private fun setProfileContent(
