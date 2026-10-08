@@ -44,7 +44,8 @@ import com.google.maps.android.compose.rememberCameraPositionState
  * @author Felix Burchardt
  */
 object MapScreenTestTags {
-  // todo add tests tags when connected testing becomes feasible
+  /** Tag identifying the Google Map surface. */
+  const val MAP = "map_surface"
 }
 
 private val defaultMapLocation = LatLng(DEFAULT_MAP_LATITUDE, DEFAULT_MAP_LONGITUDE)
@@ -128,7 +129,7 @@ fun MapScreen(
 
   Box(modifier = Modifier.fillMaxSize()) {
     GoogleMap(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize().testTag(MapScreenTestTags.MAP),
         cameraPositionState = cameraPositionState,
     ) {
       userLocation?.let {
@@ -141,8 +142,7 @@ fun MapScreen(
 
     BottomNavigationMenu(
         modifier =
-            Modifier.align(Alignment.BottomCenter)
-                .testTag(NavigationTestTags.BOTTOM_NAVIGATION_MENU),
+            Modifier.align(Alignment.BottomCenter),
         selectedTab = Tab.Map,
         onTabSelected = { tab -> onNavigationBarTabSelected(tab) },
     )
