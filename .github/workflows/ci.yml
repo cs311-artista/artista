@@ -135,7 +135,6 @@ jobs:
             --only auth,firestore \
             --config firebase.json \
             --project "$FIREBASE_PROJECT_ID" \
-            --host 0.0.0.0 \
             > "$RUNNER_TEMP/firebase-emulator.log" 2>&1 &
 
           emulator_pid=$!
