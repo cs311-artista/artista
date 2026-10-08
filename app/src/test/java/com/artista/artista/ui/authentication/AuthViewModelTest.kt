@@ -31,6 +31,12 @@ class AuthViewModelTest {
 
   @get:Rule val mainDispatcherRule = MainDispatcherRule()
 
+  private val userId = "user-1"
+  private val token1 = "token-1"
+  private val token2 = "token-2"
+  private val signInErrorMessage = "boom"
+  private val signOutErrorMessage = "sign-out failed"
+
   private lateinit var repository: FakeAuthRepository
   private lateinit var viewModel: AuthViewModel
 
@@ -53,7 +59,7 @@ class AuthViewModelTest {
   fun uiStateTracksAuthStateChanges() {
     runTest {
       givenSignedInUser()
-      assertEquals("user-1", viewModel.uiState.value.user?.uid)
+      assertEquals(userId, viewModel.uiState.value.user?.uid)
 
       repository.setAuthState(null)
       advanceUntilIdle()
@@ -64,12 +70,12 @@ class AuthViewModelTest {
   @Test
   fun signInOnSuccessSignsInForwardsTokenAndEmitsNoEvent() {
     runTest {
-      repository.user = FakeAuthUser("user-1")
+      repository.user = FakeAuthUser(userId)
       val events = collectEvents()
-      viewModel.signIn("token-123")
+      viewModel.signIn(token1)
       advanceUntilIdle()
-      assertEquals("user-1", viewModel.uiState.value.user?.uid)
-      assertEquals("token-123", repository.lastIdToken)
+      assertEquals(userId, viewModel.uiState.value.user?.uid)
+      assertEquals(token1, repository.lastIdToken)
       assertTrue(events.isEmpty())
     }
   }
@@ -77,7 +83,7 @@ class AuthViewModelTest {
   @Test
   fun signInTogglesLoadingAroundTheOperation() {
     runTest {
-      viewModel.signIn("token")
+      viewModel.signIn(token1)
       assertTrue(viewModel.uiState.value.isLoading)
 
       advanceUntilIdle()
@@ -88,8 +94,8 @@ class AuthViewModelTest {
   @Test
   fun signInLeavesTheUserSignedOutOnFailure() {
     runTest {
-      repository.signInError = RuntimeException("boom")
-      viewModel.signIn("token")
+      repository.signInError = RuntimeException(signInErrorMessage)
+      viewModel.signIn(token1)
       advanceUntilIdle()
       assertNull(viewModel.uiState.value.user)
       assertFalse(viewModel.uiState.value.isLoading)
@@ -99,24 +105,24 @@ class AuthViewModelTest {
   @Test
   fun signInEmitsErrorEventWithMessageOnFailure() {
     runTest {
-      repository.signInError = RuntimeException("boom")
+      repository.signInError = RuntimeException(signInErrorMessage)
       val events = collectEvents()
-      viewModel.signIn("token")
+      viewModel.signIn(token1)
       advanceUntilIdle()
       assertEquals(1, events.size)
       val error = events.first() as AuthUiEvent.ShowError
-      assertEquals("boom", error.message)
+      assertEquals(signInErrorMessage, error.message)
     }
   }
 
   @Test
   fun signInIsIgnoredWhileAlreadyInProgress() {
     runTest {
-      viewModel.signIn("token-1")
-      viewModel.signIn("token-2")
+      viewModel.signIn(token1)
+      viewModel.signIn(token2)
       advanceUntilIdle()
       assertEquals(1, repository.signInCallCount)
-      assertEquals("token-1", repository.lastIdToken)
+      assertEquals(token1, repository.lastIdToken)
     }
   }
 
@@ -124,7 +130,7 @@ class AuthViewModelTest {
   fun signInIsIgnoredWhenAlreadySignedIn() {
     runTest {
       givenSignedInUser()
-      viewModel.signIn("token")
+      viewModel.signIn(token1)
       advanceUntilIdle()
       assertEquals(0, repository.signInCallCount)
     }
@@ -133,17 +139,17 @@ class AuthViewModelTest {
   @Test
   fun signInRetrySucceedsAfterAFailure() {
     runTest {
-      repository.signInError = RuntimeException("boom")
-      viewModel.signIn("token-1")
+      repository.signInError = RuntimeException(signInErrorMessage)
+      viewModel.signIn(token1)
       advanceUntilIdle()
       assertNull(viewModel.uiState.value.user)
 
       repository.signInError = null
-      repository.user = FakeAuthUser("user-1")
-      viewModel.signIn("token-2")
+      repository.user = FakeAuthUser(userId)
+      viewModel.signIn(token2)
       advanceUntilIdle()
-      assertEquals("user-1", viewModel.uiState.value.user?.uid)
-      assertEquals("token-2", repository.lastIdToken)
+      assertEquals(userId, viewModel.uiState.value.user?.uid)
+      assertEquals(token2, repository.lastIdToken)
       assertEquals(2, repository.signInCallCount)
     }
   }
@@ -185,21 +191,21 @@ class AuthViewModelTest {
   fun signOutKeepsUserSignedInAndEmitsErrorOnFailure() {
     runTest {
       givenSignedInUser()
-      repository.signOutError = RuntimeException("sign-out failed")
+      repository.signOutError = RuntimeException(signOutErrorMessage)
       val events = collectEvents()
       viewModel.signOut()
       advanceUntilIdle()
-      assertEquals("user-1", viewModel.uiState.value.user?.uid)
+      assertEquals(userId, viewModel.uiState.value.user?.uid)
       assertEquals(1, events.size)
       val error = events.first() as AuthUiEvent.ShowError
-      assertEquals("sign-out failed", error.message)
+      assertEquals(signOutErrorMessage, error.message)
     }
   }
 
   @Test
   fun signOutIsIgnoredWhileAnOperationIsInProgress() {
     runTest {
-      viewModel.signIn("token")
+      viewModel.signIn(token1)
       viewModel.signOut()
       advanceUntilIdle()
       assertEquals(0, repository.signOutCallCount)
@@ -210,10 +216,10 @@ class AuthViewModelTest {
   fun signOutRetrySucceedsAfterAFailure() {
     runTest {
       givenSignedInUser()
-      repository.signOutError = RuntimeException("sign-out failed")
+      repository.signOutError = RuntimeException(signOutErrorMessage)
       viewModel.signOut()
       advanceUntilIdle()
-      assertEquals("user-1", viewModel.uiState.value.user?.uid)
+      assertEquals(userId, viewModel.uiState.value.user?.uid)
 
       repository.signOutError = null
       viewModel.signOut()
@@ -226,9 +232,9 @@ class AuthViewModelTest {
   @Test
   fun errorEventsAreNotReplayedToLateCollectors() {
     runTest {
-      repository.signInError = RuntimeException("boom")
+      repository.signInError = RuntimeException(signInErrorMessage)
       val events = collectEvents()
-      viewModel.signIn("token")
+      viewModel.signIn(token1)
       advanceUntilIdle()
       assertEquals(1, events.size)
 
@@ -241,19 +247,19 @@ class AuthViewModelTest {
   @Test
   fun signInSignOutSignInCycleStaysConsistent() {
     runTest {
-      repository.user = FakeAuthUser("user-1")
-      viewModel.signIn("token-1")
+      repository.user = FakeAuthUser(userId)
+      viewModel.signIn(token1)
       advanceUntilIdle()
-      assertEquals("user-1", viewModel.uiState.value.user?.uid)
+      assertEquals(userId, viewModel.uiState.value.user?.uid)
 
       viewModel.signOut()
       advanceUntilIdle()
       assertNull(viewModel.uiState.value.user)
 
-      viewModel.signIn("token-2")
+      viewModel.signIn(token2)
       advanceUntilIdle()
-      assertEquals("user-1", viewModel.uiState.value.user?.uid)
-      assertEquals("token-2", repository.lastIdToken)
+      assertEquals(userId, viewModel.uiState.value.user?.uid)
+      assertEquals(token2, repository.lastIdToken)
     }
   }
 
@@ -264,7 +270,7 @@ class AuthViewModelTest {
    * @param uid the uid of the signed-in user
    * @author timo-by
    */
-  private fun TestScope.givenSignedInUser(uid: String = "user-1") {
+  private fun TestScope.givenSignedInUser(uid: String = userId) {
     repository = FakeAuthRepository(FakeAuthUser(uid))
     viewModel = AuthViewModel(repository)
     advanceUntilIdle()
