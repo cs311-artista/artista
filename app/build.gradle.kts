@@ -184,6 +184,7 @@ dependencies {
 
   // Robolectric
   testImplementation(libs.robolectric)
+  testImplementation(libs.kotlinx.coroutines.test)
 }
 
 tasks.withType<Test> {
