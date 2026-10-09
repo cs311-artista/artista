@@ -44,8 +44,20 @@ import com.artista.artista.model.artwork.Artwork
 import java.text.DateFormat
 
 /**
+ * Provides stable semantics test tags for ArtworkScreen UI tests.
+ *
+ * @author hixeum
+ */
+object ArtworkTestTags {
+    const val ARTWORK_SCREEN = "artwork_screen"
+    const val SAVE_BUTTON = "artwork_save_button"
+    const val BACK_BUTTON = "artwork_back_button"
+    const val ARTWORK_TITLE = "artwork_title"
+}
+
+/**
  * Displays the detailed view for an artwork, allowing the user to view its metadata and bookmark
- * it[cite: 1].
+ * it.
  *
  * Synchronizes the passed [artwork] instance with the [artworkScreenViewModel] to display and
  * toggle its persistent bookmark status in Firestore/local storage.
