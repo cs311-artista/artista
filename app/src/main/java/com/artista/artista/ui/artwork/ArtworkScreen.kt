@@ -1,7 +1,6 @@
 // Co-authored-by: Gemini <gemini@google.com>
 package com.artista.artista.ui.artwork
 
-import android.annotation.SuppressLint
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -38,16 +37,11 @@ import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
-import com.artista.artista.model.artwork.ArtworkRepository
-import com.artista.artista.ui.theme.ArtistaTheme
 import java.text.DateFormat
-import java.util.Calendar
-import java.util.Date
 
 /**
  * Displays the detailed view for an artwork, allowing the user to view its metadata and bookmark
@@ -233,16 +227,17 @@ fun ArtworkFieldItem(
   }
 }
 
-///**
-// * Compose preview displaying a sample Leonardo da Vinci artwork entry inside [ArtworkScreen][cite:
+/// **
+// * Compose preview displaying a sample Leonardo da Vinci artwork entry inside
+// [ArtworkScreen][cite:
 // * 1].
 // *
 // * @author hixeum
 // */
-//@SuppressLint("ViewModelConstructorInComposable")
-//@Preview
-//@Composable
-//fun ArtworkPreview() {
+// @SuppressLint("ViewModelConstructorInComposable")
+// @Preview
+// @Composable
+// fun ArtworkPreview() {
 //  val monaLisaDate: Date =
 //      Calendar.getInstance()
 //          .apply {
@@ -278,4 +273,4 @@ fun ArtworkFieldItem(
 //        artworkScreenViewModel = ArtworkScreenViewModel(stubRepo),
 //    )
 //  }
-//}
+// }
