@@ -233,49 +233,49 @@ fun ArtworkFieldItem(
   }
 }
 
-/**
- * Compose preview displaying a sample Leonardo da Vinci artwork entry inside [ArtworkScreen][cite:
- * 1].
- *
- * @author hixeum
- */
-@SuppressLint("ViewModelConstructorInComposable")
-@Preview
-@Composable
-fun ArtworkPreview() {
-  val monaLisaDate: Date =
-      Calendar.getInstance()
-          .apply {
-            clear()
-            set(Calendar.YEAR, 1503)
-          }
-          .time
-
-  val sampleArtwork =
-      Artwork(
-          name = "Mona Lisa",
-          artistName = "Leonardo da Vinci",
-          description = "A portrait of Lisa Gherardini, wife of Francesco del Giocondo.",
-          conceptionDate = monaLisaDate,
-          museum = "Musée du Louvre",
-          location = null,
-          dimension = null,
-      )
-
-  // Stubbed implementation to satisfy ViewModel construction in Compose Preview
-  val stubRepo =
-      object : ArtworkRepository {
-        override suspend fun isArtworkSaved(artworkName: String) = true
-
-        override suspend fun saveArtwork(artwork: Artwork) {}
-
-        override suspend fun removeArtwork(artworkName: String) {}
-      }
-
-  ArtistaTheme {
-    ArtworkScreen(
-        artwork = sampleArtwork,
-        artworkScreenViewModel = ArtworkScreenViewModel(stubRepo),
-    )
-  }
-}
+///**
+// * Compose preview displaying a sample Leonardo da Vinci artwork entry inside [ArtworkScreen][cite:
+// * 1].
+// *
+// * @author hixeum
+// */
+//@SuppressLint("ViewModelConstructorInComposable")
+//@Preview
+//@Composable
+//fun ArtworkPreview() {
+//  val monaLisaDate: Date =
+//      Calendar.getInstance()
+//          .apply {
+//            clear()
+//            set(Calendar.YEAR, 1503)
+//          }
+//          .time
+//
+//  val sampleArtwork =
+//      Artwork(
+//          name = "Mona Lisa",
+//          artistName = "Leonardo da Vinci",
+//          description = "A portrait of Lisa Gherardini, wife of Francesco del Giocondo.",
+//          conceptionDate = monaLisaDate,
+//          museum = "Musée du Louvre",
+//          location = null,
+//          dimension = null,
+//      )
+//
+//  // Stubbed implementation to satisfy ViewModel construction in Compose Preview
+//  val stubRepo =
+//      object : ArtworkRepository {
+//        override suspend fun isArtworkSaved(artworkName: String) = true
+//
+//        override suspend fun saveArtwork(artwork: Artwork) {}
+//
+//        override suspend fun removeArtwork(artworkName: String) {}
+//      }
+//
+//  ArtistaTheme {
+//    ArtworkScreen(
+//        artwork = sampleArtwork,
+//        artworkScreenViewModel = ArtworkScreenViewModel(stubRepo),
+//    )
+//  }
+//}
