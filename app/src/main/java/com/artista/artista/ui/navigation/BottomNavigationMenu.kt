@@ -50,14 +50,15 @@ private val tabs = listOf(Tab.Overview, Tab.Map, Tab.Profile)
 /**
  * Displays the application's top-level destinations in a bottom navigation bar.
  *
- * @param selectedTab The destination currently selected by the user.
+ * @param selectedTab The destination currently selected by the user, or null when the current
+ *   screen is not a bottom-navigation destination.
  * @param onTabSelected Callback invoked with the destination selected by the user.
  * @param modifier Modifier applied to the navigation bar.
  * @author patrickmcdan
  */
 @Composable
 fun BottomNavigationMenu(
-    selectedTab: Tab,
+    selectedTab: Tab?,
     onTabSelected: (Tab) -> Unit,
     modifier: Modifier = Modifier,
 ) {
