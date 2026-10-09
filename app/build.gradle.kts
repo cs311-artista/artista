@@ -1,3 +1,5 @@
+import java.io.FileInputStream
+import java.util.Properties
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -13,6 +15,16 @@ android {
   namespace = "com.artista.artista"
   compileSdk = 37
 
+  // Load the API key from local.properies
+  val localProperties = Properties()
+  val localPropertiesFile = rootProject.file("local.properties")
+  if (localPropertiesFile.exists()) {
+    localProperties.load(FileInputStream(localPropertiesFile))
+  }
+
+  // Load Google Maps API key
+  val mapsApiKey: String = localProperties.getProperty("MAPS_API_KEY") ?: ""
+
   defaultConfig {
     applicationId = "com.artista.artista"
     minSdk = 28
@@ -22,6 +34,9 @@ android {
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     vectorDrawables { useSupportLibrary = true }
+
+    // Placeholder GoogleMaps API key for Manifest merger
+    manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
   }
 
   buildTypes {
@@ -159,7 +174,12 @@ dependencies {
   globalTestImplementation(libs.compose.test.junit)
   debugImplementation(libs.compose.test.manifest)
 
-  // Kaspresso test framework
+  // ---------------- Google Maps Compose ----------------
+  // Compose integration for the Google Maps SDK.
+  implementation(libs.maps.compose)
+  implementation(libs.play.services.location)
+
+  // --------- Kaspresso test framework ----------
   globalTestImplementation(libs.kaspresso)
   globalTestImplementation(libs.kaspresso.compose)
 

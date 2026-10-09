@@ -52,9 +52,9 @@ jobs:
           java-version: "21"
 
       # Caching is a very useful part of a CI, as a workflow is executed in a clean environment every time,
-      # this means that one would need to re-download and re-process gradle files for every run. Which is very time consuming.
+      # this means that one would need to re-download and re-process Gradle files for every run. Which is very time-consuming.
       #
-      # To avoid that, we cache the the gradle folder to reuse it later.
+      # To avoid that, we cache the Gradle folder to reuse it later.
       - name: Gradle cache
         uses: gradle/actions/setup-gradle@v6
 
@@ -90,17 +90,83 @@ jobs:
         run: |
           ./gradlew ktfmtCheck
 
-      # This step runs gradle commands to build the application
+      # This step runs Gradle commands to build the application
       - name: Assemble
         run: |
           # To run the CI with debug information, add --info
           ./gradlew assemble lint --parallel --build-cache
+
+      # Set up Node.js before installing and running the Firebase CLI.
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      # Install the Firebase CLI used to start the local emulators.
+      - name: Install Firebase CLI
+        run: npm install --global firebase-tools
+
+      # Cache emulator binaries to avoid downloading them on every CI run.
+      - name: Cache Firebase emulator binaries
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/firebase/emulators
+          key: firebase-emulators-${{ runner.os }}-auth-firestore-v1
 
       # Run Unit tests
       - name: Run Unit tests
         run: |
           # To run the CI with debug information, add --info
           ./gradlew check --parallel --build-cache
+
+      # Start the Firebase emulators required by the connected tests.
+      - name: Start Firebase Auth and Firestore emulators
+        env:
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+        run: |
+          set -Eeuo pipefail
+
+          if [ -z "$FIREBASE_PROJECT_ID" ]; then
+            FIREBASE_PROJECT_ID="$(jq -r '.project_info.project_id' app/google-services.json)"
+          fi
+
+          if [ -z "$FIREBASE_PROJECT_ID" ] || [ "$FIREBASE_PROJECT_ID" = "null" ]; then
+            echo "Firebase project ID is not configured."
+            exit 1
+          fi
+
+          for port in 8080 9099; do
+            fuser -k "${port}/tcp" 2>/dev/null || true
+          done
+
+          firebase emulators:start \
+            --only auth,firestore \
+            --config firebase.json \
+            --project "$FIREBASE_PROJECT_ID" \
+            > "$RUNNER_TEMP/firebase-emulator.log" 2>&1 &
+
+          emulator_pid=$!
+          echo "$emulator_pid" > "$RUNNER_TEMP/firebase-emulator.pid"
+
+          for attempt in {1..50}; do
+            if nc -z -w 1 127.0.0.1 9099 >/dev/null 2>&1 && \
+              nc -z -w 1 127.0.0.1 8080 >/dev/null 2>&1; then
+              echo "Firebase Auth and Firestore emulators are ready"
+              exit 0
+            fi
+
+            if ! kill -0 "$emulator_pid" 2>/dev/null; then
+              echo "Firebase emulator stopped unexpectedly:"
+              cat "$RUNNER_TEMP/firebase-emulator.log"
+              exit 1
+            fi
+
+            sleep 2
+          done
+
+          echo "Timed out waiting for Firebase Auth and Firestore emulators:"
+          cat "$RUNNER_TEMP/firebase-emulator.log"
+          exit 1
 
       # Run connected tests on the emulator
       - name: Run Connected tests
@@ -113,6 +179,22 @@ jobs:
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
           script: ./gradlew connectedCheck --parallel --build-cache
+
+      # Stop Firebase emulator
+      - name: Stop Firebase emulator
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/firebase-emulator.pid" ]; then
+            kill "$(cat "$RUNNER_TEMP/firebase-emulator.pid")" 2>/dev/null || true
+          fi
+
+          for port in 8080 9099; do
+            fuser -k "${port}/tcp" 2>/dev/null || true
+          done
+
+          if [ -f "$RUNNER_TEMP/firebase-emulator.log" ]; then
+            cat "$RUNNER_TEMP/firebase-emulator.log"
+          fi
 
       # This step generates the coverage report which will be uploaded to sonar
       - name: Generate Coverage Report

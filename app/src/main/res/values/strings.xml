@@ -21,4 +21,12 @@
 
     <string name="artwork_location_format">%1$.5f, %2$.5f</string>
     <string name="back">Back</string>
+    <!-- User profile screen -->
+    <string name="profile_picture_placeholder">Profile\nPicture</string>
+    <string name="profile_username_placeholder">USERNAME</string>
+    <string name="profile_preferences">ARTIST PREFERENCES</string>
+    <string name="profile_saved_artwork">SAVED ARTWORK</string>
+    <string name="map_location_permission_error">Location permission is required to show your position.</string>
+    <string name="map_location_unavailable_error">Current location is unavailable.</string>
+    <string name="map_location_acquisition_error">Unable to read current location.</string>
 </resources>
