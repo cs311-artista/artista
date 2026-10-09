@@ -15,13 +15,13 @@ import kotlinx.coroutines.launch
 /**
  * Immutable UI state model for the artwork details screen[cite: 1].
  *
- * @author hixeum
  * @property artwork the active artwork model currently viewed, or null if uninitialized[cite: 1]
  * @property isSaved true if this artwork is currently bookmarked in local storage[cite: 1]
+ * @author hixeum
  */
 data class ArtworkScreenUIState(
-  val artwork: Artwork? = null,
-  val isSaved: Boolean = false,
+    val artwork: Artwork? = null,
+    val isSaved: Boolean = false,
 )
 
 /**
@@ -29,11 +29,12 @@ data class ArtworkScreenUIState(
  *
  * Operates strictly with [ArtworkRepository] abstractions to preserve MVVM boundaries[cite: 1].
  *
+ * @param savedArtworkRepository repository responsible for checking, saving, and deleting
+ *   artworks[cite: 1]
  * @author hixeum
- * @param savedArtworkRepository repository responsible for checking, saving, and deleting artworks[cite: 1]
  */
 class ArtworkScreenViewModel(
-  private val savedArtworkRepository: ArtworkRepository,
+    private val savedArtworkRepository: ArtworkRepository,
 ) : ViewModel() {
 
   private val _uiState = MutableStateFlow(ArtworkScreenUIState())
@@ -42,7 +43,8 @@ class ArtworkScreenViewModel(
   val uiState: StateFlow<ArtworkScreenUIState> = _uiState.asStateFlow()
 
   /**
-   * Sets the target artwork and verifies its persistence status asynchronously against the repository[cite: 1].
+   * Sets the target artwork and verifies its persistence status asynchronously against the
+   * repository[cite: 1].
    *
    * @param artwork the artwork entity to display and monitor[cite: 1]
    */
@@ -56,8 +58,8 @@ class ArtworkScreenViewModel(
   /**
    * Toggles the bookmark status of the current artwork with an optimistic update[cite: 1].
    *
-   * Flips the visual bookmark state immediately for responsive UI, rolling back only
-   * if the repository persistence operation fails[cite: 1].
+   * Flips the visual bookmark state immediately for responsive UI, rolling back only if the
+   * repository persistence operation fails[cite: 1].
    */
   fun toggleSaveArtwork() {
     val artwork = _uiState.value.artwork ?: return
@@ -83,22 +85,23 @@ class ArtworkScreenViewModel(
 
   companion object {
     /**
-     * Creates a [ViewModelProvider.Factory] instance supplying dependencies to [ArtworkScreenViewModel][cite: 1].
+     * Creates a [ViewModelProvider.Factory] instance supplying dependencies to
+     * [ArtworkScreenViewModel][cite: 1].
      *
      * @param repository persistence repository used to construct the ViewModel instance[cite: 1]
      * @return factory capable of producing instances of [ArtworkScreenViewModel][cite: 1]
      */
     fun provideFactory(
-      repository: ArtworkRepository,
+        repository: ArtworkRepository,
     ): ViewModelProvider.Factory =
-      object : ViewModelProvider.Factory {
-        @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>): T {
-          if (modelClass.isAssignableFrom(ArtworkScreenViewModel::class.java)) {
-            return ArtworkScreenViewModel(repository) as T
+        object : ViewModelProvider.Factory {
+          @Suppress("UNCHECKED_CAST")
+          override fun <T : ViewModel> create(modelClass: Class<T>): T {
+            if (modelClass.isAssignableFrom(ArtworkScreenViewModel::class.java)) {
+              return ArtworkScreenViewModel(repository) as T
+            }
+            throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
           }
-          throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
         }
-      }
   }
 }
