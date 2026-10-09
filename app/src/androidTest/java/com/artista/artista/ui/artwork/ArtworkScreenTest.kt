@@ -103,5 +103,18 @@ class ArtworkScreenTest {
     override suspend fun removeArtwork(artworkName: String) {
       savedArtworks.removeAll { it.name == artworkName }
     }
+
+    override suspend fun getSavedArtworks(): List<Artwork> =
+        listOf(
+            Artwork(
+                name = "The Starry Night",
+                artistName = "Vincent van Gogh",
+                location = null,
+                conceptionDate = null,
+                dimension = null,
+                description = null,
+                museum = null,
+            )
+        )
   }
 }
