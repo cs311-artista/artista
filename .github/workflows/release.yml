@@ -1,0 +1,58 @@
+name: Release on merge to main
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Setup JDK
+        uses: actions/setup-java@v6
+        with:
+          # distribution: "temurin" selects the Eclipse Temurin JDK distribution for actions/setup-java.
+          # “Temurin” is the JDK provider’s name; the value is spelled correctly. Both workflows use it.
+          distribution: "temurin"
+          java-version: "25"
+
+      - name: Gradle cache
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Decode secrets
+        env:
+          GOOGLE_SERVICES: ${{ secrets.GOOGLE_SERVICES }}
+        run: |
+          if [ -n "$GOOGLE_SERVICES" ]; then
+            echo "$GOOGLE_SERVICES" | base64 --decode > ./app/google-services.json
+          else
+            echo "::warning::GOOGLE_SERVICES secret is not set. google-services.json will not be created."
+          fi
+
+      - name: Build debug APK
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Prepare release asset
+        run: cp app/build/outputs/apk/debug/app-debug.apk "artista-${GITHUB_RUN_NUMBER}.apk"
+
+      - name: Create GitHub release and attach APK
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          tag="build-${GITHUB_RUN_NUMBER}"
+          gh release create "$tag" "artista-${GITHUB_RUN_NUMBER}.apk" \
+            --target "$GITHUB_SHA" \
+            --title "Build ${GITHUB_RUN_NUMBER}" \
+            --generate-notes
