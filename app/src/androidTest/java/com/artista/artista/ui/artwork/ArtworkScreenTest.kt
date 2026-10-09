@@ -29,6 +29,7 @@ class ArtworkScreenTest {
 
   private lateinit var fakeRepository: FakeArtworkRepository
   private lateinit var viewModel: ArtworkScreenViewModel
+  private val milliseconds = 3000L
 
   private val sampleArtwork =
       Artwork(
@@ -53,7 +54,7 @@ class ArtworkScreenTest {
 
     composeTestRule.onNodeWithTag(ArtworkTestTags.SAVE_BUTTON).performClick()
 
-    composeTestRule.waitUntil(timeoutMillis = 3000) {
+    composeTestRule.waitUntil(timeoutMillis = milliseconds) {
       runBlocking { fakeRepository.isArtworkSaved(sampleArtwork.name) }
     }
 
@@ -68,7 +69,7 @@ class ArtworkScreenTest {
 
     composeTestRule.onNodeWithTag(ArtworkTestTags.SAVE_BUTTON).performClick()
 
-    composeTestRule.waitUntil(timeoutMillis = 3000) {
+    composeTestRule.waitUntil(timeoutMillis = milliseconds) {
       runBlocking { !fakeRepository.isArtworkSaved(sampleArtwork.name) }
     }
 
