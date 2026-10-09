@@ -132,6 +132,26 @@ class SearchScreenTest {
 
   private fun fakeArtworkRepository(): ArtworkRepository =
       object : ArtworkRepository {
+
+        private val savedArtworks = mutableListOf<Artwork>()
+        var shouldThrowError = false
+
+        override suspend fun isArtworkSaved(artworkName: String): Boolean {
+          if (shouldThrowError) throw RuntimeException("Simulated error")
+          return savedArtworks.any { it.name == artworkName }
+        }
+
+        override suspend fun saveArtwork(artwork: Artwork) {
+          if (shouldThrowError) throw RuntimeException("Simulated database failure")
+          savedArtworks.removeAll { it.name == artwork.name }
+          savedArtworks.add(artwork)
+        }
+
+        override suspend fun removeArtwork(artworkName: String) {
+          if (shouldThrowError) throw RuntimeException("Simulated database failure")
+          savedArtworks.removeAll { it.name == artworkName }
+        }
+
         override suspend fun getSavedArtworks(): List<Artwork> =
             listOf(
                 Artwork(
@@ -140,6 +160,8 @@ class SearchScreenTest {
                     location = null,
                     conceptionDate = null,
                     dimension = null,
+                    description = null,
+                    museum = null,
                 ),
                 Artwork(
                     name = "Girl with a Pearl Earring",
@@ -147,6 +169,8 @@ class SearchScreenTest {
                     location = null,
                     conceptionDate = null,
                     dimension = null,
+                    description = null,
+                    museum = null,
                 ),
                 Artwork(
                     name = "Untitled study",
@@ -154,6 +178,8 @@ class SearchScreenTest {
                     location = null,
                     conceptionDate = null,
                     dimension = null,
+                    description = null,
+                    museum = null,
                 ),
             )
       }
@@ -168,13 +194,17 @@ class SearchScreenTest {
                         location = null,
                         conceptionDate = null,
                         dimension = null,
+                        description = null,
+                        museum = null,
                     ),
                     Artwork(
-                        name = "Sunflowers",
-                        artistName = "Vincent van Gogh",
+                        name = "Girl with a Pearl Earring",
+                        artistName = "Johannes Vermeer",
                         location = null,
                         conceptionDate = null,
                         dimension = null,
+                        description = null,
+                        museum = null,
                     ),
                     Artwork(
                         name = "Untitled study",
@@ -182,6 +212,8 @@ class SearchScreenTest {
                         location = null,
                         conceptionDate = null,
                         dimension = null,
+                        description = null,
+                        museum = null,
                     ),
                 )
                 .filter {
