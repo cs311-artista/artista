@@ -18,6 +18,11 @@ interface AuthRepository {
    * Emits the currently signed-in user, or `null` when nobody is signed in. The stream reflects
    * sign-in and sign-out as they happen, without requiring a manual refresh.
    *
+   * This lives on the repository rather than only on the ViewModel because a session can change
+   * without any ViewModel asking for it, for example a revoked or expired session cleared by
+   * Firebase. Only the repository can observe that. The ViewModel merely collects this flow and
+   * mirrors it in its UI state.
+   *
    * @author timo-by
    */
   val authState: Flow<AuthUser?>
