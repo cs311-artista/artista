@@ -3,6 +3,24 @@
     <string name="title_activity_main">MainActivity</string>
     <string name="title_activity_second">SecondActivity</string>
 
+    <!-- Artwork Field Labels -->
+    <string name="artwork_label_artist">Artist</string>
+    <string name="artwork_label_conception_date">Conception Date</string>
+    <string name="artwork_label_museum">Museum</string>
+    <string name="artwork_label_description">Description</string>
+    <string name="artwork_label_location">Location</string>
+    <string name="artwork_label_dimensions">Dimensions</string>
+
+    <!-- Artwork Fallback / Default Values -->
+    <string name="artwork_unknown_artist">Unknown artist</string>
+    <string name="artwork_unknown_date">Unknown date</string>
+    <string name="artwork_no_museum">No information about museum</string>
+    <string name="artwork_no_description">No description available</string>
+    <string name="artwork_no_location">Location not specified</string>
+    <string name="artwork_no_dimensions">Dimensions unavailable</string>
+
+    <string name="artwork_location_format">%1$.5f, %2$.5f</string>
+    <string name="back">Back</string>
     <!-- User profile screen -->
     <string name="profile_picture_placeholder">Profile\nPicture</string>
     <string name="profile_username_placeholder">USERNAME</string>

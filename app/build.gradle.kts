@@ -163,6 +163,7 @@ dependencies {
   implementation(libs.androidx.navigation.compose)
   implementation(libs.compose.preview)
   debugImplementation(libs.compose.tooling)
+  implementation(libs.androidx.compose.material.icons.extended)
 
   // Android and Compose test libraries
   testImplementation(libs.junit)

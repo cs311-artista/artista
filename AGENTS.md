@@ -5,7 +5,7 @@ Writing them down also helps the human team agree on how we build.
 
 ## The app
 
-A Kotlin/Android ToDo app (`com.github.se.bootcamp`), built with an **MVVM** architecture.
+A Kotlin/Android Artista app (`com.artista.artista`), built with an **MVVM** architecture.
 
 - `model/` holds the data and repositories (Firestore, Location, ...).
 - `ui/` holds the screens and their **ViewModels**.
