@@ -41,8 +41,8 @@ android {
 
   buildTypes {
     release {
-      isMinifyEnabled = true    // removes unused code from release build by enabling ProGuard.
-      isShrinkResources = true  // removes unused resource from release build.
+      isMinifyEnabled = true // removes unused code from release build by enabling ProGuard.
+      isShrinkResources = true // removes unused resource from release build.
       proguardFiles(
           getDefaultProguardFile("proguard-android-optimize.txt"),
           "proguard-rules.pro",
