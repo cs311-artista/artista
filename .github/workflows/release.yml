@@ -22,8 +22,6 @@ jobs:
       - name: Setup JDK
         uses: actions/setup-java@v6
         with:
-          # distribution: "temurin" selects the Eclipse Temurin JDK distribution for actions/setup-java.
-          # “Temurin” is the JDK provider’s name; the value is spelled correctly. Both workflows use it.
           distribution: "temurin"
           java-version: "25"
 
@@ -39,6 +37,17 @@ jobs:
           else
             echo "::warning::GOOGLE_SERVICES secret is not set. google-services.json will not be created."
           fi
+
+      - name: Configure Google Maps API key
+        env:
+          MAPS_API_KEY: ${{ secrets.MAPS_API_KEY }}
+        run: |
+          if [ -z "$MAPS_API_KEY" ]; then
+            echo "::error::MAPS_API_KEY secret is required to build the release APK."
+            exit 1
+          fi
+
+          printf 'MAPS_API_KEY=%s\n' "$MAPS_API_KEY" > local.properties
 
       - name: Build debug APK
         run: ./gradlew assembleDebug --no-daemon

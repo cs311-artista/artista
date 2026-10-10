@@ -38,6 +38,16 @@ jobs:
             echo "::warning::GOOGLE_SERVICES secret is not set. google-services.json will not be created."
           fi
 
+      - name: Configure Google Maps API key
+        env:
+          MAPS_API_KEY: ${{ secrets.MAPS_API_KEY }}
+        run: |
+          if [ -n "$MAPS_API_KEY" ]; then
+            printf 'MAPS_API_KEY=%s\n' "$MAPS_API_KEY" > local.properties
+          else
+            echo "::warning::MAPS_API_KEY secret is not set. Maps will not be configured."
+          fi
+
       # Kernel-based Virtual Machine (KVM) is an open source virtualization technology built into Linux. Enabling it allows the Android emulator to run faster.
       - name: Enable KVM group perms
         run: |
