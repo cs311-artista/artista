@@ -21,13 +21,15 @@ import kotlinx.coroutines.launch
  *
  * @property artworks artworks currently saved by the user
  * @property isLoading whether saved artworks are being loaded
- * @property errorMessage error message to display, or null when there is no error
+ * @property loadErrorMessage error message produced while loading artworks
+ * @property unsaveErrorMessage error message produced while unsaving an artwork
  * @author Kaio R. Freitas Pereira Nascimento (krfpn)
  */
 data class SavedArtworkUIState(
     val artworks: List<Artwork> = emptyList(),
     val isLoading: Boolean = true,
-    val errorMessage: String? = null,
+    val loadErrorMessage: String? = null,
+    val unsaveErrorMessage: String? = null,
 )
 
 // ---------------------------------------------------------------------------
@@ -59,17 +61,17 @@ class SavedArtworkViewModel(
    * @author Kaio R. Freitas Pereira Nascimento (krfpn)
    */
   fun refreshSavedArtworks() {
-    _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+    _uiState.update { it.copy(isLoading = true, loadErrorMessage = null) }
     viewModelScope.launch {
       try {
         val artworks = artworkRepository.getSavedArtworks()
-        _uiState.update { it.copy(artworks = artworks, isLoading = false, errorMessage = null) }
+        _uiState.update { it.copy(artworks = artworks, isLoading = false, loadErrorMessage = null) }
       } catch (exception: Exception) {
         Log.e(TAG, "Failed to load saved artworks.", exception)
         _uiState.update {
           it.copy(
               isLoading = false,
-              errorMessage = exception.message ?: "Unable to load saved artworks.",
+              loadErrorMessage = exception.message ?: "Unable to load saved artworks.",
           )
         }
       }
@@ -91,9 +93,29 @@ class SavedArtworkViewModel(
         }
       } catch (exception: Exception) {
         Log.e(TAG, "Failed to unsave artwork: ${artwork.name}.", exception)
-        _uiState.update { it.copy(errorMessage = exception.message ?: "Unable to unsave artwork.") }
+        _uiState.update {
+          it.copy(unsaveErrorMessage = exception.message ?: "Unable to unsave artwork.")
+        }
       }
     }
+  }
+
+  /**
+   * Clears the loading error after the UI has displayed it.
+   *
+   * @author Kaio R. Freitas Pereira Nascimento (krfpn)
+   */
+  fun clearLoadError() {
+    _uiState.update { it.copy(loadErrorMessage = null) }
+  }
+
+  /**
+   * Clears the unsave error after the UI has displayed it.
+   *
+   * @author Kaio R. Freitas Pereira Nascimento (krfpn)
+   */
+  fun clearUnsaveError() {
+    _uiState.update { it.copy(unsaveErrorMessage = null) }
   }
 
   /** Provides constants used by the ViewModel for structured diagnostic logging. */

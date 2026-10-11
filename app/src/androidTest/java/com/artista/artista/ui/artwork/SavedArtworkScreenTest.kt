@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -117,16 +118,22 @@ class SavedArtworkScreenTest {
     composeTestRule.onNodeWithTag(SavedArtworkTestTags.LIST).assertDoesNotExist()
   }
 
-  /** Verifies that repository failures render the tagged error state. */
+  /** Verifies that repository loading failures display a retryable snackbar. */
   @Test
-  fun savedArtworkScreen_whenLoadingFails_displaysErrorState() {
+  fun savedArtworkScreen_whenLoadingFails_displaysRetrySnackbar() {
     fakeRepository.shouldThrowError = true
     setScreenContent()
 
-    composeTestRule.waitForIdle()
+    composeTestRule.waitUntil(3_000) {
+      composeTestRule
+          .onAllNodesWithText("Simulated database failure")
+          .fetchSemanticsNodes()
+          .isNotEmpty()
+    }
 
-    composeTestRule.onNodeWithTag(SavedArtworkTestTags.ERROR_STATE).assertIsDisplayed()
-    composeTestRule.onNodeWithTag(SavedArtworkTestTags.EMPTY_STATE).assertDoesNotExist()
+    composeTestRule.onNodeWithText("Simulated database failure").assertIsDisplayed()
+    composeTestRule.onNodeWithText("Retry").assertIsDisplayed()
+    composeTestRule.onNodeWithTag(SavedArtworkTestTags.EMPTY_STATE).assertIsDisplayed()
   }
 
   // ---------------------------------------------------------------------------
@@ -159,6 +166,21 @@ class SavedArtworkScreenTest {
     composeTestRule.waitForIdle()
     composeTestRule.onNodeWithTag(SavedArtworkTestTags.EMPTY_STATE).assertIsDisplayed()
     composeTestRule.onNodeWithTag(SavedArtworkTestTags.card(savedArtwork)).assertDoesNotExist()
+  }
+
+  /** Verifies that a failed unsave keeps the artwork in both the repository and the UI. */
+  @Test
+  fun savedArtworkScreen_whenUnsaveFails_keepsArtworkInListAndRepository() {
+    fakeRepository.savedArtworks.add(savedArtwork)
+    setScreenContent()
+
+    composeTestRule.waitForIdle()
+    fakeRepository.shouldThrowError = true
+    composeTestRule.onNodeWithTag(SavedArtworkTestTags.unsaveButton(savedArtwork)).performClick()
+
+    composeTestRule.waitForIdle()
+    assertEquals(listOf(savedArtwork), fakeRepository.savedArtworks)
+    composeTestRule.onNodeWithTag(SavedArtworkTestTags.card(savedArtwork)).assertIsDisplayed()
   }
 
   // ---------------------------------------------------------------------------

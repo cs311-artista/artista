@@ -1,6 +1,7 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 package com.artista.artista.ui.artwork
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,13 +22,18 @@ import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -67,6 +73,9 @@ fun SavedArtworkScreen(
       uiState = uiState,
       onArtworkDetailsClick = onArtworkDetailsClick,
       onArtworkUnsave = viewModel::onArtworkUnsave,
+      onRetry = viewModel::refreshSavedArtworks,
+      onLoadErrorHandled = viewModel::clearLoadError,
+      onUnsaveErrorHandled = viewModel::clearUnsaveError,
       onTabSelected = onTabSelected,
       modifier = modifier,
   )
@@ -81,6 +90,9 @@ fun SavedArtworkScreen(
  * @param uiState state snapshot used to render the screen
  * @param onArtworkDetailsClick called when the user opens an artwork's details
  * @param onArtworkUnsave called when the user removes an artwork from the saved list
+ * @param onRetry called when the user requests another loading attempt
+ * @param onLoadErrorHandled called after the loading error snackbar is dismissed
+ * @param onUnsaveErrorHandled called after the unsave error toast is displayed
  * @param onTabSelected called when the user selects a bottom-navigation destination
  * @param modifier modifier applied to the screen scaffold
  * @author Kaio R. Freitas Pereira Nascimento (krfpn)
@@ -91,11 +103,39 @@ private fun SavedArtworkScreenLayout(
     uiState: SavedArtworkUIState,
     onArtworkDetailsClick: (Artwork) -> Unit,
     onArtworkUnsave: (Artwork) -> Unit,
+    onRetry: () -> Unit,
+    onLoadErrorHandled: () -> Unit,
+    onUnsaveErrorHandled: () -> Unit,
     onTabSelected: (Tab) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+  val snackbarHostState = remember { SnackbarHostState() }
+  val context = LocalContext.current
+
+  LaunchedEffect(uiState.loadErrorMessage) {
+    uiState.loadErrorMessage?.let { message ->
+      val result =
+          snackbarHostState.showSnackbar(
+              message = message,
+              actionLabel = "Retry",
+          )
+      if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) {
+        onRetry()
+      }
+      onLoadErrorHandled()
+    }
+  }
+
+  LaunchedEffect(uiState.unsaveErrorMessage) {
+    uiState.unsaveErrorMessage?.let { message ->
+      Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+      onUnsaveErrorHandled()
+    }
+  }
+
   Scaffold(
       modifier = modifier.testTag(SavedArtworkTestTags.SCREEN),
+      snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
       // Top app bar displaying the name of the saved-artworks screen.
       topBar = {
         CenterAlignedTopAppBar(
@@ -124,13 +164,7 @@ private fun SavedArtworkScreenLayout(
       },
   ) { innerPadding ->
     // Main content area containing the user's saved artworks.
-    val errorMessage = uiState.errorMessage
-    if (errorMessage != null && uiState.artworks.isEmpty()) {
-      SavedArtworkErrorState(
-          message = errorMessage,
-          modifier = Modifier.fillMaxSize().padding(innerPadding),
-      )
-    } else if (uiState.isLoading) {
+    if (uiState.isLoading) {
       SavedArtworkLoadingState(modifier = Modifier.fillMaxSize().padding(innerPadding))
     } else if (uiState.artworks.isEmpty()) {
       EmptySavedArtworkState(modifier = Modifier.fillMaxSize().padding(innerPadding))
@@ -166,9 +200,6 @@ object SavedArtworkTestTags {
 
   /** Tag identifying the empty saved-artwork state. */
   const val EMPTY_STATE = "saved_artwork_empty_state"
-
-  /** Tag identifying the saved-artwork error state. */
-  const val ERROR_STATE = "saved_artwork_error_state"
 
   /** Tag identifying the saved-artwork loading state. */
   const val LOADING_STATE = "saved_artwork_loading_state"
@@ -223,26 +254,8 @@ private fun EmptySavedArtworkState(modifier: Modifier = Modifier) {
 }
 
 // ---------------------------------------------------------------------------
-// Saved artwork loading and error states
+// Saved artwork loading state
 // ---------------------------------------------------------------------------
-
-/**
- * Displays the repository error that prevents saved artworks from loading.
- *
- * @param message error message to display
- * @param modifier modifier applied to the error-state container
- * @author Kaio R. Freitas Pereira Nascimento (krfpn)
- */
-@Composable
-private fun SavedArtworkErrorState(message: String, modifier: Modifier = Modifier) {
-  Box(
-      modifier = modifier.testTag(SavedArtworkTestTags.ERROR_STATE),
-      contentAlignment = Alignment.Center,
-  ) {
-    Text(text = message, color = MaterialTheme.colorScheme.error)
-  }
-}
-
 /**
  * Displays a loading message while saved artworks are being retrieved.
  *
@@ -418,6 +431,9 @@ fun SavedArtworkScreenPreview() {
         uiState = SavedArtworkUIState(artworks = listOf(artwork), isLoading = false),
         onArtworkDetailsClick = {},
         onArtworkUnsave = {},
+        onRetry = {},
+        onLoadErrorHandled = {},
+        onUnsaveErrorHandled = {},
         onTabSelected = {},
     )
   }
