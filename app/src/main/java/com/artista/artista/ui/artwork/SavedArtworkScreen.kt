@@ -2,6 +2,7 @@
 package com.artista.artista.ui.artwork
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -82,12 +83,16 @@ fun SavedArtworkScreen(
       },
   ) { innerPadding ->
     // Main content area containing the user's saved artworks.
-    SavedArtworkList(
-        artworks = artworks,
-        onArtworkDetailsClick = onArtworkDetailsClick,
-        onArtworkUnsave = onArtworkUnsave,
-        modifier = Modifier.fillMaxSize().padding(innerPadding),
-    )
+    if (artworks.isEmpty()) {
+      EmptySavedArtworkState(modifier = Modifier.fillMaxSize().padding(innerPadding))
+    } else {
+      SavedArtworkList(
+          artworks = artworks,
+          onArtworkDetailsClick = onArtworkDetailsClick,
+          onArtworkUnsave = onArtworkUnsave,
+          modifier = Modifier.fillMaxSize().padding(innerPadding),
+      )
+    }
   }
 }
 
@@ -109,6 +114,9 @@ object SavedArtworkTestTags {
 
   /** Tag identifying the saved-artwork list. */
   const val LIST = "saved_artwork_list"
+
+  /** Tag identifying the empty saved-artwork state. */
+  const val EMPTY_STATE = "saved_artwork_empty_state"
 
   /**
    * Returns the tag identifying an artwork card.
@@ -133,6 +141,30 @@ object SavedArtworkTestTags {
    * @return a stable tag derived from the artwork title
    */
   fun unsaveButton(artwork: Artwork): String = "saved_artwork_unsave_${artwork.name}"
+}
+
+// ---------------------------------------------------------------------------
+// Empty saved artwork state
+// ---------------------------------------------------------------------------
+
+/**
+ * Displays a centered message when the user has not saved any artworks yet.
+ *
+ * @param modifier modifier applied to the empty-state container
+ * @author Kaio R. Freitas Pereira Nascimento (krfpn)
+ */
+@Composable
+private fun EmptySavedArtworkState(modifier: Modifier = Modifier) {
+  Box(
+      modifier = modifier.testTag(SavedArtworkTestTags.EMPTY_STATE),
+      contentAlignment = Alignment.Center,
+  ) {
+    Text(
+        text = "You have no saved artworks yet.",
+        style = MaterialTheme.typography.bodyLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+  }
 }
 
 // ---------------------------------------------------------------------------
