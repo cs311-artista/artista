@@ -22,6 +22,7 @@ import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -408,27 +409,39 @@ private fun ArtworkImagePlaceholder() {
 // ---------------------------------------------------------------------------
 
 /**
- * Displays a preview of the saved-artwork screen with representative artworks.
+ * Creates a representative artwork for saved-artwork previews.
+ *
+ * @param name title used for the preview artwork
+ * @param artistName artist used for the preview artwork
+ * @return artwork containing the supplied preview metadata
+ * @author Kaio R. Freitas Pereira Nascimento (krfpn)
+ */
+private fun previewArtwork(name: String, artistName: String): Artwork =
+    Artwork(
+        name = name,
+        artistName = artistName,
+        description = null,
+        conceptionDate = null,
+        museum = null,
+        location = null,
+        dimension = null,
+    )
+
+/**
+ * Displays a preview of the saved-artwork screen with one representative artwork.
  *
  * @author Kaio R. Freitas Pereira Nascimento (krfpn)
  */
 @Preview(showBackground = true)
 @Composable
 fun SavedArtworkScreenPreview() {
-  val artwork =
-      Artwork(
-          name = "The Starry Night",
-          artistName = "Vincent van Gogh",
-          description = null,
-          conceptionDate = null,
-          museum = "Museum of Modern Art",
-          location = null,
-          dimension = null,
-      )
-
   ArtistaTheme {
     SavedArtworkScreenLayout(
-        uiState = SavedArtworkUIState(artworks = listOf(artwork), isLoading = false),
+        uiState =
+            SavedArtworkUIState(
+                artworks = listOf(previewArtwork("The Starry Night", "Vincent van Gogh")),
+                isLoading = false,
+            ),
         onArtworkDetailsClick = {},
         onArtworkUnsave = {},
         onRetry = {},
@@ -436,5 +449,146 @@ fun SavedArtworkScreenPreview() {
         onUnsaveErrorHandled = {},
         onTabSelected = {},
     )
+  }
+}
+
+/**
+ * Displays a preview of the empty saved-artworks state.
+ *
+ * @author Kaio R. Freitas Pereira Nascimento (krfpn)
+ */
+@Preview(showBackground = true)
+@Composable
+fun SavedArtworkEmptyPreview() {
+  ArtistaTheme {
+    SavedArtworkScreenLayout(
+        uiState = SavedArtworkUIState(isLoading = false),
+        onArtworkDetailsClick = {},
+        onArtworkUnsave = {},
+        onRetry = {},
+        onLoadErrorHandled = {},
+        onUnsaveErrorHandled = {},
+        onTabSelected = {},
+    )
+  }
+}
+
+/**
+ * Displays a preview of the loading saved-artworks state.
+ *
+ * @author Kaio R. Freitas Pereira Nascimento (krfpn)
+ */
+@Preview(showBackground = true)
+@Composable
+fun SavedArtworkLoadingPreview() {
+  ArtistaTheme {
+    SavedArtworkScreenLayout(
+        uiState = SavedArtworkUIState(isLoading = true),
+        onArtworkDetailsClick = {},
+        onArtworkUnsave = {},
+        onRetry = {},
+        onLoadErrorHandled = {},
+        onUnsaveErrorHandled = {},
+        onTabSelected = {},
+    )
+  }
+}
+
+/**
+ * Displays a preview containing multiple saved artworks.
+ *
+ * @author Kaio R. Freitas Pereira Nascimento (krfpn)
+ */
+@Preview(showBackground = true)
+@Composable
+fun SavedArtworkMultipleItemsPreview() {
+  val artworks =
+      listOf(
+          previewArtwork("The Starry Night", "Vincent van Gogh"),
+          previewArtwork("Girl with a Pearl Earring", "Johannes Vermeer"),
+          previewArtwork("The Persistence of Memory", "Salvador Dalí"),
+      )
+
+  ArtistaTheme {
+    SavedArtworkScreenLayout(
+        uiState = SavedArtworkUIState(artworks = artworks, isLoading = false),
+        onArtworkDetailsClick = {},
+        onArtworkUnsave = {},
+        onRetry = {},
+        onLoadErrorHandled = {},
+        onUnsaveErrorHandled = {},
+        onTabSelected = {},
+    )
+  }
+}
+
+/**
+ * Displays a preview of the toast shown when unsaving an artwork fails.
+ *
+ * Android Toasts are runtime side effects and cannot be rendered reliably by Compose Preview, so
+ * this preview uses a Material 3 surface with the same transient-message role.
+ *
+ * @author Kaio R. Freitas Pereira Nascimento (krfpn)
+ */
+@Preview(showBackground = true)
+@Composable
+fun SavedArtworkUnsaveErrorPreview() {
+  val artwork = previewArtwork("The Starry Night", "Vincent van Gogh")
+
+  ArtistaTheme {
+    Box {
+      SavedArtworkScreenLayout(
+          uiState = SavedArtworkUIState(artworks = listOf(artwork), isLoading = false),
+          onArtworkDetailsClick = {},
+          onArtworkUnsave = {},
+          onRetry = {},
+          onLoadErrorHandled = {},
+          onUnsaveErrorHandled = {},
+          onTabSelected = {},
+      )
+      Surface(
+          modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 104.dp),
+          shape = RoundedCornerShape(8.dp),
+          color = MaterialTheme.colorScheme.inverseSurface,
+      ) {
+        Text(
+            text = "Unable to unsave artwork.",
+            color = MaterialTheme.colorScheme.inverseOnSurface,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+        )
+      }
+    }
+  }
+}
+
+/**
+ * Displays a preview of the loading-error snackbar with its retry action.
+ *
+ * The preview renders the snackbar directly so its message and action remain visible in Android
+ * Studio without requiring a running coroutine or repository operation.
+ *
+ * @author Kaio R. Freitas Pereira Nascimento (krfpn)
+ */
+@Preview(showBackground = true)
+@Composable
+fun SavedArtworkLoadingErrorPreview() {
+  ArtistaTheme {
+    Box {
+      SavedArtworkScreenLayout(
+          uiState = SavedArtworkUIState(isLoading = false),
+          onArtworkDetailsClick = {},
+          onArtworkUnsave = {},
+          onRetry = {},
+          onLoadErrorHandled = {},
+          onUnsaveErrorHandled = {},
+          onTabSelected = {},
+      )
+      Snackbar(
+          modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 104.dp),
+          action = { Text("Retry") },
+      ) {
+        Text("Unable to load saved artworks.")
+      }
+    }
   }
 }
