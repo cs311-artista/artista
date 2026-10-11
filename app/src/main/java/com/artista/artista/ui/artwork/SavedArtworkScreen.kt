@@ -24,12 +24,15 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
@@ -45,7 +48,37 @@ import com.artista.artista.ui.theme.ArtistaTheme
  * The screen receives its artwork list and actions from its caller so that loading, persistence,
  * and navigation remain outside the UI layer.
  *
- * @param artworks artworks to display in the saved-artwork list
+ * @param viewModel ViewModel providing saved-artwork state and actions
+ * @param onArtworkDetailsClick called when the user opens an artwork's details
+ * @param onTabSelected called when the user selects a bottom-navigation destination
+ * @param modifier modifier applied to the screen scaffold
+ * @author Kaio R. Freitas Pereira Nascimento (krfpn)
+ */
+@Composable
+fun SavedArtworkScreen(
+    viewModel: SavedArtworkViewModel = viewModel(),
+    onArtworkDetailsClick: (Artwork) -> Unit,
+    onTabSelected: (Tab) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+  val uiState by viewModel.uiState.collectAsState()
+
+  SavedArtworkScreenLayout(
+      uiState = uiState,
+      onArtworkDetailsClick = onArtworkDetailsClick,
+      onArtworkUnsave = viewModel::onArtworkUnsave,
+      onTabSelected = onTabSelected,
+      modifier = modifier,
+  )
+}
+
+/**
+ * Renders the saved-artwork UI from an immutable state snapshot.
+ *
+ * Keeping this layout independent of the ViewModel makes previews deterministic and keeps
+ * state-management concerns outside the visual hierarchy.
+ *
+ * @param uiState state snapshot used to render the screen
  * @param onArtworkDetailsClick called when the user opens an artwork's details
  * @param onArtworkUnsave called when the user removes an artwork from the saved list
  * @param onTabSelected called when the user selects a bottom-navigation destination
@@ -54,8 +87,8 @@ import com.artista.artista.ui.theme.ArtistaTheme
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SavedArtworkScreen(
-    artworks: List<Artwork>,
+private fun SavedArtworkScreenLayout(
+    uiState: SavedArtworkUIState,
     onArtworkDetailsClick: (Artwork) -> Unit,
     onArtworkUnsave: (Artwork) -> Unit,
     onTabSelected: (Tab) -> Unit,
@@ -91,11 +124,19 @@ fun SavedArtworkScreen(
       },
   ) { innerPadding ->
     // Main content area containing the user's saved artworks.
-    if (artworks.isEmpty()) {
+    val errorMessage = uiState.errorMessage
+    if (errorMessage != null && uiState.artworks.isEmpty()) {
+      SavedArtworkErrorState(
+          message = errorMessage,
+          modifier = Modifier.fillMaxSize().padding(innerPadding),
+      )
+    } else if (uiState.isLoading) {
+      SavedArtworkLoadingState(modifier = Modifier.fillMaxSize().padding(innerPadding))
+    } else if (uiState.artworks.isEmpty()) {
       EmptySavedArtworkState(modifier = Modifier.fillMaxSize().padding(innerPadding))
     } else {
       SavedArtworkList(
-          artworks = artworks,
+          artworks = uiState.artworks,
           onArtworkDetailsClick = onArtworkDetailsClick,
           onArtworkUnsave = onArtworkUnsave,
           modifier = Modifier.fillMaxSize().padding(innerPadding),
@@ -125,6 +166,12 @@ object SavedArtworkTestTags {
 
   /** Tag identifying the empty saved-artwork state. */
   const val EMPTY_STATE = "saved_artwork_empty_state"
+
+  /** Tag identifying the saved-artwork error state. */
+  const val ERROR_STATE = "saved_artwork_error_state"
+
+  /** Tag identifying the saved-artwork loading state. */
+  const val LOADING_STATE = "saved_artwork_loading_state"
 
   /**
    * Returns the tag identifying an artwork card.
@@ -172,6 +219,43 @@ private fun EmptySavedArtworkState(modifier: Modifier = Modifier) {
         style = MaterialTheme.typography.bodyLarge,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Saved artwork loading and error states
+// ---------------------------------------------------------------------------
+
+/**
+ * Displays the repository error that prevents saved artworks from loading.
+ *
+ * @param message error message to display
+ * @param modifier modifier applied to the error-state container
+ * @author Kaio R. Freitas Pereira Nascimento (krfpn)
+ */
+@Composable
+private fun SavedArtworkErrorState(message: String, modifier: Modifier = Modifier) {
+  Box(
+      modifier = modifier.testTag(SavedArtworkTestTags.ERROR_STATE),
+      contentAlignment = Alignment.Center,
+  ) {
+    Text(text = message, color = MaterialTheme.colorScheme.error)
+  }
+}
+
+/**
+ * Displays a loading message while saved artworks are being retrieved.
+ *
+ * @param modifier modifier applied to the loading-state container
+ * @author Kaio R. Freitas Pereira Nascimento (krfpn)
+ */
+@Composable
+private fun SavedArtworkLoadingState(modifier: Modifier = Modifier) {
+  Box(
+      modifier = modifier.testTag(SavedArtworkTestTags.LOADING_STATE),
+      contentAlignment = Alignment.Center,
+  ) {
+    Text(text = "Loading saved artworks...")
   }
 }
 
@@ -281,6 +365,9 @@ private fun SavedArtworkCard(
  * layout ready for image loading without coupling the screen to a future image implementation.
  *
  * @author Kaio R. Freitas Pereira Nascimento (krfpn)
+ *
+ * TODO: This component serves as a placeholder for the image. Remove it, and implement component
+ *   for the image.
  */
 @Composable
 private fun ArtworkImagePlaceholder() {
@@ -315,31 +402,20 @@ private fun ArtworkImagePlaceholder() {
 @Preview(showBackground = true)
 @Composable
 fun SavedArtworkScreenPreview() {
-  val artworks =
-      listOf(
-          Artwork(
-              name = "The Starry Night",
-              artistName = "Vincent van Gogh",
-              description = null,
-              conceptionDate = null,
-              museum = "Museum of Modern Art",
-              location = null,
-              dimension = null,
-          ),
-          Artwork(
-              name = "Girl with a Pearl Earring",
-              artistName = "Johannes Vermeer",
-              description = null,
-              conceptionDate = null,
-              museum = "Mauritshuis",
-              location = null,
-              dimension = null,
-          ),
+  val artwork =
+      Artwork(
+          name = "The Starry Night",
+          artistName = "Vincent van Gogh",
+          description = null,
+          conceptionDate = null,
+          museum = "Museum of Modern Art",
+          location = null,
+          dimension = null,
       )
 
   ArtistaTheme {
-    SavedArtworkScreen(
-        artworks = artworks,
+    SavedArtworkScreenLayout(
+        uiState = SavedArtworkUIState(artworks = listOf(artwork), isLoading = false),
         onArtworkDetailsClick = {},
         onArtworkUnsave = {},
         onTabSelected = {},
