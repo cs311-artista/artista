@@ -22,7 +22,7 @@ interface ArtworkRepository {
    * @throws IllegalArgumentException if the [uid] is invalid
    * @author 5kyPhy
    */
-  suspend fun getArtwork(uid: Artwork_ID): Artwork
+  suspend fun getArtwork(uid: Artwork_ID): Artwork = throw NotImplementedError()
 
   /**
    * Searches the repositories sources for an [Artwork] matching the given artwork's [name]
@@ -32,7 +32,7 @@ interface ArtworkRepository {
    *   [emptyList]
    * @author 5kyPhy
    */
-  suspend fun searchArtworkByArtworkName(name: String): List<Artwork>
+  suspend fun searchArtworkByArtworkName(name: String): List<Artwork> = throw NotImplementedError()
 
   /**
    * Searches the repositories sources for an [Artwork] matching the given artwork's [artistName]
@@ -42,7 +42,8 @@ interface ArtworkRepository {
    *   [emptyList]
    * @author 5kyPhy
    */
-  suspend fun searchArtworkByArtistName(artistName: String): List<Artwork>
+  suspend fun searchArtworkByArtistName(artistName: String): List<Artwork> =
+      throw NotImplementedError()
 
   /**
    * Searches the repositories sources for an [Artwork]s matching the given artwork's [location]
@@ -53,7 +54,8 @@ interface ArtworkRepository {
    *   was found, [emptyList]
    * @author 5kyPhy
    */
-  suspend fun searchArtworkByLocation(location: Location, radius: Double): List<Artwork>
+  suspend fun searchArtworkByLocation(location: Location, radius: Double): List<Artwork> =
+      throw NotImplementedError()
 
   /**
    * Checks whether an artwork with the specified identifier is currently bookmarked or saved.
