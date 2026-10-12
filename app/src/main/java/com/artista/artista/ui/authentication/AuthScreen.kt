@@ -1,8 +1,49 @@
 package com.artista.artista.ui.authentication
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import com.artista.artista.R
+import com.artista.artista.resources.C
+import com.artista.artista.ui.theme.ArtistaTheme
+import com.artista.artista.ui.theme.Pink80
+import kotlinx.coroutines.launch
 
 /**
  * Stateless content of the authentication screen: renders the sign-in affordance and the error
@@ -26,7 +67,90 @@ fun AuthScreenContent(
     onSignedIn: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-  TODO("Not yet implemented")
+  // Keyed on the user so the callback fires exactly once per sign-in transition, and not again when
+  // unrelated parts of the state (e.g. isLoading) change.
+  LaunchedEffect(state.user) { if (state.user != null) onSignedIn() }
+
+  Box(
+      modifier = modifier.fillMaxSize().background(Pink80).testTag(C.Tag.auth_screen_container),
+  ) {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+      Spacer(Modifier.height(48.dp))
+
+      // Placeholder for the hero artwork; the real image will replace this oval later.
+      Box(
+          modifier =
+              Modifier.fillMaxWidth(0.8f)
+                  .aspectRatio(1.1f)
+                  .clip(CircleShape)
+                  .background(Color.White.copy(alpha = 0.35f)),
+      )
+
+      Spacer(Modifier.height(16.dp))
+
+      Text(
+          text = stringResource(R.string.app_name),
+          style = MaterialTheme.typography.displayMedium.copy(fontFamily = FontFamily.Serif),
+          color = Color.White,
+      )
+
+      Spacer(Modifier.height(8.dp))
+
+      Text(
+          text = stringResource(R.string.auth_tagline),
+          style = MaterialTheme.typography.titleMedium,
+          color = Color.White,
+      )
+
+      Spacer(Modifier.weight(1f))
+
+      Button(
+          onClick = onSignInClick,
+          enabled = !state.isLoading,
+          modifier = Modifier.height(48.dp).testTag(C.Tag.auth_google_sign_in_button),
+          shape = RoundedCornerShape(percent = 50),
+          colors =
+              ButtonDefaults.buttonColors(
+                  containerColor = Color.White,
+                  contentColor = GoogleDark,
+                  disabledContainerColor = Color.White,
+                  disabledContentColor = GoogleDark,
+              ),
+          contentPadding = PaddingValues(horizontal = 20.dp, vertical = 0.dp),
+      ) {
+        if (state.isLoading) {
+          CircularProgressIndicator(
+              modifier = Modifier.size(22.dp).testTag(C.Tag.auth_loading_indicator),
+              strokeWidth = 2.dp,
+              color = GoogleDark,
+          )
+        } else {
+          Icon(
+              painter = painterResource(R.drawable.ic_google_logo),
+              contentDescription = null,
+              modifier = Modifier.size(22.dp),
+              // Keep the brand's multi-colour logo; the default tint would flatten it to one
+              // colour.
+              tint = Color.Unspecified,
+          )
+          Spacer(Modifier.width(10.dp))
+          Text(text = stringResource(R.string.sign_in_with_google))
+        }
+      }
+
+      Spacer(Modifier.height(24.dp))
+    }
+
+    SnackbarHost(
+        hostState = snackbarHostState,
+        modifier = Modifier.align(Alignment.BottomCenter),
+    ) { data ->
+      Snackbar(modifier = Modifier.testTag(C.Tag.auth_error_snackbar), snackbarData = data)
+    }
+  }
 }
 
 /**
@@ -49,5 +173,51 @@ fun AuthScreen(
     onSignedIn: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-  TODO("Not yet implemented")
+  val state by viewModel.uiState.collectAsState()
+  val snackbarHostState = remember { SnackbarHostState() }
+  val scope = rememberCoroutineScope()
+
+  // Repository errors arrive as one-shot events; fold them into the same Snackbar the credential
+  // failures use, so the UI has a single place to show authentication problems.
+  LaunchedEffect(viewModel) {
+    viewModel.events.collect { event ->
+      when (event) {
+        is AuthUiEvent.ShowError -> snackbarHostState.showSnackbar(event.message)
+      }
+    }
+  }
+
+  AuthScreenContent(
+      state = state,
+      snackbarHostState = snackbarHostState,
+      onSignInClick = {
+        scope.launch {
+          credentialProvider.getIdToken().onSuccess(viewModel::signIn).onFailure { cause ->
+            snackbarHostState.showSnackbar(cause.message ?: SignInFailedMessage)
+          }
+        }
+      },
+      onSignedIn = onSignedIn,
+      modifier = modifier,
+  )
+}
+
+/** Foreground used inside the white sign-in button so it matches the Google branding guideline. */
+private val GoogleDark = Color(0xFF1F1F1F)
+
+/** Fallback shown when a credential failure carries no message of its own. */
+private const val SignInFailedMessage = "Sign in failed"
+
+/** Preview of the signed-out sign-in screen. */
+@Preview(showBackground = true, backgroundColor = 0xFFEFB8C8)
+@Composable
+private fun AuthScreenContentPreview() {
+  ArtistaTheme {
+    AuthScreenContent(
+        state = AuthUiState(),
+        snackbarHostState = remember { SnackbarHostState() },
+        onSignInClick = {},
+        onSignedIn = {},
+    )
+  }
 }
