@@ -4,4 +4,6 @@
     <string name="title_activity_second">SecondActivity</string>
     <string name="sign_in_with_google">Sign in with Google</string>
     <string name="auth_tagline">Discover art around you</string>
+    <string name="sign_in_failed">Sign in failed</string>
+    <string name="authentication_failed">Authentication failed</string>
 </resources>

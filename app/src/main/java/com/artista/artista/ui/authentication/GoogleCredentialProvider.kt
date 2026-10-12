@@ -1,5 +1,6 @@
 package com.artista.artista.ui.authentication
 
+// Co-authored-by: DeepSeek Flash
 /**
  * Abstraction over the platform credential provider (Credential Manager) that supplies a Google ID
  * token.

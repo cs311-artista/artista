@@ -45,6 +45,7 @@ import com.artista.artista.ui.theme.ArtistaTheme
 import com.artista.artista.ui.theme.Pink80
 import kotlinx.coroutines.launch
 
+// Co-authored-by: DeepSeek Flash
 /**
  * Stateless content of the authentication screen: renders the sign-in affordance and the error
  * Snackbar, and reports user intent through callbacks.
@@ -176,13 +177,18 @@ fun AuthScreen(
   val state by viewModel.uiState.collectAsState()
   val snackbarHostState = remember { SnackbarHostState() }
   val scope = rememberCoroutineScope()
+  // Resolved here so the resource-backed fallbacks are usable from the non-composable lambdas
+  // below (repository events and the credential flow).
+  val authFailedMessage = stringResource(R.string.authentication_failed)
+  val signInFailedMessage = stringResource(R.string.sign_in_failed)
 
   // Repository errors arrive as one-shot events; fold them into the same Snackbar the credential
   // failures use, so the UI has a single place to show authentication problems.
   LaunchedEffect(viewModel) {
     viewModel.events.collect { event ->
       when (event) {
-        is AuthUiEvent.ShowError -> snackbarHostState.showSnackbar(event.message)
+        is AuthUiEvent.ShowError ->
+            snackbarHostState.showSnackbar(event.message ?: authFailedMessage)
       }
     }
   }
@@ -193,7 +199,7 @@ fun AuthScreen(
       onSignInClick = {
         scope.launch {
           credentialProvider.getIdToken().onSuccess(viewModel::signIn).onFailure { cause ->
-            snackbarHostState.showSnackbar(cause.message ?: SignInFailedMessage)
+            snackbarHostState.showSnackbar(cause.message ?: signInFailedMessage)
           }
         }
       },
@@ -204,9 +210,6 @@ fun AuthScreen(
 
 /** Foreground used inside the white sign-in button so it matches the Google branding guideline. */
 private val GoogleDark = Color(0xFF1F1F1F)
-
-/** Fallback shown when a credential failure carries no message of its own. */
-private const val SignInFailedMessage = "Sign in failed"
 
 /** Preview of the signed-out sign-in screen. */
 @Preview(showBackground = true, backgroundColor = 0xFFEFB8C8)
