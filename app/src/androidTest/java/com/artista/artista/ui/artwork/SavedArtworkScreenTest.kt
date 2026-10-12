@@ -3,10 +3,14 @@
 package com.artista.artista.ui.artwork
 
 import androidx.activity.ComponentActivity
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onChildAt
 import androidx.compose.ui.test.onNodeWithTag
@@ -41,6 +45,7 @@ class SavedArtworkScreenTest {
 
   private lateinit var fakeRepository: FakeArtworkRepository
   private lateinit var viewModel: SavedArtworkViewModel
+  private var isScreenVisible by mutableStateOf(true)
 
   private val savedArtwork =
       Artwork(
@@ -251,6 +256,29 @@ class SavedArtworkScreenTest {
         .assert(hasTestTag(SavedArtworkTestTags.card(artworks[1])))
   }
 
+  /** Verifies that coming back to the screen reloads the list kept by the ViewModel. */
+  @Test
+  fun savedArtworkScreen_whenScreenIsShownAgain_reloadsSavedArtworks() {
+    fakeRepository.savedArtworks.add(savedArtwork)
+    setScreenContent()
+
+    composeTestRule.waitForIdle()
+    composeTestRule.onNodeWithTag(SavedArtworkTestTags.card(savedArtwork)).assertIsDisplayed()
+
+    // Simulates opening the details screen, unsaving the artwork there, and pressing back.
+    composeTestRule.runOnIdle { isScreenVisible = false }
+    fakeRepository.savedArtworks.clear()
+    composeTestRule.runOnIdle { isScreenVisible = true }
+
+    composeTestRule.waitUntil(3_000) {
+      composeTestRule
+          .onAllNodesWithTag(SavedArtworkTestTags.EMPTY_STATE)
+          .fetchSemanticsNodes()
+          .isNotEmpty()
+    }
+    composeTestRule.onNodeWithTag(SavedArtworkTestTags.card(savedArtwork)).assertDoesNotExist()
+  }
+
   // ---------------------------------------------------------------------------
   // Compose content setup
   // ---------------------------------------------------------------------------
@@ -265,15 +293,17 @@ class SavedArtworkScreenTest {
       onArtworkDetailsClick: (Artwork) -> Unit = {},
       onTabSelected: (Tab) -> Unit = {},
   ) {
-    // Create the ViewModel after repository setup so its initial asynchronous load sees test data.
     viewModel = SavedArtworkViewModel(fakeRepository)
     composeTestRule.setContent {
       ArtistaTheme {
-        SavedArtworkScreen(
-            viewModel = viewModel,
-            onArtworkDetailsClick = onArtworkDetailsClick,
-            onTabSelected = onTabSelected,
-        )
+        // Toggling this mimics NavHost removing the screen and composing it again.
+        if (isScreenVisible) {
+          SavedArtworkScreen(
+              viewModel = viewModel,
+              onArtworkDetailsClick = onArtworkDetailsClick,
+              onTabSelected = onTabSelected,
+          )
+        }
       }
     }
   }

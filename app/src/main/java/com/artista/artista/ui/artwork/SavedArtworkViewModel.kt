@@ -52,17 +52,16 @@ class SavedArtworkViewModel(
   /** Read-only saved-artwork state observed by the UI. */
   val uiState: StateFlow<SavedArtworkUIState> = _uiState.asStateFlow()
 
-  init {
-    refreshSavedArtworks()
-  }
-
   /**
    * Loads the user's saved artworks from the repository.
+   *
+   * The loading state is only shown when no artworks are displayed yet, so refreshing an existing
+   * list keeps it visible until the new one arrives.
    *
    * @author Kaio R. Freitas Pereira Nascimento (krfpn)
    */
   fun refreshSavedArtworks() {
-    _uiState.update { it.copy(isLoading = true, loadErrorMessage = null) }
+    _uiState.update { it.copy(isLoading = it.artworks.isEmpty(), loadErrorMessage = null) }
     viewModelScope.launch {
       try {
         val artworks = artworkRepository.getSavedArtworks()

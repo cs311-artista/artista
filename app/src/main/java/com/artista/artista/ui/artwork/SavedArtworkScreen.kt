@@ -1,4 +1,5 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.artwork
 
 import android.widget.Toast
@@ -53,7 +54,8 @@ import com.artista.artista.ui.theme.ArtistaTheme
  * Displays the artworks saved by the current user.
  *
  * The screen receives its artwork list and actions from its caller so that loading, persistence,
- * and navigation remain outside the UI layer.
+ * and navigation remain outside the UI layer. Saved artworks are reloaded each time the screen
+ * enters the composition.
  *
  * @param viewModel ViewModel providing saved-artwork state and actions
  * @param onArtworkDetailsClick called when the user opens an artwork's details
@@ -69,6 +71,11 @@ fun SavedArtworkScreen(
     onTabSelected: (Tab) -> Unit,
 ) {
   val uiState by viewModel.uiState.collectAsState()
+
+  // NavHost only composes the top destination, so this runs on every visit, including when the
+  // user comes back from the details screen to a ViewModel that kept its previous list.
+  // This prevents stale list to be displayed when user performs save/unsave actions.
+  LaunchedEffect(Unit) { viewModel.refreshSavedArtworks() }
 
   SavedArtworkScreenLayout(
       uiState = uiState,
