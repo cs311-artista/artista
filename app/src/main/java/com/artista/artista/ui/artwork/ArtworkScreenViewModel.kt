@@ -5,7 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.artista.artista.model.artwork.Artwork
-import com.artista.artista.model.artwork.ArtworkRepository
+import com.artista.artista.model.artwork.SavedArtworksRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -27,14 +27,15 @@ data class ArtworkScreenUIState(
 /**
  * ViewModel managing UI state and persistence operations for [ArtworkScreen][cite: 1].
  *
- * Operates strictly with [ArtworkRepository] abstractions to preserve MVVM boundaries[cite: 1].
+ * Operates strictly with [SavedArtworksRepository] abstractions to preserve MVVM boundaries[cite:
+ * 1].
  *
  * @param savedArtworkRepository repository responsible for checking, saving, and deleting
  *   artworks[cite: 1]
  * @author hixeum
  */
 class ArtworkScreenViewModel(
-    private val savedArtworkRepository: ArtworkRepository,
+    private val savedArtworkRepository: SavedArtworksRepository,
 ) : ViewModel() {
 
   private val _uiState = MutableStateFlow(ArtworkScreenUIState())
@@ -72,7 +73,7 @@ class ArtworkScreenViewModel(
     viewModelScope.launch {
       try {
         if (wasSaved) {
-          savedArtworkRepository.removeArtwork(artwork.name)
+          savedArtworkRepository.removeArtworkFromSaved(artwork.name)
         } else {
           savedArtworkRepository.saveArtwork(artwork)
         }
@@ -92,7 +93,7 @@ class ArtworkScreenViewModel(
      * @return factory capable of producing instances of [ArtworkScreenViewModel][cite: 1]
      */
     fun provideFactory(
-        repository: ArtworkRepository,
+        repository: SavedArtworksRepository,
     ): ViewModelProvider.Factory =
         object : ViewModelProvider.Factory {
           @Suppress("UNCHECKED_CAST")

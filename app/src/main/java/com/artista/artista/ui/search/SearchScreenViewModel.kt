@@ -4,7 +4,7 @@ package com.artista.artista.ui.search
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.artista.artista.model.artwork.Artwork
-import com.artista.artista.model.artwork.ArtworkRepository
+import com.artista.artista.model.artwork.SavedArtworksRepository
 import com.artista.artista.model.artwork.WikiDataRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,12 +14,12 @@ import kotlinx.coroutines.launch
 /**
  * Holds search input, recommendations, and artwork results for the search screen.
  *
- * @param artworkRepository provides the current user's saved artworks for suggestions
+ * @param savedArtworksRepository provides the current user's saved artworks for suggestions
  * @param wikiDataRepository searches Wikidata for submitted queries
  * @author IJJA3141
  */
 class SearchScreenViewModel(
-    private val artworkRepository: ArtworkRepository,
+    private val savedArtworksRepository: SavedArtworksRepository,
     private val wikiDataRepository: WikiDataRepository,
 ) : ViewModel() {
   private var savedArtworks: List<Artwork> = emptyList()
@@ -41,7 +41,7 @@ class SearchScreenViewModel(
 
   init {
     viewModelScope.launch {
-      savedArtworks = artworkRepository.getSavedArtworks()
+      savedArtworks = savedArtworksRepository.getSavedArtworks()
       updateRecommendations(_searchQuery.value)
     }
   }
