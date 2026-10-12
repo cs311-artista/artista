@@ -10,6 +10,9 @@ import kotlinx.coroutines.flow.update
 /**
  * UI state of the artist preferences screen.
  *
+ * Kept separate from [com.artista.artista.model.user.UserPreference]: the suggested artists are not
+ * user data, and the selection only becomes a preference once the user saves it.
+ *
  * @property popularArtists the artists suggested to the user, in display order.
  * @property selectedArtists the artists the user has selected as favorites.
  * @author Timz3rr

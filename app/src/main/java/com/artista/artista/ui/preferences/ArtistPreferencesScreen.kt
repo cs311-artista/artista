@@ -65,18 +65,21 @@ private val BackButtonSize = 48.dp
  * Displays the popular artists the user can select as favorites to personalize their
  * recommendations.
  *
- * @param artistPreferencesViewModel ViewModel providing the artists and the current selection.
+ * The callbacks have no default value, so that integrating the screen without wiring one of them
+ * fails to compile instead of leaving a button that silently does nothing.
+ *
  * @param onBackClick Callback invoked when the user leaves the screen.
  * @param onSaveClick Callback invoked when the user saves their preferences.
  * @param onTabSelected Callback invoked with the destination selected in the bottom navigation.
+ * @param artistPreferencesViewModel ViewModel providing the artists and the current selection.
  * @author Timz3rr
  */
 @Composable
 fun ArtistPreferencesScreen(
+    onBackClick: () -> Unit,
+    onSaveClick: () -> Unit,
+    onTabSelected: (Tab) -> Unit,
     artistPreferencesViewModel: ArtistPreferencesViewModel = viewModel(),
-    onBackClick: () -> Unit = {},
-    onSaveClick: () -> Unit = {},
-    onTabSelected: (Tab) -> Unit = {},
 ) {
   val uiState by artistPreferencesViewModel.uiState.collectAsStateWithLifecycle()
 
@@ -104,6 +107,7 @@ fun ArtistPreferencesScreen(
           color = MaterialTheme.colorScheme.primary,
       )
       // The weight keeps the save button above the bottom bar; the grid scrolls when it overflows.
+      // A lazy grid needs a bounded height: making this column scrollable would crash it.
       LazyVerticalGrid(
           columns = GridCells.Fixed(3),
           modifier =
@@ -111,6 +115,8 @@ fun ArtistPreferencesScreen(
           horizontalArrangement = Arrangement.spacedBy(12.dp),
           verticalArrangement = Arrangement.spacedBy(12.dp),
       ) {
+        // Names are used as keys, so they must be unique: duplicated keys crash the grid. Switch to
+        // artist identifiers once the artists come from a repository.
         items(uiState.popularArtists, key = { it }) { artist ->
           ArtistCard(
               artist = artist,
@@ -119,6 +125,9 @@ fun ArtistPreferencesScreen(
           )
         }
       }
+      // Nothing is persisted yet, since saving to Firestore is not implemented. The plan is for the
+      // ViewModel to take the selected artists from its state and store them in the user's
+      // preferences through the user repository; onSaveClick then only handles navigation.
       Button(
           onClick = onSaveClick,
           modifier =
@@ -188,6 +197,7 @@ private fun SearchField() {
       singleLine = true,
       shape = PillShape,
       // A disabled field is greyed out by default; the mockup shows it like an active one.
+      // It therefore looks usable although it is not, until searching is implemented.
       colors =
           TextFieldDefaults.colors(
               disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
@@ -207,6 +217,7 @@ private fun SearchField() {
  */
 @Composable
 private fun ArtistCard(artist: String, selected: Boolean, onToggle: () -> Unit) {
+  // A checkable Surface, unlike a clickable one, exposes the on/off state used by assertIsOn.
   Surface(
       checked = selected,
       onCheckedChange = { onToggle() },
@@ -305,5 +316,12 @@ private fun ArtistPreferencesScreenPreview() {
       toggleArtist("Claude Monet")
     }
   }
-  ArtistaTheme { ArtistPreferencesScreen(artistPreferencesViewModel = viewModel) }
+  ArtistaTheme {
+    ArtistPreferencesScreen(
+        onBackClick = {},
+        onSaveClick = {},
+        onTabSelected = {},
+        artistPreferencesViewModel = viewModel,
+    )
+  }
 }
