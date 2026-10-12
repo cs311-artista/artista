@@ -24,6 +24,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -127,9 +128,13 @@ private fun SavedArtworkScreenLayout(
   LaunchedEffect(loadErrorMessage) {
     loadErrorMessage?.let { message ->
       val result =
+          // A snackbar with an action stays forever by default, so give the user a close button
+          // and let it hide on its own instead of forcing them to tap Retry.
           snackbarHostState.showSnackbar(
               message = message,
               actionLabel = "Retry",
+              withDismissAction = true,
+              duration = SnackbarDuration.Long,
           )
       if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) {
         onRetry()
