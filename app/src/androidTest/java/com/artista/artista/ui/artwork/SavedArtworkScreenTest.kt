@@ -101,6 +101,19 @@ class SavedArtworkScreenTest {
     composeTestRule.onNodeWithText(savedArtwork.name).assertIsDisplayed()
   }
 
+  /** Verifies that an artwork without an artist name displays the shared fallback text. */
+  @Test
+  fun savedArtworkScreen_whenArtistIsUnknown_displaysFallbackText() {
+    fakeRepository.savedArtworks.add(savedArtwork.copy(artistName = null))
+    setScreenContent()
+
+    composeTestRule.waitForIdle()
+
+    composeTestRule
+        .onNodeWithText(composeTestRule.activity.getString(R.string.artwork_unknown_artist))
+        .assertIsDisplayed()
+  }
+
   /** Verifies that the saved-artwork list can scroll to cards outside the initial viewport. */
   @Test
   fun savedArtworkScreen_savedArtworkListIsScrollable() {
@@ -126,6 +139,32 @@ class SavedArtworkScreenTest {
 
     composeTestRule.onNodeWithTag(SavedArtworkTestTags.EMPTY_STATE).assertIsDisplayed()
     composeTestRule.onNodeWithTag(SavedArtworkTestTags.LIST).assertDoesNotExist()
+  }
+
+  /** Verifies that the loading state is shown until the repository answers. */
+  @Test
+  fun savedArtworkScreen_whileLoading_displaysLoadingState() {
+    fakeRepository.savedArtworks.add(savedArtwork)
+    // Holds the fake's load paused, like a slow network call, until the gate is completed.
+    val gate = CompletableDeferred<Unit>()
+    fakeRepository.loadGate = gate
+    setScreenContent()
+
+    composeTestRule.waitForIdle()
+
+    composeTestRule.onNodeWithTag(SavedArtworkTestTags.LOADING_STATE).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(SavedArtworkTestTags.LIST).assertDoesNotExist()
+    composeTestRule.onNodeWithTag(SavedArtworkTestTags.EMPTY_STATE).assertDoesNotExist()
+
+    // Opens the gate so the paused load resumes and delivers the artworks.
+    gate.complete(Unit)
+    composeTestRule.waitUntil(3_000) {
+      composeTestRule
+          .onAllNodesWithTag(SavedArtworkTestTags.card(savedArtwork))
+          .fetchSemanticsNodes()
+          .isNotEmpty()
+    }
+    composeTestRule.onNodeWithTag(SavedArtworkTestTags.LOADING_STATE).assertDoesNotExist()
   }
 
   /** Verifies that repository loading failures display a retryable snackbar. */
@@ -328,6 +367,14 @@ class SavedArtworkScreenTest {
      */
     var removeGate: CompletableDeferred<Unit>? = null
 
+    /**
+     * When set, [getSavedArtworks] suspends until it completes, to observe the loading state.
+     *
+     * Works like [removeGate]: `await()` pauses the load and `complete(Unit)` resumes it. `null`
+     * means no delay.
+     */
+    var loadGate: CompletableDeferred<Unit>? = null
+
     override suspend fun isArtworkSaved(artworkName: String): Boolean {
       return savedArtworks.any { it.name == artworkName }
     }
@@ -348,6 +395,8 @@ class SavedArtworkScreenTest {
     }
 
     override suspend fun getSavedArtworks(): List<Artwork> {
+      // Suspends here while the test keeps the gate closed; skipped when no gate is set.
+      loadGate?.await()
       if (shouldThrowError) throw RuntimeException("Simulated database failure")
       return savedArtworks.toList()
     }
