@@ -18,6 +18,7 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 
+// Co-authored-by: DeepSeek Flash
 /**
  * Unit tests for [AuthViewModel].
  *

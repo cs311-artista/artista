@@ -1,5 +1,6 @@
 package com.artista.artista.ui.authentication
 
+// Co-authored-by: DeepSeek Flash
 /**
  * In-memory [GoogleCredentialProvider] for unit tests.
  *

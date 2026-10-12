@@ -26,7 +26,7 @@ fun AuthScreenContent(
     onSignedIn: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-  TODO("Not yet implemented — see the AuthScreen requirements test specification")
+  TODO("Not yet implemented")
 }
 
 /**
@@ -49,5 +49,5 @@ fun AuthScreen(
     onSignedIn: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-  TODO("Not yet implemented — see the AuthScreen requirements test specification")
+  TODO("Not yet implemented")
 }
