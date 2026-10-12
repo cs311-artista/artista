@@ -20,8 +20,6 @@
     <string name="artwork_no_dimensions">Dimensions unavailable</string>
 
     <string name="artwork_location_format">%1$.5f, %2$.5f</string>
-    <string name="artwork_dimensions_format">%1$.1f × %2$.1f cm</string>
-    <string name="artwork_thumbnail_placeholder">Artwork thumbnail</string>
     <string name="artwork_card_map">Map</string>
     <string name="artwork_card_save">Save</string>
     <string name="artwork_card_saved">Saved</string>

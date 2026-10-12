@@ -119,4 +119,34 @@ class ArtworkCardTest {
         .assertIsDisplayed()
         .assert(hasText("Saved"))
   }
+
+  @Test
+  fun artworkCard_withoutArtist_displaysUnknownArtistFallback() {
+    val artwork =
+        Artwork(
+            uid = "unknownArtist",
+            name = "Untitled Study",
+            artistName = null,
+            description = null,
+            conceptionDate = null,
+            museum = null,
+            location = null,
+            dimension = null,
+        )
+
+    composeTestRule.setContent {
+      MaterialTheme {
+        ArtworkCard(
+            artwork = artwork,
+            isSaved = false,
+            onArtworkClick = {},
+            onMapClick = {},
+            onSaveClick = { _, _ -> },
+        )
+      }
+    }
+    composeTestRule.waitForIdle()
+
+    composeTestRule.onNodeWithText("Unknown Artist").assertIsDisplayed()
+  }
 }

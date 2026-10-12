@@ -51,7 +51,7 @@ class ArtworkScreenViewModel(
    */
   fun setArtwork(artwork: Artwork) {
     viewModelScope.launch {
-      val saved = savedArtworkRepository.isArtworkSaved(artwork.uid)
+      val saved = savedArtworkRepository.isArtworkSaved(artwork.name)
       _uiState.update { it.copy(artwork = artwork, isSaved = saved) }
     }
   }
@@ -73,7 +73,7 @@ class ArtworkScreenViewModel(
     viewModelScope.launch {
       try {
         if (wasSaved) {
-          savedArtworkRepository.removeArtworkFromSaved(artwork.uid)
+          savedArtworkRepository.removeArtworkFromSaved(artwork.name)
         } else {
           savedArtworkRepository.saveArtwork(artwork)
         }

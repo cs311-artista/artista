@@ -57,10 +57,10 @@ class ArtworkScreenTest {
     composeTestRule.onNodeWithTag(ArtworkTestTags.SAVE_BUTTON).performClick()
 
     composeTestRule.waitUntil(timeoutMillis = milliseconds) {
-      runBlocking { fakeRepository.isArtworkSaved(sampleArtwork.uid) }
+      runBlocking { fakeRepository.isArtworkSaved(sampleArtwork.name) }
     }
 
-    runBlocking { assertTrue(fakeRepository.isArtworkSaved(sampleArtwork.uid)) }
+    runBlocking { assertTrue(fakeRepository.isArtworkSaved(sampleArtwork.name)) }
   }
 
   @Test
@@ -72,10 +72,10 @@ class ArtworkScreenTest {
     composeTestRule.onNodeWithTag(ArtworkTestTags.SAVE_BUTTON).performClick()
 
     composeTestRule.waitUntil(timeoutMillis = milliseconds) {
-      runBlocking { !fakeRepository.isArtworkSaved(sampleArtwork.uid) }
+      runBlocking { !fakeRepository.isArtworkSaved(sampleArtwork.name) }
     }
 
-    runBlocking { assertFalse(fakeRepository.isArtworkSaved(sampleArtwork.uid)) }
+    runBlocking { assertFalse(fakeRepository.isArtworkSaved(sampleArtwork.name)) }
   }
 
   private fun setScreenContent(onBackClick: () -> Unit = {}) {
@@ -95,7 +95,7 @@ class ArtworkScreenTest {
     private val savedArtworks = mutableListOf<Artwork>()
 
     override suspend fun isArtworkSaved(uid: ArtworkId): Boolean {
-      return savedArtworks.any { it.uid == uid }
+      return savedArtworks.any { it.name == uid }
     }
 
     override suspend fun saveArtwork(artwork: Artwork) {
@@ -104,7 +104,7 @@ class ArtworkScreenTest {
     }
 
     override suspend fun removeArtworkFromSaved(uid: ArtworkId) {
-      savedArtworks.removeAll { it.uid == uid }
+      savedArtworks.removeAll { it.name == uid }
     }
 
     override suspend fun getSavedArtworks(): List<Artwork> =

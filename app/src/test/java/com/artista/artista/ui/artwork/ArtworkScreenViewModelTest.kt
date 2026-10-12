@@ -79,7 +79,7 @@ class ArtworkScreenViewModelTest {
     viewModel.toggleSaveArtwork()
 
     assertTrue(viewModel.uiState.value.isSaved)
-    assertTrue(fakeRepository.isArtworkSaved(sampleArtwork.uid))
+    assertTrue(fakeRepository.isArtworkSaved(sampleArtwork.name))
   }
 
   @Test
@@ -91,7 +91,7 @@ class ArtworkScreenViewModelTest {
         viewModel.toggleSaveArtwork()
 
         assertFalse(viewModel.uiState.value.isSaved)
-        assertFalse(fakeRepository.isArtworkSaved(sampleArtwork.uid))
+        assertFalse(fakeRepository.isArtworkSaved(sampleArtwork.name))
       }
 
   @Test
@@ -118,7 +118,7 @@ class ArtworkScreenViewModelTest {
 
     override suspend fun isArtworkSaved(uid: ArtworkId): Boolean {
       if (shouldThrowError) throw RuntimeException("Simulated error")
-      return savedArtworks.any { it.uid == uid }
+      return savedArtworks.any { it.name == uid }
     }
 
     override suspend fun saveArtwork(artwork: Artwork) {
@@ -129,7 +129,7 @@ class ArtworkScreenViewModelTest {
 
     override suspend fun removeArtworkFromSaved(uid: ArtworkId) {
       if (shouldThrowError) throw RuntimeException("Simulated database failure")
-      savedArtworks.removeAll { it.uid == uid }
+      savedArtworks.removeAll { it.name == uid }
     }
 
     override suspend fun getSavedArtworks(): List<Artwork> =
