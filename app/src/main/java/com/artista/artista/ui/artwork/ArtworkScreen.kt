@@ -77,7 +77,7 @@ fun ArtworkScreen(
     onBackClick: () -> Unit = {},
 ) {
   // Sync artwork with ViewModel once when entered or when artwork changes
-  LaunchedEffect(artwork.uid) { artworkScreenViewModel.setArtwork(artwork) }
+  LaunchedEffect(artwork.name) { artworkScreenViewModel.setArtwork(artwork) }
 
   val uiState by artworkScreenViewModel.uiState.collectAsState()
   val isSaved = uiState.isSaved
