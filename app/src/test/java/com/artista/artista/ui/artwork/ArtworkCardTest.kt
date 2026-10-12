@@ -33,6 +33,7 @@ class ArtworkCardTest {
 
     val artwork =
         Artwork(
+            uid = "monaLisa",
             name = "Mona Lisa",
             artistName = "Leonardo da Vinci",
             description = "A portrait of Lisa Gherardini",
@@ -85,6 +86,7 @@ class ArtworkCardTest {
   fun artworkCard_withoutLocation_disablesMapActionAndShowsSavedState() {
     val artwork =
         Artwork(
+            uid = "nightWatch",
             name = "The Night Watch",
             artistName = "Rembrandt",
             description = "An iconic Dutch Golden Age painting",

@@ -44,12 +44,12 @@ import java.util.Date
  * @author Copilot
  */
 object ArtworkCardTestTag {
-    const val ARTWORK_CARD = "artwork_card"
-    const val ARTWORK_CARD_THUMBNAIL = "artwork_card_thumbnail"
-    const val ARTWORK_CARD_TITLE = "artwork_card_title"
-    const val ARTWORK_CARD_ARTIST = "artwork_card_artist"
-    const val ARTWORK_CARD_MAP_BUTTON = "artwork_card_map_button"
-    const val ARTWORK_CARD_SAVE_BUTTON = "artwork_card_save_button"
+  const val ARTWORK_CARD = "artwork_card"
+  const val ARTWORK_CARD_THUMBNAIL = "artwork_card_thumbnail"
+  const val ARTWORK_CARD_TITLE = "artwork_card_title"
+  const val ARTWORK_CARD_ARTIST = "artwork_card_artist"
+  const val ARTWORK_CARD_MAP_BUTTON = "artwork_card_map_button"
+  const val ARTWORK_CARD_SAVE_BUTTON = "artwork_card_save_button"
 }
 
 /**
@@ -88,8 +88,8 @@ fun ArtworkCard(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center,
         ) {
-            // Placeholder for artwork thumbnail or image
-            // TODO: Load and display the artwork image
+          // Placeholder for artwork thumbnail or image
+          // TODO: Load and display the artwork image
           Text(
               text = "Picture/thumbnail Placeholder",
               modifier = Modifier.testTag(ArtworkCardTestTag.ARTWORK_CARD_THUMBNAIL),
@@ -172,6 +172,7 @@ fun ArtworkCard(
 private fun ArtworkCardPreview() {
   val artwork =
       Artwork(
+          uid = "monaLisa",
           name = "Mona Lisa",
           artistName = "Leonardo da Vinci",
           description = "A portrait of Lisa Gherardini, painted in the early 16th century.",
