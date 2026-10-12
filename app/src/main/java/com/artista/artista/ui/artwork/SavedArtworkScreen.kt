@@ -43,7 +43,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkId
@@ -64,16 +63,18 @@ import com.artista.artista.ui.theme.ArtistaTheme
  *
  * @param onArtworkDetailsClick called when the user opens an artwork's details
  * @param onTabSelected called when the user selects a bottom-navigation destination
+ * @param viewModel ViewModel providing saved-artwork state and actions. It has no default because
+ *   it needs a [com.artista.artista.model.artwork.SavedArtworksRepository] that only the caller can
+ *   supply.
  * @param modifier modifier applied to the screen scaffold
- * @param viewModel ViewModel providing saved-artwork state and actions
  * @author Kaio R. Freitas Pereira Nascimento (krfpn)
  */
 @Composable
 fun SavedArtworkScreen(
     onArtworkDetailsClick: (Artwork) -> Unit,
     onTabSelected: (Tab) -> Unit,
+    viewModel: SavedArtworkViewModel,
     modifier: Modifier = Modifier,
-    viewModel: SavedArtworkViewModel = viewModel(),
 ) {
   val uiState by viewModel.uiState.collectAsState()
 
