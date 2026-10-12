@@ -20,7 +20,8 @@ import androidx.compose.ui.test.performScrollToNode
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
-import com.artista.artista.model.artwork.ArtworkRepository
+import com.artista.artista.model.artwork.ArtworkId
+import com.artista.artista.model.artwork.SavedArtworksRepository
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaTheme
 import kotlinx.coroutines.CompletableDeferred
@@ -50,6 +51,7 @@ class SavedArtworkScreenTest {
 
   private val savedArtwork =
       Artwork(
+          uid = "starryId",
           name = "The Starry Night",
           artistName = "Vincent van Gogh",
           description = "A landscape under a swirling night sky.",
@@ -117,7 +119,8 @@ class SavedArtworkScreenTest {
   /** Verifies that the saved-artwork list can scroll to cards outside the initial viewport. */
   @Test
   fun savedArtworkScreen_savedArtworkListIsScrollable() {
-    val artworks = (1..10).map { index -> savedArtwork.copy(name = "Artwork $index") }
+    val artworks =
+        (1..10).map { index -> savedArtwork.copy(uid = "artwork$index", name = "Artwork $index") }
     fakeRepository.savedArtworks.addAll(artworks)
     setScreenContent()
 
@@ -263,7 +266,7 @@ class SavedArtworkScreenTest {
   /** Verifies that unsaving an artwork already absent from the repository is not an error. */
   @Test
   fun savedArtworkScreen_whenArtworkIsAlreadyAbsentFromRepository_keepsCardRemoved() {
-    val otherArtwork = savedArtwork.copy(name = "Girl with a Pearl Earring")
+    val otherArtwork = savedArtwork.copy(uid = "girlId", name = "Girl with a Pearl Earring")
     fakeRepository.savedArtworks.addAll(listOf(savedArtwork, otherArtwork))
     setScreenContent()
 
@@ -282,7 +285,10 @@ class SavedArtworkScreenTest {
   /** Verifies that a failed unsave restores the card at the position it had before. */
   @Test
   fun savedArtworkScreen_whenUnsaveFails_restoresCardAtOriginalPosition() {
-    val artworks = listOf("First", "Second", "Third").map { savedArtwork.copy(name = it) }
+    val artworks =
+        listOf("First", "Second", "Third").map {
+          savedArtwork.copy(uid = "${it.lowercase()}Id", name = it)
+        }
     fakeRepository.savedArtworks.addAll(artworks)
     setScreenContent()
 
@@ -354,13 +360,14 @@ class SavedArtworkScreenTest {
   // Fake repository
   // ---------------------------------------------------------------------------
 
-  /** In-memory test double implementing [ArtworkRepository]. */
-  private class FakeArtworkRepository : ArtworkRepository {
+  /** In-memory test double implementing [SavedArtworksRepository]. */
+  private class FakeArtworkRepository : SavedArtworksRepository {
     val savedArtworks = mutableListOf<Artwork>()
     var shouldThrowError = false
 
     /**
-     * When set, [removeArtwork] suspends until it completes, to observe the screen meanwhile.
+     * When set, [removeArtworkFromSaved] suspends until it completes, to observe the screen
+     * meanwhile.
      *
      * A [CompletableDeferred] is a value the test completes by hand: `await()` suspends the caller
      * without blocking the main thread, and `complete(Unit)` resumes it. `null` means no delay.
@@ -375,22 +382,22 @@ class SavedArtworkScreenTest {
      */
     var loadGate: CompletableDeferred<Unit>? = null
 
-    override suspend fun isArtworkSaved(artworkName: String): Boolean {
-      return savedArtworks.any { it.name == artworkName }
+    override suspend fun isArtworkSaved(uid: ArtworkId): Boolean {
+      return savedArtworks.any { it.uid == uid }
     }
 
     override suspend fun saveArtwork(artwork: Artwork) {
-      // Match repository upsert behavior by replacing an existing artwork with the same name.
-      savedArtworks.removeAll { it.name == artwork.name }
+      // Match repository upsert behavior by replacing an existing artwork with the same uid.
+      savedArtworks.removeAll { it.uid == artwork.uid }
       savedArtworks.add(artwork)
     }
 
-    override suspend fun removeArtwork(artworkName: String) {
+    override suspend fun removeArtworkFromSaved(uid: ArtworkId) {
       // Suspends here while the test keeps the gate closed; skipped when no gate is set.
       removeGate?.await()
       if (shouldThrowError) throw RuntimeException("Simulated database failure")
-      if (!savedArtworks.removeAll { it.name == artworkName }) {
-        throw NoSuchElementException("No saved artwork named $artworkName")
+      if (!savedArtworks.removeAll { it.uid == uid }) {
+        throw NoSuchElementException("No saved artwork with uid $uid")
       }
     }
 

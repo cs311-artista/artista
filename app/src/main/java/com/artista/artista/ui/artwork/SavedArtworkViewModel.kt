@@ -8,7 +8,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
-import com.artista.artista.model.artwork.ArtworkRepository
+import com.artista.artista.model.artwork.SavedArtworksRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -45,11 +45,11 @@ data class SavedArtworkUIState(
 /**
  * Provides saved-artwork state and actions to [SavedArtworkScreen].
  *
- * @param artworkRepository repository used to load and remove saved artworks
+ * @param savedArtworksRepository repository used to load and remove saved artworks
  * @author Kaio R. Freitas Pereira Nascimento (krfpn)
  */
 class SavedArtworkViewModel(
-    private val artworkRepository: ArtworkRepository,
+    private val savedArtworksRepository: SavedArtworksRepository,
 ) : ViewModel() {
 
   private val _uiState = MutableStateFlow(SavedArtworkUIState())
@@ -78,7 +78,7 @@ class SavedArtworkViewModel(
     loadJob?.cancel()
     loadJob = viewModelScope.launch {
       try {
-        val artworks = artworkRepository.getSavedArtworks()
+        val artworks = savedArtworksRepository.getSavedArtworks()
         _uiState.update {
           it.copy(artworks = artworks, isLoading = false, loadErrorMessageResId = null)
         }
@@ -116,7 +116,7 @@ class SavedArtworkViewModel(
     }
     viewModelScope.launch {
       try {
-        artworkRepository.removeArtwork(artwork.name)
+        savedArtworksRepository.removeArtworkFromSaved(artwork.uid)
       } catch (exception: NoSuchElementException) {
         // The artwork is already absent from storage, which is the outcome the user asked for.
       } catch (exception: CancellationException) {
