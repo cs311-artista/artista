@@ -10,6 +10,7 @@ import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkRepository
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -56,6 +57,10 @@ class SavedArtworkViewModel(
   /** Read-only saved-artwork state observed by the UI. */
   val uiState: StateFlow<SavedArtworkUIState> = _uiState.asStateFlow()
 
+  // Loads can overlap (e.g. quickly leaving and coming back to the screen) and a slow older load
+  // could finish last and overwrite newer data, so only the most recent load is kept running.
+  private var loadJob: Job? = null
+
   /**
    * Loads the user's saved artworks from the repository.
    *
@@ -66,7 +71,12 @@ class SavedArtworkViewModel(
    */
   fun refreshSavedArtworks() {
     _uiState.update { it.copy(isLoading = it.artworks.isEmpty(), loadErrorMessageResId = null) }
-    viewModelScope.launch {
+    // A previous load may still be waiting for the repository. Its answer is older than the one
+    // we are about to request, so stop it: otherwise, if it arrived last, it would replace the
+    // newer list on screen (e.g. showing an artwork the user just unsaved). The stopped load ends
+    // silently; the CancellationException catch below makes sure it is not shown as an error.
+    loadJob?.cancel()
+    loadJob = viewModelScope.launch {
       try {
         val artworks = artworkRepository.getSavedArtworks()
         _uiState.update {
