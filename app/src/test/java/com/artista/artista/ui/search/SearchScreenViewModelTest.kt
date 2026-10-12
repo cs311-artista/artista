@@ -2,7 +2,8 @@
 package com.artista.artista.ui.search
 
 import com.artista.artista.model.artwork.Artwork
-import com.artista.artista.model.artwork.ArtworkRepository
+import com.artista.artista.model.artwork.ArtworkId
+import com.artista.artista.model.artwork.SavedArtworksRepository
 import com.artista.artista.model.artwork.WikiDataRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -79,8 +80,8 @@ class SearchScreenViewModelTest {
     assertTrue(viewModel.recommendations.value.isEmpty())
   }
 
-  private fun fakeArtworkRepository(): ArtworkRepository =
-      object : ArtworkRepository {
+  private fun fakeArtworkRepository(): SavedArtworksRepository =
+      object : SavedArtworksRepository {
         private val savedArtworks = mutableListOf<Artwork>()
         var shouldThrowError = false
 
@@ -95,7 +96,7 @@ class SearchScreenViewModelTest {
           savedArtworks.add(artwork)
         }
 
-        override suspend fun removeArtwork(artworkName: String) {
+        override suspend fun removeArtworkFromSaved(artworkName: String) {
           if (shouldThrowError) throw RuntimeException("Simulated database failure")
           savedArtworks.removeAll { it.name == artworkName }
         }
@@ -103,6 +104,7 @@ class SearchScreenViewModelTest {
         override suspend fun getSavedArtworks(): List<Artwork> =
             listOf(
                 Artwork(
+                    uid = "starryId",
                     name = "The Starry Night",
                     artistName = "Vincent van Gogh",
                     location = null,
@@ -112,6 +114,7 @@ class SearchScreenViewModelTest {
                     museum = null,
                 ),
                 Artwork(
+                    uid = "girlId",
                     name = "Girl with a Pearl Earring",
                     artistName = "Johannes Vermeer",
                     location = null,
@@ -121,6 +124,7 @@ class SearchScreenViewModelTest {
                     museum = null,
                 ),
                 Artwork(
+                    uid = "sunflowersId",
                     name = "Sunflowers",
                     artistName = "Vincent van Gogh",
                     location = null,
@@ -130,6 +134,7 @@ class SearchScreenViewModelTest {
                     museum = null,
                 ),
                 Artwork(
+                    uid = "untitledId",
                     name = "Untitled study",
                     artistName = null,
                     location = null,
@@ -143,9 +148,14 @@ class SearchScreenViewModelTest {
 
   private fun fakeWikiRepository(): WikiDataRepository =
       object : WikiDataRepository {
+        override suspend fun getArtwork(uid: ArtworkId): Artwork {
+          throw NotImplementedError()
+        }
+
         override suspend fun searchArtworks(query: String): List<Artwork> =
             listOf(
                     Artwork(
+                        uid = "starryId",
                         name = "The Starry Night",
                         artistName = "Vincent van Gogh",
                         location = null,
@@ -155,6 +165,7 @@ class SearchScreenViewModelTest {
                         museum = null,
                     ),
                     Artwork(
+                        uid = "sunflowersId",
                         name = "Sunflowers",
                         artistName = "Vincent van Gogh",
                         location = null,
@@ -164,6 +175,7 @@ class SearchScreenViewModelTest {
                         museum = null,
                     ),
                     Artwork(
+                        uid = "untitledId",
                         name = "Untitled study",
                         artistName = null,
                         location = null,
