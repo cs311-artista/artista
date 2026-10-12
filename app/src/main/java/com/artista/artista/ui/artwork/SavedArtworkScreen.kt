@@ -231,25 +231,25 @@ object SavedArtworkTestTags {
    * Returns the tag identifying an artwork card.
    *
    * @param artwork the artwork represented by the card
-   * @return a stable tag derived from the artwork title
+   * @return a stable tag derived from the artwork uid
    */
-  fun card(artwork: Artwork): String = "saved_artwork_card_${artwork.name}"
+  fun card(artwork: Artwork): String = "saved_artwork_card_${artwork.uid}"
 
   /**
    * Returns the tag identifying an artwork's details button.
    *
    * @param artwork the artwork represented by the button
-   * @return a stable tag derived from the artwork title
+   * @return a stable tag derived from the artwork uid
    */
-  fun detailsButton(artwork: Artwork): String = "saved_artwork_details_${artwork.name}"
+  fun detailsButton(artwork: Artwork): String = "saved_artwork_details_${artwork.uid}"
 
   /**
    * Returns the tag identifying an artwork's unsave button.
    *
    * @param artwork the artwork represented by the button
-   * @return a stable tag derived from the artwork title
+   * @return a stable tag derived from the artwork uid
    */
-  fun unsaveButton(artwork: Artwork): String = "saved_artwork_unsave_${artwork.name}"
+  fun unsaveButton(artwork: Artwork): String = "saved_artwork_unsave_${artwork.uid}"
 }
 
 // ---------------------------------------------------------------------------
@@ -321,7 +321,7 @@ private fun SavedArtworkList(
       contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
       verticalArrangement = Arrangement.spacedBy(12.dp),
   ) {
-    items(artworks, key = { it.name }) { artwork ->
+    items(artworks, key = { it.uid }) { artwork ->
       SavedArtworkCard(
           artwork = artwork,
           onDetailsClick = { onArtworkDetailsClick(artwork) },

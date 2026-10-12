@@ -109,10 +109,10 @@ class SavedArtworkViewModel(
    * @author Kaio R. Freitas Pereira Nascimento (krfpn)
    */
   fun onArtworkUnsave(artwork: Artwork) {
-    val previousIndex = _uiState.value.artworks.indexOfFirst { it.name == artwork.name }
+    val previousIndex = _uiState.value.artworks.indexOfFirst { it.uid == artwork.uid }
     // Removing the card before the repository call prevents the user from tapping it twice.
     _uiState.update { state ->
-      state.copy(artworks = state.artworks.filterNot { it.name == artwork.name })
+      state.copy(artworks = state.artworks.filterNot { it.uid == artwork.uid })
     }
     viewModelScope.launch {
       try {
@@ -125,7 +125,7 @@ class SavedArtworkViewModel(
         // the artwork, so it must stay before the generic catch below.
         throw exception
       } catch (exception: Exception) {
-        Log.e(TAG, "Failed to unsave artwork: ${artwork.name}.", exception)
+        Log.e(TAG, "Failed to unsave artwork ${artwork.uid} (${artwork.name}).", exception)
         _uiState.update { state ->
           state.copy(
               artworks = state.artworks.restore(artwork, previousIndex),
@@ -145,7 +145,7 @@ class SavedArtworkViewModel(
    */
   private fun List<Artwork>.restore(artwork: Artwork, index: Int): List<Artwork> {
     // A concurrent refresh may already have brought the artwork back, so avoid duplicating it.
-    if (index < 0 || any { it.name == artwork.name }) return this
+    if (index < 0 || any { it.uid == artwork.uid }) return this
     return toMutableList().apply { add(index.coerceAtMost(size), artwork) }
   }
 

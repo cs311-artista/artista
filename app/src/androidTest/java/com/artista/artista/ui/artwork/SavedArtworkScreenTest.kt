@@ -304,6 +304,28 @@ class SavedArtworkScreenTest {
         .assert(hasTestTag(SavedArtworkTestTags.card(artworks[1])))
   }
 
+  /** Verifies that artworks sharing a title are told apart by their uid. */
+  @Test
+  fun savedArtworkScreen_whenTwoArtworksShareATitle_unsavesOnlyTheSelectedOne() {
+    val sameTitleArtwork = savedArtwork.copy(uid = "starryCopyId")
+    fakeRepository.savedArtworks.addAll(listOf(savedArtwork, sameTitleArtwork))
+    setScreenContent()
+
+    composeTestRule.waitForIdle()
+    // Both cards render: list keys and test tags come from the uid, not the shared title.
+    composeTestRule.onNodeWithTag(SavedArtworkTestTags.card(savedArtwork)).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(SavedArtworkTestTags.card(sameTitleArtwork)).assertIsDisplayed()
+
+    composeTestRule
+        .onNodeWithTag(SavedArtworkTestTags.unsaveButton(sameTitleArtwork))
+        .performClick()
+    composeTestRule.waitUntil(3_000) { fakeRepository.savedArtworks.size == 1 }
+
+    assertEquals(listOf(savedArtwork), fakeRepository.savedArtworks)
+    composeTestRule.onNodeWithTag(SavedArtworkTestTags.card(sameTitleArtwork)).assertDoesNotExist()
+    composeTestRule.onNodeWithTag(SavedArtworkTestTags.card(savedArtwork)).assertIsDisplayed()
+  }
+
   /** Verifies that coming back to the screen reloads the list kept by the ViewModel. */
   @Test
   fun savedArtworkScreen_whenScreenIsShownAgain_reloadsSavedArtworks() {
