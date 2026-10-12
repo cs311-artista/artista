@@ -1,12 +1,5 @@
 package com.artista.artista.model.artwork
 
-import com.artista.artista.model.map.Location
-import kotlin.math.asin
-import kotlin.math.cos
-import kotlin.math.pow
-import kotlin.math.sin
-import kotlin.math.sqrt
-
 /**
  * In-memory repository for artwork data used during local app development and testing.
  *
@@ -16,31 +9,24 @@ import kotlin.math.sqrt
  *
  * @author 5kyPhy
  */
-class ArtworkRepositoryLocal : ArtworkRepository {
+class ArtworkRepositoryLocal : SavedArtworksRepository, WikiDataRepository {
   /** Stores all artworks available in the local repository. */
-  private val artworks: HashMap<Artwork_ID, Artwork> = hashMapOf()
+  private val artworks: HashMap<ArtworkId, Artwork> = hashMapOf()
 
   /** Stores the artworks currently saved by the user. */
-  private val artworksSaved: HashMap<Artwork_ID, Artwork> = hashMapOf()
+  private val artworksSaved: HashMap<ArtworkId, Artwork> = hashMapOf()
 
-  override suspend fun getArtwork(uid: Artwork_ID): Artwork {
+  override suspend fun getArtwork(uid: ArtworkId): Artwork {
     if (uid.isBlank()) throw IllegalArgumentException("uid is blank")
     return artworks[uid] ?: throw NoSuchElementException("No Artwork match uid: $uid was found")
   }
 
-  override suspend fun searchArtworkByArtworkName(name: String): List<Artwork> {
-    return artworks.values.filter { artwork -> artwork.name == name }
+  override suspend fun searchArtworks(query: String): List<Artwork> {
+    if (query.isBlank()) return emptyList()
+    return artworks.values.filter { it.name.contains(query, ignoreCase = true) }
   }
 
-  override suspend fun searchArtworkByArtistName(artistName: String): List<Artwork> {
-    return artworks.values.filter { artwork -> artwork.artistName == artistName }
-  }
-
-  override suspend fun searchArtworkByLocation(location: Location, radius: Double): List<Artwork> {
-    return artworks.values.filter { artwork -> distanceMeters(artwork.location, location) < radius }
-  }
-
-  override suspend fun isArtworkSaved(uid: Artwork_ID): Boolean {
+  override suspend fun isArtworkSaved(uid: ArtworkId): Boolean {
     if (uid.isBlank()) throw IllegalArgumentException("uid is empty")
     return artworksSaved.containsKey(uid)
   }
@@ -50,34 +36,29 @@ class ArtworkRepositoryLocal : ArtworkRepository {
     artworksSaved[artwork.uid] = artwork
   }
 
-  override suspend fun removeArtwork(uid: Artwork_ID) {}
+  override suspend fun removeArtworkFromSaved(uid: ArtworkId) {
+    if (!isArtworkSaved(uid)) throw NoSuchElementException("No artwork matching uid $uid was found")
+    artworksSaved.remove(uid)
+  }
 
   override suspend fun getSavedArtworks(): List<Artwork> {
     return artworksSaved.values.toList()
   }
 
   /**
-   * Computes the distance in meters between two geographic locations.
+   * This function is a helper to instantiate a test/demo environment. It accesses parts of the
+   * Repository which would not be accessible like it in production code. Its purpose is to set up
+   * the repository in a way such that tests and demos using [ArtworkRepositoryLocal] can have data
+   * to work with.
    *
-   * @param a the first location, or null when no location data is available
-   * @param b the second location
-   * @return the distance between the two points in meters; returns a very large value when `a` is
-   *   null
+   * @param artwork the [Artwork] which should be added to the fictional backend
+   * @throws IllegalArgumentException if trying to put a second artwork with the same [Artwork.uid]
+   *   into the repo
    * @author 5kyPhy
    */
-  private fun distanceMeters(a: Location?, b: Location): Double {
-    if (a == null) return Double.MAX_VALUE
-    val earthRadius = 6_371_000.0
-
-    val lat1 = Math.toRadians(a.latitude)
-    val lat2 = Math.toRadians(b.latitude)
-    val deltaLat = Math.toRadians(b.latitude - a.latitude)
-    val deltaLon = Math.toRadians(b.longitude - a.longitude)
-
-    val h = sin(deltaLat / 2).pow(2) + cos(lat1) * cos(lat2) * sin(deltaLon / 2).pow(2)
-
-    val clampedH = h.coerceIn(0.0, 1.0)
-
-    return 2 * earthRadius * asin(sqrt(clampedH))
+  fun putArtworkInRepositoryUnsavedSection(artwork: Artwork) {
+    if (artworks.keys.contains(artwork.uid))
+        throw IllegalArgumentException("uid $artwork.uid already in use!")
+    artworks[artwork.uid] = artwork
   }
 }
