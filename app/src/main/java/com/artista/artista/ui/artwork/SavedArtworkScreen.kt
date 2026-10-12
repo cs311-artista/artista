@@ -61,18 +61,18 @@ import com.artista.artista.ui.theme.ArtistaTheme
  * and navigation remain outside the UI layer. Saved artworks are reloaded each time the screen
  * enters the composition.
  *
- * @param viewModel ViewModel providing saved-artwork state and actions
  * @param onArtworkDetailsClick called when the user opens an artwork's details
  * @param onTabSelected called when the user selects a bottom-navigation destination
  * @param modifier modifier applied to the screen scaffold
+ * @param viewModel ViewModel providing saved-artwork state and actions
  * @author Kaio R. Freitas Pereira Nascimento (krfpn)
  */
 @Composable
 fun SavedArtworkScreen(
-    modifier: Modifier = Modifier,
-    viewModel: SavedArtworkViewModel = viewModel(),
     onArtworkDetailsClick: (Artwork) -> Unit,
     onTabSelected: (Tab) -> Unit,
+    modifier: Modifier = Modifier,
+    viewModel: SavedArtworkViewModel = viewModel(),
 ) {
   val uiState by viewModel.uiState.collectAsState()
 
