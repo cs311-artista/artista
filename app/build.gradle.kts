@@ -1,3 +1,5 @@
+import java.io.FileInputStream
+import java.util.Properties
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -13,6 +15,16 @@ android {
   namespace = "com.artista.artista"
   compileSdk = 37
 
+  // Load the API key from local.properies
+  val localProperties = Properties()
+  val localPropertiesFile = rootProject.file("local.properties")
+  if (localPropertiesFile.exists()) {
+    localProperties.load(FileInputStream(localPropertiesFile))
+  }
+
+  // Load Google Maps API key
+  val mapsApiKey: String = localProperties.getProperty("MAPS_API_KEY") ?: ""
+
   defaultConfig {
     applicationId = "com.artista.artista"
     minSdk = 28
@@ -22,15 +34,19 @@ android {
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     vectorDrawables { useSupportLibrary = true }
+
+    // Placeholder GoogleMaps API key for Manifest merger
+    manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
   }
 
   buildTypes {
     release {
-      isMinifyEnabled = false
+      isMinifyEnabled = true // removes unused code from release build by enabling ProGuard.
+      isShrinkResources = true // removes unused resource from release build.
       proguardFiles(
           getDefaultProguardFile("proguard-android-optimize.txt"),
           "proguard-rules.pro",
-      )
+      ) // defines which files should not be shrunk, if any.
     }
 
     debug {
@@ -148,6 +164,7 @@ dependencies {
   implementation(libs.androidx.navigation.compose)
   implementation(libs.compose.preview)
   debugImplementation(libs.compose.tooling)
+  implementation(libs.androidx.compose.material.icons.extended)
 
   // Android and Compose test libraries
   testImplementation(libs.junit)
@@ -158,12 +175,18 @@ dependencies {
   globalTestImplementation(libs.compose.test.junit)
   debugImplementation(libs.compose.test.manifest)
 
-  // Kaspresso test framework
+  // ---------------- Google Maps Compose ----------------
+  // Compose integration for the Google Maps SDK.
+  implementation(libs.maps.compose)
+  implementation(libs.play.services.location)
+
+  // --------- Kaspresso test framework ----------
   globalTestImplementation(libs.kaspresso)
   globalTestImplementation(libs.kaspresso.compose)
 
   // Robolectric
   testImplementation(libs.robolectric)
+  testImplementation(libs.kotlinx.coroutines.test)
 }
 
 tasks.withType<Test> {

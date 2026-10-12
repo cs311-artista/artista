@@ -50,23 +50,23 @@ Without an internet connection, users cannot search for new artworks but actions
 
 ## App Mockup
 
-The app mockup is designed on [Figma](https://www.figma.com/files/folder/662626613)
+The app mockup is designed on [Figma](https://www.figma.com/design/KqbZRf6ksgbnecninyG9DO/Test-Figma-Tim?node-id=0-1&t=YUptO7e5b8sIyKuj-1).
 
 ---
 
 ## Team Members
 
-- Alex Estella ([@IJJA3141](alex.estella.cj@gmail.com))
-- Felix Burchardt ([@5kyPhy](felix.burchardt@hotmail.com))
-- Kaio Freitas Pereira Nascimento ([@krfpn](kr.fpn@outlook.com))
-- Maksim Romanov ([@hixeum](hixeum@gmail.com))
-- Patrick Mcdaniel ([@patrickmcdan](webaccounts@tuta.io))
-- Timothee Guitard ([@Timz3rr](timothee.guitard@epfl.ch))
-- Timothy Byron-Exarcos ([@timo-by](timothy.byron-exarcos@epfl.ch))
+- Alex Estella ([@IJJA3141](https://github.com/IJJA3141))
+- Felix Burchardt ([@5kyPhy](https://github.com/5kyPhy))
+- Kaio Freitas Pereira Nascimento ([@krfpn](https://github.com/krfpn))
+- Maksim Romanov ([@hixeum](https://github.com/hixeum))
+- Patrick McDaniel ([@patrickmcdan](https://github.com/patrickmcdan))
+- Timothee Guitard ([@Timz3rr](https://github.com/Timz3rr))
+- Timothy Byron-Exarcos ([@timo-by](https://github.com/timo-by))
 
 ---
 
 ## Coaches
 
-- Alexis Poudens ([@AlexisPDS]())
-- Rania Hida ([@Rania5724]())
+- Alexis Poudens ([@AlexisPDS](https://github.com/AlexisPDS))
+- Rania Hida ([@Rania5724](https://github.com/Rania5724))
