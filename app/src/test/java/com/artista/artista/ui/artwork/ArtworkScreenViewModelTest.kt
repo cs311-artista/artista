@@ -2,7 +2,8 @@
 package com.artista.artista.ui.artwork
 
 import com.artista.artista.model.artwork.Artwork
-import com.artista.artista.model.artwork.ArtworkRepository
+import com.artista.artista.model.artwork.ArtworkId
+import com.artista.artista.model.artwork.SavedArtworksRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -30,6 +31,7 @@ class ArtworkScreenViewModelTest {
 
   private val sampleArtwork =
       Artwork(
+          uid = "monaId",
           name = "Mona Lisa",
           artistName = "Leonardo da Vinci",
           description = "Portrait of Lisa Gherardini",
@@ -109,14 +111,14 @@ class ArtworkScreenViewModelTest {
     assertFalse(viewModel.uiState.value.isSaved)
   }
 
-  /** Fake implementation of [ArtworkRepository] for testing [ArtworkScreenViewModel]. */
-  class FakeArtworkRepository : ArtworkRepository {
+  /** Fake implementation of [SavedArtworksRepository] for testing [ArtworkScreenViewModel]. */
+  class FakeArtworkRepository : SavedArtworksRepository {
     private val savedArtworks = mutableListOf<Artwork>()
     var shouldThrowError = false
 
-    override suspend fun isArtworkSaved(artworkName: String): Boolean {
+    override suspend fun isArtworkSaved(uid: ArtworkId): Boolean {
       if (shouldThrowError) throw RuntimeException("Simulated error")
-      return savedArtworks.any { it.name == artworkName }
+      return savedArtworks.any { it.name == uid }
     }
 
     override suspend fun saveArtwork(artwork: Artwork) {
@@ -125,14 +127,15 @@ class ArtworkScreenViewModelTest {
       savedArtworks.add(artwork)
     }
 
-    override suspend fun removeArtwork(artworkName: String) {
+    override suspend fun removeArtworkFromSaved(uid: ArtworkId) {
       if (shouldThrowError) throw RuntimeException("Simulated database failure")
-      savedArtworks.removeAll { it.name == artworkName }
+      savedArtworks.removeAll { it.name == uid }
     }
 
     override suspend fun getSavedArtworks(): List<Artwork> =
         listOf(
             Artwork(
+                uid = "starryId",
                 name = "The Starry Night",
                 artistName = "Vincent van Gogh",
                 location = null,

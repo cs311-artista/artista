@@ -7,7 +7,8 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.artista.artista.model.artwork.Artwork
-import com.artista.artista.model.artwork.ArtworkRepository
+import com.artista.artista.model.artwork.ArtworkId
+import com.artista.artista.model.artwork.SavedArtworksRepository
 import com.artista.artista.ui.theme.ArtistaTheme
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertFalse
@@ -33,6 +34,7 @@ class ArtworkScreenTest {
 
   private val sampleArtwork =
       Artwork(
+          uid = "monaId",
           name = "Mona Lisa",
           artistName = "Leonardo da Vinci",
           description = "A portrait of Lisa Gherardini, wife of Francesco del Giocondo.",
@@ -88,12 +90,12 @@ class ArtworkScreenTest {
     }
   }
 
-  /** In-memory test double implementing [ArtworkRepository]. */
-  private class FakeArtworkRepository : ArtworkRepository {
+  /** In-memory test double implementing [SavedArtworksRepository]. */
+  private class FakeArtworkRepository : SavedArtworksRepository {
     private val savedArtworks = mutableListOf<Artwork>()
 
-    override suspend fun isArtworkSaved(artworkName: String): Boolean {
-      return savedArtworks.any { it.name == artworkName }
+    override suspend fun isArtworkSaved(uid: ArtworkId): Boolean {
+      return savedArtworks.any { it.name == uid }
     }
 
     override suspend fun saveArtwork(artwork: Artwork) {
@@ -101,13 +103,14 @@ class ArtworkScreenTest {
       savedArtworks.add(artwork)
     }
 
-    override suspend fun removeArtwork(artworkName: String) {
-      savedArtworks.removeAll { it.name == artworkName }
+    override suspend fun removeArtworkFromSaved(uid: ArtworkId) {
+      savedArtworks.removeAll { it.name == uid }
     }
 
     override suspend fun getSavedArtworks(): List<Artwork> =
         listOf(
             Artwork(
+                uid = "starryId",
                 name = "The Starry Night",
                 artistName = "Vincent van Gogh",
                 location = null,

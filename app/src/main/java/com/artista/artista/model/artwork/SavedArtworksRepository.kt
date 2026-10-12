@@ -7,19 +7,19 @@ package com.artista.artista.model.artwork
  * ViewModels interact with this abstraction rather than concrete implementations to maintain clean
  * separation between UI state management and persistence
  *
- * @author hixeum, IJJA3141
+ * @author hixeum, IJJA3141, 5kyPhy
  */
-interface ArtworkRepository {
+interface SavedArtworksRepository {
 
   /**
    * Checks whether an artwork with the specified identifier is currently bookmarked or saved.
    *
-   * @param artworkName unique name or title identifying the artwork
-   * @return true if the artwork is already stored, false otherwise
-   * @throws IllegalArgumentException if [artworkName] is blank
+   * @param uid unique identifier of the artwork
+   * @return true if the artwork is already saved, false otherwise
+   * @throws IllegalArgumentException if [uid] is blank
    * @author hixeum,
    */
-  suspend fun isArtworkSaved(artworkName: String): Boolean
+  suspend fun isArtworkSaved(uid: ArtworkId): Boolean
 
   /**
    * Persists an artwork to storage, updating any existing record with the same identifier.
@@ -33,12 +33,12 @@ interface ArtworkRepository {
   /**
    * Deletes an artwork from storage using its unique identifier.
    *
-   * @param artworkName unique name or title of the artwork to remove
-   * @throws IllegalArgumentException if [artworkName] is blank
-   * @throws NoSuchElementException if no artwork matches [artworkName]
+   * @param uid unique identifier of the artwork to remove
+   * @throws IllegalArgumentException if [uid] is blank
+   * @throws NoSuchElementException if no artwork matches [uid]
    * @author hixeum,
    */
-  suspend fun removeArtwork(artworkName: String)
+  suspend fun removeArtworkFromSaved(uid: ArtworkId)
 
   /**
    * Retrieves artworks saved by the current user.
