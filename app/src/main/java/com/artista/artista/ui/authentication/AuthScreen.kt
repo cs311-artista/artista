@@ -1,5 +1,6 @@
 package com.artista.artista.ui.authentication
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -84,13 +86,16 @@ fun AuthScreenContent(
     ) {
       Spacer(Modifier.height(48.dp))
 
-      // Placeholder for the hero artwork; the real image will replace this oval later.
-      Box(
+      // Hero artwork for the authentication screen.
+      Image(
+          painter = painterResource(R.drawable.auth_hero),
+          contentDescription = null,
           modifier =
               Modifier.fillMaxWidth(0.8f)
                   .aspectRatio(1.1f)
                   .clip(CircleShape)
-                  .background(MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.35f)),
+                  .testTag(C.Tag.auth_hero_image),
+          contentScale = ContentScale.Crop,
       )
 
       Spacer(Modifier.height(16.dp))
