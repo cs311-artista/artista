@@ -18,6 +18,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkRepository
 import com.artista.artista.ui.navigation.Tab
@@ -132,15 +133,15 @@ class SavedArtworkScreenTest {
   fun savedArtworkScreen_whenLoadingFails_displaysRetrySnackbar() {
     fakeRepository.shouldThrowError = true
     setScreenContent()
+    // The user sees the friendly resource message, never the repository's exception text.
+    val loadErrorMessage = composeTestRule.activity.getString(R.string.saved_artworks_load_error)
 
     composeTestRule.waitUntil(3_000) {
-      composeTestRule
-          .onAllNodesWithText("Simulated database failure")
-          .fetchSemanticsNodes()
-          .isNotEmpty()
+      composeTestRule.onAllNodesWithText(loadErrorMessage).fetchSemanticsNodes().isNotEmpty()
     }
 
-    composeTestRule.onNodeWithText("Simulated database failure").assertIsDisplayed()
+    composeTestRule.onNodeWithText(loadErrorMessage).assertIsDisplayed()
+    composeTestRule.onNodeWithText("Simulated database failure").assertDoesNotExist()
     composeTestRule.onNodeWithText("Retry").assertIsDisplayed()
     composeTestRule.onNodeWithTag(SavedArtworkTestTags.EMPTY_STATE).assertIsDisplayed()
   }

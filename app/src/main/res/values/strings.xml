@@ -1,3 +1,4 @@
+<!-- Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com> -->
 <resources>
     <string name="app_name">Artista</string>
     <string name="title_activity_main">MainActivity</string>
@@ -29,4 +30,7 @@
     <string name="map_location_permission_error">Location permission is required to show your position.</string>
     <string name="map_location_unavailable_error">Current location is unavailable.</string>
     <string name="map_location_acquisition_error">Unable to read current location.</string>
+    <!-- Saved artworks screen -->
+    <string name="saved_artworks_load_error">Couldn\'t load your saved artworks. Check your connection and try again.</string>
+    <string name="saved_artworks_unsave_error">Couldn\'t remove this artwork. Please try again.</string>
 </resources>

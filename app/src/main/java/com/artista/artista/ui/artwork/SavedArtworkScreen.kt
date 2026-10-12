@@ -37,10 +37,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
@@ -119,9 +121,11 @@ private fun SavedArtworkScreenLayout(
 ) {
   val snackbarHostState = remember { SnackbarHostState() }
   val context = LocalContext.current
+  val loadErrorMessage = uiState.loadErrorMessageResId?.let { stringResource(it) }
+  val unsaveErrorMessage = uiState.unsaveErrorMessageResId?.let { stringResource(it) }
 
-  LaunchedEffect(uiState.loadErrorMessage) {
-    uiState.loadErrorMessage?.let { message ->
+  LaunchedEffect(loadErrorMessage) {
+    loadErrorMessage?.let { message ->
       val result =
           snackbarHostState.showSnackbar(
               message = message,
@@ -134,8 +138,8 @@ private fun SavedArtworkScreenLayout(
     }
   }
 
-  LaunchedEffect(uiState.unsaveErrorMessage) {
-    uiState.unsaveErrorMessage?.let { message ->
+  LaunchedEffect(unsaveErrorMessage) {
+    unsaveErrorMessage?.let { message ->
       Toast.makeText(context, message, Toast.LENGTH_LONG).show()
       onUnsaveErrorHandled()
     }
@@ -559,7 +563,7 @@ fun SavedArtworkUnsaveErrorPreview() {
           color = MaterialTheme.colorScheme.inverseSurface,
       ) {
         Text(
-            text = "Unable to unsave artwork.",
+            text = stringResource(R.string.saved_artworks_unsave_error),
             color = MaterialTheme.colorScheme.inverseOnSurface,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
         )
@@ -594,7 +598,7 @@ fun SavedArtworkLoadingErrorPreview() {
           modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 104.dp),
           action = { Text("Retry") },
       ) {
-        Text("Unable to load saved artworks.")
+        Text(stringResource(R.string.saved_artworks_load_error))
       }
     }
   }

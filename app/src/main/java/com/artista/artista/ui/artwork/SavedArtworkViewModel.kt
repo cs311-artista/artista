@@ -3,8 +3,10 @@
 package com.artista.artista.ui.artwork
 
 import android.util.Log
+import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkRepository
 import kotlinx.coroutines.CancellationException
@@ -23,15 +25,16 @@ import kotlinx.coroutines.launch
  *
  * @property artworks artworks currently saved by the user
  * @property isLoading whether saved artworks are being loaded
- * @property loadErrorMessage error message produced while loading artworks
- * @property unsaveErrorMessage error message produced while unsaving an artwork
+ * @property loadErrorMessageResId string resource of the message shown when loading artworks fails
+ * @property unsaveErrorMessageResId string resource of the message shown when unsaving an artwork
+ *   fails
  * @author Kaio R. Freitas Pereira Nascimento (krfpn)
  */
 data class SavedArtworkUIState(
     val artworks: List<Artwork> = emptyList(),
     val isLoading: Boolean = true,
-    val loadErrorMessage: String? = null,
-    val unsaveErrorMessage: String? = null,
+    @param:StringRes val loadErrorMessageResId: Int? = null,
+    @param:StringRes val unsaveErrorMessageResId: Int? = null,
 )
 
 // ---------------------------------------------------------------------------
@@ -62,11 +65,13 @@ class SavedArtworkViewModel(
    * @author Kaio R. Freitas Pereira Nascimento (krfpn)
    */
   fun refreshSavedArtworks() {
-    _uiState.update { it.copy(isLoading = it.artworks.isEmpty(), loadErrorMessage = null) }
+    _uiState.update { it.copy(isLoading = it.artworks.isEmpty(), loadErrorMessageResId = null) }
     viewModelScope.launch {
       try {
         val artworks = artworkRepository.getSavedArtworks()
-        _uiState.update { it.copy(artworks = artworks, isLoading = false, loadErrorMessage = null) }
+        _uiState.update {
+          it.copy(artworks = artworks, isLoading = false, loadErrorMessageResId = null)
+        }
       } catch (exception: CancellationException) {
         // Leaving the screen cancels viewModelScope, and CancellationException extends Exception.
         // Rethrowing it lets the coroutine stop instead of reporting the cancellation as a failed
@@ -77,7 +82,7 @@ class SavedArtworkViewModel(
         _uiState.update {
           it.copy(
               isLoading = false,
-              loadErrorMessage = exception.message ?: "Unable to load saved artworks.",
+              loadErrorMessageResId = R.string.saved_artworks_load_error,
           )
         }
       }
@@ -114,7 +119,7 @@ class SavedArtworkViewModel(
         _uiState.update { state ->
           state.copy(
               artworks = state.artworks.restore(artwork, previousIndex),
-              unsaveErrorMessage = exception.message ?: "Unable to unsave artwork.",
+              unsaveErrorMessageResId = R.string.saved_artworks_unsave_error,
           )
         }
       }
@@ -140,7 +145,7 @@ class SavedArtworkViewModel(
    * @author Kaio R. Freitas Pereira Nascimento (krfpn)
    */
   fun clearLoadError() {
-    _uiState.update { it.copy(loadErrorMessage = null) }
+    _uiState.update { it.copy(loadErrorMessageResId = null) }
   }
 
   /**
@@ -149,7 +154,7 @@ class SavedArtworkViewModel(
    * @author Kaio R. Freitas Pereira Nascimento (krfpn)
    */
   fun clearUnsaveError() {
-    _uiState.update { it.copy(unsaveErrorMessage = null) }
+    _uiState.update { it.copy(unsaveErrorMessageResId = null) }
   }
 
   /** Provides constants used by the ViewModel for structured diagnostic logging. */
