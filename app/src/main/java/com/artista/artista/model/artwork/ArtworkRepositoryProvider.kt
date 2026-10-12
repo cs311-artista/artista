@@ -4,10 +4,40 @@ package com.artista.artista.model.artwork
 import com.artista.artista.model.map.Location
 import java.util.Date
 
+/**
+ * An intermediary to provide a populated instance of an [ArtworkRepositoryLocal] for demos and
+ * testing
+ *
+ * @author 5kyPhy
+ */
 object ArtworkRepositoryProvider {
-  private val _repository: ArtworkRepository = ArtworkRepositoryLocal()
+  private val _repository = ArtworkRepositoryLocal()
 
-  var repository: ArtworkRepository = _repository
+  var repository = _repository
+
+  /**
+   * This function is meant to populate the API side of the faked ArtworkRepository in order to
+   * facilitate test/demo setup
+   *
+   * @param mocks a [List] of [Artwork] to put into the faked API. A premade list of mock data is
+   *   set as default ([mockArtworks]).
+   * @author 5kyPhy
+   */
+  fun populateAPI(mocks: List<Artwork> = mockArtworks) {
+    mocks.forEach { artwork -> repository.putArtworkInRepositoryUnsavedSection(artwork) }
+  }
+
+  /**
+   * This function is meant to populate the SavedArtwork side of the faked ArtworkRepository in
+   * order ot facilitate test/demo setup
+   *
+   * @param mocks a [List] of [Artwork] to put into the faked cache. A premade list of mock data is
+   *   set as default (first 3 elements of [mockArtworks]).
+   * @author 5kyPhy
+   */
+  suspend fun populateSaved(mocks: List<Artwork> = mockArtworks.subList(0, 3)) {
+    mocks.forEach { artwork -> repository.saveArtwork(artwork) }
+  }
 }
 
 /**
