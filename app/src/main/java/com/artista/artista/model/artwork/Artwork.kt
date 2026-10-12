@@ -18,7 +18,7 @@ import java.util.Date
  * @author 5kyPhy
  */
 data class Artwork(
-    val uid: Artwork_ID = "",
+    val uid: ArtworkId,
     val name: String,
     val artistName: String?,
     val description: String?,
@@ -28,4 +28,4 @@ data class Artwork(
     val dimension: Dimension?,
 )
 
-typealias Artwork_ID = String
+typealias ArtworkId = String
