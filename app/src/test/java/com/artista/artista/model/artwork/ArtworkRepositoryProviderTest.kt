@@ -16,18 +16,12 @@ import org.junit.Test
  */
 class ArtworkRepositoryProviderTest {
 
-  private lateinit var previousRepository: ArtworkRepositoryLocal
-
   @Before
   fun setUp() {
-    previousRepository = ArtworkRepositoryProvider.repository
     ArtworkRepositoryProvider.repository = ArtworkRepositoryLocal()
   }
 
-  @After
-  fun tearDown() {
-    ArtworkRepositoryProvider.repository = previousRepository
-  }
+  @After fun tearDown() {}
 
   @Test
   fun populateAPI_withCustomArtworks_addsArtworksToRepository() = runTest {
