@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -66,6 +67,11 @@ class SavedArtworkViewModel(
       try {
         val artworks = artworkRepository.getSavedArtworks()
         _uiState.update { it.copy(artworks = artworks, isLoading = false, loadErrorMessage = null) }
+      } catch (exception: CancellationException) {
+        // Leaving the screen cancels viewModelScope, and CancellationException extends Exception.
+        // Rethrowing it lets the coroutine stop instead of reporting the cancellation as a failed
+        // load, so it must stay before the generic catch below.
+        throw exception
       } catch (exception: Exception) {
         Log.e(TAG, "Failed to load saved artworks.", exception)
         _uiState.update {
@@ -98,6 +104,11 @@ class SavedArtworkViewModel(
         artworkRepository.removeArtwork(artwork.name)
       } catch (exception: NoSuchElementException) {
         // The artwork is already absent from storage, which is the outcome the user asked for.
+      } catch (exception: CancellationException) {
+        // Leaving the screen cancels viewModelScope, and CancellationException extends Exception.
+        // Rethrowing it lets the coroutine stop instead of logging a failed unsave and restoring
+        // the artwork, so it must stay before the generic catch below.
+        throw exception
       } catch (exception: Exception) {
         Log.e(TAG, "Failed to unsave artwork: ${artwork.name}.", exception)
         _uiState.update { state ->
