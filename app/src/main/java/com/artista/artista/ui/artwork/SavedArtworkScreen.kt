@@ -27,6 +27,7 @@ import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -124,6 +125,7 @@ private fun SavedArtworkScreenLayout(
   val context = LocalContext.current
   val loadErrorMessage = uiState.loadErrorMessageResId?.let { stringResource(it) }
   val unsaveErrorMessage = uiState.unsaveErrorMessageResId?.let { stringResource(it) }
+  val retryLabel = stringResource(R.string.saved_artworks_retry)
 
   LaunchedEffect(loadErrorMessage) {
     loadErrorMessage?.let { message ->
@@ -132,11 +134,11 @@ private fun SavedArtworkScreenLayout(
           // and let it hide on its own instead of forcing them to tap Retry.
           snackbarHostState.showSnackbar(
               message = message,
-              actionLabel = "Retry",
+              actionLabel = retryLabel,
               withDismissAction = true,
               duration = SnackbarDuration.Long,
           )
-      if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) {
+      if (result == SnackbarResult.ActionPerformed) {
         onRetry()
       }
       onLoadErrorHandled()
@@ -163,7 +165,7 @@ private fun SavedArtworkScreenLayout(
                   modifier = Modifier.testTag(SavedArtworkTestTags.TITLE),
               ) {
                 Text(
-                    text = "Saved Artworks",
+                    text = stringResource(R.string.saved_artworks_title),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
@@ -221,6 +223,9 @@ object SavedArtworkTestTags {
   /** Tag identifying the saved-artwork loading state. */
   const val LOADING_STATE = "saved_artwork_loading_state"
 
+  /** Tag identifying the image area of an artwork card. */
+  const val IMAGE = "saved_artwork_image"
+
   /**
    * Returns the tag identifying an artwork card.
    *
@@ -263,7 +268,7 @@ private fun EmptySavedArtworkState(modifier: Modifier = Modifier) {
       contentAlignment = Alignment.Center,
   ) {
     Text(
-        text = "You have no saved artworks yet.",
+        text = stringResource(R.string.saved_artworks_empty),
         style = MaterialTheme.typography.bodyLarge,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
@@ -285,7 +290,7 @@ private fun SavedArtworkLoadingState(modifier: Modifier = Modifier) {
       modifier = modifier.testTag(SavedArtworkTestTags.LOADING_STATE),
       contentAlignment = Alignment.Center,
   ) {
-    Text(text = "Loading saved artworks...")
+    Text(text = stringResource(R.string.saved_artworks_loading))
   }
 }
 
@@ -352,7 +357,7 @@ private fun SavedArtworkCard(
       ArtworkImagePlaceholder()
       Spacer(modifier = Modifier.height(12.dp))
       Text(
-          text = artwork.artistName ?: "Unknown Artist",
+          text = artwork.artistName ?: stringResource(R.string.artwork_unknown_artist),
           style = MaterialTheme.typography.bodyLarge,
           color = MaterialTheme.colorScheme.onSurfaceVariant,
       )
@@ -371,13 +376,13 @@ private fun SavedArtworkCard(
             onClick = onDetailsClick,
             modifier = Modifier.weight(1f).testTag(SavedArtworkTestTags.detailsButton(artwork)),
         ) {
-          Text("Open details")
+          Text(stringResource(R.string.saved_artworks_open_details))
         }
         Button(
             onClick = onUnsaveClick,
             modifier = Modifier.weight(1f).testTag(SavedArtworkTestTags.unsaveButton(artwork)),
         ) {
-          Text("Unsave")
+          Text(stringResource(R.string.saved_artworks_unsave))
         }
       }
     }
@@ -403,7 +408,7 @@ private fun SavedArtworkCard(
 private fun ArtworkImagePlaceholder() {
   // Reserved visual area for the artwork image until image data is available in the model.
   Card(
-      modifier = Modifier.fillMaxWidth().height(180.dp).testTag("saved_artwork_image"),
+      modifier = Modifier.fillMaxWidth().height(180.dp).testTag(SavedArtworkTestTags.IMAGE),
       colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
   ) {
     Column(
@@ -412,7 +417,7 @@ private fun ArtworkImagePlaceholder() {
         verticalArrangement = Arrangement.Center,
     ) {
       Text(
-          text = "Artwork image",
+          text = stringResource(R.string.saved_artworks_image_placeholder),
           style = MaterialTheme.typography.bodyMedium,
           color = MaterialTheme.colorScheme.onSurfaceVariant,
       )
@@ -601,7 +606,7 @@ fun SavedArtworkLoadingErrorPreview() {
       )
       Snackbar(
           modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 104.dp),
-          action = { Text("Retry") },
+          action = { Text(stringResource(R.string.saved_artworks_retry)) },
       ) {
         Text(stringResource(R.string.saved_artworks_load_error))
       }

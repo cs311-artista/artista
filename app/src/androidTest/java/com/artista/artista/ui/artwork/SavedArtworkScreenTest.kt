@@ -142,7 +142,9 @@ class SavedArtworkScreenTest {
 
     composeTestRule.onNodeWithText(loadErrorMessage).assertIsDisplayed()
     composeTestRule.onNodeWithText("Simulated database failure").assertDoesNotExist()
-    composeTestRule.onNodeWithText("Retry").assertIsDisplayed()
+    composeTestRule
+        .onNodeWithText(composeTestRule.activity.getString(R.string.saved_artworks_retry))
+        .assertIsDisplayed()
     composeTestRule.onNodeWithTag(SavedArtworkTestTags.EMPTY_STATE).assertIsDisplayed()
   }
 
