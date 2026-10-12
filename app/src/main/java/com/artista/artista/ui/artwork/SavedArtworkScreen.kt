@@ -63,10 +63,10 @@ import com.artista.artista.ui.theme.ArtistaTheme
  */
 @Composable
 fun SavedArtworkScreen(
+    modifier: Modifier = Modifier,
     viewModel: SavedArtworkViewModel = viewModel(),
     onArtworkDetailsClick: (Artwork) -> Unit,
     onTabSelected: (Tab) -> Unit,
-    modifier: Modifier = Modifier,
 ) {
   val uiState by viewModel.uiState.collectAsState()
 

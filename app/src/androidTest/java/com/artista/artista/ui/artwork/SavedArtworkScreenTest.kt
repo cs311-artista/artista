@@ -1,11 +1,14 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.artwork
 
 import androidx.activity.ComponentActivity
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onChildAt
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -15,6 +18,7 @@ import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkRepository
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaTheme
+import kotlinx.coroutines.CompletableDeferred
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Rule
@@ -183,6 +187,70 @@ class SavedArtworkScreenTest {
     composeTestRule.onNodeWithTag(SavedArtworkTestTags.card(savedArtwork)).assertIsDisplayed()
   }
 
+  /** Verifies that the card disappears before the repository confirms the removal. */
+  @Test
+  fun savedArtworkScreen_whenUnsaveButtonIsClicked_removesCardBeforeRepositoryCompletes() {
+    fakeRepository.savedArtworks.add(savedArtwork)
+    // Holds the fake's removal paused, like a slow network call, until the gate is completed.
+    val gate = CompletableDeferred<Unit>()
+    fakeRepository.removeGate = gate
+    setScreenContent()
+
+    composeTestRule.waitForIdle()
+    composeTestRule.onNodeWithTag(SavedArtworkTestTags.unsaveButton(savedArtwork)).performClick()
+    composeTestRule.waitForIdle()
+
+    // The repository has not removed it yet, but the card and its button are already gone.
+    assertEquals(listOf(savedArtwork), fakeRepository.savedArtworks)
+    composeTestRule.onNodeWithTag(SavedArtworkTestTags.card(savedArtwork)).assertDoesNotExist()
+    composeTestRule
+        .onNodeWithTag(SavedArtworkTestTags.unsaveButton(savedArtwork))
+        .assertDoesNotExist()
+
+    // Opens the gate so the paused removal resumes and finishes.
+    gate.complete(Unit)
+    composeTestRule.waitUntil(3_000) { fakeRepository.savedArtworks.isEmpty() }
+    composeTestRule.onNodeWithTag(SavedArtworkTestTags.EMPTY_STATE).assertIsDisplayed()
+  }
+
+  /** Verifies that unsaving an artwork already absent from the repository is not an error. */
+  @Test
+  fun savedArtworkScreen_whenArtworkIsAlreadyAbsentFromRepository_keepsCardRemoved() {
+    val otherArtwork = savedArtwork.copy(name = "Girl with a Pearl Earring")
+    fakeRepository.savedArtworks.addAll(listOf(savedArtwork, otherArtwork))
+    setScreenContent()
+
+    composeTestRule.waitForIdle()
+    // Simulates the artwork having been unsaved from another screen or device.
+    fakeRepository.savedArtworks.remove(savedArtwork)
+    composeTestRule.onNodeWithTag(SavedArtworkTestTags.unsaveButton(savedArtwork)).performClick()
+    composeTestRule.waitForIdle()
+
+    // A failed unsave would restore the card, so its absence shows no error path was taken.
+    composeTestRule.onNodeWithTag(SavedArtworkTestTags.card(savedArtwork)).assertDoesNotExist()
+    composeTestRule.onNodeWithTag(SavedArtworkTestTags.card(otherArtwork)).assertIsDisplayed()
+    assertEquals(listOf(otherArtwork), fakeRepository.savedArtworks)
+  }
+
+  /** Verifies that a failed unsave restores the card at the position it had before. */
+  @Test
+  fun savedArtworkScreen_whenUnsaveFails_restoresCardAtOriginalPosition() {
+    val artworks = listOf("First", "Second", "Third").map { savedArtwork.copy(name = it) }
+    fakeRepository.savedArtworks.addAll(artworks)
+    setScreenContent()
+
+    composeTestRule.waitForIdle()
+    fakeRepository.shouldThrowError = true
+    composeTestRule.onNodeWithTag(SavedArtworkTestTags.unsaveButton(artworks[1])).performClick()
+    composeTestRule.waitForIdle()
+
+    assertEquals(artworks, fakeRepository.savedArtworks)
+    composeTestRule
+        .onNodeWithTag(SavedArtworkTestTags.LIST)
+        .onChildAt(1)
+        .assert(hasTestTag(SavedArtworkTestTags.card(artworks[1])))
+  }
+
   // ---------------------------------------------------------------------------
   // Compose content setup
   // ---------------------------------------------------------------------------
@@ -219,6 +287,14 @@ class SavedArtworkScreenTest {
     val savedArtworks = mutableListOf<Artwork>()
     var shouldThrowError = false
 
+    /**
+     * When set, [removeArtwork] suspends until it completes, to observe the screen meanwhile.
+     *
+     * A [CompletableDeferred] is a value the test completes by hand: `await()` suspends the caller
+     * without blocking the main thread, and `complete(Unit)` resumes it. `null` means no delay.
+     */
+    var removeGate: CompletableDeferred<Unit>? = null
+
     override suspend fun isArtworkSaved(artworkName: String): Boolean {
       return savedArtworks.any { it.name == artworkName }
     }
@@ -230,8 +306,12 @@ class SavedArtworkScreenTest {
     }
 
     override suspend fun removeArtwork(artworkName: String) {
+      // Suspends here while the test keeps the gate closed; skipped when no gate is set.
+      removeGate?.await()
       if (shouldThrowError) throw RuntimeException("Simulated database failure")
-      savedArtworks.removeAll { it.name == artworkName }
+      if (!savedArtworks.removeAll { it.name == artworkName }) {
+        throw NoSuchElementException("No saved artwork named $artworkName")
+      }
     }
 
     override suspend fun getSavedArtworks(): List<Artwork> {

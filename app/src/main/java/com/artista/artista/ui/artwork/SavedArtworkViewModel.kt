@@ -1,4 +1,5 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.artwork
 
 import android.util.Log
@@ -79,25 +80,48 @@ class SavedArtworkViewModel(
   }
 
   /**
-   * Removes an artwork from the saved list and refreshes the displayed state.
+   * Removes an artwork from the saved list.
+   *
+   * The artwork disappears from the displayed state immediately and is restored at its previous
+   * position only if the repository fails to remove it.
    *
    * @param artwork artwork to remove from the saved list
    * @author Kaio R. Freitas Pereira Nascimento (krfpn)
    */
   fun onArtworkUnsave(artwork: Artwork) {
+    val previousIndex = _uiState.value.artworks.indexOfFirst { it.name == artwork.name }
+    // Removing the card before the repository call prevents the user from tapping it twice.
+    _uiState.update { state ->
+      state.copy(artworks = state.artworks.filterNot { it.name == artwork.name })
+    }
     viewModelScope.launch {
       try {
         artworkRepository.removeArtwork(artwork.name)
-        _uiState.update { state ->
-          state.copy(artworks = state.artworks.filterNot { it.name == artwork.name })
-        }
+      } catch (exception: NoSuchElementException) {
+        // The artwork is already absent from storage, which is the outcome the user asked for.
       } catch (exception: Exception) {
         Log.e(TAG, "Failed to unsave artwork: ${artwork.name}.", exception)
-        _uiState.update {
-          it.copy(unsaveErrorMessage = exception.message ?: "Unable to unsave artwork.")
+        _uiState.update { state ->
+          state.copy(
+              artworks = state.artworks.restore(artwork, previousIndex),
+              unsaveErrorMessage = exception.message ?: "Unable to unsave artwork.",
+          )
         }
       }
     }
+  }
+
+  /**
+   * Puts back an artwork that was optimistically removed from the displayed list.
+   *
+   * @param artwork artwork to restore
+   * @param index position the artwork occupied before its removal, or -1 if it was not displayed
+   * @return the list containing the artwork at its previous position, clamped to the list size
+   */
+  private fun List<Artwork>.restore(artwork: Artwork, index: Int): List<Artwork> {
+    // A concurrent refresh may already have brought the artwork back, so avoid duplicating it.
+    if (index < 0 || any { it.name == artwork.name }) return this
+    return toMutableList().apply { add(index.coerceAtMost(size), artwork) }
   }
 
   /**
