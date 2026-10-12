@@ -39,6 +39,20 @@ import com.artista.artista.ui.theme.ArtistaTheme
 import java.util.Date
 
 /**
+ * Stable semantics tags for the artwork card UI tests.
+ *
+ * @author Copilot
+ */
+object ArtworkCardTestTag {
+    const val ARTWORK_CARD = "artwork_card"
+    const val ARTWORK_CARD_THUMBNAIL = "artwork_card_thumbnail"
+    const val ARTWORK_CARD_TITLE = "artwork_card_title"
+    const val ARTWORK_CARD_ARTIST = "artwork_card_artist"
+    const val ARTWORK_CARD_MAP_BUTTON = "artwork_card_map_button"
+    const val ARTWORK_CARD_SAVE_BUTTON = "artwork_card_save_button"
+}
+
+/**
  * Displays an artwork thumbnail, its name and creator, and actions for navigation and saving.
  *
  * @param artwork artwork whose details should be displayed
@@ -60,7 +74,7 @@ fun ArtworkCard(
 ) {
   Card(
       onClick = { onArtworkClick(artwork) },
-      modifier = modifier.fillMaxWidth().testTag("artwork_card"),
+      modifier = modifier.fillMaxWidth().testTag(ArtworkCardTestTag.ARTWORK_CARD),
   ) {
     Column(
         modifier = Modifier.fillMaxWidth().padding(12.dp),
@@ -75,9 +89,10 @@ fun ArtworkCard(
             contentAlignment = Alignment.Center,
         ) {
             // Placeholder for artwork thumbnail or image
-            // TODO: Load and display the artwork image if available
+            // TODO: Load and display the artwork image
           Text(
               text = "Picture/thumbnail Placeholder",
+              modifier = Modifier.testTag(ArtworkCardTestTag.ARTWORK_CARD_THUMBNAIL),
               style = MaterialTheme.typography.bodyMedium,
               color = MaterialTheme.colorScheme.onSurfaceVariant,
           )
@@ -90,14 +105,14 @@ fun ArtworkCard(
       ) {
         Text(
             text = artwork.name,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().testTag(ArtworkCardTestTag.ARTWORK_CARD_TITLE),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.SemiBold,
             textAlign = TextAlign.Center,
         )
         Text(
             text = artwork.artistName ?: stringResource(R.string.artwork_unknown_artist),
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().testTag(ArtworkCardTestTag.ARTWORK_CARD_ARTIST),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -112,7 +127,7 @@ fun ArtworkCard(
         Button(
             onClick = { onMapClick(artwork) },
             enabled = artwork.location != null,
-            modifier = Modifier.testTag("artwork_card_map_button"),
+            modifier = Modifier.testTag(ArtworkCardTestTag.ARTWORK_CARD_MAP_BUTTON),
             colors =
                 ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.secondaryContainer,
@@ -125,7 +140,7 @@ fun ArtworkCard(
 
         Button(
             onClick = { onSaveClick(artwork, isSaved) },
-            modifier = Modifier.testTag("artwork_card_save_button"),
+            modifier = Modifier.testTag(ArtworkCardTestTag.ARTWORK_CARD_SAVE_BUTTON),
             colors =
                 ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.secondaryContainer,
