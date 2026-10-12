@@ -35,7 +35,10 @@ class ArtworkRepositoryProviderTest {
 
     ArtworkRepositoryProvider.populateAPI(artworks)
 
-    assertEquals(artworks.toSet(), ArtworkRepositoryProvider.repository.searchArtworks("").toSet())
+    assertEquals(
+        artworks,
+        artworks.map { artwork -> ArtworkRepositoryProvider.repository.getArtwork(artwork.uid) },
+    )
   }
 
   @Test
@@ -43,8 +46,10 @@ class ArtworkRepositoryProviderTest {
     ArtworkRepositoryProvider.populateAPI()
 
     assertEquals(
-        mockArtworks.toSet(),
-        ArtworkRepositoryProvider.repository.searchArtworks("").toSet(),
+        mockArtworks,
+        mockArtworks.map { artwork ->
+          ArtworkRepositoryProvider.repository.getArtwork(artwork.uid)
+        },
     )
   }
 
@@ -79,6 +84,6 @@ class ArtworkRepositoryProviderTest {
 
     ArtworkRepositoryProvider.populateSaved(listOf(artwork))
     assertTrue(ArtworkRepositoryProvider.repository.isArtworkSaved(artwork.uid))
-    assertEquals(listOf(artwork), ArtworkRepositoryProvider.repository.searchArtworks(""))
+    assertEquals(artwork, ArtworkRepositoryProvider.repository.getArtwork(artwork.uid))
   }
 }
