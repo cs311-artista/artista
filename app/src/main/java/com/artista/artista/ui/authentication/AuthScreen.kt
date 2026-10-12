@@ -42,7 +42,6 @@ import androidx.compose.ui.unit.dp
 import com.artista.artista.R
 import com.artista.artista.resources.C
 import com.artista.artista.ui.theme.ArtistaTheme
-import com.artista.artista.ui.theme.Pink80
 import kotlinx.coroutines.launch
 
 // Co-authored-by: DeepSeek Flash
@@ -73,7 +72,11 @@ fun AuthScreenContent(
   LaunchedEffect(state.user) { if (state.user != null) onSignedIn() }
 
   Box(
-      modifier = modifier.fillMaxSize().background(Pink80).testTag(C.Tag.auth_screen_container),
+      modifier =
+          modifier
+              .fillMaxSize()
+              .background(MaterialTheme.colorScheme.tertiaryContainer)
+              .testTag(C.Tag.auth_screen_container),
   ) {
     Column(
         modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 32.dp),
@@ -87,7 +90,7 @@ fun AuthScreenContent(
               Modifier.fillMaxWidth(0.8f)
                   .aspectRatio(1.1f)
                   .clip(CircleShape)
-                  .background(Color.White.copy(alpha = 0.35f)),
+                  .background(MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.35f)),
       )
 
       Spacer(Modifier.height(16.dp))
@@ -95,7 +98,7 @@ fun AuthScreenContent(
       Text(
           text = stringResource(R.string.app_name),
           style = MaterialTheme.typography.displayMedium.copy(fontFamily = FontFamily.Serif),
-          color = Color.White,
+          color = MaterialTheme.colorScheme.onTertiaryContainer,
       )
 
       Spacer(Modifier.height(8.dp))
@@ -103,7 +106,7 @@ fun AuthScreenContent(
       Text(
           text = stringResource(R.string.auth_tagline),
           style = MaterialTheme.typography.titleMedium,
-          color = Color.White,
+          color = MaterialTheme.colorScheme.onTertiaryContainer,
       )
 
       Spacer(Modifier.weight(1f))
@@ -116,9 +119,9 @@ fun AuthScreenContent(
           colors =
               ButtonDefaults.buttonColors(
                   containerColor = Color.White,
-                  contentColor = GoogleDark,
+                  contentColor = MaterialTheme.colorScheme.onSurface,
                   disabledContainerColor = Color.White,
-                  disabledContentColor = GoogleDark,
+                  disabledContentColor = MaterialTheme.colorScheme.onSurface,
               ),
           contentPadding = PaddingValues(horizontal = 20.dp, vertical = 0.dp),
       ) {
@@ -126,7 +129,7 @@ fun AuthScreenContent(
           CircularProgressIndicator(
               modifier = Modifier.size(22.dp).testTag(C.Tag.auth_loading_indicator),
               strokeWidth = 2.dp,
-              color = GoogleDark,
+              color = MaterialTheme.colorScheme.onSurface,
           )
         } else {
           Icon(
@@ -207,9 +210,6 @@ fun AuthScreen(
       modifier = modifier,
   )
 }
-
-/** Foreground used inside the white sign-in button so it matches the Google branding guideline. */
-private val GoogleDark = Color(0xFF1F1F1F)
 
 /** Preview of the signed-out sign-in screen. */
 @Preview(showBackground = true, backgroundColor = 0xFFEFB8C8)
