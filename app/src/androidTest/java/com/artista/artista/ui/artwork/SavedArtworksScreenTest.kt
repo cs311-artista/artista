@@ -278,6 +278,36 @@ class SavedArtworksScreenTest {
     composeTestRule.onNodeWithTag(SavedArtworksTestTags.card(savedArtwork)).assertDoesNotExist()
   }
 
+  /** Verifies that unsaving one of several artworks removes only that one. */
+  @Test
+  fun savedArtworksScreen_whenOneOfSeveralArtworksIsUnsaved_keepsTheOthers() {
+    val artworks =
+        listOf("First", "Second", "Third").map {
+          savedArtwork.copy(uid = "${it.lowercase()}Id", name = it)
+        }
+    fakeRepository.savedArtworks.addAll(artworks)
+    setScreenContent()
+
+    composeTestRule.waitForIdle()
+    // On small screens (such as the CI emulator) the second card's button can be outside the
+    // visible part of the list, and a click there would land on another element.
+    composeTestRule
+        .onNodeWithTag(SavedArtworksTestTags.LIST)
+        .performScrollToNode(hasTestTag(SavedArtworksTestTags.unsaveButton(artworks[1])))
+    composeTestRule.onNodeWithTag(SavedArtworksTestTags.unsaveButton(artworks[1])).performClick()
+    composeTestRule.waitUntil(3_000) { fakeRepository.savedArtworks.size == 2 }
+
+    assertEquals(listOf(artworks[0], artworks[2]), fakeRepository.savedArtworks)
+    composeTestRule.onNodeWithTag(SavedArtworksTestTags.card(artworks[1])).assertDoesNotExist()
+    // The list only keeps visible cards, so scroll to each remaining card before checking it.
+    listOf(artworks[0], artworks[2]).forEach { artwork ->
+      composeTestRule
+          .onNodeWithTag(SavedArtworksTestTags.LIST)
+          .performScrollToNode(hasTestTag(SavedArtworksTestTags.card(artwork)))
+      composeTestRule.onNodeWithTag(SavedArtworksTestTags.card(artwork)).assertIsDisplayed()
+    }
+  }
+
   /** Verifies that a failed unsave keeps the artwork in both the repository and the UI. */
   @Test
   fun savedArtworksScreen_whenUnsaveFails_keepsArtworkInListAndRepository() {
