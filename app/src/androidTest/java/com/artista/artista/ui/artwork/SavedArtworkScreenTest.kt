@@ -391,6 +391,33 @@ class SavedArtworkScreenTest {
     composeTestRule.onNodeWithTag(SavedArtworkTestTags.card(savedArtwork)).assertDoesNotExist()
   }
 
+  /** Verifies that a load canceled by a newer one is not reported as a loading error. */
+  @Test
+  fun savedArtworkScreen_whenReloadedWhileLoading_doesNotShowError() {
+    fakeRepository.savedArtworks.add(savedArtwork)
+    // Keeps the first load paused so the second refresh starts while it is still running.
+    val gate = CompletableDeferred<Unit>()
+    fakeRepository.loadGate = gate
+    setScreenContent()
+
+    composeTestRule.waitForIdle()
+    // Showing the screen again starts a new load, which cancels the paused one.
+    composeTestRule.runOnIdle { isScreenVisible = false }
+    composeTestRule.runOnIdle { isScreenVisible = true }
+    composeTestRule.waitForIdle()
+
+    gate.complete(Unit)
+    composeTestRule.waitUntil(3_000) {
+      composeTestRule
+          .onAllNodesWithTag(SavedArtworkTestTags.card(savedArtwork))
+          .fetchSemanticsNodes()
+          .isNotEmpty()
+    }
+    composeTestRule
+        .onNodeWithText(composeTestRule.activity.getString(R.string.saved_artworks_load_error))
+        .assertDoesNotExist()
+  }
+
   // ---------------------------------------------------------------------------
   // Compose content setup
   // ---------------------------------------------------------------------------
