@@ -16,6 +16,7 @@ import androidx.compose.ui.test.onChildAt
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performScrollToNode
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.artista.artista.R
@@ -294,8 +295,16 @@ class SavedArtworkScreenTest {
 
     composeTestRule.waitForIdle()
     fakeRepository.shouldThrowError = true
+    // On small screens (such as the CI emulator) the second card's button can be outside the
+    // visible part of the list, and a click there would land on another element.
+    composeTestRule
+        .onNodeWithTag(SavedArtworkTestTags.LIST)
+        .performScrollToNode(hasTestTag(SavedArtworkTestTags.unsaveButton(artworks[1])))
     composeTestRule.onNodeWithTag(SavedArtworkTestTags.unsaveButton(artworks[1])).performClick()
     composeTestRule.waitForIdle()
+    // Scrolling may have removed the first card from the list's children, so go back to the top
+    // before checking positions.
+    composeTestRule.onNodeWithTag(SavedArtworkTestTags.LIST).performScrollToIndex(0)
 
     assertEquals(artworks, fakeRepository.savedArtworks)
     composeTestRule
@@ -316,6 +325,11 @@ class SavedArtworkScreenTest {
     composeTestRule.onNodeWithTag(SavedArtworkTestTags.card(savedArtwork)).assertIsDisplayed()
     composeTestRule.onNodeWithTag(SavedArtworkTestTags.card(sameTitleArtwork)).assertIsDisplayed()
 
+    // On small screens (such as the CI emulator) the second card's button can be outside the
+    // visible part of the list, and a click there would land on another element.
+    composeTestRule
+        .onNodeWithTag(SavedArtworkTestTags.LIST)
+        .performScrollToNode(hasTestTag(SavedArtworkTestTags.unsaveButton(sameTitleArtwork)))
     composeTestRule
         .onNodeWithTag(SavedArtworkTestTags.unsaveButton(sameTitleArtwork))
         .performClick()
