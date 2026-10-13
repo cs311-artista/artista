@@ -11,6 +11,9 @@ object UserProfileTestTags {
   /** Tag identifying the root container of the user profile screen. */
   const val SCREEN = "user_profile_screen"
 
+  /** Tag identifying the button signing the user out. */
+  const val LOGOUT_BUTTON = "user_profile_logout_button"
+
   /** Tag identifying the profile picture placeholder. */
   const val PROFILE_PICTURE = "user_profile_picture"
 

@@ -4,13 +4,20 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Logout
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -42,6 +49,10 @@ private val FieldShape = RoundedCornerShape(percent = 50)
 /**
  * Displays the profile of the current user with access to their preferences and saved artworks.
  *
+ * [onLogoutClick] has no default value, so that integrating the screen without wiring it fails to
+ * compile instead of leaving a logout button that silently does nothing.
+ *
+ * @param onLogoutClick Callback invoked when the user asks to sign out.
  * @param userProfileViewModel ViewModel providing the profile state.
  * @param onPreferencesClick Callback invoked when the user opens their artist preferences.
  * @param onSavedArtworkClick Callback invoked when the user opens their saved artworks.
@@ -50,6 +61,7 @@ private val FieldShape = RoundedCornerShape(percent = 50)
  */
 @Composable
 fun UserProfileScreen(
+    onLogoutClick: () -> Unit,
     userProfileViewModel: UserProfileViewModel = viewModel(),
     onPreferencesClick: () -> Unit = {},
     onSavedArtworkClick: () -> Unit = {},
@@ -61,42 +73,122 @@ fun UserProfileScreen(
       modifier = Modifier.fillMaxSize().testTag(UserProfileTestTags.SCREEN),
       // The mockup uses a brand-tinted background behind white cards, unlike the usual surface.
       containerColor = MaterialTheme.colorScheme.primaryContainer,
+      topBar = { ProfileTopBar(onLogoutClick = onLogoutClick) },
       bottomBar = {
         BottomNavigationMenu(selectedTab = Tab.Profile, onTabSelected = onTabSelected)
       },
   ) { innerPadding ->
+    ProfileContent(
+        username = uiState.username,
+        onPreferencesClick = onPreferencesClick,
+        onSavedArtworkClick = onSavedArtworkClick,
+        modifier = Modifier.padding(innerPadding),
+    )
+  }
+}
+
+/**
+ * Top bar of the profile screen, holding the logout button on its right.
+ *
+ * @param onLogoutClick Callback invoked when the logout button is clicked.
+ */
+@Composable
+private fun ProfileTopBar(onLogoutClick: () -> Unit) {
+  // The app draws edge to edge, and unlike the content, the top bar slot of the Scaffold does not
+  // receive the status bar insets, so the bar applies them itself.
+  Row(
+      modifier =
+          Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp),
+      horizontalArrangement = Arrangement.End,
+  ) {
+    LogoutButton(onClick = onLogoutClick)
+  }
+}
+
+/**
+ * Profile picture and fields of the profile screen, scrollable when they do not fit on the screen.
+ *
+ * @param username Name of the user, or null to display the placeholder.
+ * @param onPreferencesClick Callback invoked when the preferences button is clicked.
+ * @param onSavedArtworkClick Callback invoked when the saved artwork button is clicked.
+ * @param modifier Modifier applied to the content, used to apply the padding of the Scaffold.
+ */
+@Composable
+private fun ProfileContent(
+    username: String?,
+    onPreferencesClick: () -> Unit,
+    onSavedArtworkClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+  Column(
+      // The top bar already separates the picture from the top of the screen, so the top padding is
+      // smaller than the bottom one.
+      modifier =
+          modifier
+              .fillMaxSize()
+              // On small screens, a non-scrollable column squashes its last fields to a zero
+              // height,
+              // which makes them invisible and unclickable.
+              .verticalScroll(rememberScrollState())
+              .padding(start = 24.dp, top = 16.dp, end = 24.dp, bottom = 45.dp),
+      horizontalAlignment = Alignment.CenterHorizontally,
+  ) {
+    ProfilePicturePlaceholder()
+    Spacer(modifier = Modifier.height(48.dp))
     Column(
-        modifier =
-            Modifier.fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 24.dp, vertical = 45.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {
-      ProfilePicturePlaceholder()
-      // Equal weights center the fields between the picture and the bottom bar on any screen size.
-      Spacer(modifier = Modifier.weight(1f))
-      Column(
-          modifier = Modifier.fillMaxWidth(),
-          verticalArrangement = Arrangement.spacedBy(24.dp),
-      ) {
-        // Styled like the buttons on purpose: the username will become editable on click (#55),
-        // which will also remove the read-only branch of ProfileField.
-        ProfileField(
-            text = uiState.username ?: stringResource(R.string.profile_username_placeholder),
-            textModifier = Modifier.testTag(UserProfileTestTags.USERNAME),
-        )
-        ProfileField(
-            text = stringResource(R.string.profile_preferences),
-            modifier = Modifier.testTag(UserProfileTestTags.PREFERENCES_BUTTON),
-            onClick = onPreferencesClick,
-        )
-        ProfileField(
-            text = stringResource(R.string.profile_saved_artwork),
-            modifier = Modifier.testTag(UserProfileTestTags.SAVED_ARTWORK_BUTTON),
-            onClick = onSavedArtworkClick,
-        )
-      }
-      Spacer(modifier = Modifier.weight(1f))
+      // Styled like the buttons on purpose: the username will become editable on click (#55),
+      // which will also remove the read-only branch of ProfileField.
+      ProfileField(
+          text = username ?: stringResource(R.string.profile_username_placeholder),
+          textModifier = Modifier.testTag(UserProfileTestTags.USERNAME),
+      )
+      ProfileField(
+          text = stringResource(R.string.profile_preferences),
+          modifier = Modifier.testTag(UserProfileTestTags.PREFERENCES_BUTTON),
+          onClick = onPreferencesClick,
+      )
+      ProfileField(
+          text = stringResource(R.string.profile_saved_artwork),
+          modifier = Modifier.testTag(UserProfileTestTags.SAVED_ARTWORK_BUTTON),
+          onClick = onSavedArtworkClick,
+      )
+    }
+  }
+}
+
+/**
+ * Pill-shaped button with an icon and a label, signing the user out.
+ *
+ * @param onClick Callback invoked when the button is clicked.
+ */
+@Composable
+private fun LogoutButton(onClick: () -> Unit) {
+  Surface(
+      onClick = onClick,
+      modifier = Modifier.testTag(UserProfileTestTags.LOGOUT_BUTTON),
+      shape = FieldShape,
+      color = MaterialTheme.colorScheme.surfaceContainerLowest,
+  ) {
+    Row(
+        modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+      // The label already names the action, so describing the icon would make screen readers
+      // announce it twice.
+      Icon(
+          imageVector = Icons.AutoMirrored.Outlined.Logout,
+          contentDescription = null,
+          tint = MaterialTheme.colorScheme.primary,
+      )
+      Text(
+          text = stringResource(R.string.profile_logout),
+          style = MaterialTheme.typography.titleMedium,
+          color = MaterialTheme.colorScheme.primary,
+      )
     }
   }
 }
@@ -178,5 +270,5 @@ private fun UserProfileScreenPreview() {
       setUser(User(uid = "preview", userName = "Artista Fan", preference = UserPreference()))
     }
   }
-  ArtistaTheme { UserProfileScreen(userProfileViewModel = viewModel) }
+  ArtistaTheme { UserProfileScreen(onLogoutClick = {}, userProfileViewModel = viewModel) }
 }

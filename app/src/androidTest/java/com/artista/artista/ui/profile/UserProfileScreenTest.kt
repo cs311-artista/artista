@@ -10,6 +10,7 @@ import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.artista.artista.R
 import com.artista.artista.model.user.User
@@ -38,11 +39,25 @@ class UserProfileScreenTest {
     setProfileContent()
 
     composeTestRule.onNodeWithTag(UserProfileTestTags.SCREEN).assertIsDisplayed()
-    composeTestRule.onNodeWithTag(UserProfileTestTags.PROFILE_PICTURE).assertIsDisplayed()
-    composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME).assertIsDisplayed()
-    composeTestRule.onNodeWithTag(UserProfileTestTags.PREFERENCES_BUTTON).assertIsDisplayed()
-    composeTestRule.onNodeWithTag(UserProfileTestTags.SAVED_ARTWORK_BUTTON).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(UserProfileTestTags.LOGOUT_BUTTON).assertIsDisplayed()
     composeTestRule.onNodeWithTag(NavigationTestTags.BOTTOM_NAVIGATION_MENU).assertIsDisplayed()
+    // The content scrolls on small screens, such as the CI emulator, so it may start off screen.
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.PROFILE_PICTURE)
+        .performScrollTo()
+        .assertIsDisplayed()
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.USERNAME)
+        .performScrollTo()
+        .assertIsDisplayed()
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.PREFERENCES_BUTTON)
+        .performScrollTo()
+        .assertIsDisplayed()
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.SAVED_ARTWORK_BUTTON)
+        .performScrollTo()
+        .assertIsDisplayed()
   }
 
   /** Verifies that a placeholder is displayed when the user has no username. */
@@ -107,7 +122,10 @@ class UserProfileScreenTest {
     var preferencesOpened = false
     setProfileContent(onPreferencesClick = { preferencesOpened = true })
 
-    composeTestRule.onNodeWithTag(UserProfileTestTags.PREFERENCES_BUTTON).performClick()
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.PREFERENCES_BUTTON)
+        .performScrollTo()
+        .performClick()
 
     assertTrue(preferencesOpened)
   }
@@ -118,13 +136,46 @@ class UserProfileScreenTest {
     var savedArtworkOpened = false
     setProfileContent(onSavedArtworkClick = { savedArtworkOpened = true })
 
-    composeTestRule.onNodeWithTag(UserProfileTestTags.SAVED_ARTWORK_BUTTON).performClick()
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.SAVED_ARTWORK_BUTTON)
+        .performScrollTo()
+        .performClick()
 
     assertTrue(savedArtworkOpened)
   }
 
+  /**
+   * Verifies that clicking the logout button invokes the logout callback.
+   *
+   * The test passes its own callback and only checks that it is called: signing out and leaving the
+   * screen are handled by the caller, so this test stays valid once the callback is wired to the
+   * authentication and the navigation.
+   */
+  @Test
+  fun logoutButton_click_invokesOnLogoutClick() {
+    // Only the callback below can flip this flag, so it proves the click reached the callback.
+    var logoutClicked = false
+    setProfileContent(onLogoutClick = { logoutClicked = true })
+
+    composeTestRule.onNodeWithTag(UserProfileTestTags.LOGOUT_BUTTON).performClick()
+
+    // Fails if the button is wired to another callback, such as onPreferencesClick.
+    assertTrue(logoutClicked)
+  }
+
+  /** Verifies that the logout button displays its label. */
+  @Test
+  fun logoutButton_displaysLabel() {
+    setProfileContent()
+
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.LOGOUT_BUTTON)
+        .assertTextEquals(composeTestRule.activity.getString(R.string.profile_logout))
+  }
+
   private fun setProfileContent(
       viewModel: UserProfileViewModel = UserProfileViewModel(),
+      onLogoutClick: () -> Unit = {},
       onPreferencesClick: () -> Unit = {},
       onSavedArtworkClick: () -> Unit = {},
       onTabSelected: (Tab) -> Unit = {},
@@ -132,6 +183,7 @@ class UserProfileScreenTest {
     composeTestRule.setContent {
       MaterialTheme {
         UserProfileScreen(
+            onLogoutClick = onLogoutClick,
             userProfileViewModel = viewModel,
             onPreferencesClick = onPreferencesClick,
             onSavedArtworkClick = onSavedArtworkClick,
