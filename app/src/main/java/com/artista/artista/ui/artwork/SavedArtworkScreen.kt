@@ -46,7 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
-import com.artista.artista.model.artwork.ArtworkId
+import com.artista.artista.model.artwork.mockArtworks
 import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaTheme
@@ -432,27 +432,6 @@ private fun ArtworkImagePlaceholder() {
 // ---------------------------------------------------------------------------
 
 /**
- * Creates a representative artwork for saved-artwork previews.
- *
- * @param uid unique identifier of the preview artwork
- * @param name title used for the preview artwork
- * @param artistName artist used for the preview artwork
- * @return artwork containing the supplied preview metadata
- * @author Kaio R. Freitas Pereira Nascimento (krfpn)
- */
-private fun previewArtwork(uid: ArtworkId, name: String, artistName: String): Artwork =
-    Artwork(
-        uid = uid,
-        name = name,
-        artistName = artistName,
-        description = null,
-        conceptionDate = null,
-        museum = null,
-        location = null,
-        dimension = null,
-    )
-
-/**
  * Displays a preview of the saved-artwork screen with one representative artwork.
  *
  * @author Kaio R. Freitas Pereira Nascimento (krfpn)
@@ -464,8 +443,7 @@ fun SavedArtworkScreenPreview() {
     SavedArtworkScreenLayout(
         uiState =
             SavedArtworkUIState(
-                artworks =
-                    listOf(previewArtwork("starryId", "The Starry Night", "Vincent van Gogh")),
+                artworks = listOf(mockArtworks.first()),
                 isLoading = false,
             ),
         onArtworkDetailsClick = {},
@@ -528,12 +506,10 @@ fun SavedArtworkLoadingPreview() {
 @Preview(showBackground = true)
 @Composable
 fun SavedArtworkMultipleItemsPreview() {
-  val artworks =
-      listOf(
-          previewArtwork("starryId", "The Starry Night", "Vincent van Gogh"),
-          previewArtwork("girlId", "Girl with a Pearl Earring", "Johannes Vermeer"),
-          previewArtwork("persistenceId", "The Persistence of Memory", "Salvador Dalí"),
-      )
+  // Picked by uid to show edge cases: no artist, a non-Latin title and a long punctuated title.
+  val artworks = mockArtworks.filter {
+    it.uid in setOf("mock-001", "mock-004", "mock-007", "mock-010")
+  }
 
   ArtistaTheme {
     SavedArtworkScreenLayout(
@@ -559,7 +535,7 @@ fun SavedArtworkMultipleItemsPreview() {
 @Preview(showBackground = true)
 @Composable
 fun SavedArtworkUnsaveErrorPreview() {
-  val artwork = previewArtwork("starryId", "The Starry Night", "Vincent van Gogh")
+  val artwork = mockArtworks.first()
 
   ArtistaTheme {
     Box {
