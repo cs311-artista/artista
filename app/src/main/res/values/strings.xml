@@ -13,7 +13,7 @@
     <string name="artwork_label_dimensions">Dimensions</string>
 
     <!-- Artwork Fallback / Default Values -->
-    <string name="artwork_unknown_artist">Unknown artist</string>
+    <string name="artwork_unknown_artist">Unknown Artist</string>
     <string name="artwork_unknown_date">Unknown date</string>
     <string name="artwork_no_museum">No information about museum</string>
     <string name="artwork_no_description">No description available</string>
@@ -21,12 +21,21 @@
     <string name="artwork_no_dimensions">Dimensions unavailable</string>
 
     <string name="artwork_location_format">%1$.5f, %2$.5f</string>
+    <string name="artwork_card_map">Map</string>
+    <string name="artwork_card_save">Save</string>
+    <string name="artwork_card_saved">Saved</string>
     <string name="back">Back</string>
     <!-- User profile screen -->
     <string name="profile_picture_placeholder">Profile\nPicture</string>
     <string name="profile_username_placeholder">USERNAME</string>
     <string name="profile_preferences">ARTIST PREFERENCES</string>
     <string name="profile_saved_artwork">SAVED ARTWORK</string>
+    <!-- Artist preferences screen -->
+    <string name="artist_preferences_title">Artist Preferences</string>
+    <string name="artist_preferences_description">Select your favorite artists to personalize your recommendations</string>
+    <string name="artist_preferences_search_placeholder">Search artists…</string>
+    <string name="artist_preferences_popular_artists">Popular Artists</string>
+    <string name="artist_preferences_save">Save Preferences</string>
     <string name="map_location_permission_error">Location permission is required to show your position.</string>
     <string name="map_location_unavailable_error">Current location is unavailable.</string>
     <string name="map_location_acquisition_error">Unable to read current location.</string>
@@ -42,4 +51,11 @@
     <string name="saved_artworks_load_error_state">Your saved artworks couldn\'t be loaded.</string>
     <string name="saved_artworks_try_again">Try again</string>
     <string name="saved_artworks_unsave_error">Couldn\'t remove this artwork. Please try again.</string>
+</resources>
+
+    <!-- Authentication screen -->
+    <string name="sign_in_with_google">Sign in with Google</string>
+    <string name="auth_tagline">Discover art around you</string>
+    <string name="sign_in_failed">Sign in failed</string>
+    <string name="authentication_failed">Authentication failed</string>
 </resources>

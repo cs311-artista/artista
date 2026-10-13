@@ -1,5 +1,6 @@
 package com.artista.artista.model.authentication
 
+// Co-authored-by: DeepSeek Flash
 /**
  * Minimal representation of an authenticated user.
  *

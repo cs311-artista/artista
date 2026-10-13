@@ -9,6 +9,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.rules.TestWatcher
 import org.junit.runner.Description
 
+// Co-authored-by: DeepSeek Flash
 /**
  * JUnit rule that installs a [TestDispatcher] as `Dispatchers.Main` for the duration of a test.
  *
