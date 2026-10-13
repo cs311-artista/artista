@@ -51,10 +51,6 @@ import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaTheme
 
-// ---------------------------------------------------------------------------
-// Saved artworks screen
-// ---------------------------------------------------------------------------
-
 /**
  * Displays the artworks saved by the current user.
  *
@@ -200,10 +196,6 @@ private fun SavedArtworkScreenLayout(
   }
 }
 
-// ---------------------------------------------------------------------------
-// Test tags
-// ---------------------------------------------------------------------------
-
 /**
  * Provides stable semantics test tags for the saved-artwork screen.
  *
@@ -253,10 +245,6 @@ object SavedArtworkTestTags {
   fun unsaveButton(artwork: Artwork): String = "saved_artwork_unsave_${artwork.uid}"
 }
 
-// ---------------------------------------------------------------------------
-// Empty saved artwork state
-// ---------------------------------------------------------------------------
-
 /**
  * Displays a centered message when the user has not saved any artworks yet.
  *
@@ -277,9 +265,6 @@ private fun EmptySavedArtworkState(modifier: Modifier = Modifier) {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Saved artwork loading state
-// ---------------------------------------------------------------------------
 /**
  * Displays a loading message while saved artworks are being retrieved.
  *
@@ -295,10 +280,6 @@ private fun SavedArtworkLoadingState(modifier: Modifier = Modifier) {
     Text(text = stringResource(R.string.saved_artworks_loading))
   }
 }
-
-// ---------------------------------------------------------------------------
-// Saved artwork list
-// ---------------------------------------------------------------------------
 
 /**
  * Displays the saved artworks in a vertically scrolling list.
@@ -331,10 +312,6 @@ private fun SavedArtworkList(
     }
   }
 }
-
-// ---------------------------------------------------------------------------
-// Saved artwork card
-// ---------------------------------------------------------------------------
 
 /**
  * Displays one saved artwork with its image area, metadata, and actions.
@@ -391,10 +368,6 @@ private fun SavedArtworkCard(
   }
 }
 
-// ---------------------------------------------------------------------------
-// Artwork image placeholder
-// ---------------------------------------------------------------------------
-
 /**
  * Displays the image area reserved for an artwork.
  *
@@ -426,10 +399,6 @@ private fun ArtworkImagePlaceholder() {
     }
   }
 }
-
-// ---------------------------------------------------------------------------
-// Compose preview
-// ---------------------------------------------------------------------------
 
 /**
  * Displays a preview of the saved-artwork screen with one representative artwork.

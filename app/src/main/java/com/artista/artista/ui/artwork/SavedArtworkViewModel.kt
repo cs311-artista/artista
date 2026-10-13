@@ -18,10 +18,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-// ---------------------------------------------------------------------------
-// Saved artworks UI state
-// ---------------------------------------------------------------------------
-
 /**
  * Contains the state required to display the saved-artworks screen.
  *
@@ -38,10 +34,6 @@ data class SavedArtworkUIState(
     @param:StringRes val loadErrorMessageResId: Int? = null,
     @param:StringRes val unsaveErrorMessageResId: Int? = null,
 )
-
-// ---------------------------------------------------------------------------
-// Saved artworks ViewModel
-// ---------------------------------------------------------------------------
 
 /**
  * Provides saved-artwork state and actions to [SavedArtworkScreen].

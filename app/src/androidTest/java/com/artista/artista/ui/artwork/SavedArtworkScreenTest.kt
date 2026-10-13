@@ -43,10 +43,6 @@ class SavedArtworkScreenTest {
 
   @get:Rule val composeTestRule = createAndroidComposeRule<ComponentActivity>()
 
-  // ---------------------------------------------------------------------------
-  // Test fixtures
-  // ---------------------------------------------------------------------------
-
   private lateinit var fakeRepository: FakeArtworkRepository
   private lateinit var viewModel: SavedArtworkViewModel
   private var isScreenVisible by mutableStateOf(true)
@@ -67,10 +63,6 @@ class SavedArtworkScreenTest {
   fun setUp() {
     fakeRepository = FakeArtworkRepository()
   }
-
-  // ---------------------------------------------------------------------------
-  // Screen rendering tests
-  // ---------------------------------------------------------------------------
 
   /** Verifies that saved artworks are rendered with their tagged actions. */
   @Test
@@ -219,10 +211,6 @@ class SavedArtworkScreenTest {
       composeTestRule.onAllNodesWithText(loadErrorMessage).fetchSemanticsNodes().isEmpty()
     }
   }
-
-  // ---------------------------------------------------------------------------
-  // Screen interaction tests
-  // ---------------------------------------------------------------------------
 
   /** Verifies that opening an artwork forwards the selected artwork to the callback. */
   @Test
@@ -451,10 +439,6 @@ class SavedArtworkScreenTest {
         .assertDoesNotExist()
   }
 
-  // ---------------------------------------------------------------------------
-  // Compose content setup
-  // ---------------------------------------------------------------------------
-
   /**
    * Sets the saved-artwork screen content with the test ViewModel and callbacks.
    *
@@ -479,10 +463,6 @@ class SavedArtworkScreenTest {
       }
     }
   }
-
-  // ---------------------------------------------------------------------------
-  // Fake repository
-  // ---------------------------------------------------------------------------
 
   /** In-memory test double implementing [SavedArtworksRepository]. */
   private class FakeArtworkRepository : SavedArtworksRepository {
