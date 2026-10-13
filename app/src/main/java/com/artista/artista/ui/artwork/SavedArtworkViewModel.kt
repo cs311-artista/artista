@@ -8,6 +8,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
+import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.artwork.SavedArtworksRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -45,11 +46,13 @@ data class SavedArtworkUIState(
 /**
  * Provides saved-artwork state and actions to [SavedArtworkScreen].
  *
- * @param savedArtworksRepository repository used to load and remove saved artworks
+ * @param savedArtworksRepository repository used to load and remove saved artworks. Defaults to the
+ *   shared [ArtworkRepositoryProvider.repository]; tests pass a fake instead.
  * @author Kaio R. Freitas Pereira Nascimento (krfpn)
  */
 class SavedArtworkViewModel(
-    private val savedArtworksRepository: SavedArtworksRepository,
+    private val savedArtworksRepository: SavedArtworksRepository =
+        ArtworkRepositoryProvider.repository,
 ) : ViewModel() {
 
   private val _uiState = MutableStateFlow(SavedArtworkUIState())
