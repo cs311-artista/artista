@@ -134,13 +134,13 @@ class SavedArtworksViewModel(
    * Puts back an artwork that was optimistically removed from the displayed list.
    *
    * @param artwork artwork to restore
-   * @param index position the artwork occupied before its removal, or -1 if it was not displayed
-   * @return the list containing the artwork at its previous position, clamped to the list size
+   * @param index position the artwork occupied before its removal
+   * @return the list containing the artwork at its previous position, clamped to the list bounds
    */
   private fun List<Artwork>.restore(artwork: Artwork, index: Int): List<Artwork> {
     // A concurrent refresh may already have brought the artwork back, so avoid duplicating it.
-    if (index < 0 || any { it.uid == artwork.uid }) return this
-    return toMutableList().apply { add(index.coerceAtMost(size), artwork) }
+    if (any { it.uid == artwork.uid }) return this
+    return toMutableList().apply { add(index.coerceIn(0, size), artwork) }
   }
 
   /**
