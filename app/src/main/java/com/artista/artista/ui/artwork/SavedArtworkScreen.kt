@@ -202,46 +202,20 @@ private fun SavedArtworkScreenLayout(
  * @author Kaio R. Freitas Pereira Nascimento (krfpn)
  */
 object SavedArtworkTestTags {
-  /** Tag identifying the saved-artwork screen. */
   const val SCREEN = "saved_artwork_screen"
-
-  /** Tag identifying the screen title. */
   const val TITLE = "saved_artwork_title"
-
-  /** Tag identifying the saved-artwork list. */
   const val LIST = "saved_artwork_list"
-
-  /** Tag identifying the empty saved-artwork state. */
   const val EMPTY_STATE = "saved_artwork_empty_state"
-
-  /** Tag identifying the saved-artwork loading state. */
   const val LOADING_STATE = "saved_artwork_loading_state"
-
-  /** Tag identifying the image area of an artwork card. */
   const val IMAGE = "saved_artwork_image"
 
-  /**
-   * Returns the tag identifying an artwork card.
-   *
-   * @param artwork the artwork represented by the card
-   * @return a stable tag derived from the artwork uid
-   */
+  /** Tag of the card showing [artwork]. */
   fun card(artwork: Artwork): String = "saved_artwork_card_${artwork.uid}"
 
-  /**
-   * Returns the tag identifying an artwork's details button.
-   *
-   * @param artwork the artwork represented by the button
-   * @return a stable tag derived from the artwork uid
-   */
+  /** Tag of the "Open details" button of [artwork]'s card. */
   fun detailsButton(artwork: Artwork): String = "saved_artwork_details_${artwork.uid}"
 
-  /**
-   * Returns the tag identifying an artwork's unsave button.
-   *
-   * @param artwork the artwork represented by the button
-   * @return a stable tag derived from the artwork uid
-   */
+  /** Tag of the "Unsave" button of [artwork]'s card. */
   fun unsaveButton(artwork: Artwork): String = "saved_artwork_unsave_${artwork.uid}"
 }
 

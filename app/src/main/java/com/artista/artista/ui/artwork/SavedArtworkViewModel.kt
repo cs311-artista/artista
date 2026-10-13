@@ -49,7 +49,6 @@ class SavedArtworkViewModel(
 
   private val _uiState = MutableStateFlow(SavedArtworkUIState())
 
-  /** Read-only saved-artwork state observed by the UI. */
   val uiState: StateFlow<SavedArtworkUIState> = _uiState.asStateFlow()
 
   // Loads can overlap (e.g. quickly leaving and coming back to the screen) and a slow older load
