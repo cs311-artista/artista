@@ -11,6 +11,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Logout
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -39,9 +43,17 @@ import com.artista.artista.ui.theme.ArtistaTheme
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 private val FieldShape = RoundedCornerShape(percent = 50)
 
+// IconButton keeps a 48dp touch target around its 24dp icon, so this padding aligns the visible
+// icon with the 24dp side margin of the fields.
+private val LogoutButtonPadding = 12.dp
+
 /**
  * Displays the profile of the current user with access to their preferences and saved artworks.
  *
+ * [onLogoutClick] has no default value, so that integrating the screen without wiring it fails to
+ * compile instead of leaving a logout button that silently does nothing.
+ *
+ * @param onLogoutClick Callback invoked when the user asks to sign out.
  * @param userProfileViewModel ViewModel providing the profile state.
  * @param onPreferencesClick Callback invoked when the user opens their artist preferences.
  * @param onSavedArtworkClick Callback invoked when the user opens their saved artworks.
@@ -50,6 +62,7 @@ private val FieldShape = RoundedCornerShape(percent = 50)
  */
 @Composable
 fun UserProfileScreen(
+    onLogoutClick: () -> Unit,
     userProfileViewModel: UserProfileViewModel = viewModel(),
     onPreferencesClick: () -> Unit = {},
     onSavedArtworkClick: () -> Unit = {},
@@ -65,39 +78,80 @@ fun UserProfileScreen(
         BottomNavigationMenu(selectedTab = Tab.Profile, onTabSelected = onTabSelected)
       },
   ) { innerPadding ->
-    Column(
-        modifier =
-            Modifier.fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 24.dp, vertical = 45.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-      ProfilePicturePlaceholder()
-      // Equal weights center the fields between the picture and the bottom bar on any screen size.
-      Spacer(modifier = Modifier.weight(1f))
-      Column(
-          modifier = Modifier.fillMaxWidth(),
-          verticalArrangement = Arrangement.spacedBy(24.dp),
-      ) {
-        // Styled like the buttons on purpose: the username will become editable on click (#55),
-        // which will also remove the read-only branch of ProfileField.
-        ProfileField(
-            text = uiState.username ?: stringResource(R.string.profile_username_placeholder),
-            textModifier = Modifier.testTag(UserProfileTestTags.USERNAME),
-        )
-        ProfileField(
-            text = stringResource(R.string.profile_preferences),
-            modifier = Modifier.testTag(UserProfileTestTags.PREFERENCES_BUTTON),
-            onClick = onPreferencesClick,
-        )
-        ProfileField(
-            text = stringResource(R.string.profile_saved_artwork),
-            modifier = Modifier.testTag(UserProfileTestTags.SAVED_ARTWORK_BUTTON),
-            onClick = onSavedArtworkClick,
-        )
-      }
-      Spacer(modifier = Modifier.weight(1f))
+    // The logout button is drawn over the content, so adding it does not shift the centered layout.
+    Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+      ProfileContent(
+          username = uiState.username,
+          onPreferencesClick = onPreferencesClick,
+          onSavedArtworkClick = onSavedArtworkClick,
+      )
+      LogoutButton(
+          onClick = onLogoutClick,
+          modifier = Modifier.align(Alignment.TopStart).padding(LogoutButtonPadding),
+      )
     }
+  }
+}
+
+/**
+ * Profile picture and fields of the profile screen, centered between the top and the bottom bar.
+ *
+ * @param username Name of the user, or null to display the placeholder.
+ * @param onPreferencesClick Callback invoked when the preferences button is clicked.
+ * @param onSavedArtworkClick Callback invoked when the saved artwork button is clicked.
+ */
+@Composable
+private fun ProfileContent(
+    username: String?,
+    onPreferencesClick: () -> Unit,
+    onSavedArtworkClick: () -> Unit,
+) {
+  Column(
+      modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 45.dp),
+      horizontalAlignment = Alignment.CenterHorizontally,
+  ) {
+    ProfilePicturePlaceholder()
+    // Equal weights center the fields between the picture and the bottom bar on any screen size.
+    Spacer(modifier = Modifier.weight(1f))
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(24.dp),
+    ) {
+      // Styled like the buttons on purpose: the username will become editable on click (#55),
+      // which will also remove the read-only branch of ProfileField.
+      ProfileField(
+          text = username ?: stringResource(R.string.profile_username_placeholder),
+          textModifier = Modifier.testTag(UserProfileTestTags.USERNAME),
+      )
+      ProfileField(
+          text = stringResource(R.string.profile_preferences),
+          modifier = Modifier.testTag(UserProfileTestTags.PREFERENCES_BUTTON),
+          onClick = onPreferencesClick,
+      )
+      ProfileField(
+          text = stringResource(R.string.profile_saved_artwork),
+          modifier = Modifier.testTag(UserProfileTestTags.SAVED_ARTWORK_BUTTON),
+          onClick = onSavedArtworkClick,
+      )
+    }
+    Spacer(modifier = Modifier.weight(1f))
+  }
+}
+
+/**
+ * Icon button at the top left of the screen signing the user out.
+ *
+ * @param onClick Callback invoked when the button is clicked.
+ * @param modifier Modifier applied to the button.
+ */
+@Composable
+private fun LogoutButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+  IconButton(onClick = onClick, modifier = modifier.testTag(UserProfileTestTags.LOGOUT_BUTTON)) {
+    Icon(
+        imageVector = Icons.AutoMirrored.Outlined.Logout,
+        contentDescription = stringResource(R.string.profile_logout),
+        tint = MaterialTheme.colorScheme.primary,
+    )
   }
 }
 
@@ -178,5 +232,5 @@ private fun UserProfileScreenPreview() {
       setUser(User(uid = "preview", userName = "Artista Fan", preference = UserPreference()))
     }
   }
-  ArtistaTheme { UserProfileScreen(userProfileViewModel = viewModel) }
+  ArtistaTheme { UserProfileScreen(onLogoutClick = {}, userProfileViewModel = viewModel) }
 }

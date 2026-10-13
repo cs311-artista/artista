@@ -2,6 +2,7 @@ package com.artista.artista.ui.profile
 
 import androidx.activity.ComponentActivity
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
@@ -38,6 +39,7 @@ class UserProfileScreenTest {
     setProfileContent()
 
     composeTestRule.onNodeWithTag(UserProfileTestTags.SCREEN).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(UserProfileTestTags.LOGOUT_BUTTON).assertIsDisplayed()
     composeTestRule.onNodeWithTag(UserProfileTestTags.PROFILE_PICTURE).assertIsDisplayed()
     composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME).assertIsDisplayed()
     composeTestRule.onNodeWithTag(UserProfileTestTags.PREFERENCES_BUTTON).assertIsDisplayed()
@@ -123,8 +125,38 @@ class UserProfileScreenTest {
     assertTrue(savedArtworkOpened)
   }
 
+  /**
+   * Verifies that clicking the logout button invokes the logout callback.
+   *
+   * The test passes its own callback and only checks that it is called: signing out and leaving the
+   * screen are handled by the caller, so this test stays valid once the callback is wired to the
+   * authentication and the navigation.
+   */
+  @Test
+  fun logoutButton_click_invokesOnLogoutClick() {
+    // Only the callback below can flip this flag, so it proves the click reached the callback.
+    var logoutClicked = false
+    setProfileContent(onLogoutClick = { logoutClicked = true })
+
+    composeTestRule.onNodeWithTag(UserProfileTestTags.LOGOUT_BUTTON).performClick()
+
+    // Fails if the button is wired to another callback, such as onPreferencesClick.
+    assertTrue(logoutClicked)
+  }
+
+  /** Verifies that the icon-only logout button is described for accessibility services. */
+  @Test
+  fun logoutButton_hasContentDescription() {
+    setProfileContent()
+
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.LOGOUT_BUTTON)
+        .assertContentDescriptionEquals(composeTestRule.activity.getString(R.string.profile_logout))
+  }
+
   private fun setProfileContent(
       viewModel: UserProfileViewModel = UserProfileViewModel(),
+      onLogoutClick: () -> Unit = {},
       onPreferencesClick: () -> Unit = {},
       onSavedArtworkClick: () -> Unit = {},
       onTabSelected: (Tab) -> Unit = {},
@@ -132,6 +164,7 @@ class UserProfileScreenTest {
     composeTestRule.setContent {
       MaterialTheme {
         UserProfileScreen(
+            onLogoutClick = onLogoutClick,
             userProfileViewModel = viewModel,
             onPreferencesClick = onPreferencesClick,
             onSavedArtworkClick = onSavedArtworkClick,
