@@ -1,0 +1,448 @@
+// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
+package com.artista.artista.ui.artwork
+
+import android.widget.Toast
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.artista.artista.R
+import com.artista.artista.model.artwork.Artwork
+import com.artista.artista.model.artwork.mockArtworks
+import com.artista.artista.ui.navigation.BottomNavigationMenu
+import com.artista.artista.ui.navigation.Tab
+import com.artista.artista.ui.theme.ArtistaTheme
+
+/**
+ * Displays the artworks saved by the current user.
+ *
+ * The artworks and the unsave action come from [viewModel]. Navigation stays with the caller
+ * through [onBackClick], [onArtworkDetailsClick] and [onTabSelected]. Saved artworks are reloaded
+ * each time the screen enters the composition.
+ *
+ * @param onBackClick called when the user taps the back arrow
+ * @param onArtworkDetailsClick called when the user opens an artwork's details
+ * @param onTabSelected called when the user selects a bottom-navigation destination
+ * @param modifier modifier applied to the screen scaffold
+ * @param viewModel ViewModel providing saved artworks state and actions. Defaults to a ViewModel
+ *   backed by the shared [com.artista.artista.model.artwork.ArtworkRepositoryProvider.repository].
+ * @author Kaio R. Freitas Pereira Nascimento (krfpn)
+ */
+@Composable
+fun SavedArtworksScreen(
+    onBackClick: () -> Unit,
+    onArtworkDetailsClick: (Artwork) -> Unit,
+    onTabSelected: (Tab) -> Unit,
+    modifier: Modifier = Modifier,
+    viewModel: SavedArtworksViewModel = viewModel(),
+) {
+  val uiState by viewModel.uiState.collectAsState()
+
+  // NavHost only composes the top destination, so this runs on every visit, including when the
+  // user comes back from the details screen to a ViewModel that kept its previous list.
+  // This prevents stale list to be displayed when user performs save/unsave actions.
+  LaunchedEffect(Unit) { viewModel.refreshSavedArtworks() }
+
+  SavedArtworksScreenLayout(
+      uiState = uiState,
+      onBackClick = onBackClick,
+      onArtworkDetailsClick = onArtworkDetailsClick,
+      onArtworkUnsave = viewModel::onArtworkUnsave,
+      onRetry = viewModel::refreshSavedArtworks,
+      onLoadErrorHandled = viewModel::clearLoadError,
+      onUnsaveErrorHandled = viewModel::clearUnsaveError,
+      onTabSelected = onTabSelected,
+      modifier = modifier,
+  )
+}
+
+/**
+ * Renders the saved artworks UI from an immutable state snapshot.
+ *
+ * Keeping this layout independent of the ViewModel makes previews deterministic and keeps
+ * state-management concerns outside the visual hierarchy.
+ *
+ * @param uiState state snapshot used to render the screen
+ * @param onBackClick called when the user taps the back arrow
+ * @param onArtworkDetailsClick called when the user opens an artwork's details
+ * @param onArtworkUnsave called when the user removes an artwork from the saved list
+ * @param onRetry called when the user requests another loading attempt
+ * @param onLoadErrorHandled called after the loading error toast is displayed
+ * @param onUnsaveErrorHandled called after the unsave error toast is displayed
+ * @param onTabSelected called when the user selects a bottom-navigation destination
+ * @param modifier modifier applied to the screen scaffold
+ * @author Kaio R. Freitas Pereira Nascimento (krfpn)
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SavedArtworksScreenLayout(
+    uiState: SavedArtworksUIState,
+    onBackClick: () -> Unit,
+    onArtworkDetailsClick: (Artwork) -> Unit,
+    onArtworkUnsave: (Artwork) -> Unit,
+    onRetry: () -> Unit,
+    onLoadErrorHandled: () -> Unit,
+    onUnsaveErrorHandled: () -> Unit,
+    onTabSelected: (Tab) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+  val context = LocalContext.current
+  val loadErrorMessage = uiState.loadErrorMessageResId?.let { stringResource(it) }
+  val unsaveErrorMessage = uiState.unsaveErrorMessageResId?.let { stringResource(it) }
+
+  LaunchedEffect(loadErrorMessage) {
+    loadErrorMessage?.let { message ->
+      Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+      onLoadErrorHandled()
+    }
+  }
+
+  LaunchedEffect(unsaveErrorMessage) {
+    unsaveErrorMessage?.let { message ->
+      Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+      onUnsaveErrorHandled()
+    }
+  }
+
+  Scaffold(
+      modifier = modifier.testTag(SavedArtworksTestTags.SCREEN),
+      // Top app bar displaying the name of the saved artworks screen.
+      topBar = {
+        CenterAlignedTopAppBar(
+            title = {
+              Surface(
+                  shape = RoundedCornerShape(32.dp),
+                  color = MaterialTheme.colorScheme.surfaceContainer,
+                  modifier = Modifier.testTag(SavedArtworksTestTags.TITLE),
+              ) {
+                Text(
+                    text = stringResource(R.string.saved_artworks_title),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                )
+              }
+            },
+            navigationIcon = {
+              IconButton(
+                  onClick = onBackClick,
+                  modifier = Modifier.testTag(SavedArtworksTestTags.BACK_BUTTON),
+              ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = stringResource(R.string.back),
+                )
+              }
+            },
+        )
+      },
+      // Shared bottom navigation for the application's main sections.
+      bottomBar = {
+        BottomNavigationMenu(
+            selectedTab = null,
+            onTabSelected = onTabSelected,
+        )
+      },
+  ) { innerPadding ->
+    // Main content area containing the user's saved artworks.
+    if (uiState.isLoading) {
+      SavedArtworksLoadingState(modifier = Modifier.fillMaxSize().padding(innerPadding))
+    } else if (uiState.artworks.isEmpty() && uiState.hasLoadFailed) {
+      SavedArtworksLoadErrorState(
+          onRetry = onRetry,
+          modifier = Modifier.fillMaxSize().padding(innerPadding),
+      )
+    } else if (uiState.artworks.isEmpty()) {
+      EmptySavedArtworksState(modifier = Modifier.fillMaxSize().padding(innerPadding))
+    } else {
+      SavedArtworksList(
+          artworks = uiState.artworks,
+          onArtworkDetailsClick = onArtworkDetailsClick,
+          onArtworkUnsave = onArtworkUnsave,
+          modifier = Modifier.fillMaxSize().padding(innerPadding),
+      )
+    }
+  }
+}
+
+/**
+ * Provides stable semantics test tags for the saved artworks screen.
+ *
+ * @author Kaio R. Freitas Pereira Nascimento (krfpn)
+ */
+object SavedArtworksTestTags {
+  const val SCREEN = "saved_artworks_screen"
+  const val TITLE = "saved_artworks_title"
+  const val BACK_BUTTON = "saved_artworks_back_button"
+  const val LIST = "saved_artworks_list"
+  const val EMPTY_STATE = "saved_artworks_empty_state"
+  const val LOADING_STATE = "saved_artworks_loading_state"
+  const val LOAD_ERROR_STATE = "saved_artworks_load_error_state"
+  const val RETRY_BUTTON = "saved_artworks_retry_button"
+  const val IMAGE = "saved_artwork_image"
+
+  /** Tag of the card showing [artwork]. */
+  fun card(artwork: Artwork): String = "saved_artwork_card_${artwork.uid}"
+
+  /** Tag of the "Open details" button of [artwork]'s card. */
+  fun detailsButton(artwork: Artwork): String = "saved_artwork_details_${artwork.uid}"
+
+  /** Tag of the "Unsave" button of [artwork]'s card. */
+  fun unsaveButton(artwork: Artwork): String = "saved_artwork_unsave_${artwork.uid}"
+}
+
+/**
+ * Displays a centered message when the user has not saved any artworks yet.
+ *
+ * @param modifier modifier applied to the empty-state container
+ * @author Kaio R. Freitas Pereira Nascimento (krfpn)
+ */
+@Composable
+private fun EmptySavedArtworksState(modifier: Modifier = Modifier) {
+  Box(
+      modifier = modifier.testTag(SavedArtworksTestTags.EMPTY_STATE),
+      contentAlignment = Alignment.Center,
+  ) {
+    Text(
+        text = stringResource(R.string.saved_artworks_empty),
+        style = MaterialTheme.typography.bodyLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+  }
+}
+
+/**
+ * Displays the load error with a Retry button, so the user can retry after the toast is gone.
+ *
+ * @param onRetry called when the user taps Retry
+ * @param modifier modifier applied to the error-state container
+ * @author Kaio R. Freitas Pereira Nascimento (krfpn)
+ */
+@Composable
+private fun SavedArtworksLoadErrorState(onRetry: () -> Unit, modifier: Modifier = Modifier) {
+  Column(
+      modifier =
+          modifier.padding(horizontal = 24.dp).testTag(SavedArtworksTestTags.LOAD_ERROR_STATE),
+      verticalArrangement = Arrangement.Center,
+      horizontalAlignment = Alignment.CenterHorizontally,
+  ) {
+    Text(
+        text = stringResource(R.string.saved_artworks_load_error_state),
+        style = MaterialTheme.typography.bodyLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        textAlign = TextAlign.Center,
+    )
+    Spacer(modifier = Modifier.height(16.dp))
+    Button(
+        onClick = onRetry,
+        modifier = Modifier.testTag(SavedArtworksTestTags.RETRY_BUTTON),
+    ) {
+      Text(text = stringResource(R.string.saved_artworks_try_again))
+    }
+  }
+}
+
+/**
+ * Displays a loading message while saved artworks are being retrieved.
+ *
+ * @param modifier modifier applied to the loading-state container
+ * @author Kaio R. Freitas Pereira Nascimento (krfpn)
+ */
+@Composable
+private fun SavedArtworksLoadingState(modifier: Modifier = Modifier) {
+  Box(
+      modifier = modifier.testTag(SavedArtworksTestTags.LOADING_STATE),
+      contentAlignment = Alignment.Center,
+  ) {
+    Text(text = stringResource(R.string.saved_artworks_loading))
+  }
+}
+
+/**
+ * Displays the saved artworks in a vertically scrolling list.
+ *
+ * @param artworks artworks to display
+ * @param onArtworkDetailsClick called when a details button is pressed
+ * @param onArtworkUnsave called when an unsave button is pressed
+ * @param modifier modifier applied to the list
+ * @author Kaio R. Freitas Pereira Nascimento (krfpn)
+ */
+@Composable
+private fun SavedArtworksList(
+    artworks: List<Artwork>,
+    onArtworkDetailsClick: (Artwork) -> Unit,
+    onArtworkUnsave: (Artwork) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+  // Scrollable collection of artwork cards with spacing for comfortable browsing.
+  LazyColumn(
+      modifier = modifier.testTag(SavedArtworksTestTags.LIST),
+      contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+      verticalArrangement = Arrangement.spacedBy(12.dp),
+  ) {
+    items(artworks, key = { it.uid }) { artwork ->
+      SavedArtworkCard(
+          artwork = artwork,
+          onDetailsClick = { onArtworkDetailsClick(artwork) },
+          onUnsaveClick = { onArtworkUnsave(artwork) },
+      )
+    }
+  }
+}
+
+/**
+ * Displays one saved artwork with its image area, metadata, and actions.
+ *
+ * @param artwork artwork represented by this card
+ * @param onDetailsClick called when the user opens the artwork details
+ * @param onUnsaveClick called when the user removes the artwork from saved artworks
+ * @author Kaio R. Freitas Pereira Nascimento (krfpn)
+ */
+@Composable
+private fun SavedArtworkCard(
+    artwork: Artwork,
+    onDetailsClick: () -> Unit,
+    onUnsaveClick: () -> Unit,
+) {
+  Card(
+      modifier = Modifier.fillMaxWidth().testTag(SavedArtworksTestTags.card(artwork)),
+      elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+  ) {
+    // Artwork visual area and metadata displayed above the card actions.
+    Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
+      ArtworkImagePlaceholder()
+      Spacer(modifier = Modifier.height(12.dp))
+      Text(
+          text = artwork.artistName ?: stringResource(R.string.artwork_unknown_artist),
+          style = MaterialTheme.typography.bodyLarge,
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+      )
+      Text(
+          text = artwork.name,
+          style = MaterialTheme.typography.titleMedium,
+          fontWeight = FontWeight.SemiBold,
+      )
+      Spacer(modifier = Modifier.height(12.dp))
+      // Side-by-side actions for opening details or removing the artwork.
+      Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.spacedBy(8.dp),
+      ) {
+        Button(
+            onClick = onDetailsClick,
+            modifier = Modifier.weight(1f).testTag(SavedArtworksTestTags.detailsButton(artwork)),
+        ) {
+          Text(stringResource(R.string.saved_artworks_open_details))
+        }
+        Button(
+            onClick = onUnsaveClick,
+            modifier = Modifier.weight(1f).testTag(SavedArtworksTestTags.unsaveButton(artwork)),
+        ) {
+          Text(stringResource(R.string.saved_artworks_unsave))
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Displays the image area reserved for an artwork.
+ *
+ * Artwork currently has no image source in the domain model, so this placeholder keeps the card
+ * layout ready for image loading without coupling the screen to a future image implementation.
+ *
+ * @author Kaio R. Freitas Pereira Nascimento (krfpn)
+ *
+ * TODO: This component serves as a placeholder for the image. Remove it, and implement component
+ *   for the image.
+ */
+@Composable
+private fun ArtworkImagePlaceholder() {
+  // Reserved visual area for the artwork image until image data is available in the model.
+  Card(
+      modifier = Modifier.fillMaxWidth().height(180.dp).testTag(SavedArtworksTestTags.IMAGE),
+      colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+  ) {
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+      Text(
+          text = stringResource(R.string.saved_artworks_image_placeholder),
+          style = MaterialTheme.typography.bodyMedium,
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+      )
+    }
+  }
+}
+
+/**
+ * Displays a preview of the saved artworks screen with several artworks.
+ *
+ * To preview other states, change `uiState`:
+ * - empty: `SavedArtworksUIState(isLoading = false)`
+ * - loading: `SavedArtworksUIState(isLoading = true)`
+ *
+ * Load and unsave errors are toasts, shown at runtime only.
+ *
+ * @author Kaio R. Freitas Pereira Nascimento (krfpn)
+ */
+@Preview(showBackground = true)
+@Composable
+fun SavedArtworksScreenPreview() {
+  // Picked by uid to show edge cases: no artist, a non-Latin title and a long punctuated title.
+  val artworks = mockArtworks.filter {
+    it.uid in setOf("mock-001", "mock-004", "mock-007", "mock-010")
+  }
+
+  ArtistaTheme {
+    SavedArtworksScreenLayout(
+        uiState = SavedArtworksUIState(artworks = artworks, isLoading = false),
+        onBackClick = {},
+        onArtworkDetailsClick = {},
+        onArtworkUnsave = {},
+        onRetry = {},
+        onLoadErrorHandled = {},
+        onUnsaveErrorHandled = {},
+        onTabSelected = {},
+    )
+  }
+}
