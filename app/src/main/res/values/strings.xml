@@ -45,7 +45,6 @@
     <string name="saved_artworks_loading">Loading saved artworks...</string>
     <string name="saved_artworks_open_details">Open details</string>
     <string name="saved_artworks_unsave">Unsave</string>
-    <string name="saved_artworks_retry">Retry</string>
     <string name="saved_artworks_image_placeholder">Artwork image</string>
     <string name="saved_artworks_load_error">Couldn\'t load your saved artworks. Check your connection and try again.</string>
     <string name="saved_artworks_load_error_state">Your saved artworks couldn\'t be loaded.</string>

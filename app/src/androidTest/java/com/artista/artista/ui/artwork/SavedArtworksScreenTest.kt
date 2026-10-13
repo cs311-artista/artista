@@ -12,7 +12,6 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
-import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onChildAt
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -165,55 +164,31 @@ class SavedArtworksScreenTest {
     composeTestRule.onNodeWithTag(SavedArtworksTestTags.LOADING_STATE).assertDoesNotExist()
   }
 
-  /** Verifies that repository loading failures display a retryable snackbar. */
+  /** Verifies that repository loading failures display the load error state with Try again. */
   @Test
-  fun savedArtworksScreen_whenLoadingFails_displaysRetrySnackbar() {
+  fun savedArtworksScreen_whenLoadingFails_displaysLoadErrorState() {
     fakeRepository.shouldThrowError = true
     setScreenContent()
-    // The user sees the friendly resource message, never the repository's exception text.
-    val loadErrorMessage = composeTestRule.activity.getString(R.string.saved_artworks_load_error)
-
-    composeTestRule.waitUntil(3_000) {
-      composeTestRule.onAllNodesWithText(loadErrorMessage).fetchSemanticsNodes().isNotEmpty()
-    }
-
-    composeTestRule.onNodeWithText(loadErrorMessage).assertIsDisplayed()
-    composeTestRule.onNodeWithText("Simulated database failure").assertDoesNotExist()
-    composeTestRule
-        .onNodeWithText(composeTestRule.activity.getString(R.string.saved_artworks_retry))
-        .assertIsDisplayed()
-    composeTestRule.onNodeWithTag(SavedArtworksTestTags.LOAD_ERROR_STATE).assertIsDisplayed()
-  }
-
-  /** Verifies that the snackbar's Retry action reloads the saved artworks and hides the error. */
-  @Test
-  fun savedArtworksScreen_whenRetryIsClicked_reloadsSavedArtworks() {
-    fakeRepository.savedArtworks.add(savedArtwork)
-    fakeRepository.shouldThrowError = true
-    setScreenContent()
-    val loadErrorMessage = composeTestRule.activity.getString(R.string.saved_artworks_load_error)
-
-    composeTestRule.waitUntil(3_000) {
-      composeTestRule.onAllNodesWithText(loadErrorMessage).fetchSemanticsNodes().isNotEmpty()
-    }
-    // The connection is back, so the next load succeeds.
-    fakeRepository.shouldThrowError = false
-    composeTestRule
-        .onNodeWithText(composeTestRule.activity.getString(R.string.saved_artworks_retry))
-        .performClick()
 
     composeTestRule.waitUntil(3_000) {
       composeTestRule
-          .onAllNodesWithTag(SavedArtworksTestTags.card(savedArtwork))
+          .onAllNodesWithTag(SavedArtworksTestTags.LOAD_ERROR_STATE)
           .fetchSemanticsNodes()
           .isNotEmpty()
     }
-    composeTestRule.waitUntil(3_000) {
-      composeTestRule.onAllNodesWithText(loadErrorMessage).fetchSemanticsNodes().isEmpty()
-    }
+
+    // The user sees the friendly resource message, never the repository's exception text.
+    composeTestRule
+        .onNodeWithText(
+            composeTestRule.activity.getString(R.string.saved_artworks_load_error_state)
+        )
+        .assertIsDisplayed()
+    composeTestRule.onNodeWithText("Simulated database failure").assertDoesNotExist()
+    composeTestRule.onNodeWithTag(SavedArtworksTestTags.RETRY_BUTTON).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(SavedArtworksTestTags.EMPTY_STATE).assertDoesNotExist()
   }
 
-  /** Verifies that the error state's Retry button reloads the list once the snackbar is gone. */
+  /** Verifies that the error state's Try again button reloads the list. */
   @Test
   fun savedArtworksScreen_whenLoadFails_retryFromErrorStateShowsList() {
     fakeRepository.savedArtworks.add(savedArtwork)
@@ -494,6 +469,9 @@ class SavedArtworksScreenTest {
     composeTestRule.runOnIdle { isScreenVisible = false }
     composeTestRule.runOnIdle { isScreenVisible = true }
     composeTestRule.waitForIdle()
+    // Reported as a failure, the cancelled load would replace the loading state with the error.
+    composeTestRule.onNodeWithTag(SavedArtworksTestTags.LOADING_STATE).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(SavedArtworksTestTags.LOAD_ERROR_STATE).assertDoesNotExist()
 
     gate.complete(Unit)
     composeTestRule.waitUntil(3_000) {
@@ -502,9 +480,6 @@ class SavedArtworksScreenTest {
           .fetchSemanticsNodes()
           .isNotEmpty()
     }
-    composeTestRule
-        .onNodeWithText(composeTestRule.activity.getString(R.string.saved_artworks_load_error))
-        .assertDoesNotExist()
   }
 
   /**

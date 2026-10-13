@@ -27,17 +27,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -109,7 +104,7 @@ fun SavedArtworksScreen(
  * @param onArtworkDetailsClick called when the user opens an artwork's details
  * @param onArtworkUnsave called when the user removes an artwork from the saved list
  * @param onRetry called when the user requests another loading attempt
- * @param onLoadErrorHandled called after the loading error snackbar is dismissed
+ * @param onLoadErrorHandled called after the loading error toast is displayed
  * @param onUnsaveErrorHandled called after the unsave error toast is displayed
  * @param onTabSelected called when the user selects a bottom-navigation destination
  * @param modifier modifier applied to the screen scaffold
@@ -128,26 +123,13 @@ private fun SavedArtworksScreenLayout(
     onTabSelected: (Tab) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-  val snackbarHostState = remember { SnackbarHostState() }
   val context = LocalContext.current
   val loadErrorMessage = uiState.loadErrorMessageResId?.let { stringResource(it) }
   val unsaveErrorMessage = uiState.unsaveErrorMessageResId?.let { stringResource(it) }
-  val retryLabel = stringResource(R.string.saved_artworks_retry)
 
   LaunchedEffect(loadErrorMessage) {
     loadErrorMessage?.let { message ->
-      val result =
-          // A snackbar with an action stays forever by default, so give the user a close button
-          // and let it hide on its own instead of forcing them to tap Retry.
-          snackbarHostState.showSnackbar(
-              message = message,
-              actionLabel = retryLabel,
-              withDismissAction = true,
-              duration = SnackbarDuration.Long,
-          )
-      if (result == SnackbarResult.ActionPerformed) {
-        onRetry()
-      }
+      Toast.makeText(context, message, Toast.LENGTH_LONG).show()
       onLoadErrorHandled()
     }
   }
@@ -161,7 +143,6 @@ private fun SavedArtworksScreenLayout(
 
   Scaffold(
       modifier = modifier.testTag(SavedArtworksTestTags.SCREEN),
-      snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
       // Top app bar displaying the name of the saved artworks screen.
       topBar = {
         CenterAlignedTopAppBar(
@@ -268,7 +249,7 @@ private fun EmptySavedArtworksState(modifier: Modifier = Modifier) {
 }
 
 /**
- * Displays the load error with a Retry button, so the user can retry after the snackbar is gone.
+ * Displays the load error with a Retry button, so the user can retry after the toast is gone.
  *
  * @param onRetry called when the user taps Retry
  * @param modifier modifier applied to the error-state container
@@ -440,7 +421,7 @@ private fun ArtworkImagePlaceholder() {
  * - empty: `SavedArtworksUIState(isLoading = false)`
  * - loading: `SavedArtworksUIState(isLoading = true)`
  *
- * Load and unsave errors are a snackbar and a toast, shown at runtime only.
+ * Load and unsave errors are toasts, shown at runtime only.
  *
  * @author Kaio R. Freitas Pereira Nascimento (krfpn)
  */
