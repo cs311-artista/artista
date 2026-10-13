@@ -12,7 +12,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material3.Icon
@@ -104,7 +106,7 @@ private fun ProfileTopBar(onLogoutClick: () -> Unit) {
 }
 
 /**
- * Profile picture and fields of the profile screen, centered between the top and the bottom bar.
+ * Profile picture and fields of the profile screen, scrollable when they do not fit on the screen.
  *
  * @param username Name of the user, or null to display the placeholder.
  * @param onPreferencesClick Callback invoked when the preferences button is clicked.
@@ -122,12 +124,17 @@ private fun ProfileContent(
       // The top bar already separates the picture from the top of the screen, so the top padding is
       // smaller than the bottom one.
       modifier =
-          modifier.fillMaxSize().padding(start = 24.dp, top = 16.dp, end = 24.dp, bottom = 45.dp),
+          modifier
+              .fillMaxSize()
+              // On small screens, a non-scrollable column squashes its last fields to a zero
+              // height,
+              // which makes them invisible and unclickable.
+              .verticalScroll(rememberScrollState())
+              .padding(start = 24.dp, top = 16.dp, end = 24.dp, bottom = 45.dp),
       horizontalAlignment = Alignment.CenterHorizontally,
   ) {
     ProfilePicturePlaceholder()
-    // Equal weights center the fields between the picture and the bottom bar on any screen size.
-    Spacer(modifier = Modifier.weight(1f))
+    Spacer(modifier = Modifier.height(48.dp))
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(24.dp),
@@ -149,7 +156,6 @@ private fun ProfileContent(
           onClick = onSavedArtworkClick,
       )
     }
-    Spacer(modifier = Modifier.weight(1f))
   }
 }
 

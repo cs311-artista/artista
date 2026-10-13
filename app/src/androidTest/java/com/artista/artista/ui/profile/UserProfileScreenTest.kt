@@ -10,6 +10,7 @@ import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.artista.artista.R
 import com.artista.artista.model.user.User
@@ -39,11 +40,24 @@ class UserProfileScreenTest {
 
     composeTestRule.onNodeWithTag(UserProfileTestTags.SCREEN).assertIsDisplayed()
     composeTestRule.onNodeWithTag(UserProfileTestTags.LOGOUT_BUTTON).assertIsDisplayed()
-    composeTestRule.onNodeWithTag(UserProfileTestTags.PROFILE_PICTURE).assertIsDisplayed()
-    composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME).assertIsDisplayed()
-    composeTestRule.onNodeWithTag(UserProfileTestTags.PREFERENCES_BUTTON).assertIsDisplayed()
-    composeTestRule.onNodeWithTag(UserProfileTestTags.SAVED_ARTWORK_BUTTON).assertIsDisplayed()
     composeTestRule.onNodeWithTag(NavigationTestTags.BOTTOM_NAVIGATION_MENU).assertIsDisplayed()
+    // The content scrolls on small screens, such as the CI emulator, so it may start off screen.
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.PROFILE_PICTURE)
+        .performScrollTo()
+        .assertIsDisplayed()
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.USERNAME)
+        .performScrollTo()
+        .assertIsDisplayed()
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.PREFERENCES_BUTTON)
+        .performScrollTo()
+        .assertIsDisplayed()
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.SAVED_ARTWORK_BUTTON)
+        .performScrollTo()
+        .assertIsDisplayed()
   }
 
   /** Verifies that a placeholder is displayed when the user has no username. */
@@ -108,7 +122,10 @@ class UserProfileScreenTest {
     var preferencesOpened = false
     setProfileContent(onPreferencesClick = { preferencesOpened = true })
 
-    composeTestRule.onNodeWithTag(UserProfileTestTags.PREFERENCES_BUTTON).performClick()
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.PREFERENCES_BUTTON)
+        .performScrollTo()
+        .performClick()
 
     assertTrue(preferencesOpened)
   }
@@ -119,7 +136,10 @@ class UserProfileScreenTest {
     var savedArtworkOpened = false
     setProfileContent(onSavedArtworkClick = { savedArtworkOpened = true })
 
-    composeTestRule.onNodeWithTag(UserProfileTestTags.SAVED_ARTWORK_BUTTON).performClick()
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.SAVED_ARTWORK_BUTTON)
+        .performScrollTo()
+        .performClick()
 
     assertTrue(savedArtworkOpened)
   }
