@@ -23,9 +23,8 @@ class UserRepositoryLocal : UserRepository {
       userId: UserId,
       newValue: User,
   ) {
-    if (!users.keys.contains(userId))
-        throw NoSuchElementException("No user with uid $userId was found")
-    users.replace(userId, newValue)
+    val prevUser = getUser(newValue.uid)
+    users.replace(prevUser.uid, newValue)
   }
 
   override suspend fun deleteUser(userId: UserId) {
