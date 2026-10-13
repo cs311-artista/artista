@@ -3,14 +3,12 @@ package com.artista.artista.ui.artwork
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
-import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.map.Location
@@ -27,9 +25,9 @@ class ArtworkCardTest {
 
   @Test
   fun artworkCard_displaysArtworkMetadataAndActions() {
-    var artworkClickCount = 0
-    var mapClickCount = 0
-    var saveClickCount = 0
+    var selectedArtwork: Artwork? = null
+    var mappedArtwork: Artwork? = null
+    var saveRequest: Pair<Artwork, Boolean>? = null
 
     val artwork =
         Artwork(
@@ -48,9 +46,11 @@ class ArtworkCardTest {
         ArtworkCard(
             artwork = artwork,
             isSaved = false,
-            onArtworkClick = { artworkClickCount++ },
-            onMapClick = { mapClickCount++ },
-            onSaveClick = { _, _ -> saveClickCount++ },
+            onArtworkClick = { selectedArtwork = it },
+            onMapClick = { mappedArtwork = it },
+            onSaveClick = { requestedArtwork, isSaved ->
+              saveRequest = requestedArtwork to isSaved
+            },
             modifier = Modifier,
         )
       }
@@ -58,32 +58,43 @@ class ArtworkCardTest {
     composeTestRule.waitForIdle()
 
     composeTestRule.onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD).assertIsDisplayed()
-    composeTestRule.onNodeWithText("Mona Lisa").assertIsDisplayed()
-    composeTestRule.onNodeWithText("Leonardo da Vinci").assertIsDisplayed()
+    composeTestRule
+        .onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD_THUMBNAIL, useUnmergedTree = true)
+        .assertIsDisplayed()
+        .assertTextEquals("Picture/thumbnail Placeholder")
+    composeTestRule
+        .onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD_TITLE, useUnmergedTree = true)
+        .assertIsDisplayed()
+        .assertTextEquals("Mona Lisa")
+    composeTestRule
+        .onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD_ARTIST, useUnmergedTree = true)
+        .assertIsDisplayed()
+        .assertTextEquals("Leonardo da Vinci")
 
     composeTestRule
         .onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD_MAP_BUTTON)
         .assertIsDisplayed()
-        .assert(hasText("Map"))
+        .assertTextEquals("Map")
         .assertIsEnabled()
     composeTestRule
         .onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD_SAVE_BUTTON)
         .assertIsDisplayed()
-        .assert(hasText("Save"))
+        .assertTextEquals("Save")
         .assertIsEnabled()
 
     composeTestRule.onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD).performClick()
-    assertEquals(1, artworkClickCount)
+    assertEquals(artwork, selectedArtwork)
 
     composeTestRule.onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD_MAP_BUTTON).performClick()
-    assertEquals(1, mapClickCount)
+    assertEquals(artwork, mappedArtwork)
 
     composeTestRule.onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD_SAVE_BUTTON).performClick()
-    assertEquals(1, saveClickCount)
+    assertEquals(artwork to false, saveRequest)
   }
 
   @Test
   fun artworkCard_withoutLocation_disablesMapActionAndShowsSavedState() {
+    var saveRequest: Pair<Artwork, Boolean>? = null
     val artwork =
         Artwork(
             uid = "nightWatch",
@@ -103,7 +114,9 @@ class ArtworkCardTest {
             isSaved = true,
             onArtworkClick = {},
             onMapClick = {},
-            onSaveClick = { _, _ -> },
+            onSaveClick = { requestedArtwork, isSaved ->
+              saveRequest = requestedArtwork to isSaved
+            },
             modifier = Modifier,
         )
       }
@@ -117,7 +130,9 @@ class ArtworkCardTest {
     composeTestRule
         .onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD_SAVE_BUTTON)
         .assertIsDisplayed()
-        .assert(hasText("Saved"))
+        .assertTextEquals("Saved")
+        .performClick()
+    assertEquals(artwork to true, saveRequest)
   }
 
   @Test
@@ -147,6 +162,9 @@ class ArtworkCardTest {
     }
     composeTestRule.waitForIdle()
 
-    composeTestRule.onNodeWithText("Unknown Artist").assertIsDisplayed()
+    composeTestRule
+        .onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD_ARTIST, useUnmergedTree = true)
+        .assertIsDisplayed()
+        .assertTextEquals("Unknown Artist")
   }
 }

@@ -38,11 +38,7 @@ import com.artista.artista.model.map.Location
 import com.artista.artista.ui.theme.ArtistaTheme
 import java.util.Date
 
-/**
- * Stable semantics tags for the artwork card UI tests.
- *
- * @author Copilot
- */
+/** Stable semantics tags for the artwork card UI tests. */
 object ArtworkCardTestTag {
   const val ARTWORK_CARD = "artwork_card"
   const val ARTWORK_CARD_THUMBNAIL = "artwork_card_thumbnail"
@@ -59,9 +55,10 @@ object ArtworkCardTestTag {
  * @param isSaved whether this artwork is currently saved
  * @param onArtworkClick called when the card is selected
  * @param onMapClick called when the map action is selected for an artwork with a location
- * @param onSaveClick called when the save action is selected
+ * @param onSaveClick called with the artwork and its current saved state when the save action is
+ *   selected; `false` means it is not currently saved, and `true` means it is already saved (the
+ *   callback can use this to decide whether to save or remove it)
  * @param modifier modifier applied to the card
- * @author Copilot
  */
 @Composable
 fun ArtworkCard(
@@ -162,11 +159,7 @@ fun ArtworkCard(
   }
 }
 
-/**
- * Previews [ArtworkCard] with representative artwork details.
- *
- * @author Copilot
- */
+/** Previews [ArtworkCard] with representative artwork details. */
 @Preview(showBackground = true)
 @Composable
 private fun ArtworkCardPreview() {
