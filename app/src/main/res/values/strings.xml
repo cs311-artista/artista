@@ -51,7 +51,6 @@
     <string name="saved_artworks_load_error_state">Your saved artworks couldn\'t be loaded.</string>
     <string name="saved_artworks_try_again">Try again</string>
     <string name="saved_artworks_unsave_error">Couldn\'t remove this artwork. Please try again.</string>
-</resources>
 
     <!-- Authentication screen -->
     <string name="sign_in_with_google">Sign in with Google</string>
