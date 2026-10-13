@@ -7,6 +7,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
@@ -339,6 +340,38 @@ class SavedArtworkScreenTest {
         .onNodeWithTag(SavedArtworkTestTags.LIST)
         .onChildAt(1)
         .assert(hasTestTag(SavedArtworkTestTags.card(artworks[1])))
+  }
+
+  /** Verifies that a failed unsave does not duplicate a card that a reload already restored. */
+  @Test
+  fun savedArtworkScreen_whenUnsaveFailsAfterReload_doesNotDuplicateCard() {
+    fakeRepository.savedArtworks.add(savedArtwork)
+    setScreenContent()
+
+    composeTestRule.waitForIdle()
+    // Keeps the removal paused so a reload can happen before it fails.
+    val gate = CompletableDeferred<Unit>()
+    fakeRepository.removeGate = gate
+    composeTestRule.onNodeWithTag(SavedArtworkTestTags.unsaveButton(savedArtwork)).performClick()
+    composeTestRule.waitForIdle()
+
+    // The repository still holds the artwork, so the reload brings its card back.
+    composeTestRule.runOnIdle { isScreenVisible = false }
+    composeTestRule.runOnIdle { isScreenVisible = true }
+    composeTestRule.waitUntil(3_000) {
+      composeTestRule
+          .onAllNodesWithTag(SavedArtworkTestTags.card(savedArtwork))
+          .fetchSemanticsNodes()
+          .isNotEmpty()
+    }
+
+    // Set only now: the fake uses the same flag for loading, which would fail the reload above.
+    fakeRepository.shouldThrowError = true
+    gate.complete(Unit)
+    composeTestRule.waitForIdle()
+
+    composeTestRule.onAllNodesWithTag(SavedArtworkTestTags.card(savedArtwork)).assertCountEquals(1)
+    assertEquals(listOf(savedArtwork), fakeRepository.savedArtworks)
   }
 
   /** Verifies that artworks sharing a title are told apart by their uid. */
