@@ -72,7 +72,11 @@ class ArtistPreferencesScreenTest {
         .assertTextContains(stringOf(R.string.artist_preferences_save))
   }
 
-  /** Verifies that the search bar cannot be used yet, since searching is not implemented. */
+  /**
+   * Verifies that the search bar cannot be used yet, since searching is not implemented.
+   *
+   * TODO(#105): replace this test with tests of the search behavior once search is implemented.
+   */
   @Test
   fun searchBar_isNotEnabled() {
     setPreferencesContent()
