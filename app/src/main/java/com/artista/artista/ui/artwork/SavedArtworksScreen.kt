@@ -27,7 +27,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -396,83 +395,19 @@ private fun ArtworkImagePlaceholder() {
 }
 
 /**
- * Displays a preview of the saved artworks screen with one representative artwork.
+ * Displays a preview of the saved artworks screen with several artworks.
+ *
+ * To preview other states, change `uiState`:
+ * - empty: `SavedArtworksUIState(isLoading = false)`
+ * - loading: `SavedArtworksUIState(isLoading = true)`
+ *
+ * Load and unsave errors are a snackbar and a toast, shown at runtime only.
  *
  * @author Kaio R. Freitas Pereira Nascimento (krfpn)
  */
 @Preview(showBackground = true)
 @Composable
 fun SavedArtworksScreenPreview() {
-  ArtistaTheme {
-    SavedArtworksScreenLayout(
-        uiState =
-            SavedArtworksUIState(
-                artworks = listOf(mockArtworks.first()),
-                isLoading = false,
-            ),
-        onBackClick = {},
-        onArtworkDetailsClick = {},
-        onArtworkUnsave = {},
-        onRetry = {},
-        onLoadErrorHandled = {},
-        onUnsaveErrorHandled = {},
-        onTabSelected = {},
-    )
-  }
-}
-
-/**
- * Displays a preview of the empty saved artworks state.
- *
- * @author Kaio R. Freitas Pereira Nascimento (krfpn)
- */
-@Preview(showBackground = true)
-@Composable
-fun SavedArtworksEmptyPreview() {
-  ArtistaTheme {
-    SavedArtworksScreenLayout(
-        uiState = SavedArtworksUIState(isLoading = false),
-        onBackClick = {},
-        onArtworkDetailsClick = {},
-        onArtworkUnsave = {},
-        onRetry = {},
-        onLoadErrorHandled = {},
-        onUnsaveErrorHandled = {},
-        onTabSelected = {},
-    )
-  }
-}
-
-/**
- * Displays a preview of the loading saved artworks state.
- *
- * @author Kaio R. Freitas Pereira Nascimento (krfpn)
- */
-@Preview(showBackground = true)
-@Composable
-fun SavedArtworksLoadingPreview() {
-  ArtistaTheme {
-    SavedArtworksScreenLayout(
-        uiState = SavedArtworksUIState(isLoading = true),
-        onBackClick = {},
-        onArtworkDetailsClick = {},
-        onArtworkUnsave = {},
-        onRetry = {},
-        onLoadErrorHandled = {},
-        onUnsaveErrorHandled = {},
-        onTabSelected = {},
-    )
-  }
-}
-
-/**
- * Displays a preview containing multiple saved artworks.
- *
- * @author Kaio R. Freitas Pereira Nascimento (krfpn)
- */
-@Preview(showBackground = true)
-@Composable
-fun SavedArtworksMultipleItemsPreview() {
   // Picked by uid to show edge cases: no artist, a non-Latin title and a long punctuated title.
   val artworks = mockArtworks.filter {
     it.uid in setOf("mock-001", "mock-004", "mock-007", "mock-010")
@@ -489,78 +424,5 @@ fun SavedArtworksMultipleItemsPreview() {
         onUnsaveErrorHandled = {},
         onTabSelected = {},
     )
-  }
-}
-
-/**
- * Displays a preview of the toast shown when unsaving an artwork fails.
- *
- * Android Toasts are runtime side effects and cannot be rendered reliably by Compose Preview, so
- * this preview uses a Material 3 surface with the same transient-message role.
- *
- * @author Kaio R. Freitas Pereira Nascimento (krfpn)
- */
-@Preview(showBackground = true)
-@Composable
-fun SavedArtworksUnsaveErrorPreview() {
-  val artwork = mockArtworks.first()
-
-  ArtistaTheme {
-    Box {
-      SavedArtworksScreenLayout(
-          uiState = SavedArtworksUIState(artworks = listOf(artwork), isLoading = false),
-          onBackClick = {},
-          onArtworkDetailsClick = {},
-          onArtworkUnsave = {},
-          onRetry = {},
-          onLoadErrorHandled = {},
-          onUnsaveErrorHandled = {},
-          onTabSelected = {},
-      )
-      Surface(
-          modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 104.dp),
-          shape = RoundedCornerShape(8.dp),
-          color = MaterialTheme.colorScheme.inverseSurface,
-      ) {
-        Text(
-            text = stringResource(R.string.saved_artworks_unsave_error),
-            color = MaterialTheme.colorScheme.inverseOnSurface,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-        )
-      }
-    }
-  }
-}
-
-/**
- * Displays a preview of the loading-error snackbar with its retry action.
- *
- * The preview renders the snackbar directly so its message and action remain visible in Android
- * Studio without requiring a running coroutine or repository operation.
- *
- * @author Kaio R. Freitas Pereira Nascimento (krfpn)
- */
-@Preview(showBackground = true)
-@Composable
-fun SavedArtworksLoadingErrorPreview() {
-  ArtistaTheme {
-    Box {
-      SavedArtworksScreenLayout(
-          uiState = SavedArtworksUIState(isLoading = false),
-          onBackClick = {},
-          onArtworkDetailsClick = {},
-          onArtworkUnsave = {},
-          onRetry = {},
-          onLoadErrorHandled = {},
-          onUnsaveErrorHandled = {},
-          onTabSelected = {},
-      )
-      Snackbar(
-          modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 104.dp),
-          action = { Text(stringResource(R.string.saved_artworks_retry)) },
-      ) {
-        Text(stringResource(R.string.saved_artworks_load_error))
-      }
-    }
   }
 }
