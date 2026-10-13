@@ -25,7 +25,7 @@
     <string name="artwork_card_saved">Saved</string>
     <string name="back">Back</string>
     <!-- User profile screen -->
-    <string name="profile_logout">Log out</string>
+    <string name="profile_logout">Logout</string>
     <string name="profile_picture_placeholder">Profile\nPicture</string>
     <string name="profile_username_placeholder">USERNAME</string>
     <string name="profile_preferences">ARTIST PREFERENCES</string>

@@ -4,17 +4,18 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -43,10 +44,6 @@ import com.artista.artista.ui.theme.ArtistaTheme
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 private val FieldShape = RoundedCornerShape(percent = 50)
 
-// IconButton keeps a 48dp touch target around its 24dp icon, so this padding aligns the visible
-// icon with the 24dp side margin of the fields.
-private val LogoutButtonPadding = 12.dp
-
 /**
  * Displays the profile of the current user with access to their preferences and saved artworks.
  *
@@ -74,22 +71,35 @@ fun UserProfileScreen(
       modifier = Modifier.fillMaxSize().testTag(UserProfileTestTags.SCREEN),
       // The mockup uses a brand-tinted background behind white cards, unlike the usual surface.
       containerColor = MaterialTheme.colorScheme.primaryContainer,
+      topBar = { ProfileTopBar(onLogoutClick = onLogoutClick) },
       bottomBar = {
         BottomNavigationMenu(selectedTab = Tab.Profile, onTabSelected = onTabSelected)
       },
   ) { innerPadding ->
-    // The logout button is drawn over the content, so adding it does not shift the centered layout.
-    Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
-      ProfileContent(
-          username = uiState.username,
-          onPreferencesClick = onPreferencesClick,
-          onSavedArtworkClick = onSavedArtworkClick,
-      )
-      LogoutButton(
-          onClick = onLogoutClick,
-          modifier = Modifier.align(Alignment.TopStart).padding(LogoutButtonPadding),
-      )
-    }
+    ProfileContent(
+        username = uiState.username,
+        onPreferencesClick = onPreferencesClick,
+        onSavedArtworkClick = onSavedArtworkClick,
+        modifier = Modifier.padding(innerPadding),
+    )
+  }
+}
+
+/**
+ * Top bar of the profile screen, holding the logout button on its right.
+ *
+ * @param onLogoutClick Callback invoked when the logout button is clicked.
+ */
+@Composable
+private fun ProfileTopBar(onLogoutClick: () -> Unit) {
+  // The app draws edge to edge, and unlike the content, the top bar slot of the Scaffold does not
+  // receive the status bar insets, so the bar applies them itself.
+  Row(
+      modifier =
+          Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp),
+      horizontalArrangement = Arrangement.End,
+  ) {
+    LogoutButton(onClick = onLogoutClick)
   }
 }
 
@@ -99,15 +109,20 @@ fun UserProfileScreen(
  * @param username Name of the user, or null to display the placeholder.
  * @param onPreferencesClick Callback invoked when the preferences button is clicked.
  * @param onSavedArtworkClick Callback invoked when the saved artwork button is clicked.
+ * @param modifier Modifier applied to the content, used to apply the padding of the Scaffold.
  */
 @Composable
 private fun ProfileContent(
     username: String?,
     onPreferencesClick: () -> Unit,
     onSavedArtworkClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
   Column(
-      modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 45.dp),
+      // The top bar already separates the picture from the top of the screen, so the top padding is
+      // smaller than the bottom one.
+      modifier =
+          modifier.fillMaxSize().padding(start = 24.dp, top = 16.dp, end = 24.dp, bottom = 45.dp),
       horizontalAlignment = Alignment.CenterHorizontally,
   ) {
     ProfilePicturePlaceholder()
@@ -139,19 +154,36 @@ private fun ProfileContent(
 }
 
 /**
- * Icon button at the top left of the screen signing the user out.
+ * Pill-shaped button with an icon and a label, signing the user out.
  *
  * @param onClick Callback invoked when the button is clicked.
- * @param modifier Modifier applied to the button.
  */
 @Composable
-private fun LogoutButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
-  IconButton(onClick = onClick, modifier = modifier.testTag(UserProfileTestTags.LOGOUT_BUTTON)) {
-    Icon(
-        imageVector = Icons.AutoMirrored.Outlined.Logout,
-        contentDescription = stringResource(R.string.profile_logout),
-        tint = MaterialTheme.colorScheme.primary,
-    )
+private fun LogoutButton(onClick: () -> Unit) {
+  Surface(
+      onClick = onClick,
+      modifier = Modifier.testTag(UserProfileTestTags.LOGOUT_BUTTON),
+      shape = FieldShape,
+      color = MaterialTheme.colorScheme.surfaceContainerLowest,
+  ) {
+    Row(
+        modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+      // The label already names the action, so describing the icon would make screen readers
+      // announce it twice.
+      Icon(
+          imageVector = Icons.AutoMirrored.Outlined.Logout,
+          contentDescription = null,
+          tint = MaterialTheme.colorScheme.primary,
+      )
+      Text(
+          text = stringResource(R.string.profile_logout),
+          style = MaterialTheme.typography.titleMedium,
+          color = MaterialTheme.colorScheme.primary,
+      )
+    }
   }
 }
 

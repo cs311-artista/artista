@@ -2,7 +2,6 @@ package com.artista.artista.ui.profile
 
 import androidx.activity.ComponentActivity
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
@@ -144,14 +143,14 @@ class UserProfileScreenTest {
     assertTrue(logoutClicked)
   }
 
-  /** Verifies that the icon-only logout button is described for accessibility services. */
+  /** Verifies that the logout button displays its label. */
   @Test
-  fun logoutButton_hasContentDescription() {
+  fun logoutButton_displaysLabel() {
     setProfileContent()
 
     composeTestRule
         .onNodeWithTag(UserProfileTestTags.LOGOUT_BUTTON)
-        .assertContentDescriptionEquals(composeTestRule.activity.getString(R.string.profile_logout))
+        .assertTextEquals(composeTestRule.activity.getString(R.string.profile_logout))
   }
 
   private fun setProfileContent(
