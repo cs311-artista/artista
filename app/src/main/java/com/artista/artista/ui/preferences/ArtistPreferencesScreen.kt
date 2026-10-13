@@ -237,6 +237,7 @@ private fun ArtistCard(artist: String, selected: Boolean, onToggle: () -> Unit) 
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
       Box {
+        // TODO(#104): replace the placeholder with the artist picture once images are available.
         ArtistImagePlaceholder()
         SelectionIndicator(
             selected = selected,
