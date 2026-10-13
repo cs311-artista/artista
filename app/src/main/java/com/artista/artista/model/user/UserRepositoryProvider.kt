@@ -10,7 +10,7 @@ import com.google.firebase.firestore.firestore
  * @author 5kyPhy
  */
 object UserRepositoryProvider {
-  private val _repositoryLocal: UserRepository = UserRepositoryLocal()
+  private var _repositoryLocal: UserRepository = UserRepositoryLocal()
   private val _repositoryFirestore: UserRepositoryFirestore by lazy {
     UserRepositoryFirestore(Firebase.firestore)
   }
@@ -49,6 +49,12 @@ object UserRepositoryProvider {
   suspend fun populateFakeRepository(mocks: List<User> = mockUsers) {
     mocks.forEach { mock -> _repositoryLocal.createUser(mock) }
   }
+
+  /** Creates a new instance of [UserRepositoryLocal] and exposes it. */
+  fun resetFakeRepository() {
+    _repositoryLocal = UserRepositoryLocal()
+    repository = _repositoryLocal
+  }
 }
 
 val mockUsers: List<User> =
@@ -74,6 +80,6 @@ val mockUsers: List<User> =
         User(
             uid = "Sams_ID",
             userName = "Samantha Johnson",
-            preference = UserPreference(type = listOf("")),
+            preference = UserPreference(type = listOf("Painting")),
         ),
     )

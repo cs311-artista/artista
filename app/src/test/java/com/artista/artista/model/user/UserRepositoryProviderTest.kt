@@ -16,12 +16,12 @@ class UserRepositoryProviderTest {
 
   @Before
   fun setUp() {
-    UserRepositoryProvider.useFakeRepository()
+    UserRepositoryProvider.resetFakeRepository()
   }
 
   @After
   fun tearDown() {
-    UserRepositoryProvider.useFakeRepository()
+    UserRepositoryProvider.resetFakeRepository()
   }
 
   /** Verifies that fake mode selects the in-memory repository implementation. */
@@ -30,7 +30,7 @@ class UserRepositoryProviderTest {
     assertTrue(UserRepositoryProvider.repository is UserRepositoryLocal)
   }
 
-  /** Verifies that custom users are populated into the selected fake repository. */
+  /** Verifies that custom users are populated into the reset fake repository. */
   @Test
   fun populateFakeRepository_withCustomUsers_storesAllUsers() = runTest {
     val users = listOf(user("provider-custom-1"), user("provider-custom-2"))
@@ -52,25 +52,19 @@ class UserRepositoryProviderTest {
     }
   }
 
-  /**
-   * Verifies that population targets the provider's protected local repository rather than the
-   * currently selected repository.
-   */
+  /** Verifies that resetting the fake repository removes users from the previous instance. */
   @Test
-  fun populateFakeRepository_populatesLocalRepositoryOnly() = runTest {
-    val selectedRepository = UserRepositoryLocal()
+  fun resetFakeRepository_clearsPreviouslyPopulatedUsers() = runTest {
     val user = user("provider-local-only")
-    UserRepositoryProvider.repository = selectedRepository
-
     UserRepositoryProvider.populateFakeRepository(listOf(user))
-    UserRepositoryProvider.useFakeRepository()
 
-    assertEquals(user, UserRepositoryProvider.repository.getUser(user.uid))
+    UserRepositoryProvider.resetFakeRepository()
+
     try {
-      selectedRepository.getUser(user.uid)
-      throw AssertionError("The selected repository should not have been populated")
+      UserRepositoryProvider.repository.getUser(user.uid)
+      throw AssertionError("The reset repository should not contain previous users")
     } catch (_: NoSuchElementException) {
-      // Expected: population is deliberately isolated from the selected repository.
+      // Expected: reset creates a fresh in-memory repository.
     }
   }
 
