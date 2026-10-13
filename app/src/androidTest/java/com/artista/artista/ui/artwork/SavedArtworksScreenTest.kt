@@ -67,7 +67,7 @@ class SavedArtworksScreenTest {
 
   /** Verifies that saved artworks are rendered with their tagged actions. */
   @Test
-  fun savedArtworkScreen_displaysSavedArtworkList() {
+  fun savedArtworksScreen_displaysSavedArtworkList() {
     fakeRepository.savedArtworks.add(savedArtwork)
     setScreenContent()
 
@@ -87,7 +87,7 @@ class SavedArtworksScreenTest {
 
   /** Verifies that a saved artwork card displays its artist name and title. */
   @Test
-  fun savedArtworkScreen_displaysArtworkArtistNameAndTitle() {
+  fun savedArtworksScreen_displaysArtworkArtistNameAndTitle() {
     fakeRepository.savedArtworks.add(savedArtwork)
     setScreenContent()
 
@@ -100,7 +100,7 @@ class SavedArtworksScreenTest {
 
   /** Verifies that an artwork without an artist name displays the shared fallback text. */
   @Test
-  fun savedArtworkScreen_whenArtistIsUnknown_displaysFallbackText() {
+  fun savedArtworksScreen_whenArtistIsUnknown_displaysFallbackText() {
     fakeRepository.savedArtworks.add(savedArtwork.copy(artistName = null))
     setScreenContent()
 
@@ -113,7 +113,7 @@ class SavedArtworksScreenTest {
 
   /** Verifies that the saved artworks list can scroll to cards outside the initial viewport. */
   @Test
-  fun savedArtworkScreen_savedArtworkListIsScrollable() {
+  fun savedArtworksScreen_savedArtworkListIsScrollable() {
     val artworks =
         (1..10).map { index -> savedArtwork.copy(uid = "artwork$index", name = "Artwork $index") }
     fakeRepository.savedArtworks.addAll(artworks)
@@ -130,7 +130,7 @@ class SavedArtworksScreenTest {
 
   /** Verifies that an empty repository renders the empty state instead of a list. */
   @Test
-  fun savedArtworkScreen_whenNoArtworkIsSaved_displaysEmptyState() {
+  fun savedArtworksScreen_whenNoArtworkIsSaved_displaysEmptyState() {
     setScreenContent()
 
     composeTestRule.waitForIdle()
@@ -141,7 +141,7 @@ class SavedArtworksScreenTest {
 
   /** Verifies that the loading state is shown until the repository answers. */
   @Test
-  fun savedArtworkScreen_whileLoading_displaysLoadingState() {
+  fun savedArtworksScreen_whileLoading_displaysLoadingState() {
     fakeRepository.savedArtworks.add(savedArtwork)
     // Holds the fake's load paused, like a slow network call, until the gate is completed.
     val gate = CompletableDeferred<Unit>()
@@ -167,7 +167,7 @@ class SavedArtworksScreenTest {
 
   /** Verifies that repository loading failures display a retryable snackbar. */
   @Test
-  fun savedArtworkScreen_whenLoadingFails_displaysRetrySnackbar() {
+  fun savedArtworksScreen_whenLoadingFails_displaysRetrySnackbar() {
     fakeRepository.shouldThrowError = true
     setScreenContent()
     // The user sees the friendly resource message, never the repository's exception text.
@@ -187,7 +187,7 @@ class SavedArtworksScreenTest {
 
   /** Verifies that the snackbar's Retry action reloads the saved artworks and hides the error. */
   @Test
-  fun savedArtworkScreen_whenRetryIsClicked_reloadsSavedArtworks() {
+  fun savedArtworksScreen_whenRetryIsClicked_reloadsSavedArtworks() {
     fakeRepository.savedArtworks.add(savedArtwork)
     fakeRepository.shouldThrowError = true
     setScreenContent()
@@ -215,7 +215,7 @@ class SavedArtworksScreenTest {
 
   /** Verifies that tapping the back arrow invokes the callback. */
   @Test
-  fun savedArtworkScreen_whenBackButtonIsClicked_invokesCallback() {
+  fun savedArtworksScreen_whenBackButtonIsClicked_invokesCallback() {
     var backClicked = false
     setScreenContent(onBackClick = { backClicked = true })
 
@@ -226,7 +226,7 @@ class SavedArtworksScreenTest {
 
   /** Verifies that opening an artwork forwards the selected artwork to the callback. */
   @Test
-  fun savedArtworkScreen_whenDetailsButtonIsClicked_invokesCallback() {
+  fun savedArtworksScreen_whenDetailsButtonIsClicked_invokesCallback() {
     fakeRepository.savedArtworks.add(savedArtwork)
     var selectedArtwork: Artwork? = null
     setScreenContent(onArtworkDetailsClick = { selectedArtwork = it })
@@ -239,7 +239,7 @@ class SavedArtworksScreenTest {
 
   /** Verifies that unsaving removes the artwork from both the repository and the UI. */
   @Test
-  fun savedArtworkScreen_whenUnsaveButtonIsClicked_removesArtworkFromListAndRepository() {
+  fun savedArtworksScreen_whenUnsaveButtonIsClicked_removesArtworkFromListAndRepository() {
     fakeRepository.savedArtworks.add(savedArtwork)
     setScreenContent()
 
@@ -254,7 +254,7 @@ class SavedArtworksScreenTest {
 
   /** Verifies that a failed unsave keeps the artwork in both the repository and the UI. */
   @Test
-  fun savedArtworkScreen_whenUnsaveFails_keepsArtworkInListAndRepository() {
+  fun savedArtworksScreen_whenUnsaveFails_keepsArtworkInListAndRepository() {
     fakeRepository.savedArtworks.add(savedArtwork)
     setScreenContent()
 
@@ -269,7 +269,7 @@ class SavedArtworksScreenTest {
 
   /** Verifies that the card disappears before the repository confirms the removal. */
   @Test
-  fun savedArtworkScreen_whenUnsaveButtonIsClicked_removesCardBeforeRepositoryCompletes() {
+  fun savedArtworksScreen_whenUnsaveButtonIsClicked_removesCardBeforeRepositoryCompletes() {
     fakeRepository.savedArtworks.add(savedArtwork)
     // Holds the fake's removal paused, like a slow network call, until the gate is completed.
     val gate = CompletableDeferred<Unit>()
@@ -295,7 +295,7 @@ class SavedArtworksScreenTest {
 
   /** Verifies that unsaving an artwork already absent from the repository is not an error. */
   @Test
-  fun savedArtworkScreen_whenArtworkIsAlreadyAbsentFromRepository_keepsCardRemoved() {
+  fun savedArtworksScreen_whenArtworkIsAlreadyAbsentFromRepository_keepsCardRemoved() {
     val otherArtwork = savedArtwork.copy(uid = "girlId", name = "Girl with a Pearl Earring")
     fakeRepository.savedArtworks.addAll(listOf(savedArtwork, otherArtwork))
     setScreenContent()
@@ -314,7 +314,7 @@ class SavedArtworksScreenTest {
 
   /** Verifies that a failed unsave restores the card at the position it had before. */
   @Test
-  fun savedArtworkScreen_whenUnsaveFails_restoresCardAtOriginalPosition() {
+  fun savedArtworksScreen_whenUnsaveFails_restoresCardAtOriginalPosition() {
     val artworks =
         listOf("First", "Second", "Third").map {
           savedArtwork.copy(uid = "${it.lowercase()}Id", name = it)
@@ -344,7 +344,7 @@ class SavedArtworksScreenTest {
 
   /** Verifies that a failed unsave does not duplicate a card that a reload already restored. */
   @Test
-  fun savedArtworkScreen_whenUnsaveFailsAfterReload_doesNotDuplicateCard() {
+  fun savedArtworksScreen_whenUnsaveFailsAfterReload_doesNotDuplicateCard() {
     fakeRepository.savedArtworks.add(savedArtwork)
     setScreenContent()
 
@@ -376,7 +376,7 @@ class SavedArtworksScreenTest {
 
   /** Verifies that artworks sharing a title are told apart by their uid. */
   @Test
-  fun savedArtworkScreen_whenTwoArtworksShareATitle_unsavesOnlyTheSelectedOne() {
+  fun savedArtworksScreen_whenTwoArtworksShareATitle_unsavesOnlyTheSelectedOne() {
     val sameTitleArtwork = savedArtwork.copy(uid = "starryCopyId")
     fakeRepository.savedArtworks.addAll(listOf(savedArtwork, sameTitleArtwork))
     setScreenContent()
@@ -403,7 +403,7 @@ class SavedArtworksScreenTest {
 
   /** Verifies that coming back to the screen reloads the list kept by the ViewModel. */
   @Test
-  fun savedArtworkScreen_whenScreenIsShownAgain_reloadsSavedArtworks() {
+  fun savedArtworksScreen_whenScreenIsShownAgain_reloadsSavedArtworks() {
     fakeRepository.savedArtworks.add(savedArtwork)
     setScreenContent()
 
@@ -426,7 +426,7 @@ class SavedArtworksScreenTest {
 
   /** Verifies that a load canceled by a newer one is not reported as a loading error. */
   @Test
-  fun savedArtworkScreen_whenReloadedWhileLoading_doesNotShowError() {
+  fun savedArtworksScreen_whenReloadedWhileLoading_doesNotShowError() {
     fakeRepository.savedArtworks.add(savedArtwork)
     // Keeps the first load paused so the second refresh starts while it is still running.
     val gate = CompletableDeferred<Unit>()
