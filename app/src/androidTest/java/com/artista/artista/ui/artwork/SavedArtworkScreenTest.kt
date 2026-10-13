@@ -191,6 +191,34 @@ class SavedArtworkScreenTest {
     composeTestRule.onNodeWithTag(SavedArtworkTestTags.EMPTY_STATE).assertIsDisplayed()
   }
 
+  /** Verifies that the snackbar's Retry action reloads the saved artworks and hides the error. */
+  @Test
+  fun savedArtworkScreen_whenRetryIsClicked_reloadsSavedArtworks() {
+    fakeRepository.savedArtworks.add(savedArtwork)
+    fakeRepository.shouldThrowError = true
+    setScreenContent()
+    val loadErrorMessage = composeTestRule.activity.getString(R.string.saved_artworks_load_error)
+
+    composeTestRule.waitUntil(3_000) {
+      composeTestRule.onAllNodesWithText(loadErrorMessage).fetchSemanticsNodes().isNotEmpty()
+    }
+    // The connection is back, so the next load succeeds.
+    fakeRepository.shouldThrowError = false
+    composeTestRule
+        .onNodeWithText(composeTestRule.activity.getString(R.string.saved_artworks_retry))
+        .performClick()
+
+    composeTestRule.waitUntil(3_000) {
+      composeTestRule
+          .onAllNodesWithTag(SavedArtworkTestTags.card(savedArtwork))
+          .fetchSemanticsNodes()
+          .isNotEmpty()
+    }
+    composeTestRule.waitUntil(3_000) {
+      composeTestRule.onAllNodesWithText(loadErrorMessage).fetchSemanticsNodes().isEmpty()
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // Screen interaction tests
   // ---------------------------------------------------------------------------
