@@ -23,7 +23,7 @@ interface UserRepository {
    * @return The User object with this specific id.
    * @throws Exception if the user is not found.
    */
-  suspend fun getUser(userId: String): User
+  suspend fun getUser(userId: UserId): User
 
   /**
    * Updates an existing User in the repository.
@@ -32,7 +32,7 @@ interface UserRepository {
    * @param newValue The new value for the User object.
    * @throws Exception if the user is not found.
    */
-  suspend fun updateUser(userId: String, newValue: User)
+  suspend fun updateUser(userId: UserId, newValue: User)
 
   /**
    * Deletes a User object from the repository.
@@ -40,5 +40,5 @@ interface UserRepository {
    * @param userId The unique identifier of the user to delete.
    * @throws Exception if the user is not found.
    */
-  suspend fun deleteUser(userId: String)
+  suspend fun deleteUser(userId: UserId)
 }

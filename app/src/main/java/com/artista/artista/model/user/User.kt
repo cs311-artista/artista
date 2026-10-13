@@ -9,7 +9,9 @@ package com.artista.artista.model.user
  * @author 5kyPhy
  */
 data class User(
-    val uid: String,
+    val uid: UserId,
     val userName: String? = null,
     val preference: UserPreference,
 )
+
+typealias UserId = String
