@@ -54,9 +54,9 @@ import com.artista.artista.ui.theme.ArtistaTheme
 /**
  * Displays the artworks saved by the current user.
  *
- * The screen receives its artwork list and actions from its caller so that loading, persistence,
- * and navigation remain outside the UI layer. Saved artworks are reloaded each time the screen
- * enters the composition.
+ * The artworks and the unsave action come from [viewModel]. Navigation stays with the caller
+ * through [onArtworkDetailsClick] and [onTabSelected]. Saved artworks are reloaded each time the
+ * screen enters the composition.
  *
  * @param onArtworkDetailsClick called when the user opens an artwork's details
  * @param onTabSelected called when the user selects a bottom-navigation destination
