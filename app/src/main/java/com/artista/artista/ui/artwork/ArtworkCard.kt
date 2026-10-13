@@ -59,6 +59,7 @@ object ArtworkCardTestTag {
  *   selected; `false` means it is not currently saved, and `true` means it is already saved (the
  *   callback can use this to decide whether to save or remove it)
  * @param modifier modifier applied to the card
+ * @author IJJA3141
  */
 @Composable
 fun ArtworkCard(
