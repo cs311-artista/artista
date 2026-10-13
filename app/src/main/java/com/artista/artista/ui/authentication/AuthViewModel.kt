@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+// Co-authored-by: DeepSeek Flash
 /**
  * Immutable UI state of the authentication flow.
  *
@@ -32,10 +33,13 @@ sealed interface AuthUiEvent {
   /**
    * Asks the UI to display an error, typically in a Snackbar.
    *
-   * @property message the message to display
+   * Carries the raw message from the failure cause, which may be `null`; supplying a localized
+   * fallback in that case is the UI layer's responsibility.
+   *
+   * @property message the message to display, or `null` to use the UI's fallback
    * @author timo-by
    */
-  data class ShowError(val message: String) : AuthUiEvent
+  data class ShowError(val message: String? = null) : AuthUiEvent
 }
 
 /**
@@ -125,13 +129,13 @@ class AuthViewModel(private val repository: AuthRepository) : ViewModel() {
   /**
    * Turns a failed authentication operation into a one-shot [AuthUiEvent.ShowError].
    *
-   * Falls back to a generic message when the cause carries none, so the UI always has something to
-   * display.
+   * Forwards the cause's message as-is (possibly `null`); rendering a localized fallback is left to
+   * the UI layer.
    *
    * @param cause the failure returned by the repository
    * @author timo-by
    */
   private suspend fun emitError(cause: Throwable) {
-    _events.emit(AuthUiEvent.ShowError(cause.message ?: "Authentication failed"))
+    _events.emit(AuthUiEvent.ShowError(cause.message))
   }
 }

@@ -2,6 +2,7 @@ package com.artista.artista.model.authentication
 
 import kotlinx.coroutines.flow.Flow
 
+// Co-authored-by: DeepSeek Flash
 /**
  * Abstraction over the authentication backend (Firebase Authentication with the Google provider).
  *

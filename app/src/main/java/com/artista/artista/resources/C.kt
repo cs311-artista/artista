@@ -8,5 +8,11 @@ object C {
 
     const val main_screen_container = "main_screen_container"
     const val second_screen_container = "second_screen_container"
+
+    const val auth_screen_container = "auth_screen_container"
+    const val auth_hero_image = "auth_hero_image"
+    const val auth_google_sign_in_button = "auth_google_sign_in_button"
+    const val auth_loading_indicator = "auth_loading_indicator"
+    const val auth_error_snackbar = "auth_error_snackbar"
   }
 }
