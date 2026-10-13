@@ -16,11 +16,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
@@ -55,9 +59,10 @@ import com.artista.artista.ui.theme.ArtistaTheme
  * Displays the artworks saved by the current user.
  *
  * The artworks and the unsave action come from [viewModel]. Navigation stays with the caller
- * through [onArtworkDetailsClick] and [onTabSelected]. Saved artworks are reloaded each time the
- * screen enters the composition.
+ * through [onBackClick], [onArtworkDetailsClick] and [onTabSelected]. Saved artworks are reloaded
+ * each time the screen enters the composition.
  *
+ * @param onBackClick called when the user taps the back arrow
  * @param onArtworkDetailsClick called when the user opens an artwork's details
  * @param onTabSelected called when the user selects a bottom-navigation destination
  * @param modifier modifier applied to the screen scaffold
@@ -67,6 +72,7 @@ import com.artista.artista.ui.theme.ArtistaTheme
  */
 @Composable
 fun SavedArtworksScreen(
+    onBackClick: () -> Unit,
     onArtworkDetailsClick: (Artwork) -> Unit,
     onTabSelected: (Tab) -> Unit,
     modifier: Modifier = Modifier,
@@ -81,6 +87,7 @@ fun SavedArtworksScreen(
 
   SavedArtworksScreenLayout(
       uiState = uiState,
+      onBackClick = onBackClick,
       onArtworkDetailsClick = onArtworkDetailsClick,
       onArtworkUnsave = viewModel::onArtworkUnsave,
       onRetry = viewModel::refreshSavedArtworks,
@@ -98,6 +105,7 @@ fun SavedArtworksScreen(
  * state-management concerns outside the visual hierarchy.
  *
  * @param uiState state snapshot used to render the screen
+ * @param onBackClick called when the user taps the back arrow
  * @param onArtworkDetailsClick called when the user opens an artwork's details
  * @param onArtworkUnsave called when the user removes an artwork from the saved list
  * @param onRetry called when the user requests another loading attempt
@@ -111,6 +119,7 @@ fun SavedArtworksScreen(
 @Composable
 private fun SavedArtworksScreenLayout(
     uiState: SavedArtworksUIState,
+    onBackClick: () -> Unit,
     onArtworkDetailsClick: (Artwork) -> Unit,
     onArtworkUnsave: (Artwork) -> Unit,
     onRetry: () -> Unit,
@@ -170,6 +179,17 @@ private fun SavedArtworksScreenLayout(
                 )
               }
             },
+            navigationIcon = {
+              IconButton(
+                  onClick = onBackClick,
+                  modifier = Modifier.testTag(SavedArtworksTestTags.BACK_BUTTON),
+              ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = stringResource(R.string.back),
+                )
+              }
+            },
         )
       },
       // Shared bottom navigation for the application's main sections.
@@ -204,6 +224,7 @@ private fun SavedArtworksScreenLayout(
 object SavedArtworksTestTags {
   const val SCREEN = "saved_artworks_screen"
   const val TITLE = "saved_artworks_title"
+  const val BACK_BUTTON = "saved_artworks_back_button"
   const val LIST = "saved_artworks_list"
   const val EMPTY_STATE = "saved_artworks_empty_state"
   const val LOADING_STATE = "saved_artworks_loading_state"
@@ -389,6 +410,7 @@ fun SavedArtworksScreenPreview() {
                 artworks = listOf(mockArtworks.first()),
                 isLoading = false,
             ),
+        onBackClick = {},
         onArtworkDetailsClick = {},
         onArtworkUnsave = {},
         onRetry = {},
@@ -410,6 +432,7 @@ fun SavedArtworksEmptyPreview() {
   ArtistaTheme {
     SavedArtworksScreenLayout(
         uiState = SavedArtworksUIState(isLoading = false),
+        onBackClick = {},
         onArtworkDetailsClick = {},
         onArtworkUnsave = {},
         onRetry = {},
@@ -431,6 +454,7 @@ fun SavedArtworksLoadingPreview() {
   ArtistaTheme {
     SavedArtworksScreenLayout(
         uiState = SavedArtworksUIState(isLoading = true),
+        onBackClick = {},
         onArtworkDetailsClick = {},
         onArtworkUnsave = {},
         onRetry = {},
@@ -457,6 +481,7 @@ fun SavedArtworksMultipleItemsPreview() {
   ArtistaTheme {
     SavedArtworksScreenLayout(
         uiState = SavedArtworksUIState(artworks = artworks, isLoading = false),
+        onBackClick = {},
         onArtworkDetailsClick = {},
         onArtworkUnsave = {},
         onRetry = {},
@@ -484,6 +509,7 @@ fun SavedArtworksUnsaveErrorPreview() {
     Box {
       SavedArtworksScreenLayout(
           uiState = SavedArtworksUIState(artworks = listOf(artwork), isLoading = false),
+          onBackClick = {},
           onArtworkDetailsClick = {},
           onArtworkUnsave = {},
           onRetry = {},
@@ -521,6 +547,7 @@ fun SavedArtworksLoadingErrorPreview() {
     Box {
       SavedArtworksScreenLayout(
           uiState = SavedArtworksUIState(isLoading = false),
+          onBackClick = {},
           onArtworkDetailsClick = {},
           onArtworkUnsave = {},
           onRetry = {},

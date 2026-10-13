@@ -28,6 +28,7 @@ import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaTheme
 import kotlinx.coroutines.CompletableDeferred
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -210,6 +211,17 @@ class SavedArtworksScreenTest {
     composeTestRule.waitUntil(3_000) {
       composeTestRule.onAllNodesWithText(loadErrorMessage).fetchSemanticsNodes().isEmpty()
     }
+  }
+
+  /** Verifies that tapping the back arrow invokes the callback. */
+  @Test
+  fun savedArtworkScreen_whenBackButtonIsClicked_invokesCallback() {
+    var backClicked = false
+    setScreenContent(onBackClick = { backClicked = true })
+
+    composeTestRule.onNodeWithTag(SavedArtworksTestTags.BACK_BUTTON).performClick()
+
+    assertTrue(backClicked)
   }
 
   /** Verifies that opening an artwork forwards the selected artwork to the callback. */
@@ -442,10 +454,12 @@ class SavedArtworksScreenTest {
   /**
    * Sets the saved artworks screen content with the test ViewModel and callbacks.
    *
+   * @param onBackClick callback invoked when the back arrow is tapped
    * @param onArtworkDetailsClick callback invoked when an artwork details action is selected
    * @param onTabSelected callback invoked when a bottom-navigation tab is selected
    */
   private fun setScreenContent(
+      onBackClick: () -> Unit = {},
       onArtworkDetailsClick: (Artwork) -> Unit = {},
       onTabSelected: (Tab) -> Unit = {},
   ) {
@@ -456,6 +470,7 @@ class SavedArtworksScreenTest {
         if (isScreenVisible) {
           SavedArtworksScreen(
               viewModel = viewModel,
+              onBackClick = onBackClick,
               onArtworkDetailsClick = onArtworkDetailsClick,
               onTabSelected = onTabSelected,
           )
