@@ -11,10 +11,22 @@ import com.google.firebase.firestore.firestore
  */
 object UserRepositoryProvider {
   private val _repositoryLocal: UserRepository = UserRepositoryLocal()
-  private val _repositoryFirestore: UserRepositoryFirestore =
-      UserRepositoryFirestore(Firebase.firestore)
+  private val _repositoryFirestore: UserRepositoryFirestore by lazy {
+    UserRepositoryFirestore(Firebase.firestore)
+  }
 
-  var repository: UserRepository = _repositoryFirestore
+  /**
+   * Repository currently used by the application.
+   *
+   * @return the selected repository, defaulting to the lazy Firestore implementation
+   */
+  var repository: UserRepository
+    get() = _repository ?: _repositoryFirestore.also { _repository = it }
+    set(value) {
+      _repository = value
+    }
+
+  private var _repository: UserRepository? = null
 
   /**
    * Function used to tell the RepositoryProvider to use an in-memory implementation of the
