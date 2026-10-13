@@ -19,7 +19,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
- * Contains the state required to display the saved-artworks screen.
+ * Contains the state required to display the saved artworks screen.
  *
  * @property artworks artworks currently saved by the user
  * @property isLoading whether saved artworks are being loaded
@@ -28,7 +28,7 @@ import kotlinx.coroutines.launch
  *   fails
  * @author Kaio R. Freitas Pereira Nascimento (krfpn)
  */
-data class SavedArtworkUIState(
+data class SavedArtworksUIState(
     val artworks: List<Artwork> = emptyList(),
     val isLoading: Boolean = true,
     @param:StringRes val loadErrorMessageResId: Int? = null,
@@ -36,20 +36,20 @@ data class SavedArtworkUIState(
 )
 
 /**
- * Provides saved-artwork state and actions to [SavedArtworkScreen].
+ * Provides saved artworks state and actions to [SavedArtworksScreen].
  *
  * @param savedArtworksRepository repository used to load and remove saved artworks. Defaults to the
  *   shared [ArtworkRepositoryProvider.repository]; tests pass a fake instead.
  * @author Kaio R. Freitas Pereira Nascimento (krfpn)
  */
-class SavedArtworkViewModel(
+class SavedArtworksViewModel(
     private val savedArtworksRepository: SavedArtworksRepository =
         ArtworkRepositoryProvider.repository,
 ) : ViewModel() {
 
-  private val _uiState = MutableStateFlow(SavedArtworkUIState())
+  private val _uiState = MutableStateFlow(SavedArtworksUIState())
 
-  val uiState: StateFlow<SavedArtworkUIState> = _uiState.asStateFlow()
+  val uiState: StateFlow<SavedArtworksUIState> = _uiState.asStateFlow()
 
   // Loads can overlap (e.g. quickly leaving and coming back to the screen) and a slow older load
   // could finish last and overwrite newer data, so only the most recent load is kept running.
@@ -163,7 +163,7 @@ class SavedArtworkViewModel(
 
   /** Provides constants used by the ViewModel for structured diagnostic logging. */
   private companion object {
-    /** Log tag identifying messages emitted by [SavedArtworkViewModel]. */
-    private const val TAG = "SavedArtworkViewModel"
+    /** Log tag identifying messages emitted by [SavedArtworksViewModel]. */
+    private const val TAG = "SavedArtworksViewModel"
   }
 }

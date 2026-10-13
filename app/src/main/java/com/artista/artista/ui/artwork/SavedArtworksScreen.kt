@@ -61,16 +61,16 @@ import com.artista.artista.ui.theme.ArtistaTheme
  * @param onArtworkDetailsClick called when the user opens an artwork's details
  * @param onTabSelected called when the user selects a bottom-navigation destination
  * @param modifier modifier applied to the screen scaffold
- * @param viewModel ViewModel providing saved-artwork state and actions. Defaults to a ViewModel
+ * @param viewModel ViewModel providing saved artworks state and actions. Defaults to a ViewModel
  *   backed by the shared [com.artista.artista.model.artwork.ArtworkRepositoryProvider.repository].
  * @author Kaio R. Freitas Pereira Nascimento (krfpn)
  */
 @Composable
-fun SavedArtworkScreen(
+fun SavedArtworksScreen(
     onArtworkDetailsClick: (Artwork) -> Unit,
     onTabSelected: (Tab) -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: SavedArtworkViewModel = viewModel(),
+    viewModel: SavedArtworksViewModel = viewModel(),
 ) {
   val uiState by viewModel.uiState.collectAsState()
 
@@ -79,7 +79,7 @@ fun SavedArtworkScreen(
   // This prevents stale list to be displayed when user performs save/unsave actions.
   LaunchedEffect(Unit) { viewModel.refreshSavedArtworks() }
 
-  SavedArtworkScreenLayout(
+  SavedArtworksScreenLayout(
       uiState = uiState,
       onArtworkDetailsClick = onArtworkDetailsClick,
       onArtworkUnsave = viewModel::onArtworkUnsave,
@@ -92,7 +92,7 @@ fun SavedArtworkScreen(
 }
 
 /**
- * Renders the saved-artwork UI from an immutable state snapshot.
+ * Renders the saved artworks UI from an immutable state snapshot.
  *
  * Keeping this layout independent of the ViewModel makes previews deterministic and keeps
  * state-management concerns outside the visual hierarchy.
@@ -109,8 +109,8 @@ fun SavedArtworkScreen(
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SavedArtworkScreenLayout(
-    uiState: SavedArtworkUIState,
+private fun SavedArtworksScreenLayout(
+    uiState: SavedArtworksUIState,
     onArtworkDetailsClick: (Artwork) -> Unit,
     onArtworkUnsave: (Artwork) -> Unit,
     onRetry: () -> Unit,
@@ -151,16 +151,16 @@ private fun SavedArtworkScreenLayout(
   }
 
   Scaffold(
-      modifier = modifier.testTag(SavedArtworkTestTags.SCREEN),
+      modifier = modifier.testTag(SavedArtworksTestTags.SCREEN),
       snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
-      // Top app bar displaying the name of the saved-artworks screen.
+      // Top app bar displaying the name of the saved artworks screen.
       topBar = {
         CenterAlignedTopAppBar(
             title = {
               Surface(
                   shape = RoundedCornerShape(32.dp),
                   color = MaterialTheme.colorScheme.surfaceContainer,
-                  modifier = Modifier.testTag(SavedArtworkTestTags.TITLE),
+                  modifier = Modifier.testTag(SavedArtworksTestTags.TITLE),
               ) {
                 Text(
                     text = stringResource(R.string.saved_artworks_title),
@@ -182,11 +182,11 @@ private fun SavedArtworkScreenLayout(
   ) { innerPadding ->
     // Main content area containing the user's saved artworks.
     if (uiState.isLoading) {
-      SavedArtworkLoadingState(modifier = Modifier.fillMaxSize().padding(innerPadding))
+      SavedArtworksLoadingState(modifier = Modifier.fillMaxSize().padding(innerPadding))
     } else if (uiState.artworks.isEmpty()) {
-      EmptySavedArtworkState(modifier = Modifier.fillMaxSize().padding(innerPadding))
+      EmptySavedArtworksState(modifier = Modifier.fillMaxSize().padding(innerPadding))
     } else {
-      SavedArtworkList(
+      SavedArtworksList(
           artworks = uiState.artworks,
           onArtworkDetailsClick = onArtworkDetailsClick,
           onArtworkUnsave = onArtworkUnsave,
@@ -197,16 +197,16 @@ private fun SavedArtworkScreenLayout(
 }
 
 /**
- * Provides stable semantics test tags for the saved-artwork screen.
+ * Provides stable semantics test tags for the saved artworks screen.
  *
  * @author Kaio R. Freitas Pereira Nascimento (krfpn)
  */
-object SavedArtworkTestTags {
-  const val SCREEN = "saved_artwork_screen"
-  const val TITLE = "saved_artwork_title"
-  const val LIST = "saved_artwork_list"
-  const val EMPTY_STATE = "saved_artwork_empty_state"
-  const val LOADING_STATE = "saved_artwork_loading_state"
+object SavedArtworksTestTags {
+  const val SCREEN = "saved_artworks_screen"
+  const val TITLE = "saved_artworks_title"
+  const val LIST = "saved_artworks_list"
+  const val EMPTY_STATE = "saved_artworks_empty_state"
+  const val LOADING_STATE = "saved_artworks_loading_state"
   const val IMAGE = "saved_artwork_image"
 
   /** Tag of the card showing [artwork]. */
@@ -226,9 +226,9 @@ object SavedArtworkTestTags {
  * @author Kaio R. Freitas Pereira Nascimento (krfpn)
  */
 @Composable
-private fun EmptySavedArtworkState(modifier: Modifier = Modifier) {
+private fun EmptySavedArtworksState(modifier: Modifier = Modifier) {
   Box(
-      modifier = modifier.testTag(SavedArtworkTestTags.EMPTY_STATE),
+      modifier = modifier.testTag(SavedArtworksTestTags.EMPTY_STATE),
       contentAlignment = Alignment.Center,
   ) {
     Text(
@@ -246,9 +246,9 @@ private fun EmptySavedArtworkState(modifier: Modifier = Modifier) {
  * @author Kaio R. Freitas Pereira Nascimento (krfpn)
  */
 @Composable
-private fun SavedArtworkLoadingState(modifier: Modifier = Modifier) {
+private fun SavedArtworksLoadingState(modifier: Modifier = Modifier) {
   Box(
-      modifier = modifier.testTag(SavedArtworkTestTags.LOADING_STATE),
+      modifier = modifier.testTag(SavedArtworksTestTags.LOADING_STATE),
       contentAlignment = Alignment.Center,
   ) {
     Text(text = stringResource(R.string.saved_artworks_loading))
@@ -265,7 +265,7 @@ private fun SavedArtworkLoadingState(modifier: Modifier = Modifier) {
  * @author Kaio R. Freitas Pereira Nascimento (krfpn)
  */
 @Composable
-private fun SavedArtworkList(
+private fun SavedArtworksList(
     artworks: List<Artwork>,
     onArtworkDetailsClick: (Artwork) -> Unit,
     onArtworkUnsave: (Artwork) -> Unit,
@@ -273,7 +273,7 @@ private fun SavedArtworkList(
 ) {
   // Scrollable collection of artwork cards with spacing for comfortable browsing.
   LazyColumn(
-      modifier = modifier.testTag(SavedArtworkTestTags.LIST),
+      modifier = modifier.testTag(SavedArtworksTestTags.LIST),
       contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
       verticalArrangement = Arrangement.spacedBy(12.dp),
   ) {
@@ -302,7 +302,7 @@ private fun SavedArtworkCard(
     onUnsaveClick: () -> Unit,
 ) {
   Card(
-      modifier = Modifier.fillMaxWidth().testTag(SavedArtworkTestTags.card(artwork)),
+      modifier = Modifier.fillMaxWidth().testTag(SavedArtworksTestTags.card(artwork)),
       elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
   ) {
     // Artwork visual area and metadata displayed above the card actions.
@@ -327,13 +327,13 @@ private fun SavedArtworkCard(
       ) {
         Button(
             onClick = onDetailsClick,
-            modifier = Modifier.weight(1f).testTag(SavedArtworkTestTags.detailsButton(artwork)),
+            modifier = Modifier.weight(1f).testTag(SavedArtworksTestTags.detailsButton(artwork)),
         ) {
           Text(stringResource(R.string.saved_artworks_open_details))
         }
         Button(
             onClick = onUnsaveClick,
-            modifier = Modifier.weight(1f).testTag(SavedArtworkTestTags.unsaveButton(artwork)),
+            modifier = Modifier.weight(1f).testTag(SavedArtworksTestTags.unsaveButton(artwork)),
         ) {
           Text(stringResource(R.string.saved_artworks_unsave))
         }
@@ -357,7 +357,7 @@ private fun SavedArtworkCard(
 private fun ArtworkImagePlaceholder() {
   // Reserved visual area for the artwork image until image data is available in the model.
   Card(
-      modifier = Modifier.fillMaxWidth().height(180.dp).testTag(SavedArtworkTestTags.IMAGE),
+      modifier = Modifier.fillMaxWidth().height(180.dp).testTag(SavedArtworksTestTags.IMAGE),
       colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
   ) {
     Column(
@@ -375,17 +375,17 @@ private fun ArtworkImagePlaceholder() {
 }
 
 /**
- * Displays a preview of the saved-artwork screen with one representative artwork.
+ * Displays a preview of the saved artworks screen with one representative artwork.
  *
  * @author Kaio R. Freitas Pereira Nascimento (krfpn)
  */
 @Preview(showBackground = true)
 @Composable
-fun SavedArtworkScreenPreview() {
+fun SavedArtworksScreenPreview() {
   ArtistaTheme {
-    SavedArtworkScreenLayout(
+    SavedArtworksScreenLayout(
         uiState =
-            SavedArtworkUIState(
+            SavedArtworksUIState(
                 artworks = listOf(mockArtworks.first()),
                 isLoading = false,
             ),
@@ -400,16 +400,16 @@ fun SavedArtworkScreenPreview() {
 }
 
 /**
- * Displays a preview of the empty saved-artworks state.
+ * Displays a preview of the empty saved artworks state.
  *
  * @author Kaio R. Freitas Pereira Nascimento (krfpn)
  */
 @Preview(showBackground = true)
 @Composable
-fun SavedArtworkEmptyPreview() {
+fun SavedArtworksEmptyPreview() {
   ArtistaTheme {
-    SavedArtworkScreenLayout(
-        uiState = SavedArtworkUIState(isLoading = false),
+    SavedArtworksScreenLayout(
+        uiState = SavedArtworksUIState(isLoading = false),
         onArtworkDetailsClick = {},
         onArtworkUnsave = {},
         onRetry = {},
@@ -421,16 +421,16 @@ fun SavedArtworkEmptyPreview() {
 }
 
 /**
- * Displays a preview of the loading saved-artworks state.
+ * Displays a preview of the loading saved artworks state.
  *
  * @author Kaio R. Freitas Pereira Nascimento (krfpn)
  */
 @Preview(showBackground = true)
 @Composable
-fun SavedArtworkLoadingPreview() {
+fun SavedArtworksLoadingPreview() {
   ArtistaTheme {
-    SavedArtworkScreenLayout(
-        uiState = SavedArtworkUIState(isLoading = true),
+    SavedArtworksScreenLayout(
+        uiState = SavedArtworksUIState(isLoading = true),
         onArtworkDetailsClick = {},
         onArtworkUnsave = {},
         onRetry = {},
@@ -448,15 +448,15 @@ fun SavedArtworkLoadingPreview() {
  */
 @Preview(showBackground = true)
 @Composable
-fun SavedArtworkMultipleItemsPreview() {
+fun SavedArtworksMultipleItemsPreview() {
   // Picked by uid to show edge cases: no artist, a non-Latin title and a long punctuated title.
   val artworks = mockArtworks.filter {
     it.uid in setOf("mock-001", "mock-004", "mock-007", "mock-010")
   }
 
   ArtistaTheme {
-    SavedArtworkScreenLayout(
-        uiState = SavedArtworkUIState(artworks = artworks, isLoading = false),
+    SavedArtworksScreenLayout(
+        uiState = SavedArtworksUIState(artworks = artworks, isLoading = false),
         onArtworkDetailsClick = {},
         onArtworkUnsave = {},
         onRetry = {},
@@ -477,13 +477,13 @@ fun SavedArtworkMultipleItemsPreview() {
  */
 @Preview(showBackground = true)
 @Composable
-fun SavedArtworkUnsaveErrorPreview() {
+fun SavedArtworksUnsaveErrorPreview() {
   val artwork = mockArtworks.first()
 
   ArtistaTheme {
     Box {
-      SavedArtworkScreenLayout(
-          uiState = SavedArtworkUIState(artworks = listOf(artwork), isLoading = false),
+      SavedArtworksScreenLayout(
+          uiState = SavedArtworksUIState(artworks = listOf(artwork), isLoading = false),
           onArtworkDetailsClick = {},
           onArtworkUnsave = {},
           onRetry = {},
@@ -516,11 +516,11 @@ fun SavedArtworkUnsaveErrorPreview() {
  */
 @Preview(showBackground = true)
 @Composable
-fun SavedArtworkLoadingErrorPreview() {
+fun SavedArtworksLoadingErrorPreview() {
   ArtistaTheme {
     Box {
-      SavedArtworkScreenLayout(
-          uiState = SavedArtworkUIState(isLoading = false),
+      SavedArtworksScreenLayout(
+          uiState = SavedArtworksUIState(isLoading = false),
           onArtworkDetailsClick = {},
           onArtworkUnsave = {},
           onRetry = {},
