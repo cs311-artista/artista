@@ -182,7 +182,7 @@ class SavedArtworksScreenTest {
     composeTestRule
         .onNodeWithText(composeTestRule.activity.getString(R.string.saved_artworks_retry))
         .assertIsDisplayed()
-    composeTestRule.onNodeWithTag(SavedArtworksTestTags.EMPTY_STATE).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(SavedArtworksTestTags.LOAD_ERROR_STATE).assertIsDisplayed()
   }
 
   /** Verifies that the snackbar's Retry action reloads the saved artworks and hides the error. */
@@ -211,6 +211,32 @@ class SavedArtworksScreenTest {
     composeTestRule.waitUntil(3_000) {
       composeTestRule.onAllNodesWithText(loadErrorMessage).fetchSemanticsNodes().isEmpty()
     }
+  }
+
+  /** Verifies that the error state's Retry button reloads the list once the snackbar is gone. */
+  @Test
+  fun savedArtworksScreen_whenLoadFails_retryFromErrorStateShowsList() {
+    fakeRepository.savedArtworks.add(savedArtwork)
+    fakeRepository.shouldThrowError = true
+    setScreenContent()
+
+    composeTestRule.waitUntil(3_000) {
+      composeTestRule
+          .onAllNodesWithTag(SavedArtworksTestTags.LOAD_ERROR_STATE)
+          .fetchSemanticsNodes()
+          .isNotEmpty()
+    }
+    // The connection is back, so the next load succeeds.
+    fakeRepository.shouldThrowError = false
+    composeTestRule.onNodeWithTag(SavedArtworksTestTags.RETRY_BUTTON).performClick()
+
+    composeTestRule.waitUntil(3_000) {
+      composeTestRule
+          .onAllNodesWithTag(SavedArtworksTestTags.card(savedArtwork))
+          .fetchSemanticsNodes()
+          .isNotEmpty()
+    }
+    composeTestRule.onNodeWithTag(SavedArtworksTestTags.LOAD_ERROR_STATE).assertDoesNotExist()
   }
 
   /** Verifies that tapping the back arrow invokes the callback. */

@@ -39,5 +39,7 @@
     <string name="saved_artworks_retry">Retry</string>
     <string name="saved_artworks_image_placeholder">Artwork image</string>
     <string name="saved_artworks_load_error">Couldn\'t load your saved artworks. Check your connection and try again.</string>
+    <string name="saved_artworks_load_error_state">Your saved artworks couldn\'t be loaded.</string>
+    <string name="saved_artworks_try_again">Try again</string>
     <string name="saved_artworks_unsave_error">Couldn\'t remove this artwork. Please try again.</string>
 </resources>

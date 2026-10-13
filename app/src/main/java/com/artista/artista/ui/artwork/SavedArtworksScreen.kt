@@ -44,6 +44,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -202,6 +203,11 @@ private fun SavedArtworksScreenLayout(
     // Main content area containing the user's saved artworks.
     if (uiState.isLoading) {
       SavedArtworksLoadingState(modifier = Modifier.fillMaxSize().padding(innerPadding))
+    } else if (uiState.artworks.isEmpty() && uiState.hasLoadFailed) {
+      SavedArtworksLoadErrorState(
+          onRetry = onRetry,
+          modifier = Modifier.fillMaxSize().padding(innerPadding),
+      )
     } else if (uiState.artworks.isEmpty()) {
       EmptySavedArtworksState(modifier = Modifier.fillMaxSize().padding(innerPadding))
     } else {
@@ -227,6 +233,8 @@ object SavedArtworksTestTags {
   const val LIST = "saved_artworks_list"
   const val EMPTY_STATE = "saved_artworks_empty_state"
   const val LOADING_STATE = "saved_artworks_loading_state"
+  const val LOAD_ERROR_STATE = "saved_artworks_load_error_state"
+  const val RETRY_BUTTON = "saved_artworks_retry_button"
   const val IMAGE = "saved_artwork_image"
 
   /** Tag of the card showing [artwork]. */
@@ -256,6 +264,37 @@ private fun EmptySavedArtworksState(modifier: Modifier = Modifier) {
         style = MaterialTheme.typography.bodyLarge,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
+  }
+}
+
+/**
+ * Displays the load error with a Retry button, so the user can retry after the snackbar is gone.
+ *
+ * @param onRetry called when the user taps Retry
+ * @param modifier modifier applied to the error-state container
+ * @author Kaio R. Freitas Pereira Nascimento (krfpn)
+ */
+@Composable
+private fun SavedArtworksLoadErrorState(onRetry: () -> Unit, modifier: Modifier = Modifier) {
+  Column(
+      modifier =
+          modifier.padding(horizontal = 24.dp).testTag(SavedArtworksTestTags.LOAD_ERROR_STATE),
+      verticalArrangement = Arrangement.Center,
+      horizontalAlignment = Alignment.CenterHorizontally,
+  ) {
+    Text(
+        text = stringResource(R.string.saved_artworks_load_error_state),
+        style = MaterialTheme.typography.bodyLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        textAlign = TextAlign.Center,
+    )
+    Spacer(modifier = Modifier.height(16.dp))
+    Button(
+        onClick = onRetry,
+        modifier = Modifier.testTag(SavedArtworksTestTags.RETRY_BUTTON),
+    ) {
+      Text(text = stringResource(R.string.saved_artworks_try_again))
+    }
   }
 }
 

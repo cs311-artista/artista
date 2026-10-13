@@ -23,6 +23,8 @@ import kotlinx.coroutines.launch
  *
  * @property artworks artworks currently saved by the user
  * @property isLoading whether saved artworks are being loaded
+ * @property hasLoadFailed whether the last load failed. Unlike [loadErrorMessageResId], it stays
+ *   set after the error has been shown, so the screen can keep offering a retry.
  * @property loadErrorMessageResId string resource of the message shown when loading artworks fails
  * @property unsaveErrorMessageResId string resource of the message shown when unsaving an artwork
  *   fails
@@ -31,6 +33,7 @@ import kotlinx.coroutines.launch
 data class SavedArtworksUIState(
     val artworks: List<Artwork> = emptyList(),
     val isLoading: Boolean = true,
+    val hasLoadFailed: Boolean = false,
     @param:StringRes val loadErrorMessageResId: Int? = null,
     @param:StringRes val unsaveErrorMessageResId: Int? = null,
 )
@@ -74,7 +77,12 @@ class SavedArtworksViewModel(
       try {
         val artworks = savedArtworksRepository.getSavedArtworks()
         _uiState.update {
-          it.copy(artworks = artworks, isLoading = false, loadErrorMessageResId = null)
+          it.copy(
+              artworks = artworks,
+              isLoading = false,
+              hasLoadFailed = false,
+              loadErrorMessageResId = null,
+          )
         }
       } catch (exception: CancellationException) {
         // Leaving the screen cancels viewModelScope, and CancellationException extends Exception.
@@ -86,6 +94,7 @@ class SavedArtworksViewModel(
         _uiState.update {
           it.copy(
               isLoading = false,
+              hasLoadFailed = true,
               loadErrorMessageResId = R.string.saved_artworks_load_error,
           )
         }
