@@ -17,6 +17,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.artista.artista.resources.C
+import com.artista.artista.ui.artwork.SavedArtworksScreen
 import com.artista.artista.ui.authentication.AuthScreenContent
 import com.artista.artista.ui.authentication.AuthUiState
 import com.artista.artista.ui.map.MapScreen
@@ -97,6 +98,14 @@ fun ArtistaApp(
               launchSingleTop = true
             }
           },
+          onSavedArtworkClick = { navController.navigate(Screen.SavedArtworks.route) },
+          onTabSelected = { tab -> navigationActions.navigateTo(tab.destination) },
+      )
+    }
+    composable(Screen.SavedArtworks.route) {
+      SavedArtworksScreen(
+          onBackClick = {},
+          onArtworkDetailsClick = {},
           onTabSelected = { tab -> navigationActions.navigateTo(tab.destination) },
       )
     }

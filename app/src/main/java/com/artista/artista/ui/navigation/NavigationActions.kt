@@ -17,7 +17,8 @@ sealed class Screen(
     val isTopLevelDestination: Boolean = false,
 ) {
 
-  data object Auth : Screen("auth", "Auth", false)
+  /** The auth screen. */
+  data object Auth : Screen("auth", "Auth")
 
   /** The overview screen. */
   data object Overview : Screen("overview", "Overview", true)
@@ -27,6 +28,9 @@ sealed class Screen(
 
   /** The profile screen. */
   data object Profile : Screen("profile", "Profile", true)
+
+  /** The screen listing artworks saved by the user. */
+  data object SavedArtworks : Screen("saved_artworks", "Saved Artworks")
 }
 
 /**
