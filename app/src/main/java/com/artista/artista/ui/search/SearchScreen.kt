@@ -26,16 +26,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkId
-import com.artista.artista.model.map.Location
 import com.artista.artista.ui.artwork.ArtworkCard
 import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
-import com.artista.artista.ui.theme.ArtistaTheme
 
 /**
  * Displays the artwork search field, its recommendations, and matching artwork results.
@@ -212,47 +209,47 @@ private fun ArtworkResults(
   }
 }
 
-/** Previews the search screen with sample artwork results. */
-@Preview(showBackground = true)
-@Composable
-private fun SearchScreenPreview() {
-  val artworks =
-      listOf(
-          Artwork(
-              uid = "monaLisa",
-              name = "Mona Lisa",
-              artistName = "Leonardo da Vinci",
-              description = null,
-              conceptionDate = null,
-              museum = "Louvre Museum",
-              location = Location(longitude = 2.3376, latitude = 48.8606, name = "Louvre"),
-              dimension = null,
-          ),
-          Artwork(
-              uid = "starryNight",
-              name = "The Starry Night",
-              artistName = "Vincent van Gogh",
-              description = null,
-              conceptionDate = null,
-              museum = "Museum of Modern Art",
-              location = Location(longitude = -73.9776, latitude = 40.7614, name = "MoMA"),
-              dimension = null,
-          ),
-      )
-
-  ArtistaTheme {
-    SearchScreenContent(
-        query = "",
-        recommendations = emptyList(),
-        artworks = artworks,
-        savedArtworkIds = setOf("monaLisa"),
-        onTabSelected = {},
-        onArtworkClick = {},
-        onMapClick = {},
-        onQueryChanged = {},
-        onSearchSubmitted = {},
-        onRecommendationSelected = {},
-        onSaveClick = {},
-    )
-  }
-}
+// /** Previews the search screen with sample artwork results. */
+// @Preview(showBackground = true)
+// @Composable
+// private fun SearchScreenPreview() {
+//   val artworks =
+//       listOf(
+//           Artwork(
+//               uid = "monaLisa",
+//               name = "Mona Lisa",
+//               artistName = "Leonardo da Vinci",
+//               description = null,
+//               conceptionDate = null,
+//               museum = "Louvre Museum",
+//               location = Location(longitude = 2.3376, latitude = 48.8606, name = "Louvre"),
+//               dimension = null,
+//           ),
+//           Artwork(
+//               uid = "starryNight",
+//               name = "The Starry Night",
+//               artistName = "Vincent van Gogh",
+//               description = null,
+//               conceptionDate = null,
+//               museum = "Museum of Modern Art",
+//               location = Location(longitude = -73.9776, latitude = 40.7614, name = "MoMA"),
+//               dimension = null,
+//           ),
+//       )
+//
+//   ArtistaTheme {
+//     SearchScreenContent(
+//         query = "",
+//         recommendations = emptyList(),
+//         artworks = artworks,
+//         savedArtworkIds = setOf("monaLisa"),
+//         onTabSelected = {},
+//         onArtworkClick = {},
+//         onMapClick = {},
+//         onQueryChanged = {},
+//         onSearchSubmitted = {},
+//         onRecommendationSelected = {},
+//         onSaveClick = {},
+//     )
+//   }
+// }
