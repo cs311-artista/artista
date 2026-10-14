@@ -114,8 +114,7 @@ fun OverviewScreen(
   ) { innerPadding ->
     if (errorMessage != null) {
       Box(
-          modifier =
-              Modifier.fillMaxSize().padding(innerPadding).testTag(OverviewTestTags.ARTWORK_LIST),
+          modifier = Modifier.fillMaxSize().padding(innerPadding),
           contentAlignment = Alignment.Center,
       ) {
         OverviewErrorContent(onSavedArtworksClick = onSavedArtworksClick)
@@ -225,7 +224,9 @@ fun ArtworkListItem(
 ) {
   ListItem(
       headlineContent = { Text(text = artwork.name, style = MaterialTheme.typography.titleMedium) },
-      supportingContent = { Text(text = artwork.artistName ?: "Unknown Artist") },
+      supportingContent = {
+        Text(text = artwork.artistName ?: stringResource(R.string.artwork_unknown_artist))
+      },
       modifier = modifier.fillMaxWidth().testTag(OverviewTestTags.ARTWORK_ITEM),
   )
 }

@@ -1,20 +1,16 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 package com.artista.artista.ui.overview
 
+import com.artista.artista.MainDispatcherRule
 import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.mockArtworks
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
-import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.test.setMain
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
-import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 
 /**
@@ -25,15 +21,7 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class OverviewScreenViewModelTest {
 
-  @Before
-  fun setUp() {
-    Dispatchers.setMain(StandardTestDispatcher())
-  }
-
-  @After
-  fun tearDown() {
-    Dispatchers.resetMain()
-  }
+  @get:Rule val mainDispatcherRule = MainDispatcherRule()
 
   /**
    * Verifies that the ViewModel loads artworks from its replaceable data source.
@@ -47,7 +35,11 @@ class OverviewScreenViewModelTest {
             artwork(name = "The Starry Night", artistName = "Vincent van Gogh"),
             artwork(name = "Girl with a Pearl Earring", artistName = "Johannes Vermeer"),
         )
-    val viewModel = OverviewViewModel(artworkProvider = { expectedArtworks })
+    val viewModel =
+        OverviewViewModel(
+            artworkProvider = { expectedArtworks },
+            ioDispatcher = mainDispatcherRule.testDispatcher,
+        )
 
     advanceUntilIdle()
 
@@ -61,7 +53,7 @@ class OverviewScreenViewModelTest {
    */
   @Test
   fun overviewViewModel_defaultDataSourceProvidesPlaceholderArtworks() = runTest {
-    val viewModel = OverviewViewModel()
+    val viewModel = OverviewViewModel(ioDispatcher = mainDispatcherRule.testDispatcher)
 
     advanceUntilIdle()
 
@@ -75,7 +67,11 @@ class OverviewScreenViewModelTest {
    */
   @Test
   fun overviewViewModel_whenLoadingFails_exposesLoadError() = runTest {
-    val viewModel = OverviewViewModel(artworkProvider = { error("Artwork provider failure") })
+    val viewModel =
+        OverviewViewModel(
+            artworkProvider = { error("Artwork provider failure") },
+            ioDispatcher = mainDispatcherRule.testDispatcher,
+        )
 
     advanceUntilIdle()
 
@@ -90,7 +86,11 @@ class OverviewScreenViewModelTest {
    */
   @Test
   fun clearErrorMessage_removesTheCurrentError() = runTest {
-    val viewModel = OverviewViewModel(artworkProvider = { error("Artwork provider failure") })
+    val viewModel =
+        OverviewViewModel(
+            artworkProvider = { error("Artwork provider failure") },
+            ioDispatcher = mainDispatcherRule.testDispatcher,
+        )
 
     advanceUntilIdle()
     viewModel.clearErrorMessage()
