@@ -34,6 +34,9 @@ sealed class Screen(
 
   /** The artwork search screen. */
   data object Search : Screen("search", "Search")
+
+  /** The artist preferences screen. */
+  data object ArtistPreferences : Screen("artist_preferences", "Artist Preferences")
 }
 
 /**

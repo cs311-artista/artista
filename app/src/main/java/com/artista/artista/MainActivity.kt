@@ -25,6 +25,7 @@ import com.artista.artista.ui.map.MapScreen
 import com.artista.artista.ui.navigation.NavigationActions
 import com.artista.artista.ui.navigation.Screen
 import com.artista.artista.ui.overview.OverviewScreen
+import com.artista.artista.ui.preferences.ArtistPreferencesScreen
 import com.artista.artista.ui.profile.UserProfileScreen
 import com.artista.artista.ui.search.SearchScreen
 import com.artista.artista.ui.theme.ArtistaTheme
@@ -129,9 +130,18 @@ fun ArtistaApp(
                 launchSingleTop = true
               }
             },
+            onPreferencesClick = { navController.navigate(Screen.ArtistPreferences.route) },
             onSavedArtworkClick = { navController.navigate(Screen.SavedArtworks.route) },
             onTabSelected = { tab -> navigationActions.navigateTo(tab.destination) },
         )
+      }
+      composable(Screen.ArtistPreferences.route) {
+          ArtistPreferencesScreen(
+              onBackClick = { navigationActions.goBack() },
+              // TODO: implement the logic for saving preferences (now it's just a placeholder)
+              onSaveClick = { navigationActions.goBack() },
+              onTabSelected = { tab -> navigationActions.navigateTo(tab.destination) },
+          )
       }
     }
 
