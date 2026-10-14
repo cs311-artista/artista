@@ -23,7 +23,8 @@ class SearchScreenViewModel(
     private val savedArtworksRepository: SavedArtworksRepository,
     private val wikiDataRepository: WikiDataRepository,
 ) : ViewModel() {
-  private var savedArtworks: List<Artwork> = emptyList()
+  private val _savedArtworks = MutableStateFlow<List<Artwork>>(emptyList())
+  var savedArtworks = _savedArtworks.asStateFlow()
 
   private val _searchQuery = MutableStateFlow("")
 
@@ -42,7 +43,7 @@ class SearchScreenViewModel(
 
   init {
     viewModelScope.launch {
-      savedArtworks = savedArtworksRepository.getSavedArtworks()
+      refreshSavedArtworks()
       updateRecommendations(_searchQuery.value)
     }
   }
@@ -89,12 +90,40 @@ class SearchScreenViewModel(
     // TODO: should navigate to artwork screen
   }
 
+  /**
+   * Saves or removes an artwork from the current user's saved collection.
+   *
+   * @param artwork the artwork to toggle
+   * @author IJJA3141
+   */
+  fun toggleSavedArtwork(artwork: Artwork) {
+    val isCurrentlySaved = artwork.uid in _savedArtworks.value.map { it.uid }
+
+    viewModelScope.launch {
+      try {
+        if (isCurrentlySaved) {
+          savedArtworksRepository.removeArtworkFromSaved(artwork.uid)
+        } else {
+          savedArtworksRepository.saveArtwork(artwork)
+        }
+      } catch (e: Exception) {
+        // TODO: define error in interface and decide how to display it to the user
+      }
+
+      refreshSavedArtworks()
+    }
+  }
+
+  private suspend fun refreshSavedArtworks() {
+    _savedArtworks.value = savedArtworksRepository.getSavedArtworks()
+  }
+
   private fun updateRecommendations(query: String) {
     _recommendations.value =
         if (query.isBlank()) {
           emptyList()
         } else {
-          savedArtworks
+          _savedArtworks.value
               .asSequence()
               .filter { artwork -> artwork.name.contains(query, ignoreCase = true) }
               .map(Artwork::name)

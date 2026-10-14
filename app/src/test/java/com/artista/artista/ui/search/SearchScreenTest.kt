@@ -135,6 +135,53 @@ class SearchScreenTest {
     composeTestRule.onNodeWithText("Unknown Artist").assertIsDisplayed()
   }
 
+  @Test
+  fun toggleSavedArtwork_usesSavedArtworkListToSaveOrRemoveArtwork() = runTest {
+    val artwork =
+        Artwork(
+            uid = "savedId",
+            name = "Saved artwork",
+            artistName = "Artist",
+            location = null,
+            conceptionDate = null,
+            dimension = null,
+            description = null,
+            museum = null,
+        )
+    val savedArtworks = mutableListOf(artwork)
+    val repository =
+        object : SavedArtworksRepository {
+          override suspend fun isArtworkSaved(uid: ArtworkId): Boolean = savedArtworks.any {
+            it.uid == uid
+          }
+
+          override suspend fun saveArtwork(artwork: Artwork) {
+            savedArtworks.add(artwork)
+          }
+
+          override suspend fun removeArtworkFromSaved(uid: ArtworkId) {
+            savedArtworks.removeAll { it.uid == uid }
+          }
+
+          override suspend fun getSavedArtworks(): List<Artwork> = savedArtworks.toList()
+        }
+    val viewModel = SearchScreenViewModel(repository, fakeWikiRepository())
+    advanceUntilIdle()
+    assertEquals(listOf(artwork), viewModel.savedArtworks.value)
+
+    viewModel.toggleSavedArtwork(artwork)
+    advanceUntilIdle()
+
+    assertEquals(emptyList<Artwork>(), savedArtworks)
+    assertEquals(emptyList<Artwork>(), viewModel.savedArtworks.value)
+
+    viewModel.toggleSavedArtwork(artwork)
+    advanceUntilIdle()
+
+    assertEquals(listOf(artwork), savedArtworks)
+    assertEquals(listOf(artwork), viewModel.savedArtworks.value)
+  }
+
   private fun fakeArtworkRepository(): SavedArtworksRepository =
       object : SavedArtworksRepository {
 

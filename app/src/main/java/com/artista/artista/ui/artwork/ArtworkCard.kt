@@ -52,22 +52,23 @@ object ArtworkCardTestTag {
  * Displays an artwork thumbnail, its name and creator, and actions for navigation and saving.
  *
  * @param artwork artwork whose details should be displayed
- * @param isSaved whether this artwork is currently saved
+ * @param isSaved whether this artwork is currently saved (responsibility of the caller to ensure
+ *   this reflects the current state)
  * @param onArtworkClick called when the card is selected
  * @param onMapClick called when the map action is selected for an artwork with a location
- * @param onSaveClick called with the artwork and its current saved state when the save action is
- *   selected; `false` means it is not currently saved, and `true` means it is already saved (the
- *   callback can use this to decide whether to save or remove it)
+ * @param onSaveClick called with the artwork when the save action is selected
  * @param modifier modifier applied to the card
  * @author IJJA3141
  */
 @Composable
 fun ArtworkCard(
     artwork: Artwork,
-    isSaved: Boolean, // TODO: should we add this to the artwork itself?
+    isSaved:
+        Boolean, // should always reflect the current saved state of the artwork (responsibility of
+    // the caller)
     onArtworkClick: (Artwork) -> Unit,
     onMapClick: (Artwork) -> Unit,
-    onSaveClick: (Artwork, Boolean) -> Unit,
+    onSaveClick: (Artwork) -> Unit,
     modifier: Modifier = Modifier,
 ) {
   Card(
@@ -137,7 +138,7 @@ fun ArtworkCard(
         }
 
         Button(
-            onClick = { onSaveClick(artwork, isSaved) },
+            onClick = { onSaveClick(artwork) },
             modifier = Modifier.testTag(ArtworkCardTestTag.ARTWORK_CARD_SAVE_BUTTON),
             colors =
                 ButtonDefaults.buttonColors(
@@ -182,7 +183,7 @@ private fun ArtworkCardPreview() {
         isSaved = false,
         onArtworkClick = {},
         onMapClick = {},
-        onSaveClick = { _, _ -> },
+        onSaveClick = { _ -> },
         modifier = Modifier.padding(16.dp),
     )
   }
