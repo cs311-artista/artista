@@ -31,6 +31,9 @@ sealed class Screen(
 
   /** The screen listing artworks saved by the user. */
   data object SavedArtworks : Screen("saved_artworks", "Saved Artworks")
+
+  /** The artwork search screen. */
+  data object Search : Screen("search", "Search")
 }
 
 /**

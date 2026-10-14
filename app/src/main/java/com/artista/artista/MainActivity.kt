@@ -26,6 +26,7 @@ import com.artista.artista.ui.navigation.NavigationActions
 import com.artista.artista.ui.navigation.Screen
 import com.artista.artista.ui.overview.OverviewScreen
 import com.artista.artista.ui.profile.UserProfileScreen
+import com.artista.artista.ui.search.SearchScreen
 import com.artista.artista.ui.theme.ArtistaTheme
 
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
@@ -95,7 +96,11 @@ fun ArtistaApp(
         OverviewScreen(
             onTabSelected = { tab -> navigationActions.navigateTo(tab.destination) },
             onSavedArtworksClick = { navController.navigate(Screen.SavedArtworks.route) },
+            onSearchClick = { navController.navigate(Screen.Search.route) },
         )
+      }
+      composable(Screen.Search.route) {
+          SearchScreen(onTabSelected = { tab -> navigationActions.navigateTo(tab.destination) })
       }
     }
 
