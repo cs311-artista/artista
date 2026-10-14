@@ -7,8 +7,6 @@ import androidx.lifecycle.viewModelScope
 import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.mockArtworks
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -33,12 +31,10 @@ data class OverviewUiState(
  * without changing the screen's state contract.
  *
  * @param artworkProvider source used to load the artwork entries
- * @param ioDispatcher dispatcher used for artwork loading
  * @author patrickmcdan
  */
 class OverviewViewModel(
-    private val artworkProvider: suspend () -> List<Artwork> = { mockArtworks },
-    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val artworkProvider: suspend () -> List<Artwork> = { mockArtworks }
 ) : ViewModel() {
 
   private val _uiState = MutableStateFlow(OverviewUiState())
@@ -55,7 +51,7 @@ class OverviewViewModel(
    * @author patrickmcdan
    */
   fun refreshUiState() {
-    viewModelScope.launch(ioDispatcher) {
+    viewModelScope.launch {
       try {
         _uiState.value = OverviewUiState(artworks = artworkProvider())
       } catch (_: Exception) {

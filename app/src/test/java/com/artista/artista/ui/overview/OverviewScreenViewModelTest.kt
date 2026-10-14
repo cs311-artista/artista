@@ -35,11 +35,7 @@ class OverviewScreenViewModelTest {
             artwork(name = "The Starry Night", artistName = "Vincent van Gogh"),
             artwork(name = "Girl with a Pearl Earring", artistName = "Johannes Vermeer"),
         )
-    val viewModel =
-        OverviewViewModel(
-            artworkProvider = { expectedArtworks },
-            ioDispatcher = mainDispatcherRule.testDispatcher,
-        )
+    val viewModel = OverviewViewModel(artworkProvider = { expectedArtworks })
 
     advanceUntilIdle()
 
@@ -53,7 +49,7 @@ class OverviewScreenViewModelTest {
    */
   @Test
   fun overviewViewModel_defaultDataSourceProvidesPlaceholderArtworks() = runTest {
-    val viewModel = OverviewViewModel(ioDispatcher = mainDispatcherRule.testDispatcher)
+    val viewModel = OverviewViewModel()
 
     advanceUntilIdle()
 
@@ -67,11 +63,7 @@ class OverviewScreenViewModelTest {
    */
   @Test
   fun overviewViewModel_whenLoadingFails_exposesLoadError() = runTest {
-    val viewModel =
-        OverviewViewModel(
-            artworkProvider = { error("Artwork provider failure") },
-            ioDispatcher = mainDispatcherRule.testDispatcher,
-        )
+    val viewModel = OverviewViewModel(artworkProvider = { error("Artwork provider failure") })
 
     advanceUntilIdle()
 
@@ -86,11 +78,7 @@ class OverviewScreenViewModelTest {
    */
   @Test
   fun clearErrorMessage_removesTheCurrentError() = runTest {
-    val viewModel =
-        OverviewViewModel(
-            artworkProvider = { error("Artwork provider failure") },
-            ioDispatcher = mainDispatcherRule.testDispatcher,
-        )
+    val viewModel = OverviewViewModel(artworkProvider = { error("Artwork provider failure") })
 
     advanceUntilIdle()
     viewModel.clearErrorMessage()
