@@ -19,7 +19,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -41,7 +40,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.artista.artista.R
-import com.artista.artista.model.artwork.Artwork
+import com.artista.artista.ui.artwork.ArtworkCard
 import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaTheme
@@ -130,7 +129,16 @@ fun OverviewScreen(
               ),
           verticalArrangement = Arrangement.spacedBy(OverviewDimensions.listItemSpacing),
       ) {
-        items(uiState.artworks) { artwork -> ArtworkListItem(artwork) }
+        items(uiState.artworks) { artwork ->
+          ArtworkCard(
+              artwork = artwork,
+              isSaved = false,
+              onArtworkClick = {},
+              onMapClick = {},
+              onSaveClick = {},
+              modifier = Modifier.testTag(OverviewTestTags.ARTWORK_ITEM),
+          )
+        }
       }
     }
   }
@@ -205,30 +213,6 @@ private fun OverviewErrorContent(onSavedArtworksClick: () -> Unit) {
       Text(text = stringResource(R.string.overview_saved_artworks_action))
     }
   }
-}
-
-/**
- * Displays the temporary list representation of one artwork.
- *
- * Keeping this item separate allows the final artwork-card design to replace this component without
- * changing the Overview screen's list and state structure.
- *
- * @param artwork artwork represented by the item
- * @param modifier modifier applied to the item
- * @author patrickmcdan
- */
-@Composable
-fun ArtworkListItem(
-    artwork: Artwork,
-    modifier: Modifier = Modifier,
-) {
-  ListItem(
-      headlineContent = { Text(text = artwork.name, style = MaterialTheme.typography.titleMedium) },
-      supportingContent = {
-        Text(text = artwork.artistName ?: stringResource(R.string.artwork_unknown_artist))
-      },
-      modifier = modifier.fillMaxWidth().testTag(OverviewTestTags.ARTWORK_ITEM),
-  )
 }
 
 /** Previews the overview screen with a sample set of artworks in Android Studio. */
