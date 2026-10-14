@@ -41,7 +41,7 @@ class UserProfileScreenNavigationTest {
       navController = rememberNavController()
       ArtistaApp(
           navController = navController,
-          startDestination = Screen.Profile.route,
+          startDestination = PROFILE_GRAPH_ROUTE,
       )
     }
 
@@ -67,7 +67,7 @@ class UserProfileScreenNavigationTest {
       navController = rememberNavController()
       ArtistaApp(
           navController = navController,
-          startDestination = Screen.Profile.route,
+          startDestination = PROFILE_GRAPH_ROUTE,
       )
     }
 
@@ -77,5 +77,9 @@ class UserProfileScreenNavigationTest {
     composeTestRule.runOnIdle {
       assertEquals(Screen.SavedArtworks.route, navController.currentDestination?.route)
     }
+  }
+
+  private companion object {
+    const val PROFILE_GRAPH_ROUTE = "profile_graph"
   }
 }
