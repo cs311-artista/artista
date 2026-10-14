@@ -80,71 +80,125 @@ class SearchScreenViewModelTest {
     assertTrue(viewModel.recommendations.value.isEmpty())
   }
 
-  private fun fakeArtworkRepository(): SavedArtworksRepository =
-      object : SavedArtworksRepository {
-        private val savedArtworks = mutableListOf<Artwork>()
-        var shouldThrowError = false
+  @Test
+  fun toggleSavedArtwork_addsArtworkToSavedCollection() = runTest {
+    val repository = fakeArtworkRepository()
+    val viewModel = SearchScreenViewModel(repository, fakeWikiRepository())
+    val artwork =
+        Artwork(
+            uid = "newArtworkId",
+            name = "New Artwork",
+            artistName = "Unknown Artist",
+            location = null,
+            conceptionDate = null,
+            dimension = null,
+            description = null,
+            museum = null,
+        )
 
-        override suspend fun isArtworkSaved(artworkName: String): Boolean {
-          if (shouldThrowError) throw RuntimeException("Simulated error")
-          return savedArtworks.any { it.name == artworkName }
-        }
+    advanceUntilIdle()
+    viewModel.toggleSavedArtwork(artwork)
+    advanceUntilIdle()
 
-        override suspend fun saveArtwork(artwork: Artwork) {
-          if (shouldThrowError) throw RuntimeException("Simulated database failure")
-          savedArtworks.removeAll { it.name == artwork.name }
-          savedArtworks.add(artwork)
-        }
+    assertTrue(viewModel.savedArtworkIds.value.contains(artwork.uid))
+    assertTrue(repository.savedArtworks.any { it.uid == artwork.uid && it.name == artwork.name })
+  }
 
-        override suspend fun removeArtworkFromSaved(artworkName: String) {
-          if (shouldThrowError) throw RuntimeException("Simulated database failure")
-          savedArtworks.removeAll { it.name == artworkName }
-        }
+  @Test
+  fun toggleSavedArtwork_removesArtworkFromSavedCollectionWhenAlreadySaved() = runTest {
+    val repository = fakeArtworkRepository()
+    val viewModel = SearchScreenViewModel(repository, fakeWikiRepository())
+    val artwork =
+        Artwork(
+            uid = "starryId",
+            name = "The Starry Night",
+            artistName = "Vincent van Gogh",
+            location = null,
+            conceptionDate = null,
+            dimension = null,
+            description = null,
+            museum = null,
+        )
 
-        override suspend fun getSavedArtworks(): List<Artwork> =
-            listOf(
-                Artwork(
-                    uid = "starryId",
-                    name = "The Starry Night",
-                    artistName = "Vincent van Gogh",
-                    location = null,
-                    conceptionDate = null,
-                    dimension = null,
-                    description = null,
-                    museum = null,
-                ),
-                Artwork(
-                    uid = "girlId",
-                    name = "Girl with a Pearl Earring",
-                    artistName = "Johannes Vermeer",
-                    location = null,
-                    conceptionDate = null,
-                    dimension = null,
-                    description = null,
-                    museum = null,
-                ),
-                Artwork(
-                    uid = "sunflowersId",
-                    name = "Sunflowers",
-                    artistName = "Vincent van Gogh",
-                    location = null,
-                    conceptionDate = null,
-                    dimension = null,
-                    description = null,
-                    museum = null,
-                ),
-                Artwork(
-                    uid = "untitledId",
-                    name = "Untitled study",
-                    artistName = null,
-                    location = null,
-                    conceptionDate = null,
-                    dimension = null,
-                    description = null,
-                    museum = null,
-                ),
-            )
-      }
+    advanceUntilIdle()
+    viewModel.toggleSavedArtwork(artwork)
+    advanceUntilIdle()
+
+    assertTrue(!viewModel.savedArtworkIds.value.contains(artwork.uid))
+    assertTrue(repository.savedArtworks.none { it.uid == artwork.uid })
+  }
+
+  private fun fakeArtworkRepository(): FakeArtworkRepository =
+      FakeArtworkRepository(
+          initialSavedArtworks =
+              listOf(
+                  Artwork(
+                      uid = "starryId",
+                      name = "The Starry Night",
+                      artistName = "Vincent van Gogh",
+                      location = null,
+                      conceptionDate = null,
+                      dimension = null,
+                      description = null,
+                      museum = null,
+                  ),
+                  Artwork(
+                      uid = "girlId",
+                      name = "Girl with a Pearl Earring",
+                      artistName = "Johannes Vermeer",
+                      location = null,
+                      conceptionDate = null,
+                      dimension = null,
+                      description = null,
+                      museum = null,
+                  ),
+                  Artwork(
+                      uid = "sunflowersId",
+                      name = "Sunflowers",
+                      artistName = "Vincent van Gogh",
+                      location = null,
+                      conceptionDate = null,
+                      dimension = null,
+                      description = null,
+                      museum = null,
+                  ),
+                  Artwork(
+                      uid = "untitledId",
+                      name = "Untitled study",
+                      artistName = null,
+                      location = null,
+                      conceptionDate = null,
+                      dimension = null,
+                      description = null,
+                      museum = null,
+                  ),
+              )
+      )
+
+  private class FakeArtworkRepository(
+      initialSavedArtworks: List<Artwork> = emptyList(),
+  ) : SavedArtworksRepository {
+    val savedArtworks = initialSavedArtworks.toMutableList()
+    var shouldThrowError = false
+
+    override suspend fun isArtworkSaved(uid: ArtworkId): Boolean {
+      if (shouldThrowError) throw RuntimeException("Simulated error")
+      return savedArtworks.any { it.uid == uid }
+    }
+
+    override suspend fun saveArtwork(artwork: Artwork) {
+      if (shouldThrowError) throw RuntimeException("Simulated database failure")
+      savedArtworks.removeAll { it.uid == artwork.uid }
+      savedArtworks.add(artwork)
+    }
+
+    override suspend fun removeArtworkFromSaved(uid: ArtworkId) {
+      if (shouldThrowError) throw RuntimeException("Simulated database failure")
+      savedArtworks.removeAll { it.uid == uid }
+    }
+
+    override suspend fun getSavedArtworks(): List<Artwork> = savedArtworks.toList()
+  }
 
   private fun fakeWikiRepository(): WikiDataRepository =
       object : WikiDataRepository {
