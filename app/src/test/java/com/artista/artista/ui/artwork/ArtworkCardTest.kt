@@ -32,7 +32,7 @@ class ArtworkCardTest {
   fun artworkCard_displaysArtworkMetadataAndActions() {
     var selectedArtwork: Artwork? = null
     var mappedArtwork: Artwork? = null
-    var saveRequest: Pair<Artwork, Boolean>? = null
+    var saveRequest: Artwork? = null
 
     val artwork =
         Artwork(
@@ -53,9 +53,7 @@ class ArtworkCardTest {
             isSaved = false,
             onArtworkClick = { selectedArtwork = it },
             onMapClick = { mappedArtwork = it },
-            onSaveClick = { requestedArtwork, isSaved ->
-              saveRequest = requestedArtwork to isSaved
-            },
+            onSaveClick = { requestedArtwork -> saveRequest = requestedArtwork },
             modifier = Modifier,
         )
       }
@@ -94,12 +92,12 @@ class ArtworkCardTest {
     assertEquals(artwork, mappedArtwork)
 
     composeTestRule.onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD_SAVE_BUTTON).performClick()
-    assertEquals(artwork to false, saveRequest)
+    assertEquals(artwork, saveRequest)
   }
 
   @Test
   fun artworkCard_withoutLocation_disablesMapActionAndShowsSavedState() {
-    var saveRequest: Pair<Artwork, Boolean>? = null
+    var saveRequest: Artwork? = null
     val artwork =
         Artwork(
             uid = "nightWatch",
@@ -119,9 +117,7 @@ class ArtworkCardTest {
             isSaved = true,
             onArtworkClick = {},
             onMapClick = {},
-            onSaveClick = { requestedArtwork, isSaved ->
-              saveRequest = requestedArtwork to isSaved
-            },
+            onSaveClick = { requestedArtwork -> saveRequest = requestedArtwork },
             modifier = Modifier,
         )
       }
@@ -137,7 +133,7 @@ class ArtworkCardTest {
         .assertIsDisplayed()
         .assertTextEquals("Saved")
         .performClick()
-    assertEquals(artwork to true, saveRequest)
+    assertEquals(artwork, saveRequest)
   }
 
   @Test
@@ -161,7 +157,7 @@ class ArtworkCardTest {
             isSaved = false,
             onArtworkClick = {},
             onMapClick = {},
-            onSaveClick = { _, _ -> },
+            onSaveClick = { _ -> },
         )
       }
     }
