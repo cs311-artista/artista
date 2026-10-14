@@ -5,40 +5,90 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTag
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import com.artista.artista.resources.C
+import com.artista.artista.ui.authentication.AuthScreenContent
+import com.artista.artista.ui.authentication.AuthUiState
+import com.artista.artista.ui.map.MapScreen
+import com.artista.artista.ui.navigation.NavigationActions
+import com.artista.artista.ui.navigation.Screen
+import com.artista.artista.ui.overview.OverviewScreen
+import com.artista.artista.ui.profile.UserProfileScreen
 import com.artista.artista.ui.theme.ArtistaTheme
 
+// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+/**
+ * Hosts the Artista app's root navigation graph.
+ *
+ * @author hixeum
+ */
 class MainActivity : ComponentActivity() {
+  /**
+   * Creates the activity and displays the root navigation host.
+   *
+   * @param savedInstanceState Previously saved activity state, or null on first creation.
+   * @author hixeum
+   */
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     setContent {
       ArtistaTheme {
-        // A surface container using the 'background' color from the theme
         Surface(
             modifier = Modifier.fillMaxSize().semantics { testTag = C.Tag.main_screen_container },
             color = MaterialTheme.colorScheme.background,
         ) {
-          Greeting("Android")
+          ArtistaApp()
         }
       }
     }
   }
 }
 
+/**
+ * Displays the root navigation graph, starting with authentication.
+ *
+ * @author hixeum
+ */
 @Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-  Text(text = "Hello $name!", modifier = modifier.semantics { testTag = C.Tag.greeting })
-}
+fun ArtistaApp() {
+  val navController = rememberNavController()
+  val navigationActions = remember { NavigationActions(navController) }
 
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-  ArtistaTheme { Greeting("Android") }
+  NavHost(navController = navController, startDestination = Screen.Auth.route) {
+    composable(Screen.Auth.route) {
+      AuthScreenContent(
+          state = AuthUiState(),
+          snackbarHostState = remember { SnackbarHostState() },
+          onSignInClick = {
+            navController.navigate(Screen.Overview.route) {
+              popUpTo(Screen.Auth.route) { inclusive = true }
+            }
+          },
+          onSignedIn = {},
+      )
+    }
+    composable(Screen.Overview.route) {
+      OverviewScreen(onTabSelected = { tab -> navigationActions.navigateTo(tab.destination) })
+    }
+    composable(Screen.Map.route) {
+      MapScreen(
+          onNavigationBarTabSelected = { tab -> navigationActions.navigateTo(tab.destination) }
+      )
+    }
+    composable(Screen.Profile.route) {
+      UserProfileScreen(
+          onLogoutClick = {},
+          onTabSelected = { tab -> navigationActions.navigateTo(tab.destination) },
+      )
+    }
+  }
 }
