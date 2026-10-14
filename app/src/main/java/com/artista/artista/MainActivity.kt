@@ -148,7 +148,7 @@ fun ArtistaApp(
     // Shared Screens
     composable(Screen.SavedArtworks.route) {
       SavedArtworksScreen(
-          onBackClick = {},
+          onBackClick = { navigationActions.goBack() },
           onArtworkDetailsClick = {},
           onTabSelected = { tab -> navigationActions.navigateTo(tab.destination) },
       )
