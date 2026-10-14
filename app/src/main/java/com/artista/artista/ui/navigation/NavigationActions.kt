@@ -37,6 +37,18 @@ sealed class Screen(
 
   /** The artist preferences screen. */
   data object ArtistPreferences : Screen("artist_preferences", "Artist Preferences")
+
+  /** The artwork details screen. */
+  data object ArtworkDetails : Screen("artwork_details/{artworkId}", "Artwork Details") {
+
+    /**
+     * Builds the route used to open a specific artwork.
+     *
+     * @param artworkId identifier of the artwork to display
+     * @return route containing the artwork identifier
+     */
+    fun createRoute(artworkId: String): String = "artwork_details/$artworkId"
+  }
 }
 
 /**

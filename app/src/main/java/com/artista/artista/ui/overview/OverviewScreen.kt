@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.artista.artista.R
+import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.ui.artwork.ArtworkCard
 import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
@@ -93,6 +94,7 @@ private object OverviewDimensions {
 fun OverviewScreen(
     viewModel: OverviewViewModel = viewModel(),
     onTabSelected: (Tab) -> Unit = {},
+    onArtworkClick: (Artwork) -> Unit = {},
     onSavedArtworksClick: () -> Unit = {},
     onSearchClick: () -> Unit = {},
 ) {
@@ -133,9 +135,14 @@ fun OverviewScreen(
           ArtworkCard(
               artwork = artwork,
               isSaved = false,
-              onArtworkClick = {},
-              onMapClick = {},
-              onSaveClick = {},
+              onArtworkClick = onArtworkClick,
+              onMapClick = {
+                // TODO Implement navigate to map with artwork location
+                onTabSelected(Tab.Map)
+              },
+              onSaveClick = {
+                // TODO Implement save artwork functionality
+              },
               modifier = Modifier.testTag(OverviewTestTags.ARTWORK_ITEM),
           )
         }

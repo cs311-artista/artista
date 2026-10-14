@@ -12,12 +12,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTag
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import androidx.navigation.navigation
+import com.artista.artista.model.artwork.ArtworkRepositoryProvider
+import com.artista.artista.model.artwork.mockArtworks
 import com.artista.artista.resources.C
+import com.artista.artista.ui.artwork.ArtworkScreen
+import com.artista.artista.ui.artwork.ArtworkScreenViewModel
 import com.artista.artista.ui.artwork.SavedArtworksScreen
 import com.artista.artista.ui.authentication.AuthScreenContent
 import com.artista.artista.ui.authentication.AuthUiState
@@ -96,12 +103,15 @@ fun ArtistaApp(
       composable(Screen.Overview.route) {
         OverviewScreen(
             onTabSelected = { tab -> navigationActions.navigateTo(tab.destination) },
+            onArtworkClick = { artwork ->
+              navController.navigate(Screen.ArtworkDetails.createRoute(artwork.uid))
+            },
             onSavedArtworksClick = { navController.navigate(Screen.SavedArtworks.route) },
             onSearchClick = { navController.navigate(Screen.Search.route) },
         )
       }
       composable(Screen.Search.route) {
-          SearchScreen(onTabSelected = { tab -> navigationActions.navigateTo(tab.destination) })
+        SearchScreen(onTabSelected = { tab -> navigationActions.navigateTo(tab.destination) })
       }
     }
 
@@ -136,12 +146,12 @@ fun ArtistaApp(
         )
       }
       composable(Screen.ArtistPreferences.route) {
-          ArtistPreferencesScreen(
-              onBackClick = { navigationActions.goBack() },
-              // TODO: implement the logic for saving preferences (now it's just a placeholder)
-              onSaveClick = { navigationActions.goBack() },
-              onTabSelected = { tab -> navigationActions.navigateTo(tab.destination) },
-          )
+        ArtistPreferencesScreen(
+            onBackClick = { navigationActions.goBack() },
+            // TODO: implement the logic for saving preferences (now it's just a placeholder)
+            onSaveClick = { navigationActions.goBack() },
+            onTabSelected = { tab -> navigationActions.navigateTo(tab.destination) },
+        )
       }
     }
 
@@ -152,6 +162,28 @@ fun ArtistaApp(
           onArtworkDetailsClick = {},
           onTabSelected = { tab -> navigationActions.navigateTo(tab.destination) },
       )
+    }
+
+    composable(
+        route = Screen.ArtworkDetails.route,
+        arguments = listOf(navArgument("artworkId") { type = NavType.StringType }),
+    ) { backStackEntry ->
+      val artworkId = backStackEntry.arguments?.getString("artworkId")
+      val artwork = mockArtworks.firstOrNull { it.uid == artworkId }
+
+      if (artwork != null) {
+        ArtworkScreen(
+            artwork = artwork,
+            artworkScreenViewModel =
+                viewModel(
+                    factory =
+                        ArtworkScreenViewModel.provideFactory(
+                            repository = ArtworkRepositoryProvider.repository,
+                        )
+                ),
+            onBackClick = { navController.popBackStack() },
+        )
+      }
     }
   }
 }
