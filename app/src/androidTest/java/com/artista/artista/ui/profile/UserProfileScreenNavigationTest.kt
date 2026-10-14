@@ -10,6 +10,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.artista.artista.ArtistaApp
 import com.artista.artista.resources.C
+import com.artista.artista.ui.artwork.SavedArtworksTestTags
 import com.artista.artista.ui.navigation.Screen
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -19,7 +20,7 @@ import org.junit.runner.RunWith
 
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 /**
- * Verifies the logout navigation callback from the profile screen.
+ * Verifies navigation actions originating from the profile screen.
  *
  * @author hixeum
  */
@@ -51,6 +52,30 @@ class UserProfileScreenNavigationTest {
     composeTestRule.runOnIdle {
       assertEquals(Screen.Auth.route, navController.currentDestination?.route)
       assertNull(navController.previousBackStackEntry)
+    }
+  }
+
+  /**
+   * Verifies that tapping saved artworks displays its destination and updates the current route.
+   *
+   * @author hixeum
+   */
+  @Test
+  fun savedArtworksButton_navigatesToSavedArtworksScreen() {
+    lateinit var navController: NavHostController
+    composeTestRule.setContent {
+      navController = rememberNavController()
+      ArtistaApp(
+          navController = navController,
+          startDestination = Screen.Profile.route,
+      )
+    }
+
+    composeTestRule.onNodeWithTag(UserProfileTestTags.SAVED_ARTWORK_BUTTON).performClick()
+
+    composeTestRule.onNodeWithTag(SavedArtworksTestTags.SCREEN).assertIsDisplayed()
+    composeTestRule.runOnIdle {
+      assertEquals(Screen.SavedArtworks.route, navController.currentDestination?.route)
     }
   }
 }
