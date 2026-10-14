@@ -4,13 +4,11 @@ package com.artista.artista.ui.search
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.artista.artista.model.artwork.Artwork
-import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.SavedArtworksRepository
 import com.artista.artista.model.artwork.WikiDataRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
@@ -24,12 +22,8 @@ class SearchScreenViewModel(
     private val savedArtworksRepository: SavedArtworksRepository,
     private val wikiDataRepository: WikiDataRepository,
 ) : ViewModel() {
-  private var savedArtworks: List<Artwork> = emptyList()
-
-  private val _savedArtworkIds = MutableStateFlow<Set<ArtworkId>>(emptySet())
-
-  /** Identifiers of artworks currently saved by the user. */
-  val savedArtworkIds: StateFlow<Set<ArtworkId>> = _savedArtworkIds.asStateFlow()
+  private val _savedArtworks = MutableStateFlow<List<Artwork>>(emptyList())
+  var savedArtworks = _savedArtworks.asStateFlow()
 
   private val _searchQuery = MutableStateFlow("")
 
@@ -102,8 +96,7 @@ class SearchScreenViewModel(
    * @author IJJA3141
    */
   fun toggleSavedArtwork(artwork: Artwork) {
-    val isCurrentlySaved = artwork.uid in _savedArtworkIds.value
-    _savedArtworkIds.update { if (isCurrentlySaved) it - artwork.uid else it + artwork.uid }
+    val isCurrentlySaved = artwork.uid in _savedArtworks.value.map { it.uid }
 
     viewModelScope.launch {
       try {
@@ -113,15 +106,15 @@ class SearchScreenViewModel(
           savedArtworksRepository.saveArtwork(artwork)
         }
       } catch (e: Exception) {
-        // Revert state if the operation failed
-        _savedArtworkIds.update { if (isCurrentlySaved) it + artwork.uid else it - artwork.uid }
+        // TODO: define error in interface and decide how to display it to the user
       }
+
+      refreshSavedArtworks()
     }
   }
 
   private suspend fun refreshSavedArtworks() {
-    savedArtworks = savedArtworksRepository.getSavedArtworks()
-    _savedArtworkIds.value = savedArtworks.map(Artwork::uid).toSet()
+    _savedArtworks.value = savedArtworksRepository.getSavedArtworks()
   }
 
   private fun updateRecommendations(query: String) {
@@ -129,7 +122,7 @@ class SearchScreenViewModel(
         if (query.isBlank()) {
           emptyList()
         } else {
-          savedArtworks
+          _savedArtworks.value
               .asSequence()
               .filter { artwork -> artwork.name.contains(query, ignoreCase = true) }
               .map(Artwork::name)

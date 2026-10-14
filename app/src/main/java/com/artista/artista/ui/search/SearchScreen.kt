@@ -53,7 +53,7 @@ fun SearchScreen(
   val query by viewModel.searchQuery.collectAsState()
   val recommendations by viewModel.recommendations.collectAsState()
   val artworks by viewModel.artworks.collectAsState()
-  val savedArtworkIds by viewModel.savedArtworkIds.collectAsState()
+  val savedArtworkIds = viewModel.savedArtworks.collectAsState().value.map { it.uid }.toSet()
 
   SearchScreenContent(
       query = query,

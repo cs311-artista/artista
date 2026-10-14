@@ -100,7 +100,7 @@ class SearchScreenViewModelTest {
     viewModel.toggleSavedArtwork(artwork)
     advanceUntilIdle()
 
-    assertTrue(viewModel.savedArtworkIds.value.contains(artwork.uid))
+    assertTrue(viewModel.savedArtworks.value.any { it.uid == artwork.uid })
     assertTrue(repository.savedArtworks.any { it.uid == artwork.uid && it.name == artwork.name })
   }
 
@@ -124,7 +124,7 @@ class SearchScreenViewModelTest {
     viewModel.toggleSavedArtwork(artwork)
     advanceUntilIdle()
 
-    assertTrue(!viewModel.savedArtworkIds.value.contains(artwork.uid))
+    assertTrue(viewModel.savedArtworks.value.none { it.uid == artwork.uid })
     assertTrue(repository.savedArtworks.none { it.uid == artwork.uid })
   }
 
