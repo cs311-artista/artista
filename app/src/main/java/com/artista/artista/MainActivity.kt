@@ -12,6 +12,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTag
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -56,14 +57,18 @@ class MainActivity : ComponentActivity() {
 /**
  * Displays the root navigation graph, starting with authentication.
  *
+ * @param navController Controller used to manage destinations in the root graph.
+ * @param startDestination Route displayed when the graph is first opened.
  * @author hixeum
  */
 @Composable
-fun ArtistaApp() {
-  val navController = rememberNavController()
+fun ArtistaApp(
+    navController: NavHostController = rememberNavController(),
+    startDestination: String = Screen.Auth.route,
+) {
   val navigationActions = remember { NavigationActions(navController) }
 
-  NavHost(navController = navController, startDestination = Screen.Auth.route) {
+  NavHost(navController = navController, startDestination = startDestination) {
     composable(Screen.Auth.route) {
       AuthScreenContent(
           state = AuthUiState(),
@@ -86,7 +91,12 @@ fun ArtistaApp() {
     }
     composable(Screen.Profile.route) {
       UserProfileScreen(
-          onLogoutClick = {},
+          onLogoutClick = {
+            navController.navigate(Screen.Auth.route) {
+              popUpTo(0) { inclusive = true }
+              launchSingleTop = true
+            }
+          },
           onTabSelected = { tab -> navigationActions.navigateTo(tab.destination) },
       )
     }
