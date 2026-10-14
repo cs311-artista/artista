@@ -16,6 +16,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navigation
 import com.artista.artista.resources.C
 import com.artista.artista.ui.artwork.SavedArtworksScreen
 import com.artista.artista.ui.authentication.AuthScreenContent
@@ -70,6 +71,8 @@ fun ArtistaApp(
   val navigationActions = remember { NavigationActions(navController) }
 
   NavHost(navController = navController, startDestination = startDestination) {
+
+    // 1. Auth Flow
     composable(Screen.Auth.route) {
       AuthScreenContent(
           state = AuthUiState(),
@@ -82,26 +85,52 @@ fun ArtistaApp(
           onSignedIn = {},
       )
     }
-    composable(Screen.Overview.route) {
-      OverviewScreen(onTabSelected = { tab -> navigationActions.navigateTo(tab.destination) })
+
+    // 2. Overview Tab Flow
+    navigation(
+        startDestination = Screen.Overview.route,
+        route = "overview_graph",
+    ) {
+      composable(Screen.Overview.route) {
+        OverviewScreen(
+            onTabSelected = { tab -> navigationActions.navigateTo(tab.destination) },
+            onSavedArtworksClick = { navController.navigate(Screen.SavedArtworks.route) },
+        )
+      }
     }
-    composable(Screen.Map.route) {
-      MapScreen(
-          onNavigationBarTabSelected = { tab -> navigationActions.navigateTo(tab.destination) }
-      )
+
+    // 3. Map Tab Flow
+    navigation(
+        startDestination = Screen.Map.route,
+        route = "map_graph",
+    ) {
+      composable(Screen.Map.route) {
+        MapScreen(
+            onNavigationBarTabSelected = { tab -> navigationActions.navigateTo(tab.destination) }
+        )
+      }
     }
-    composable(Screen.Profile.route) {
-      UserProfileScreen(
-          onLogoutClick = {
-            navController.navigate(Screen.Auth.route) {
-              popUpTo(0) { inclusive = true }
-              launchSingleTop = true
-            }
-          },
-          onSavedArtworkClick = { navController.navigate(Screen.SavedArtworks.route) },
-          onTabSelected = { tab -> navigationActions.navigateTo(tab.destination) },
-      )
+
+    // 4. Profile Tab Flow
+    navigation(
+        startDestination = Screen.Profile.route,
+        route = "profile_graph",
+    ) {
+      composable(Screen.Profile.route) {
+        UserProfileScreen(
+            onLogoutClick = {
+              navController.navigate(Screen.Auth.route) {
+                popUpTo(0) { inclusive = true }
+                launchSingleTop = true
+              }
+            },
+            onSavedArtworkClick = { navController.navigate(Screen.SavedArtworks.route) },
+            onTabSelected = { tab -> navigationActions.navigateTo(tab.destination) },
+        )
+      }
     }
+
+    // Shared Screens
     composable(Screen.SavedArtworks.route) {
       SavedArtworksScreen(
           onBackClick = {},
