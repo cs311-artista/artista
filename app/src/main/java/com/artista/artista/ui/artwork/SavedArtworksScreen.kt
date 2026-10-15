@@ -7,10 +7,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -19,8 +17,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -54,11 +50,12 @@ import com.artista.artista.ui.theme.ArtistaTheme
  * Displays the artworks saved by the current user.
  *
  * The artworks and the unsave action come from [viewModel]. Navigation stays with the caller
- * through [onBackClick], [onArtworkDetailsClick] and [onTabSelected]. Saved artworks are reloaded
- * each time the screen enters the composition.
+ * through [onBackClick], [onArtworkDetailsClick], [onMapClick] and [onTabSelected]. Saved artworks
+ * are reloaded each time the screen enters the composition.
  *
  * @param onBackClick called when the user taps the back arrow
  * @param onArtworkDetailsClick called when the user opens an artwork's details
+ * @param onMapClick called when the user selects the map action for a saved artwork
  * @param onTabSelected called when the user selects a bottom-navigation destination
  * @param modifier modifier applied to the screen scaffold
  * @param viewModel ViewModel providing saved artworks state and actions. Defaults to a ViewModel
@@ -70,6 +67,7 @@ fun SavedArtworksScreen(
     onBackClick: () -> Unit,
     onArtworkDetailsClick: (Artwork) -> Unit,
     onTabSelected: (Tab) -> Unit,
+    onMapClick: (Artwork) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SavedArtworksViewModel = viewModel(),
 ) {
@@ -88,6 +86,7 @@ fun SavedArtworksScreen(
       onRetry = viewModel::refreshSavedArtworks,
       onLoadErrorHandled = viewModel::clearLoadError,
       onUnsaveErrorHandled = viewModel::clearUnsaveError,
+      onMapClick = onMapClick,
       onTabSelected = onTabSelected,
       modifier = modifier,
   )
@@ -121,6 +120,7 @@ private fun SavedArtworksScreenLayout(
     onLoadErrorHandled: () -> Unit,
     onUnsaveErrorHandled: () -> Unit,
     onTabSelected: (Tab) -> Unit,
+    onMapClick: (Artwork) -> Unit,
     modifier: Modifier = Modifier,
 ) {
   val context = LocalContext.current
@@ -196,6 +196,7 @@ private fun SavedArtworksScreenLayout(
           artworks = uiState.artworks,
           onArtworkDetailsClick = onArtworkDetailsClick,
           onArtworkUnsave = onArtworkUnsave,
+          onMapClick = onMapClick,
           modifier = Modifier.fillMaxSize().padding(innerPadding),
       )
     }
@@ -216,16 +217,17 @@ object SavedArtworksTestTags {
   const val LOADING_STATE = "saved_artworks_loading_state"
   const val LOAD_ERROR_STATE = "saved_artworks_load_error_state"
   const val RETRY_BUTTON = "saved_artworks_retry_button"
-  const val IMAGE = "saved_artwork_image"
 
   /** Tag of the card showing [artwork]. */
-  fun card(artwork: Artwork): String = "saved_artwork_card_${artwork.uid}"
-
-  /** Tag of the "Open details" button of [artwork]'s card. */
-  fun detailsButton(artwork: Artwork): String = "saved_artwork_details_${artwork.uid}"
+  fun card(artwork: Artwork): String = "${ArtworkCardTestTag.ARTWORK_CARD}_${artwork.uid}"
 
   /** Tag of the "Unsave" button of [artwork]'s card. */
-  fun unsaveButton(artwork: Artwork): String = "saved_artwork_unsave_${artwork.uid}"
+  fun unsaveButton(artwork: Artwork): String =
+      "${ArtworkCardTestTag.ARTWORK_CARD_SAVE_BUTTON}_${artwork.uid}"
+
+  /** Tag of the map button of [artwork]'s card. */
+  fun mapButton(artwork: Artwork): String =
+      "${ArtworkCardTestTag.ARTWORK_CARD_MAP_BUTTON}_${artwork.uid}"
 }
 
 /**
@@ -299,8 +301,9 @@ private fun SavedArtworksLoadingState(modifier: Modifier = Modifier) {
  * Displays the saved artworks in a vertically scrolling list.
  *
  * @param artworks artworks to display
- * @param onArtworkDetailsClick called when a details button is pressed
- * @param onArtworkUnsave called when an unsave button is pressed
+ * @param onArtworkDetailsClick called when an artwork card is selected
+ * @param onArtworkUnsave called when a saved artwork's save action is selected
+ * @param onMapClick called when a saved artwork's map action is selected
  * @param modifier modifier applied to the list
  * @author Kaio R. Freitas Pereira Nascimento (krfpn)
  */
@@ -309,6 +312,7 @@ private fun SavedArtworksList(
     artworks: List<Artwork>,
     onArtworkDetailsClick: (Artwork) -> Unit,
     onArtworkUnsave: (Artwork) -> Unit,
+    onMapClick: (Artwork) -> Unit,
     modifier: Modifier = Modifier,
 ) {
   // Scrollable collection of artwork cards with spacing for comfortable browsing.
@@ -318,97 +322,13 @@ private fun SavedArtworksList(
       verticalArrangement = Arrangement.spacedBy(12.dp),
   ) {
     items(artworks, key = { it.uid }) { artwork ->
-      SavedArtworkCard(
+      ArtworkCard(
           artwork = artwork,
-          onDetailsClick = { onArtworkDetailsClick(artwork) },
-          onUnsaveClick = { onArtworkUnsave(artwork) },
-      )
-    }
-  }
-}
-
-/**
- * Displays one saved artwork with its image area, metadata, and actions.
- *
- * @param artwork artwork represented by this card
- * @param onDetailsClick called when the user opens the artwork details
- * @param onUnsaveClick called when the user removes the artwork from saved artworks
- * @author Kaio R. Freitas Pereira Nascimento (krfpn)
- */
-@Composable
-private fun SavedArtworkCard(
-    artwork: Artwork,
-    onDetailsClick: () -> Unit,
-    onUnsaveClick: () -> Unit,
-) {
-  Card(
-      modifier = Modifier.fillMaxWidth().testTag(SavedArtworksTestTags.card(artwork)),
-      elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-  ) {
-    // Artwork visual area and metadata displayed above the card actions.
-    Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
-      ArtworkImagePlaceholder()
-      Spacer(modifier = Modifier.height(12.dp))
-      Text(
-          text = artwork.artistName ?: stringResource(R.string.artwork_unknown_artist),
-          style = MaterialTheme.typography.bodyLarge,
-          color = MaterialTheme.colorScheme.onSurfaceVariant,
-      )
-      Text(
-          text = artwork.name,
-          style = MaterialTheme.typography.titleMedium,
-          fontWeight = FontWeight.SemiBold,
-      )
-      Spacer(modifier = Modifier.height(12.dp))
-      // Side-by-side actions for opening details or removing the artwork.
-      Row(
-          modifier = Modifier.fillMaxWidth(),
-          horizontalArrangement = Arrangement.spacedBy(8.dp),
-      ) {
-        Button(
-            onClick = onDetailsClick,
-            modifier = Modifier.weight(1f).testTag(SavedArtworksTestTags.detailsButton(artwork)),
-        ) {
-          Text(stringResource(R.string.saved_artworks_open_details))
-        }
-        Button(
-            onClick = onUnsaveClick,
-            modifier = Modifier.weight(1f).testTag(SavedArtworksTestTags.unsaveButton(artwork)),
-        ) {
-          Text(stringResource(R.string.saved_artworks_unsave))
-        }
-      }
-    }
-  }
-}
-
-/**
- * Displays the image area reserved for an artwork.
- *
- * Artwork currently has no image source in the domain model, so this placeholder keeps the card
- * layout ready for image loading without coupling the screen to a future image implementation.
- *
- * @author Kaio R. Freitas Pereira Nascimento (krfpn)
- *
- * TODO: This component serves as a placeholder for the image. Remove it, and implement component
- *   for the image.
- */
-@Composable
-private fun ArtworkImagePlaceholder() {
-  // Reserved visual area for the artwork image until image data is available in the model.
-  Card(
-      modifier = Modifier.fillMaxWidth().height(180.dp).testTag(SavedArtworksTestTags.IMAGE),
-      colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-  ) {
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-      Text(
-          text = stringResource(R.string.saved_artworks_image_placeholder),
-          style = MaterialTheme.typography.bodyMedium,
-          color = MaterialTheme.colorScheme.onSurfaceVariant,
+          isSaved = true,
+          onArtworkClick = { onArtworkDetailsClick(artwork) },
+          onMapClick = { onMapClick(artwork) },
+          onSaveClick = { onArtworkUnsave(artwork) },
+          testTagSuffix = artwork.uid,
       )
     }
   }
@@ -439,10 +359,11 @@ fun SavedArtworksScreenPreview() {
         onBackClick = {},
         onArtworkDetailsClick = {},
         onArtworkUnsave = {},
+        onTabSelected = {},
+        onMapClick = {},
         onRetry = {},
         onLoadErrorHandled = {},
         onUnsaveErrorHandled = {},
-        onTabSelected = {},
     )
   }
 }

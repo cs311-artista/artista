@@ -23,6 +23,7 @@ import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.SavedArtworksRepository
+import com.artista.artista.model.map.Location
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaTheme
 import kotlinx.coroutines.CompletableDeferred
@@ -76,9 +77,7 @@ class SavedArtworksScreenTest {
     composeTestRule.onNodeWithTag(SavedArtworksTestTags.TITLE).assertIsDisplayed()
     composeTestRule.onNodeWithTag(SavedArtworksTestTags.LIST).assertIsDisplayed()
     composeTestRule.onNodeWithTag(SavedArtworksTestTags.card(savedArtwork)).assertIsDisplayed()
-    composeTestRule
-        .onNodeWithTag(SavedArtworksTestTags.detailsButton(savedArtwork))
-        .assertIsDisplayed()
+    composeTestRule.onNodeWithTag(SavedArtworksTestTags.mapButton(savedArtwork)).assertIsDisplayed()
     composeTestRule
         .onNodeWithTag(SavedArtworksTestTags.unsaveButton(savedArtwork))
         .assertIsDisplayed()
@@ -227,15 +226,32 @@ class SavedArtworksScreenTest {
 
   /** Verifies that opening an artwork forwards the selected artwork to the callback. */
   @Test
-  fun savedArtworksScreen_whenDetailsButtonIsClicked_invokesCallback() {
+  fun savedArtworksScreen_whenArtworkCardIsClicked_invokesDetailsCallback() {
     fakeRepository.savedArtworks.add(savedArtwork)
     var selectedArtwork: Artwork? = null
     setScreenContent(onArtworkDetailsClick = { selectedArtwork = it })
 
     composeTestRule.waitForIdle()
-    composeTestRule.onNodeWithTag(SavedArtworksTestTags.detailsButton(savedArtwork)).performClick()
+    composeTestRule.onNodeWithTag(SavedArtworksTestTags.card(savedArtwork)).performClick()
 
     assertEquals(savedArtwork, selectedArtwork)
+  }
+
+  /** Verifies that the map action forwards its artwork to the map callback. */
+  @Test
+  fun savedArtworksScreen_whenMapButtonIsClicked_invokesMapCallbackWithArtwork() {
+    val artwork =
+        savedArtwork.copy(
+            location = Location(latitude = 48.8606, longitude = 2.3376, name = "Louvre")
+        )
+    fakeRepository.savedArtworks.add(artwork)
+    var mappedArtwork: Artwork? = null
+    setScreenContent(onMapClick = { mappedArtwork = it })
+
+    composeTestRule.waitForIdle()
+    composeTestRule.onNodeWithTag(SavedArtworksTestTags.mapButton(savedArtwork)).performClick()
+
+    assertEquals(artwork, mappedArtwork)
   }
 
   /** Verifies that unsaving removes the artwork from both the repository and the UI. */
@@ -488,11 +504,13 @@ class SavedArtworksScreenTest {
    * @param onBackClick callback invoked when the back arrow is tapped
    * @param onArtworkDetailsClick callback invoked when an artwork details action is selected
    * @param onTabSelected callback invoked when a bottom-navigation tab is selected
+   * @param onMapClick callback invoked when an artwork's map action is selected
    */
   private fun setScreenContent(
       onBackClick: () -> Unit = {},
       onArtworkDetailsClick: (Artwork) -> Unit = {},
       onTabSelected: (Tab) -> Unit = {},
+      onMapClick: (Artwork) -> Unit = {},
   ) {
     viewModel = SavedArtworksViewModel(fakeRepository)
     composeTestRule.setContent {
@@ -504,6 +522,7 @@ class SavedArtworksScreenTest {
               onBackClick = onBackClick,
               onArtworkDetailsClick = onArtworkDetailsClick,
               onTabSelected = onTabSelected,
+              onMapClick = onMapClick,
           )
         }
       }
