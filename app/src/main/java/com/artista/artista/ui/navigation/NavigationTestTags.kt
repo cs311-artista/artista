@@ -12,5 +12,5 @@ object NavigationTestTags {
   const val BOTTOM_NAVIGATION_MENU = "bottom_navigation_menu"
 
   /** Returns the tag identifying a specific navigation tab. */
-  fun getTabTestTag(tab: Tab): String = "bottom_navigation_tab_${tab.name.lowercase()}"
+  fun getTabTestTag(tab: Tab): String = "bottom_navigation_tab_${tab.destination.route.lowercase()}"
 }
