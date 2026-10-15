@@ -171,11 +171,13 @@ class CurrentAppUserJourneyTest {
     composeTestRule.waitForIdle()
     composeTestRule.onNodeWithTag(UserProfileTestTags.SCREEN).assertIsDisplayed()
     composeTestRule.onNodeWithTag(UserProfileTestTags.SAVED_ARTWORK_BUTTON).performClick()
-    composeTestRule.waitUntil(
-        timeoutMillis,
-        { composeTestRule.onNodeWithTag(SavedArtworksTestTags.SCREEN).isDisplayed() },
-    )
     composeTestRule.waitForIdle()
+    composeTestRule.waitUntil(timeoutMillis) {
+      composeTestRule
+          .onAllNodesWithTag(SavedArtworksTestTags.SCREEN)
+          .fetchSemanticsNodes()
+          .isNotEmpty()
+    }
 
     mockArtworks.take(2).forEach { artwork ->
       val savedArtworkCard = SavedArtworksTestTags.card(artwork)
