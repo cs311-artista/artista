@@ -321,13 +321,13 @@ private fun SavedArtworksList(
       verticalArrangement = Arrangement.spacedBy(12.dp),
   ) {
     items(artworks, key = { it.uid }) { artwork ->
-        ArtworkCard(
-            artwork = artwork,
-            isSaved = true,
-            onArtworkClick = { onArtworkDetailsClick(artwork) },
-            onMapClick = { onMapClick(artwork) },
-            onSaveClick = { onArtworkUnsave(artwork) },
-        )
+      ArtworkCard(
+          artwork = artwork,
+          isSaved = true,
+          onArtworkClick = { onArtworkDetailsClick(artwork) },
+          onMapClick = { onMapClick(artwork) },
+          onSaveClick = { onArtworkUnsave(artwork) },
+      )
     }
   }
 }
