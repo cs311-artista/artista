@@ -5,6 +5,7 @@ import androidx.navigation.compose.ComposeNavigator
 import androidx.navigation.compose.composable
 import androidx.navigation.createGraph
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -15,7 +16,7 @@ import org.robolectric.RuntimeEnvironment
 /**
  * Tests the navigation model and controller-independent navigation behavior.
  *
- * @author patrickmcdan
+ * @author patrickmcdan, hixeum
  */
 @RunWith(RobolectricTestRunner::class)
 class NavigationActionsTest {
@@ -55,16 +56,31 @@ class NavigationActionsTest {
     assertEquals(Screen.Map.route, actions.currentRoute())
   }
 
-  /** Verifies that navigating back returns to the previous top-level destination. */
+  /** Verifies that navigating back returns from a secondary screen to its previous route. */
   @Test
   fun goBack_returnsToPreviousRoute() {
     val controller = newControllerWithGraph()
     val actions = NavigationActions(controller)
 
-    actions.navigateTo(Screen.Map)
+    actions.navigateTo(Screen.Search)
     actions.goBack()
 
     assertEquals(Screen.Overview.route, actions.currentRoute())
+  }
+
+  /** Verifies that a top-level destination has no app route to return to. */
+  @Test
+  fun goBack_fromTopLevelDestinationLeavesNoPreviousRoute() {
+    val controller = newControllerWithGraph()
+    val actions = NavigationActions(controller)
+
+    actions.navigateTo(Screen.Map)
+
+    assertNull(controller.previousBackStackEntry)
+
+    actions.goBack()
+
+    assertEquals("", actions.currentRoute())
   }
 
   /** Verifies that a controller without a graph reports no current route. */
@@ -94,6 +110,7 @@ class NavigationActionsTest {
           composable(Screen.Overview.route) {}
           composable(Screen.Map.route) {}
           composable(Screen.Profile.route) {}
+          composable(Screen.Search.route) {}
         }
 
     return controller

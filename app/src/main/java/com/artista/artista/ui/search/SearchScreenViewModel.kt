@@ -2,6 +2,7 @@
 package com.artista.artista.ui.search
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.SavedArtworksRepository
@@ -128,6 +129,30 @@ class SearchScreenViewModel(
               .map(Artwork::name)
               .distinct()
               .toList()
+        }
+  }
+
+  companion object {
+    /**
+     * Creates a factory for a search ViewModel with its repository dependencies.
+     *
+     * @param savedArtworksRepository provides saved artworks for recommendations
+     * @param wikiDataRepository provides artwork search results
+     * @return factory that creates [SearchScreenViewModel] instances
+     * @author hixeum
+     */
+    fun provideFactory(
+        savedArtworksRepository: SavedArtworksRepository,
+        wikiDataRepository: WikiDataRepository,
+    ): ViewModelProvider.Factory =
+        object : ViewModelProvider.Factory {
+          @Suppress("UNCHECKED_CAST")
+          override fun <T : ViewModel> create(modelClass: Class<T>): T {
+            if (modelClass.isAssignableFrom(SearchScreenViewModel::class.java)) {
+              return SearchScreenViewModel(savedArtworksRepository, wikiDataRepository) as T
+            }
+            throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
+          }
         }
   }
 }

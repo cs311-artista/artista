@@ -9,13 +9,16 @@ import androidx.navigation.NavHostController
  * @param route Stable route identifier used when connecting the screen to a navigation host.
  * @param name Human-readable screen name.
  * @param isTopLevelDestination Whether the screen is represented in bottom navigation.
- * @author patrickmcdan
+ * @author patrickmcdan, hixeum
  */
 sealed class Screen(
     val route: String,
     val name: String,
     val isTopLevelDestination: Boolean = false,
 ) {
+
+  /** The auth screen. */
+  data object Auth : Screen("auth", "Auth")
 
   /** The overview screen. */
   data object Overview : Screen("overview", "Overview", true)
@@ -25,6 +28,27 @@ sealed class Screen(
 
   /** The profile screen. */
   data object Profile : Screen("profile", "Profile", true)
+
+  /** The screen listing artworks saved by the user. */
+  data object SavedArtworks : Screen("saved_artworks", "Saved Artworks")
+
+  /** The artwork search screen. */
+  data object Search : Screen("search", "Search")
+
+  /** The artist preferences screen. */
+  data object ArtistPreferences : Screen("artist_preferences", "Artist Preferences")
+
+  /** The artwork details screen. */
+  data object ArtworkDetails : Screen("artwork_details/{artworkId}", "Artwork Details") {
+
+    /**
+     * Builds the route used to open a specific artwork.
+     *
+     * @param artworkId identifier of the artwork to display
+     * @return route containing the artwork identifier
+     */
+    fun createRoute(artworkId: String): String = "artwork_details/$artworkId"
+  }
 }
 
 /**
@@ -47,9 +71,12 @@ open class NavigationActions(private val navController: NavHostController) {
 
     navController.navigate(screen.route) {
       if (screen.isTopLevelDestination) {
-        launchSingleTop = true
-        popUpTo(screen.route) { inclusive = true }
+        popUpTo(navController.graph.id) {
+          inclusive = true
+          saveState = true
+        }
       }
+      launchSingleTop = true
       restoreState = true
     }
   }
