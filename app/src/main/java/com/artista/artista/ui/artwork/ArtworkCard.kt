@@ -109,14 +109,16 @@ fun ArtworkCard(
       ) {
         Text(
             text = artwork.name,
-            modifier = Modifier.fillMaxWidth().testTag(testTag(ArtworkCardTestTag.ARTWORK_CARD_TITLE)),
+            modifier =
+                Modifier.fillMaxWidth().testTag(testTag(ArtworkCardTestTag.ARTWORK_CARD_TITLE)),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.SemiBold,
             textAlign = TextAlign.Center,
         )
         Text(
             text = artwork.artistName ?: stringResource(R.string.artwork_unknown_artist),
-            modifier = Modifier.fillMaxWidth().testTag(testTag(ArtworkCardTestTag.ARTWORK_CARD_ARTIST)),
+            modifier =
+                Modifier.fillMaxWidth().testTag(testTag(ArtworkCardTestTag.ARTWORK_CARD_ARTIST)),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
