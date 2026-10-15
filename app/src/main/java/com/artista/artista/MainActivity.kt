@@ -161,6 +161,7 @@ fun ArtistaApp(
           onBackClick = { navigationActions.goBack() },
           onArtworkDetailsClick = {},
           onTabSelected = { tab -> navigationActions.navigateTo(tab.destination) },
+          onMapClick = { /* TODO: Implement map click functionality */ }
       )
     }
 
