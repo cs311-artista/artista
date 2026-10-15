@@ -83,6 +83,7 @@ android {
 
     java.directories.clear()
     java.directories.addAll(test.java.directories)
+    kotlin.directories.add("src/sharedTest/java")
     res.directories.clear()
     res.directories.addAll(test.res.directories)
     resources.directories.clear()
@@ -94,6 +95,9 @@ android {
     res.directories.clear()
     resources.directories.clear()
   }
+
+  // Test builders shared by the unit and instrumented suites, so each fixture exists only once.
+  sourceSets.getByName("androidTest") { kotlin.directories.add("src/sharedTest/java") }
 }
 
 // With AGP 9+ the JVM target is set outside the Android block.
