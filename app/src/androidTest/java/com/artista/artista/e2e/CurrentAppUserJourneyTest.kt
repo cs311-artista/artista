@@ -46,6 +46,8 @@ class CurrentAppUserJourneyTest {
 
   private val instrumentation = InstrumentationRegistry.getInstrumentation()
 
+  private val timeoutMillis = 5_000L
+
   /**
    * Verifies the complete currently supported user journey.
    *
@@ -169,12 +171,15 @@ class CurrentAppUserJourneyTest {
     composeTestRule.waitForIdle()
     composeTestRule.onNodeWithTag(UserProfileTestTags.SCREEN).assertIsDisplayed()
     composeTestRule.onNodeWithTag(UserProfileTestTags.SAVED_ARTWORK_BUTTON).performClick()
+    composeTestRule.waitUntil(
+        timeoutMillis,
+        { composeTestRule.onNodeWithTag(SavedArtworksTestTags.SCREEN).isDisplayed() },
+    )
     composeTestRule.waitForIdle()
-    composeTestRule.onNodeWithTag(SavedArtworksTestTags.SCREEN).assertIsDisplayed()
 
     mockArtworks.take(2).forEach { artwork ->
       val savedArtworkCard = SavedArtworksTestTags.card(artwork)
-      composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.waitUntil(timeoutMillis = timeoutMillis) {
         composeTestRule.onAllNodesWithTag(savedArtworkCard).fetchSemanticsNodes().isNotEmpty()
       }
       composeTestRule.onNodeWithTag(savedArtworkCard).assertIsDisplayed()
@@ -194,7 +199,7 @@ class CurrentAppUserJourneyTest {
         .onNodeWithTag(SavedArtworksTestTags.unsaveButton(mockArtworks.first()))
         .performClick()
     composeTestRule.waitForIdle()
-    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+    composeTestRule.waitUntil(timeoutMillis = timeoutMillis) {
       composeTestRule.onAllNodesWithTag(savedArtworkCard).fetchSemanticsNodes().isEmpty()
     }
     composeTestRule.onNodeWithTag(SavedArtworksTestTags.BACK_BUTTON).performClick()
