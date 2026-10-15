@@ -236,6 +236,10 @@ class CurrentAppUserJourneyTest {
     composeTestRule.onNodeWithTag(NavigationTestTags.getTabTestTag(Tab.Profile)).performClick()
     composeTestRule.waitForIdle()
     composeTestRule.onNodeWithTag(UserProfileTestTags.SCREEN).assertIsDisplayed()
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.SAVED_ARTWORK_BUTTON)
+        .performScrollTo()
+        .assertIsDisplayed()
     composeTestRule.onNodeWithTag(UserProfileTestTags.SAVED_ARTWORK_BUTTON).performClick()
     composeTestRule.waitForIdle()
     composeTestRule.onNodeWithTag(SavedArtworksTestTags.SCREEN).assertIsDisplayed()
