@@ -71,9 +71,12 @@ open class NavigationActions(private val navController: NavHostController) {
 
     navController.navigate(screen.route) {
       if (screen.isTopLevelDestination) {
-        launchSingleTop = true
-        popUpTo(screen.route) { inclusive = true }
+        popUpTo(navController.graph.id) {
+          inclusive = true
+          saveState = true
+        }
       }
+      launchSingleTop = true
       restoreState = true
     }
   }
