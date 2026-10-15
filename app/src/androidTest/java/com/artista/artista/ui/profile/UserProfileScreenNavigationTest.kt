@@ -71,7 +71,11 @@ class UserProfileScreenNavigationTest {
       )
     }
 
+    composeTestRule.waitForIdle()
     composeTestRule.onNodeWithTag(UserProfileTestTags.SAVED_ARTWORK_BUTTON).performClick()
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      navController.currentDestination?.route == Screen.SavedArtworks.route
+    }
 
     composeTestRule.onNodeWithTag(SavedArtworksTestTags.SCREEN).assertIsDisplayed()
     composeTestRule.runOnIdle {
