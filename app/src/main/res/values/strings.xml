@@ -30,7 +30,7 @@
     <string name="profile_picture_placeholder">Profile\nPicture</string>
     <string name="profile_username_placeholder">USERNAME</string>
     <string name="profile_preferences">ARTIST PREFERENCES</string>
-    <string name="profile_saved_artwork">SAVED ARTWORK</string>
+    <string name="profile_saved_artwork">SAVED ARTWORKS</string>
     <!-- Artist preferences screen -->
     <string name="artist_preferences_title">Artist Preferences</string>
     <string name="artist_preferences_description">Select your favorite artists to personalize your recommendations</string>
