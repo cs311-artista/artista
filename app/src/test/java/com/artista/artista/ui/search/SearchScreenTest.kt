@@ -5,6 +5,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -47,6 +48,18 @@ class SearchScreenTest {
   @After
   fun tearDown() {
     Dispatchers.resetMain()
+  }
+
+  @Test
+  fun searchBar_requestsFocusWhenScreenIsOpened() = runTest {
+    val viewModel = SearchScreenViewModel(fakeArtworkRepository(), fakeWikiRepository())
+
+    composeTestRule.setContent {
+      MaterialTheme { SearchScreen(onTabSelected = {}, viewModel = viewModel) }
+    }
+
+    composeTestRule.waitForIdle()
+    composeTestRule.onNodeWithTag("search_input").assertIsFocused()
   }
 
   @Test
@@ -131,8 +144,8 @@ class SearchScreenTest {
       MaterialTheme { SearchScreen(onTabSelected = {}, viewModel = viewModel) }
     }
 
-    composeTestRule.onNodeWithText("Untitled study").assertIsDisplayed()
-    composeTestRule.onNodeWithText("Unknown Artist").assertIsDisplayed()
+    composeTestRule.onNodeWithText("Untitled study").assert(hasText("Untitled study"))
+    composeTestRule.onNodeWithText("Unknown Artist").assert(hasText("Unknown Artist"))
   }
 
   @Test

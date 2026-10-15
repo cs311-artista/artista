@@ -32,7 +32,7 @@ class SearchScreenViewModelTest {
   }
 
   @Test
-  fun onSearchQueryChanged_updatesSearchTextAndRecommendationsWithoutFetchingResults() = runTest {
+  fun onSearchQueryChanged_updatesQueryAndArtworkRecommendationsWithoutFetchingResults() = runTest {
     val viewModel = SearchScreenViewModel(fakeArtworkRepository(), fakeWikiRepository())
 
     advanceUntilIdle()
@@ -40,7 +40,8 @@ class SearchScreenViewModelTest {
     advanceUntilIdle()
 
     assertEquals("star", viewModel.searchQuery.value)
-    assertEquals(listOf("The Starry Night"), viewModel.recommendations.value)
+    assertEquals(listOf("starryId"), viewModel.recommendations.value.map { it.uid })
+    assertEquals(listOf("The Starry Night"), viewModel.recommendations.value.map { it.name })
     assertTrue(viewModel.artworks.value.isEmpty())
   }
 

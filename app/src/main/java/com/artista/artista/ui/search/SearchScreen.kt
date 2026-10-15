@@ -19,12 +19,16 @@ import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -57,6 +61,7 @@ fun SearchScreen(
         ),
     onArtworkClick: (Artwork) -> Unit = {},
     onMapClick: (Artwork) -> Unit = {},
+    onRecommendationSelected: (Artwork) -> Unit = {},
 ) {
   val query by viewModel.searchQuery.collectAsState()
   val recommendations by viewModel.recommendations.collectAsState()
@@ -73,7 +78,7 @@ fun SearchScreen(
       onMapClick = onMapClick,
       onQueryChanged = viewModel::onSearchQueryChanged,
       onSearchSubmitted = viewModel::onSearchSubmitted,
-      onRecommendationSelected = viewModel::onRecommendationSelected,
+      onRecommendationSelected = onRecommendationSelected,
       onSaveClick = viewModel::toggleSavedArtwork,
   )
 }
@@ -81,7 +86,7 @@ fun SearchScreen(
 @Composable
 private fun SearchScreenContent(
     query: String,
-    recommendations: List<String>,
+    recommendations: List<Artwork>,
     artworks: List<Artwork>,
     savedArtworkIds: Set<ArtworkId>,
     onTabSelected: (Tab) -> Unit,
@@ -89,7 +94,7 @@ private fun SearchScreenContent(
     onMapClick: (Artwork) -> Unit,
     onQueryChanged: (String) -> Unit,
     onSearchSubmitted: (String) -> Unit,
-    onRecommendationSelected: (String) -> Unit,
+    onRecommendationSelected: (Artwork) -> Unit,
     onSaveClick: (Artwork) -> Unit,
 ) {
   Scaffold(
@@ -134,12 +139,19 @@ private fun SearchScreenContent(
 @Composable
 private fun SearchInput(
     query: String,
-    recommendations: List<String>,
+    recommendations: List<Artwork>,
     onQueryChanged: (String) -> Unit,
     onSearchSubmitted: (String) -> Unit,
-    onRecommendationSelected: (String) -> Unit,
+    onRecommendationSelected: (Artwork) -> Unit,
 ) {
   var expanded by remember { mutableStateOf(false) }
+  val focusRequester = remember { FocusRequester() }
+  val keyboardController = LocalSoftwareKeyboardController.current
+
+  LaunchedEffect(Unit) {
+    focusRequester.requestFocus()
+    keyboardController?.show()
+  }
 
   SearchBar(
       inputField = {
@@ -158,6 +170,7 @@ private fun SearchInput(
             modifier =
                 Modifier.fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .focusRequester(focusRequester)
                     .testTag("search_input"),
             placeholder = { Text("Search artworks or artists") },
             leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = "Search") },
@@ -170,7 +183,7 @@ private fun SearchInput(
     LazyColumn {
       items(recommendations) { recommendation ->
         ListItem(
-            headlineContent = { Text(recommendation) },
+            headlineContent = { Text(recommendation.name) },
             modifier =
                 Modifier.fillMaxWidth()
                     .clickable {

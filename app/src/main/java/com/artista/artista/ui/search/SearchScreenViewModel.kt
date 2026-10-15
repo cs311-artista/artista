@@ -31,10 +31,10 @@ class SearchScreenViewModel(
   /** The text currently entered in the search field. */
   val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
-  private val _recommendations = MutableStateFlow<List<String>>(emptyList())
+  private val _recommendations = MutableStateFlow<List<Artwork>>(emptyList())
 
   /** Recommendation strings to display in the search field dropdown. */
-  val recommendations: StateFlow<List<String>> = _recommendations.asStateFlow()
+  val recommendations: StateFlow<List<Artwork>> = _recommendations.asStateFlow()
 
   private val _artworks = MutableStateFlow<List<Artwork>>(emptyList())
 
@@ -80,17 +80,6 @@ class SearchScreenViewModel(
   }
 
   /**
-   * Handles a recommendation selected from the search dropdown.
-   *
-   * @param recommendation the selected recommendation
-   * @author IJJA3141
-   */
-  @Suppress("UNUSED_PARAMETER")
-  fun onRecommendationSelected(recommendation: String) {
-    // TODO: should navigate to artwork screen
-  }
-
-  /**
    * Saves or removes an artwork from the current user's saved collection.
    *
    * @param artwork the artwork to toggle
@@ -126,7 +115,6 @@ class SearchScreenViewModel(
           _savedArtworks.value
               .asSequence()
               .filter { artwork -> artwork.name.contains(query, ignoreCase = true) }
-              .map(Artwork::name)
               .distinct()
               .toList()
         }
