@@ -66,8 +66,8 @@ class UserProfileScreenNavigationTest {
     composeTestRule.setContent {
       navController = rememberNavController()
       ArtistaApp(
-        navController = navController,
-        startDestination = PROFILE_GRAPH_ROUTE,
+          navController = navController,
+          startDestination = PROFILE_GRAPH_ROUTE,
       )
     }
 
