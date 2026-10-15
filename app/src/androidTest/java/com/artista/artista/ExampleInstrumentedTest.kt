@@ -1,8 +1,8 @@
 package com.artista.artista
 
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.test.assertIsDisplayed
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.artista.artista.resources.C
 import com.kaspersky.kaspresso.testcases.api.testcase.TestCase
