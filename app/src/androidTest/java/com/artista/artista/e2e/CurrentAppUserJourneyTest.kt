@@ -10,6 +10,7 @@ import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -170,6 +171,10 @@ class CurrentAppUserJourneyTest {
     composeTestRule.onNodeWithTag(NavigationTestTags.getTabTestTag(Tab.Profile)).performClick()
     composeTestRule.waitForIdle()
     composeTestRule.onNodeWithTag(UserProfileTestTags.SCREEN).assertIsDisplayed()
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.SAVED_ARTWORK_BUTTON)
+        .performScrollTo()
+        .assertIsDisplayed()
     composeTestRule.onNodeWithTag(UserProfileTestTags.SAVED_ARTWORK_BUTTON).performClick()
     composeTestRule.waitForIdle()
     composeTestRule.waitUntil(timeoutMillis) {
@@ -193,6 +198,10 @@ class CurrentAppUserJourneyTest {
 
   /** Removes the first artwork from Saved Artworks and verifies that its card disappears. */
   private fun unsaveFromSavedArtworks() {
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.SAVED_ARTWORK_BUTTON)
+        .performScrollTo()
+        .assertIsDisplayed()
     composeTestRule.onNodeWithTag(UserProfileTestTags.SAVED_ARTWORK_BUTTON).performClick()
     composeTestRule.waitForIdle()
     composeTestRule.onNodeWithTag(SavedArtworksTestTags.SCREEN).assertIsDisplayed()
