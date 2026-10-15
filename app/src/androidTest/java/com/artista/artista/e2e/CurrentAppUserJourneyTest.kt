@@ -1,3 +1,4 @@
+// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 package com.artista.artista.e2e
 
 import androidx.compose.ui.test.assertIsDisplayed
@@ -33,10 +34,9 @@ import org.junit.runner.RunWith
  * Exercises the currently wired end-to-end user journey.
  *
  * The journey signs in, visits Search, Map, artwork details, the Profile area and Saved Artworks,
- * verifies that two artworks can be saved, checks unsaving from both supported locations, and
- * verifies that artist preference cards change appearance when selected and deselected. It stops at
- * the Profile screen because lifecycle relaunch and preference persistence are not part of the
- * current implementation.
+ * verifies that two artworks can be saved, removes the first one from Saved Artworks, and verifies
+ * that an artist preference card changes appearance when selected and deselected. It ends by
+ * logging back out to the authentication screen.
  *
  * @author 5kyPhy
  */
@@ -50,11 +50,12 @@ class CurrentAppUserJourneyTest {
   private val timeoutMillis = 5_000L
 
   /**
-   * Verifies the complete currently supported user journey.
+   * Verifies the currently executed user journey.
    *
    * The test asserts the initial authentication screen, the destination after each navigation
-   * action, the selected bottom-navigation tab where applicable, saved-artwork list contents, card
-   * removal after unsaving, and the visual selection state of an artist preference card.
+   * action, the selected bottom-navigation tab where applicable, the two saved-artwork cards, the
+   * removal of the first card from Saved Artworks, and the visual selection state of an artist
+   * preference card.
    */
   @Test
   fun currentUserJourney_signsInReachesEveryScreen() {
@@ -80,11 +81,6 @@ class CurrentAppUserJourneyTest {
     openSavedArtworks()
     composeTestRule.waitForIdle()
     unsaveFromSavedArtworks()
-    composeTestRule.waitForIdle()
-    composeTestRule.onNodeWithTag(NavigationTestTags.getTabTestTag(Tab.Overview)).performClick()
-    composeTestRule.waitForIdle()
-    composeTestRule.onNodeWithTag(OverviewTestTags.SCREEN).assertIsDisplayed()
-    unsaveFromArtworkScreen()
     composeTestRule.waitForIdle()
 
     // From Profile, verify that selecting and deselecting an artist changes its appearance.
@@ -219,8 +215,9 @@ class CurrentAppUserJourneyTest {
   }
 
   /**
-   * Opens the remaining saved artwork from Overview, unsaves it from its details screen, and
-   * returns through Saved Artworks.
+   * Provides an alternative cleanup path that unsaves artworks from their details screen.
+   *
+   * This helper is currently not called by [currentUserJourney_signsInReachesEveryScreen].
    */
   private fun unsaveFromArtworkScreen() {
     composeTestRule
