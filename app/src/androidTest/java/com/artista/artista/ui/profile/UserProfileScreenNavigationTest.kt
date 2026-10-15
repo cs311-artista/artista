@@ -3,9 +3,9 @@ package com.artista.artista.ui.profile
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
-import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -73,12 +73,14 @@ class UserProfileScreenNavigationTest {
     }
 
     composeTestRule.waitForIdle()
-    composeTestRule.onNodeWithTag(UserProfileTestTags.SAVED_ARTWORK_BUTTON).performClick()
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.SAVED_ARTWORK_BUTTON)
+        .performScrollTo()
+        .assertIsDisplayed()
+        .performClick()
     composeTestRule.waitUntil(timeoutMillis = 5_000) {
-      composeTestRule
-          .onAllNodesWithTag(SavedArtworksTestTags.SCREEN)
-          .fetchSemanticsNodes()
-          .isNotEmpty()
+      composeTestRule.runOnUiThread { navController.currentDestination?.route } ==
+          Screen.SavedArtworks.route
     }
 
     composeTestRule.onNodeWithTag(SavedArtworksTestTags.SCREEN).assertIsDisplayed()

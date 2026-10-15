@@ -3,16 +3,15 @@ package com.artista.artista.ui.artwork
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
-import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.artista.artista.ArtistaApp
 import com.artista.artista.ui.navigation.Screen
 import com.artista.artista.ui.profile.UserProfileTestTags
-import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -45,26 +44,24 @@ class SavedArtworksScreenNavigationTest {
     }
 
     composeTestRule.waitForIdle()
-    composeTestRule.onNodeWithTag(UserProfileTestTags.SAVED_ARTWORK_BUTTON).performClick()
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.SAVED_ARTWORK_BUTTON)
+        .performScrollTo()
+        .assertIsDisplayed()
+        .performClick()
     composeTestRule.waitUntil(timeoutMillis = 5_000) {
-      composeTestRule
-          .onAllNodesWithTag(SavedArtworksTestTags.SCREEN)
-          .fetchSemanticsNodes()
-          .isNotEmpty()
+      composeTestRule.runOnUiThread { navController.currentDestination?.route } ==
+          Screen.SavedArtworks.route
     }
     composeTestRule.onNodeWithTag(SavedArtworksTestTags.SCREEN).assertIsDisplayed()
 
-    composeTestRule.onNodeWithTag(SavedArtworksTestTags.BACK_BUTTON).performClick()
+    composeTestRule
+        .onNodeWithTag(SavedArtworksTestTags.BACK_BUTTON)
+        .assertIsDisplayed()
+        .performClick()
     composeTestRule.waitUntil(timeoutMillis = 5_000) {
-      composeTestRule
-          .onAllNodesWithTag(UserProfileTestTags.SCREEN)
-          .fetchSemanticsNodes()
-          .isNotEmpty()
-    }
-
-    composeTestRule.onNodeWithTag(UserProfileTestTags.SCREEN).assertIsDisplayed()
-    composeTestRule.runOnIdle {
-      assertEquals(Screen.Profile.route, navController.currentDestination?.route)
+      composeTestRule.runOnUiThread { navController.currentDestination?.route } ==
+          Screen.Profile.route
     }
   }
 
