@@ -50,11 +50,12 @@ import com.artista.artista.ui.theme.ArtistaTheme
  * Displays the artworks saved by the current user.
  *
  * The artworks and the unsave action come from [viewModel]. Navigation stays with the caller
- * through [onBackClick], [onArtworkDetailsClick] and [onTabSelected]. Saved artworks are reloaded
- * each time the screen enters the composition.
+ * through [onBackClick], [onArtworkDetailsClick], [onMapClick] and [onTabSelected]. Saved artworks
+ * are reloaded each time the screen enters the composition.
  *
  * @param onBackClick called when the user taps the back arrow
  * @param onArtworkDetailsClick called when the user opens an artwork's details
+ * @param onMapClick called when the user selects the map action for a saved artwork
  * @param onTabSelected called when the user selects a bottom-navigation destination
  * @param modifier modifier applied to the screen scaffold
  * @param viewModel ViewModel providing saved artworks state and actions. Defaults to a ViewModel
@@ -327,6 +328,7 @@ private fun SavedArtworksList(
           onArtworkClick = { onArtworkDetailsClick(artwork) },
           onMapClick = { onMapClick(artwork) },
           onSaveClick = { onArtworkUnsave(artwork) },
+          testTagSuffix = artwork.uid,
       )
     }
   }

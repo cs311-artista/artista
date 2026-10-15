@@ -237,21 +237,21 @@ class SavedArtworksScreenTest {
     assertEquals(savedArtwork, selectedArtwork)
   }
 
-  /** Verifies that an artwork's map action selects the map tab. */
+  /** Verifies that the map action forwards its artwork to the map callback. */
   @Test
-  fun savedArtworksScreen_whenMapButtonIsClicked_selectsMapTab() {
-    fakeRepository.savedArtworks.add(
+  fun savedArtworksScreen_whenMapButtonIsClicked_invokesMapCallbackWithArtwork() {
+    val artwork =
         savedArtwork.copy(
             location = Location(latitude = 48.8606, longitude = 2.3376, name = "Louvre")
         )
-    )
-    var selectedTab: Tab? = null
-    setScreenContent(onTabSelected = { selectedTab = it })
+    fakeRepository.savedArtworks.add(artwork)
+    var mappedArtwork: Artwork? = null
+    setScreenContent(onMapClick = { mappedArtwork = it })
 
     composeTestRule.waitForIdle()
     composeTestRule.onNodeWithTag(SavedArtworksTestTags.mapButton(savedArtwork)).performClick()
 
-    assertEquals(Tab.Map, selectedTab)
+    assertEquals(artwork, mappedArtwork)
   }
 
   /** Verifies that unsaving removes the artwork from both the repository and the UI. */
@@ -504,11 +504,13 @@ class SavedArtworksScreenTest {
    * @param onBackClick callback invoked when the back arrow is tapped
    * @param onArtworkDetailsClick callback invoked when an artwork details action is selected
    * @param onTabSelected callback invoked when a bottom-navigation tab is selected
+   * @param onMapClick callback invoked when an artwork's map action is selected
    */
   private fun setScreenContent(
       onBackClick: () -> Unit = {},
       onArtworkDetailsClick: (Artwork) -> Unit = {},
       onTabSelected: (Tab) -> Unit = {},
+      onMapClick: (Artwork) -> Unit = {},
   ) {
     viewModel = SavedArtworksViewModel(fakeRepository)
     composeTestRule.setContent {
@@ -520,6 +522,7 @@ class SavedArtworksScreenTest {
               onBackClick = onBackClick,
               onArtworkDetailsClick = onArtworkDetailsClick,
               onTabSelected = onTabSelected,
+              onMapClick = onMapClick,
           )
         }
       }
