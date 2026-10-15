@@ -81,7 +81,6 @@ class MapViewModel(
    * Acquires the current device location and updates the map state.
    *
    * @param locationClient Provider used to access the device location.
-   * @param hasLocationPermission Whether runtime location permission is granted.
    * @author @Felix Burchardt
    */
   fun acquireLocation(
