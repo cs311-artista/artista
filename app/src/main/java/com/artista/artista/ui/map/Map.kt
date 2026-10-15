@@ -26,6 +26,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.artista.artista.R
 import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaTheme
@@ -107,7 +108,9 @@ fun MapScreen(
   // Acquire location only after permission is confirmed.
   LaunchedEffect(hasLocationPermission) {
     if (hasLocationPermission) {
-      mapViewModel.acquireLocation(locationClient, hasLocationPermission)
+      mapViewModel.acquireLocation(locationClient)
+    } else {
+      mapViewModel.setLocationPermissionError()
     }
   }
 
@@ -134,7 +137,7 @@ fun MapScreen(
       userLocation?.let {
         Marker(
             state = markerState,
-            title = "Your location",
+            title = stringResource(R.string.map_location_marker_text),
         )
       }
     }

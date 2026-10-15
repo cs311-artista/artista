@@ -86,13 +86,7 @@ class MapViewModel(
    */
   fun acquireLocation(
       locationClient: FusedLocationProviderClient,
-      hasLocationPermission: Boolean,
   ) {
-    if (!hasLocationPermission) {
-      setLocationPermissionError()
-      return
-    }
-
     if (locationProvider != null) {
       locationProvider.getCurrentLocation { updateFromLocation(it) }
       return
