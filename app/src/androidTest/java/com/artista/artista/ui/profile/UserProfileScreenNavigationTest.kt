@@ -66,12 +66,15 @@ class UserProfileScreenNavigationTest {
     composeTestRule.setContent {
       navController = rememberNavController()
       ArtistaApp(
-          navController = navController,
-          startDestination = PROFILE_GRAPH_ROUTE,
+        navController = navController,
+        startDestination = PROFILE_GRAPH_ROUTE,
       )
     }
 
     composeTestRule.onNodeWithTag(UserProfileTestTags.SAVED_ARTWORK_BUTTON).performClick()
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      navController.currentDestination?.route == Screen.SavedArtworks.route
+    }
 
     composeTestRule.onNodeWithTag(SavedArtworksTestTags.SCREEN).assertIsDisplayed()
     composeTestRule.runOnIdle {
