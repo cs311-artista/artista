@@ -13,10 +13,9 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.artista.artista.R
-import com.artista.artista.model.user.User
-import com.artista.artista.model.user.UserPreference
 import com.artista.artista.ui.navigation.NavigationTestTags
 import com.artista.artista.ui.navigation.Tab
+import com.artista.artista.utils.userNamed
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -192,13 +191,4 @@ class UserProfileScreenTest {
       }
     }
   }
-
-  /**
-   * Builds a test user that differs only by its name, since the profile only displays the name.
-   *
-   * @param userName the name of the user, or null for a user without a name.
-   * @return a user with a fixed uid and default preferences.
-   */
-  private fun userNamed(userName: String?): User =
-      User(uid = "uid-1", userName = userName, preference = UserPreference())
 }

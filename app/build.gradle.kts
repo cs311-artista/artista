@@ -1,3 +1,5 @@
+import com.ncorti.ktfmt.gradle.tasks.KtfmtCheckTask
+import com.ncorti.ktfmt.gradle.tasks.KtfmtFormatTask
 import java.io.FileInputStream
 import java.util.Properties
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
@@ -83,6 +85,7 @@ android {
 
     java.directories.clear()
     java.directories.addAll(test.java.directories)
+    kotlin.directories.add("src/sharedTest/java")
     res.directories.clear()
     res.directories.addAll(test.res.directories)
     resources.directories.clear()
@@ -94,10 +97,35 @@ android {
     res.directories.clear()
     resources.directories.clear()
   }
+
+  // Test builders shared by the unit and instrumented suites, so each fixture exists only once.
+  sourceSets.getByName("androidTest") { kotlin.directories.add("src/sharedTest/java") }
 }
 
 // With AGP 9+ the JVM target is set outside the Android block.
 kotlin { compilerOptions { jvmTarget.set(JvmTarget.JVM_17) } }
+
+// ktfmt only sees the directories a source set had when it was created, so it misses the shared
+// test directory added above. These tasks check and format it with the same ktfmt options.
+val ktfmtCheckSharedTest by
+    tasks.registering(KtfmtCheckTask::class) {
+      description = "Run Ktfmt formatter validation for the shared test sources"
+      source("src/sharedTest/java")
+      include("**/*.kt")
+    }
+
+val ktfmtFormatSharedTest by
+    tasks.registering(KtfmtFormatTask::class) {
+      description = "Run Ktfmt formatter for the shared test sources"
+      source("src/sharedTest/java")
+      include("**/*.kt")
+    }
+
+tasks.named("ktfmtCheck") { dependsOn(ktfmtCheckSharedTest) }
+
+tasks.named("ktfmtFormat") { dependsOn(ktfmtFormatSharedTest) }
+
+tasks.named("check") { dependsOn(ktfmtCheckSharedTest) }
 
 sonar {
   properties {

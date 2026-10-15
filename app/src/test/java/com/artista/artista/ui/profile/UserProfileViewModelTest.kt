@@ -1,7 +1,6 @@
 package com.artista.artista.ui.profile
 
-import com.artista.artista.model.user.User
-import com.artista.artista.model.user.UserPreference
+import com.artista.artista.utils.userNamed
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Before
@@ -61,13 +60,4 @@ class UserProfileViewModelTest {
 
     assertEquals("Bob", viewModel.uiState.value.username)
   }
-
-  /**
-   * Builds a test user that differs only by its name, since the profile only displays the name.
-   *
-   * @param userName the name of the user, or null for a user without a name.
-   * @return a user with a fixed uid and default preferences.
-   */
-  private fun userNamed(userName: String?): User =
-      User(uid = "uid-1", userName = userName, preference = UserPreference())
 }
