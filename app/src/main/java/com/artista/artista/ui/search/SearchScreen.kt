@@ -39,6 +39,18 @@ import com.artista.artista.ui.artwork.ArtworkCard
 import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
 
+/** Stable semantics tags used by SearchScreen UI tests. */
+object SearchScreenTestTags {
+  /** Tag of the search text input. */
+  const val SEARCH_INPUT = "search_input"
+
+  /** Tag of each artwork recommendation in the dropdown. */
+  const val SEARCH_RECOMMENDATION = "search_recommendation"
+
+  /** Tag of the artwork results list. */
+  const val ARTWORK_RESULTS = "search_artwork_results"
+}
+
 /**
  * Displays the artwork search field, its recommendations, and matching artwork results.
  *
@@ -171,7 +183,7 @@ private fun SearchInput(
                 Modifier.fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp)
                     .focusRequester(focusRequester)
-                    .testTag("search_input"),
+                    .testTag(SearchScreenTestTags.SEARCH_INPUT),
             placeholder = { Text("Search artworks or artists") },
             leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = "Search") },
         )
@@ -190,7 +202,7 @@ private fun SearchInput(
                       onRecommendationSelected(recommendation)
                       expanded = false
                     }
-                    .testTag("search_recommendation"),
+                    .testTag(SearchScreenTestTags.SEARCH_RECOMMENDATION),
         )
       }
     }
@@ -214,7 +226,7 @@ private fun ArtworkResults(
     modifier: Modifier = Modifier,
 ) {
   LazyColumn(
-      modifier = modifier.testTag("search_artwork_results"),
+      modifier = modifier.testTag(SearchScreenTestTags.ARTWORK_RESULTS),
       contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
       verticalArrangement = Arrangement.spacedBy(8.dp),
   ) {
