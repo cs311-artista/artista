@@ -5,11 +5,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
@@ -17,6 +17,7 @@ import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.SavedArtworksRepository
 import com.artista.artista.model.artwork.WikiDataRepository
+import com.artista.artista.ui.artwork.ArtworkCardTestTag
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -50,6 +51,18 @@ class SearchScreenTest {
   }
 
   @Test
+  fun searchBar_requestsFocusWhenScreenIsOpened() = runTest {
+    val viewModel = SearchScreenViewModel(fakeArtworkRepository(), fakeWikiRepository())
+
+    composeTestRule.setContent {
+      MaterialTheme { SearchScreen(onTabSelected = {}, viewModel = viewModel) }
+    }
+
+    composeTestRule.waitForIdle()
+    composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT).assertIsFocused()
+  }
+
+  @Test
   fun searchBar_displaysMatchingRecommendationsFromSavedArtworks() = runTest {
     val viewModel = SearchScreenViewModel(fakeArtworkRepository(), fakeWikiRepository())
 
@@ -59,28 +72,36 @@ class SearchScreenTest {
 
     composeTestRule.waitForIdle()
     advanceUntilIdle()
-    composeTestRule.onNodeWithTag("search_input").performTextInput("star")
+    composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT).performTextInput("star")
     advanceUntilIdle()
 
-    composeTestRule.onAllNodesWithTag("search_recommendation").assertCountEquals(1)
-    composeTestRule.onNodeWithTag("search_recommendation").assert(hasText("The Starry Night"))
-    composeTestRule.onNodeWithTag("search_recommendation").assertIsDisplayed()
-
-    composeTestRule.onNodeWithTag("search_input").performTextClearance()
-    composeTestRule.onNodeWithTag("search_input").performTextInput("pearl")
-    advanceUntilIdle()
-
-    composeTestRule.onAllNodesWithTag("search_recommendation").assertCountEquals(1)
     composeTestRule
-        .onNodeWithTag("search_recommendation")
+        .onAllNodesWithTag(SearchScreenTestTags.SEARCH_RECOMMENDATION)
+        .assertCountEquals(1)
+    composeTestRule
+        .onNodeWithTag(SearchScreenTestTags.SEARCH_RECOMMENDATION)
+        .assert(hasText("The Starry Night"))
+    composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_RECOMMENDATION).assertIsDisplayed()
+
+    composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT).performTextClearance()
+    composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT).performTextInput("pearl")
+    advanceUntilIdle()
+
+    composeTestRule
+        .onAllNodesWithTag(SearchScreenTestTags.SEARCH_RECOMMENDATION)
+        .assertCountEquals(1)
+    composeTestRule
+        .onNodeWithTag(SearchScreenTestTags.SEARCH_RECOMMENDATION)
         .assert(hasText("Girl with a Pearl Earring"))
         .assertIsDisplayed()
 
-    composeTestRule.onNodeWithTag("search_input").performTextClearance()
-    composeTestRule.onNodeWithTag("search_input").performTextInput("unmatched")
+    composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT).performTextClearance()
+    composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT).performTextInput("unmatched")
     advanceUntilIdle()
 
-    composeTestRule.onAllNodesWithTag("search_recommendation").assertCountEquals(0)
+    composeTestRule
+        .onAllNodesWithTag(SearchScreenTestTags.SEARCH_RECOMMENDATION)
+        .assertCountEquals(0)
   }
 
   @Test
@@ -105,18 +126,22 @@ class SearchScreenTest {
 
     composeTestRule.waitForIdle()
     advanceUntilIdle()
-    composeTestRule.onNodeWithTag("search_input").performTextInput("star")
+    composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT).performTextInput("star")
     advanceUntilIdle()
 
-    composeTestRule.onAllNodesWithTag("search_recommendation").assertCountEquals(1)
-    composeTestRule.onNodeWithTag("search_recommendation").assertIsDisplayed()
+    composeTestRule
+        .onAllNodesWithTag(SearchScreenTestTags.SEARCH_RECOMMENDATION)
+        .assertCountEquals(1)
+    composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_RECOMMENDATION).assertIsDisplayed()
     assertNull(submittedQuery)
 
-    composeTestRule.onNodeWithTag("search_input").performImeAction()
+    composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT).performImeAction()
     advanceUntilIdle()
 
     assertEquals("star", submittedQuery)
-    composeTestRule.onAllNodesWithTag("search_recommendation").assertCountEquals(0)
+    composeTestRule
+        .onAllNodesWithTag(SearchScreenTestTags.SEARCH_RECOMMENDATION)
+        .assertCountEquals(0)
   }
 
   @Test
@@ -131,8 +156,12 @@ class SearchScreenTest {
       MaterialTheme { SearchScreen(onTabSelected = {}, viewModel = viewModel) }
     }
 
-    composeTestRule.onNodeWithText("Untitled study").assertIsDisplayed()
-    composeTestRule.onNodeWithText("Unknown Artist").assertIsDisplayed()
+    composeTestRule
+        .onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD_TITLE, useUnmergedTree = true)
+        .assert(hasText("Untitled study"))
+    composeTestRule
+        .onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD_ARTIST, useUnmergedTree = true)
+        .assert(hasText("Unknown Artist"))
   }
 
   @Test
