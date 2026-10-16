@@ -57,7 +57,7 @@ class MapViewModelTest {
     val viewModel = MapViewModel()
     val locationClient = fakeLocationClient(LOCATION)
 
-    viewModel.acquireLocation(locationClient, hasLocationPermission = true)
+    viewModel.acquireLocation(locationClient)
 
     assertEquals(
         UserLocation(LOCATION.latitude, LOCATION.longitude),
@@ -66,25 +66,13 @@ class MapViewModelTest {
     assertNull(viewModel.uiState.errorMsg)
   }
 
-  /** Verifies that location acquisition without permission exposes a permission error. */
-  @Test
-  fun acquireLocation_withoutPermission_exposesPermissionError() {
-    val viewModel = MapViewModel()
-    val locationClient = fakeLocationClient(LOCATION)
-
-    viewModel.acquireLocation(locationClient, hasLocationPermission = false)
-
-    assertEquals(R.string.map_location_permission_error, viewModel.uiState.errorMsg)
-    assertNull(viewModel.uiState.userLocation)
-  }
-
   /** Verifies that a null location exposes the unavailable-location error. */
   @Test
   fun acquireLocation_withNoLocation_exposesUnavailableError() {
     val viewModel = MapViewModel()
     val locationClient = fakeLocationClient(null)
 
-    viewModel.acquireLocation(locationClient, hasLocationPermission = true)
+    viewModel.acquireLocation(locationClient)
 
     assertEquals(R.string.map_location_unavailable_error, viewModel.uiState.errorMsg)
   }
@@ -95,7 +83,7 @@ class MapViewModelTest {
     val viewModel = MapViewModel()
     val locationClient = fakeLocationClientFailure()
 
-    viewModel.acquireLocation(locationClient, hasLocationPermission = true)
+    viewModel.acquireLocation(locationClient)
 
     assertEquals(R.string.map_location_acquisition_error, viewModel.uiState.errorMsg)
   }

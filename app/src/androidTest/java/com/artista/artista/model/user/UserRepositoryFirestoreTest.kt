@@ -196,9 +196,12 @@ class UserRepositoryFirestoreTest : FirebaseEmulatedTest() {
    * Helper function to create a User.
    *
    * @param uid the unique identifier assigned to the user.
-   * @param artists the preferred artists, or null when no artists are selected.
-   * @param types the preferred artwork types, or null when no types are selected.
-   * @param timePeriods the preferred time periods, or null when none are selected.
+   * @param artists the preferred artists; defaults to a one-item list, and an empty list means no
+   *   artists are selected.
+   * @param types the preferred artwork types; defaults to a one-item list, and an empty list means
+   *   no types are selected.
+   * @param timePeriods the preferred time periods; defaults to a one-item list, and an empty list
+   *   means no time periods are selected.
    * @return a user containing the supplied values and a test display name.
    */
   private fun userWith(

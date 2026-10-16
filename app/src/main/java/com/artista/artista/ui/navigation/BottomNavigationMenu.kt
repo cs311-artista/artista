@@ -1,5 +1,6 @@
 package com.artista.artista.ui.navigation
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -18,31 +19,33 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.artista.artista.R
 
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 /**
  * Represents a destination that can be selected from the bottom navigation menu.
  *
- * @param name The label displayed for the destination.
+ * @param nameResId String resource for the tab icon's accessibility description.
  * @param icon Icon displayed for the destination.
  * @param destination The route associated with the destination.
  * @author patrickmcdan
  */
 sealed class Tab(
-    val name: String,
+    @StringRes val nameResId: Int,
     val icon: ImageVector,
     val destination: Screen,
 ) {
 
   /** The overview destination. */
-  data object Overview : Tab("Overview", Icons.Outlined.Home, Screen.Overview)
+  data object Overview : Tab(R.string.navigation_overview, Icons.Outlined.Home, Screen.Overview)
 
   /** The map destination. */
-  data object Map : Tab("Map", Icons.Outlined.LocationOn, Screen.Map)
+  data object Map : Tab(R.string.navigation_map, Icons.Outlined.LocationOn, Screen.Map)
 
   /** The profile destination. */
-  data object Profile : Tab("Profile", Icons.Outlined.Person, Screen.Profile)
+  data object Profile : Tab(R.string.navigation_profile, Icons.Outlined.Person, Screen.Profile)
 }
 
 private val tabs = listOf(Tab.Overview, Tab.Map, Tab.Profile)
@@ -73,10 +76,11 @@ fun BottomNavigationMenu(
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
     ) {
       tabs.forEach { tab ->
+        val name = stringResource(tab.nameResId)
         NavigationBarItem(
             selected = tab == selectedTab,
             onClick = { onTabSelected(tab) },
-            icon = { Icon(tab.icon, contentDescription = tab.name) },
+            icon = { Icon(tab.icon, contentDescription = name) },
             label = null,
             modifier = Modifier.testTag(NavigationTestTags.getTabTestTag(tab)),
         )

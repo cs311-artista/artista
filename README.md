@@ -42,6 +42,11 @@ which artworks they have already visited, together with key information such as 
 
 GPS is a core part of Artista because the app is designed around the geographical discovery of art. The user’s location is used to identify and prioritize nearby artworks, museums and galleries so the content displayed by the app changes depending on where the user is.
 
+>[!WARNING]
+>In order to work on this project, make sure to include the field `MAPS_API_KEY=???` inside the _local.properties_ file of your project. **This file must _not_ be added to git**. 
+>
+>The key can be retrieved by Artista team-members [here](https://console.cloud.google.com/apis/credentials?project=artista-b15e3).
+
 ---
 
 ## Offline Mode

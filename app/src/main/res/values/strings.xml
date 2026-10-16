@@ -37,16 +37,15 @@
     <string name="artist_preferences_search_placeholder">Search artists…</string>
     <string name="artist_preferences_popular_artists">Popular Artists</string>
     <string name="artist_preferences_save">Save Preferences</string>
+    <!-- Map screen -->
     <string name="map_location_permission_error">Location permission is required to show your position.</string>
     <string name="map_location_unavailable_error">Current location is unavailable.</string>
     <string name="map_location_acquisition_error">Unable to read current location.</string>
+    <string name="map_location_marker_text">Your location</string>
     <!-- Saved artworks screen -->
     <string name="saved_artworks_title">Saved Artworks</string>
     <string name="saved_artworks_empty">You have no saved artworks yet.</string>
     <string name="saved_artworks_loading">Loading saved artworks...</string>
-    <string name="saved_artworks_open_details">Open details</string>
-    <string name="saved_artworks_unsave">Unsave</string>
-    <string name="saved_artworks_image_placeholder">Artwork image</string>
     <string name="saved_artworks_load_error">Couldn\'t load your saved artworks. Check your connection and try again.</string>
     <string name="saved_artworks_load_error_state">Your saved artworks couldn\'t be loaded.</string>
     <string name="saved_artworks_try_again">Try again</string>
@@ -62,4 +61,9 @@
     <string name="overview_load_error">Unable to load nearby artworks.</string>
     <string name="overview_saved_artworks_action">Saved artworks</string>
     <string name="overview_search_placeholder">Search artworks or artists</string>
+
+    <!-- Bottom navigation -->
+    <string name="navigation_overview">Overview</string>
+    <string name="navigation_map">Map</string>
+    <string name="navigation_profile">Profile</string>
 </resources>

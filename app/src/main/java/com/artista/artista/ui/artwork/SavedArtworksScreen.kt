@@ -50,11 +50,12 @@ import com.artista.artista.ui.theme.ArtistaTheme
  * Displays the artworks saved by the current user.
  *
  * The artworks and the unsave action come from [viewModel]. Navigation stays with the caller
- * through [onBackClick], [onArtworkDetailsClick] and [onTabSelected]. Saved artworks are reloaded
- * each time the screen enters the composition.
+ * through [onBackClick], [onArtworkDetailsClick], [onMapClick] and [onTabSelected]. Saved artworks
+ * are reloaded each time the screen enters the composition.
  *
  * @param onBackClick called when the user taps the back arrow
  * @param onArtworkDetailsClick called when the user opens an artwork's details
+ * @param onMapClick called when the user selects the map action for a saved artwork
  * @param onTabSelected called when the user selects a bottom-navigation destination
  * @param modifier modifier applied to the screen scaffold
  * @param viewModel ViewModel providing saved artworks state and actions. Defaults to a ViewModel
@@ -216,6 +217,7 @@ object SavedArtworksTestTags {
   const val LOADING_STATE = "saved_artworks_loading_state"
   const val LOAD_ERROR_STATE = "saved_artworks_load_error_state"
   const val RETRY_BUTTON = "saved_artworks_retry_button"
+  const val IMAGE = "saved_artwork_image"
 
   /** Tag of the card showing [artwork]. */
   fun card(artwork: Artwork): String = "${ArtworkCardTestTag.ARTWORK_CARD}_${artwork.uid}"
@@ -321,13 +323,14 @@ private fun SavedArtworksList(
       verticalArrangement = Arrangement.spacedBy(12.dp),
   ) {
     items(artworks, key = { it.uid }) { artwork ->
-        ArtworkCard(
-            artwork = artwork,
-            isSaved = true,
-            onArtworkClick = { onArtworkDetailsClick(artwork) },
-            onMapClick = { onMapClick(artwork) },
-            onSaveClick = { onArtworkUnsave(artwork) },
-        )
+      ArtworkCard(
+          artwork = artwork,
+          isSaved = true,
+          onArtworkClick = { onArtworkDetailsClick(artwork) },
+          onMapClick = { onMapClick(artwork) },
+          onSaveClick = { onArtworkUnsave(artwork) },
+          testTagSuffix = artwork.uid,
+      )
     }
   }
 }
