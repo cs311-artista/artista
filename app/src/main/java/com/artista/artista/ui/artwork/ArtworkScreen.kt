@@ -1,4 +1,5 @@
 // Co-authored-by: Gemini <gemini@google.com>
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.artwork
 
 import androidx.compose.foundation.layout.Arrangement
@@ -76,8 +77,9 @@ fun ArtworkScreen(
     artworkScreenViewModel: ArtworkScreenViewModel = viewModel(),
     onBackClick: () -> Unit = {},
 ) {
-  // Sync artwork with ViewModel once when entered or when artwork changes
-  LaunchedEffect(artwork.name) { artworkScreenViewModel.setArtwork(artwork) }
+  // Sync artwork with ViewModel once when entered or when artwork changes. Keyed on uid because
+  // several artworks can share a null name.
+  LaunchedEffect(artwork.uid) { artworkScreenViewModel.setArtwork(artwork) }
 
   val uiState by artworkScreenViewModel.uiState.collectAsState()
   val isSaved = uiState.isSaved
@@ -92,7 +94,7 @@ fun ArtworkScreen(
         CenterAlignedTopAppBar(
             title = {
               Text(
-                  text = artwork.name,
+                  text = artwork.name ?: stringResource(R.string.artwork_unknown_title),
                   style = MaterialTheme.typography.titleLarge,
                   fontWeight = FontWeight.Bold,
                   modifier = Modifier.testTag(ArtworkTestTags.ARTWORK_TITLE),

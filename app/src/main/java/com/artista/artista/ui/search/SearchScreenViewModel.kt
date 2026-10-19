@@ -1,4 +1,5 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.search
 
 import androidx.lifecycle.ViewModel
@@ -125,8 +126,9 @@ class SearchScreenViewModel(
         } else {
           _savedArtworks.value
               .asSequence()
-              .filter { artwork -> artwork.name.contains(query, ignoreCase = true) }
-              .map(Artwork::name)
+              // Only named artworks can be suggested as a search term.
+              .mapNotNull(Artwork::name)
+              .filter { name -> name.contains(query, ignoreCase = true) }
               .distinct()
               .toList()
         }

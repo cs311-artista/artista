@@ -14,6 +14,7 @@
 
     <!-- Artwork Fallback / Default Values -->
     <string name="artwork_unknown_artist">Unknown Artist</string>
+    <string name="artwork_unknown_title">Untitled</string>
     <string name="artwork_unknown_date">Unknown date</string>
     <string name="artwork_no_museum">No information about museum</string>
     <string name="artwork_no_description">No description available</string>

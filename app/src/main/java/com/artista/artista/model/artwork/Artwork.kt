@@ -6,7 +6,8 @@ import java.util.Date
 /**
  * Represents an artwork entry in the application.
  *
- * @property name The title or name of the artwork.
+ * @property name The title or name of the artwork. If *null*, the name was not provided by the API
+ *   or is *unknown*.
  * @property artistName The name of the artist who created the artwork. If *null*, the artistName
  *   was not provided by the API or is *unknown*.
  * @property description The optional information about the artwork such as how it has been created,
@@ -19,7 +20,7 @@ import java.util.Date
  */
 data class Artwork(
     val uid: ArtworkId,
-    val name: String,
+    val name: String?,
     val artistName: String?,
     val description: String?,
     val conceptionDate: Date?,
