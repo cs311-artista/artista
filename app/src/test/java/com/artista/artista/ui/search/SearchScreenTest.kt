@@ -1,4 +1,5 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.search
 
 import androidx.compose.material3.MaterialTheme
@@ -190,18 +191,18 @@ class SearchScreenTest {
 
         override suspend fun isArtworkSaved(uid: ArtworkId): Boolean {
           if (shouldThrowError) throw RuntimeException("Simulated error")
-          return savedArtworks.any { it.name == uid }
+          return savedArtworks.any { it.uid == uid }
         }
 
         override suspend fun saveArtwork(artwork: Artwork) {
           if (shouldThrowError) throw RuntimeException("Simulated database failure")
-          savedArtworks.removeAll { it.name == artwork.name }
+          savedArtworks.removeAll { it.uid == artwork.uid }
           savedArtworks.add(artwork)
         }
 
         override suspend fun removeArtworkFromSaved(uid: ArtworkId) {
           if (shouldThrowError) throw RuntimeException("Simulated database failure")
-          savedArtworks.removeAll { it.name == uid }
+          savedArtworks.removeAll { it.uid == uid }
         }
 
         override suspend fun getSavedArtworks(): List<Artwork> =
@@ -279,7 +280,7 @@ class SearchScreenTest {
                     ),
                 )
                 .filter {
-                  it.name.contains(query, ignoreCase = true) ||
+                  it.name?.contains(query, ignoreCase = true) == true ||
                       it.artistName?.contains(query, ignoreCase = true) == true
                 }
       }

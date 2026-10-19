@@ -1,4 +1,5 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.search
 
 import com.artista.artista.model.artwork.Artwork
@@ -128,6 +129,23 @@ class SearchScreenViewModelTest {
     assertTrue(repository.savedArtworks.none { it.uid == artwork.uid })
   }
 
+  @Test
+  fun onSearchQueryChanged_ignoresSavedArtworksWithoutAName() = runTest {
+    val starryNight = fakeArtworkRepository().savedArtworks.first()
+    val repository =
+        FakeArtworkRepository(
+            initialSavedArtworks =
+                listOf(starryNight, starryNight.copy(uid = "noNameId", name = null))
+        )
+    val viewModel = SearchScreenViewModel(repository, fakeWikiRepository())
+
+    advanceUntilIdle()
+    viewModel.onSearchQueryChanged("star")
+    advanceUntilIdle()
+
+    assertEquals(listOf("The Starry Night"), viewModel.recommendations.value)
+  }
+
   private fun fakeArtworkRepository(): FakeArtworkRepository =
       FakeArtworkRepository(
           initialSavedArtworks =
@@ -240,7 +258,7 @@ class SearchScreenViewModelTest {
                     ),
                 )
                 .filter {
-                  it.name.contains(query, ignoreCase = true) ||
+                  it.name?.contains(query, ignoreCase = true) == true ||
                       it.artistName?.contains(query, ignoreCase = true) == true
                 }
       }

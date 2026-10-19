@@ -1,11 +1,14 @@
 // Co-authored-by: Gemini <gemini@google.com>
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.artwork
 
 import androidx.activity.ComponentActivity
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.SavedArtworksRepository
@@ -57,10 +60,10 @@ class ArtworkScreenTest {
     composeTestRule.onNodeWithTag(ArtworkTestTags.SAVE_BUTTON).performClick()
 
     composeTestRule.waitUntil(timeoutMillis = milliseconds) {
-      runBlocking { fakeRepository.isArtworkSaved(sampleArtwork.name) }
+      runBlocking { fakeRepository.isArtworkSaved(sampleArtwork.uid) }
     }
 
-    runBlocking { assertTrue(fakeRepository.isArtworkSaved(sampleArtwork.name)) }
+    runBlocking { assertTrue(fakeRepository.isArtworkSaved(sampleArtwork.uid)) }
   }
 
   @Test
@@ -72,17 +75,26 @@ class ArtworkScreenTest {
     composeTestRule.onNodeWithTag(ArtworkTestTags.SAVE_BUTTON).performClick()
 
     composeTestRule.waitUntil(timeoutMillis = milliseconds) {
-      runBlocking { !fakeRepository.isArtworkSaved(sampleArtwork.name) }
+      runBlocking { !fakeRepository.isArtworkSaved(sampleArtwork.uid) }
     }
 
-    runBlocking { assertFalse(fakeRepository.isArtworkSaved(sampleArtwork.name)) }
+    runBlocking { assertFalse(fakeRepository.isArtworkSaved(sampleArtwork.uid)) }
   }
 
-  private fun setScreenContent(onBackClick: () -> Unit = {}) {
+  @Test
+  fun artworkScreen_whenNameIsUnknown_displaysFallbackTitle() {
+    setScreenContent(artwork = sampleArtwork.copy(name = null))
+
+    composeTestRule
+        .onNodeWithTag(ArtworkTestTags.ARTWORK_TITLE)
+        .assertTextEquals(composeTestRule.activity.getString(R.string.artwork_unknown_title))
+  }
+
+  private fun setScreenContent(artwork: Artwork = sampleArtwork, onBackClick: () -> Unit = {}) {
     composeTestRule.setContent {
       ArtistaTheme {
         ArtworkScreen(
-            artwork = sampleArtwork,
+            artwork = artwork,
             artworkScreenViewModel = viewModel,
             onBackClick = onBackClick,
         )
@@ -95,16 +107,16 @@ class ArtworkScreenTest {
     private val savedArtworks = mutableListOf<Artwork>()
 
     override suspend fun isArtworkSaved(uid: ArtworkId): Boolean {
-      return savedArtworks.any { it.name == uid }
+      return savedArtworks.any { it.uid == uid }
     }
 
     override suspend fun saveArtwork(artwork: Artwork) {
-      savedArtworks.removeAll { it.name == artwork.name }
+      savedArtworks.removeAll { it.uid == artwork.uid }
       savedArtworks.add(artwork)
     }
 
     override suspend fun removeArtworkFromSaved(uid: ArtworkId) {
-      savedArtworks.removeAll { it.name == uid }
+      savedArtworks.removeAll { it.uid == uid }
     }
 
     override suspend fun getSavedArtworks(): List<Artwork> =
