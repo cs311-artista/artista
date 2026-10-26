@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.artista.artista.model.artwork.Artwork
+import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.artwork.SavedArtworksRepository
 import com.artista.artista.model.artwork.WikiDataRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -39,8 +40,9 @@ data class SearchScreenUiState(
  * @author IJJA3141
  */
 class SearchScreenViewModel(
-    private val savedArtworksRepository: SavedArtworksRepository,
-    private val wikiDataRepository: WikiDataRepository,
+    private val savedArtworksRepository: SavedArtworksRepository =
+        ArtworkRepositoryProvider.repository,
+    private val wikiDataRepository: WikiDataRepository = ArtworkRepositoryProvider.repository,
 ) : ViewModel() {
   private val _uiState = MutableStateFlow(SearchScreenUiState())
 
@@ -63,7 +65,7 @@ class SearchScreenViewModel(
    *
    * @param query text currently entered in the field
    * @param selection cursor or selected range in the field
-   * @author Copilot
+   * @author IJJA3141
    */
   fun onSearchInputChanged(query: String, selection: TextRange) {
     val currentState = _uiState.value
