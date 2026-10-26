@@ -2,6 +2,10 @@
 package com.artista.artista.ui.search
 
 import androidx.compose.ui.text.TextRange
+import com.artista.artista.model.artwork.Artwork
+import com.artista.artista.model.artwork.ArtworkId
+import com.artista.artista.model.artwork.WikiDataRepository
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -67,6 +71,29 @@ class SearchScreenViewModelTest {
         listOf("The Starry Night", "Sunflowers"),
         viewModel.uiState.value.artworks.map { it.name },
     )
+  }
+
+  @Test
+  fun onSearchSubmitted_exposesLoadingUntilResultsArrive() = runTest {
+    val results = CompletableDeferred<List<Artwork>>()
+    val wikiRepository =
+        object : WikiDataRepository {
+          override suspend fun getArtwork(uid: ArtworkId): Artwork =
+              throw NoSuchElementException("No artwork matching uid $uid was found")
+
+          override suspend fun searchArtworks(query: String): List<Artwork> = results.await()
+        }
+    val viewModel = SearchScreenViewModel(SearchTestData.savedArtworksRepository(), wikiRepository)
+
+    advanceUntilIdle()
+    viewModel.onSearchSubmitted("star")
+    assertTrue(viewModel.uiState.value.isLoading)
+
+    results.complete(listOf(SearchTestData.starryNight))
+    advanceUntilIdle()
+
+    assertTrue(!viewModel.uiState.value.isLoading)
+    assertEquals(listOf(SearchTestData.starryNight), viewModel.uiState.value.artworks)
   }
 
   @Test

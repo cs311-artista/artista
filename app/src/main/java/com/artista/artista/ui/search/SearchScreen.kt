@@ -3,6 +3,7 @@ package com.artista.artista.ui.search
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -12,6 +13,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
@@ -27,12 +29,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -55,6 +60,9 @@ object SearchScreenTestTags {
 
   /** Tag of the artwork results list. */
   const val ARTWORK_RESULTS = "search_artwork_results"
+
+  /** Tag of the search loading indicator. */
+  const val SEARCH_LOADING_INDICATOR = "search_loading_indicator"
 }
 
 /**
@@ -77,6 +85,7 @@ fun SearchScreen(
     onRecommendationSelected: (Artwork) -> Unit = {},
 ) {
   val uiState by viewModel.uiState.collectAsState()
+  val loadingDescription = stringResource(R.string.search_loading)
   val textFieldState =
       remember(viewModel) {
         TextFieldState(initialText = uiState.query, initialSelection = uiState.selection)
@@ -99,14 +108,28 @@ fun SearchScreen(
         )
       },
   ) { contentPadding ->
-    ArtworkResults(
-        artworks = uiState.artworks,
-        savedArtworkIds = uiState.savedArtworks.map { it.uid }.toSet(),
-        onArtworkClick = onArtworkClick,
-        onMapClick = onMapClick,
-        onSaveClick = viewModel::toggleSavedArtwork,
-        modifier = Modifier.fillMaxSize().padding(contentPadding),
-    )
+    if (uiState.isLoading) {
+      Box(
+          modifier = Modifier.fillMaxSize().padding(contentPadding),
+          contentAlignment = Alignment.Center,
+      ) {
+        CircularProgressIndicator(
+            modifier =
+                Modifier.testTag(SearchScreenTestTags.SEARCH_LOADING_INDICATOR).semantics {
+                  contentDescription = loadingDescription
+                }
+        )
+      }
+    } else {
+      ArtworkResults(
+          artworks = uiState.artworks,
+          savedArtworkIds = uiState.savedArtworks.map { it.uid }.toSet(),
+          onArtworkClick = onArtworkClick,
+          onMapClick = onMapClick,
+          onSaveClick = viewModel::toggleSavedArtwork,
+          modifier = Modifier.fillMaxSize().padding(contentPadding),
+      )
+    }
   }
 }
 

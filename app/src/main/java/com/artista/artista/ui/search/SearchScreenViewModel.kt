@@ -22,6 +22,7 @@ import kotlinx.coroutines.launch
  * @property savedArtworks artworks saved by the current user
  * @property recommendations saved artworks matching the current query
  * @property artworks results returned for the submitted query
+ * @property isLoading whether submitted search results are being fetched
  * @author IJJA3141
  */
 data class SearchScreenUiState(
@@ -30,6 +31,7 @@ data class SearchScreenUiState(
     val savedArtworks: List<Artwork> = emptyList(),
     val recommendations: List<Artwork> = emptyList(),
     val artworks: List<Artwork> = emptyList(),
+    val isLoading: Boolean = false,
 )
 
 /**
@@ -90,12 +92,22 @@ class SearchScreenViewModel(
             query = query,
             recommendations = emptyList(),
             artworks = if (query.isBlank()) emptyList() else _uiState.value.artworks,
+            isLoading = query.isNotBlank(),
         )
     if (query.isBlank()) return
 
     viewModelScope.launch {
-      val results = wikiDataRepository.searchArtworks(query)
-      _uiState.value = _uiState.value.copy(artworks = results)
+      try {
+        val results = wikiDataRepository.searchArtworks(query)
+        _uiState.value = _uiState.value.copy(artworks = results)
+      } catch (e: Exception) {
+          // TODO: define error in interface and decide how to display it to the user
+
+          // this line ensures that if an error occurs, the artworks list is cleared to avoid showing stale data
+          _uiState.value = _uiState.value.copy(artworks = emptyList())
+      }finally {
+        _uiState.value = _uiState.value.copy(isLoading = false)
+      }
     }
   }
 
