@@ -101,11 +101,12 @@ class SearchScreenViewModel(
         val results = wikiDataRepository.searchArtworks(query)
         _uiState.value = _uiState.value.copy(artworks = results)
       } catch (e: Exception) {
-          // TODO: define error in interface and decide how to display it to the user
+        // TODO: define error in interface and decide how to display it to the user
 
-          // this line ensures that if an error occurs, the artworks list is cleared to avoid showing stale data
-          _uiState.value = _uiState.value.copy(artworks = emptyList())
-      }finally {
+        // this line ensures that if an error occurs, the artworks list is cleared to avoid showing
+        // stale data
+        _uiState.value = _uiState.value.copy(artworks = emptyList())
+      } finally {
         _uiState.value = _uiState.value.copy(isLoading = false)
       }
     }
