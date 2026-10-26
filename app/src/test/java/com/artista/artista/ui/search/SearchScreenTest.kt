@@ -151,46 +151,6 @@ class SearchScreenTest {
       MaterialTheme { SearchScreen(onTabSelected = {}, viewModel = viewModel) }
     }
 
-    @Test
-    fun searchBar_showsLoadingIndicatorUntilSearchResultsArrive() = runTest {
-      val resultsGate = CompletableDeferred<Unit>()
-      val wikiRepository = SearchTestData.wikiDataRepository()
-      val delayedWikiRepository =
-          object : WikiDataRepository {
-            override suspend fun getArtwork(uid: ArtworkId) = wikiRepository.getArtwork(uid)
-
-            override suspend fun searchArtworks(query: String): List<Artwork> {
-              resultsGate.await()
-              return wikiRepository.searchArtworks(query)
-            }
-          }
-      val viewModel =
-          SearchScreenViewModel(SearchTestData.savedArtworksRepository(), delayedWikiRepository)
-
-      composeTestRule.setContent {
-        MaterialTheme { SearchScreen(onTabSelected = {}, viewModel = viewModel) }
-      }
-
-      composeTestRule.waitForIdle()
-      advanceUntilIdle()
-      composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT).performTextInput("star")
-      composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT).performImeAction()
-      advanceUntilIdle()
-
-      composeTestRule
-          .onNodeWithTag(SearchScreenTestTags.SEARCH_LOADING_INDICATOR)
-          .assertIsDisplayed()
-      resultsGate.complete(Unit)
-      advanceUntilIdle()
-
-      composeTestRule
-          .onAllNodesWithTag(SearchScreenTestTags.SEARCH_LOADING_INDICATOR)
-          .assertCountEquals(0)
-      composeTestRule
-          .onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD_TITLE, useUnmergedTree = true)
-          .assert(hasText("The Starry Night"))
-    }
-
     composeTestRule.waitForIdle()
     advanceUntilIdle()
     composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT).performTextInput("star")
@@ -209,6 +169,44 @@ class SearchScreenTest {
     composeTestRule
         .onAllNodesWithTag(SearchScreenTestTags.SEARCH_RECOMMENDATION)
         .assertCountEquals(0)
+  }
+
+  @Test
+  fun searchBar_showsLoadingIndicatorUntilSearchResultsArrive() = runTest {
+    val resultsGate = CompletableDeferred<Unit>()
+    val wikiRepository = SearchTestData.wikiDataRepository()
+    val delayedWikiRepository =
+        object : WikiDataRepository {
+          override suspend fun getArtwork(uid: ArtworkId) = wikiRepository.getArtwork(uid)
+
+          override suspend fun searchArtworks(query: String): List<Artwork> {
+            resultsGate.await()
+            return wikiRepository.searchArtworks(query)
+          }
+        }
+    val viewModel =
+        SearchScreenViewModel(SearchTestData.savedArtworksRepository(), delayedWikiRepository)
+
+    composeTestRule.setContent {
+      MaterialTheme { SearchScreen(onTabSelected = {}, viewModel = viewModel) }
+    }
+
+    composeTestRule.waitForIdle()
+    advanceUntilIdle()
+    composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT).performTextInput("star")
+    composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT).performImeAction()
+    advanceUntilIdle()
+
+    composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_LOADING_INDICATOR).assertIsDisplayed()
+    resultsGate.complete(Unit)
+    advanceUntilIdle()
+
+    composeTestRule
+        .onAllNodesWithTag(SearchScreenTestTags.SEARCH_LOADING_INDICATOR)
+        .assertCountEquals(0)
+    composeTestRule
+        .onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD_TITLE, useUnmergedTree = true)
+        .assert(hasText("The Starry Night"))
   }
 
   @Test

@@ -9,6 +9,8 @@ import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.artwork.SavedArtworksRepository
 import com.artista.artista.model.artwork.WikiDataRepository
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -48,6 +50,9 @@ class SearchScreenViewModel(
 ) : ViewModel() {
   private val _uiState = MutableStateFlow(SearchScreenUiState())
 
+  private var searchJob: Job? = null
+  private var searchRequestId = 0
+
   /** Current state displayed by the Search screen. */
   val uiState: StateFlow<SearchScreenUiState> = _uiState.asStateFlow()
 
@@ -71,12 +76,18 @@ class SearchScreenViewModel(
    */
   fun onSearchInputChanged(query: String, selection: TextRange) {
     val currentState = _uiState.value
+    val queryChanged = query != currentState.query
+    if (queryChanged && searchJob?.isActive == true) {
+      searchRequestId++
+      searchJob?.cancel()
+    }
     _uiState.value =
         currentState.copy(
             query = query,
             selection = selection,
             recommendations = recommendationsFor(query, currentState.savedArtworks),
             artworks = if (query.isBlank()) emptyList() else currentState.artworks,
+            isLoading = if (queryChanged) false else currentState.isLoading,
         )
   }
 
@@ -87,6 +98,10 @@ class SearchScreenViewModel(
    * @author IJJA3141
    */
   fun onSearchSubmitted(query: String) {
+    searchRequestId++
+    val requestId = searchRequestId
+    searchJob?.cancel()
+    searchJob = null
     _uiState.value =
         _uiState.value.copy(
             query = query,
@@ -96,18 +111,26 @@ class SearchScreenViewModel(
         )
     if (query.isBlank()) return
 
-    viewModelScope.launch {
+    searchJob = viewModelScope.launch {
       try {
         val results = wikiDataRepository.searchArtworks(query)
-        _uiState.value = _uiState.value.copy(artworks = results)
+        if (requestId == searchRequestId) {
+          _uiState.value = _uiState.value.copy(artworks = results)
+        }
+      } catch (e: CancellationException) {
+        throw e
       } catch (e: Exception) {
         // TODO: define error in interface and decide how to display it to the user
 
         // this line ensures that if an error occurs, the artworks list is cleared to avoid showing
         // stale data
-        _uiState.value = _uiState.value.copy(artworks = emptyList())
+        if (requestId == searchRequestId) {
+          _uiState.value = _uiState.value.copy(artworks = emptyList())
+        }
       } finally {
-        _uiState.value = _uiState.value.copy(isLoading = false)
+        if (requestId == searchRequestId) {
+          _uiState.value = _uiState.value.copy(isLoading = false)
+        }
       }
     }
   }

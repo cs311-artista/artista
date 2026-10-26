@@ -97,6 +97,40 @@ class SearchScreenViewModelTest {
   }
 
   @Test
+  fun onSearchSubmitted_onlyShowsResultsFromLatestQuery() = runTest {
+    val monetResults = CompletableDeferred<List<Artwork>>()
+    val vanGoghResults = CompletableDeferred<List<Artwork>>()
+    val wikiRepository =
+        object : WikiDataRepository {
+          override suspend fun getArtwork(uid: ArtworkId): Artwork =
+              throw NoSuchElementException("No artwork matching uid $uid was found")
+
+          override suspend fun searchArtworks(query: String): List<Artwork> =
+              when (query) {
+                "monet" -> monetResults.await()
+                "van Gogh" -> vanGoghResults.await()
+                else -> emptyList()
+              }
+        }
+    val viewModel = SearchScreenViewModel(SearchTestData.savedArtworksRepository(), wikiRepository)
+
+    advanceUntilIdle()
+    viewModel.onSearchSubmitted("monet")
+    advanceUntilIdle()
+    viewModel.onSearchSubmitted("van Gogh")
+    advanceUntilIdle()
+
+    vanGoghResults.complete(listOf(SearchTestData.starryNight))
+    advanceUntilIdle()
+    monetResults.complete(listOf(SearchTestData.sunflowers))
+    advanceUntilIdle()
+
+    assertEquals("van Gogh", viewModel.uiState.value.query)
+    assertEquals(listOf(SearchTestData.starryNight), viewModel.uiState.value.artworks)
+    assertTrue(!viewModel.uiState.value.isLoading)
+  }
+
+  @Test
   fun blankQueries_doNotProduceRecommendations() = runTest {
     val viewModel =
         SearchScreenViewModel(
