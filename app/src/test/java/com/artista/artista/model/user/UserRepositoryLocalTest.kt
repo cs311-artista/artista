@@ -1,6 +1,8 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.model.user
 
+import com.artista.artista.model.error.AppException
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -28,7 +30,7 @@ class UserRepositoryLocalTest {
     val repository = UserRepositoryLocal()
     repository.createUser(userWith("user-1"))
 
-    assertRepositoryThrows<IllegalArgumentException> {
+    assertRepositoryThrows<AppException.AlreadyExists> {
       repository.createUser(userWith("user-1", userName = "Different User"))
     }
   }
@@ -37,7 +39,7 @@ class UserRepositoryLocalTest {
   fun getUserThrowsWhenUserDoesNotExist() = runTest {
     val repository = UserRepositoryLocal()
 
-    assertRepositoryThrows<NoSuchElementException> { repository.getUser("unknown") }
+    assertRepositoryThrows<AppException.NotFound> { repository.getUser("unknown") }
   }
 
   @Test
@@ -55,7 +57,7 @@ class UserRepositoryLocalTest {
   fun updateUserThrowsWhenUserDoesNotExist() = runTest {
     val repository = UserRepositoryLocal()
 
-    assertRepositoryThrows<NoSuchElementException> {
+    assertRepositoryThrows<AppException.NotFound> {
       repository.updateUser("unknown", userWith("unknown"))
     }
   }
@@ -67,14 +69,14 @@ class UserRepositoryLocalTest {
 
     repository.deleteUser("user-1")
 
-    assertRepositoryThrows<NoSuchElementException> { repository.getUser("user-1") }
+    assertRepositoryThrows<AppException.NotFound> { repository.getUser("user-1") }
   }
 
   @Test
   fun deleteUserThrowsWhenUserDoesNotExist() = runTest {
     val repository = UserRepositoryLocal()
 
-    assertRepositoryThrows<NoSuchElementException> { repository.deleteUser("unknown") }
+    assertRepositoryThrows<AppException.NotFound> { repository.deleteUser("unknown") }
   }
 
   /**
