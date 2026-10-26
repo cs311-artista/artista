@@ -61,6 +61,7 @@
     <string name="overview_load_error">Unable to load nearby artworks.</string>
     <string name="overview_saved_artworks_action">Saved artworks</string>
     <string name="overview_search_placeholder">Search artworks or artists</string>
+    <string name="search_placeholder">Search artworks or artists</string>
 
     <!-- Bottom navigation -->
     <string name="navigation_overview">Overview</string>

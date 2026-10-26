@@ -1,6 +1,7 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 package com.artista.artista.ui.search
 
+import androidx.compose.ui.text.TextRange
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -13,6 +14,24 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 /**
+ * Immutable UI state displayed by the Search screen.
+ *
+ * @property query current text entered in the search field
+ * @property selection current cursor or text selection range
+ * @property savedArtworks artworks saved by the current user
+ * @property recommendations saved artworks matching the current query
+ * @property artworks results returned for the submitted query
+ * @author IJJA3141
+ */
+data class SearchScreenUiState(
+    val query: String = "",
+    val selection: TextRange = TextRange.Zero,
+    val savedArtworks: List<Artwork> = emptyList(),
+    val recommendations: List<Artwork> = emptyList(),
+    val artworks: List<Artwork> = emptyList(),
+)
+
+/**
  * Holds search input, recommendations, and artwork results for the search screen.
  *
  * @param savedArtworksRepository provides the current user's saved artworks for suggestions
@@ -23,43 +42,38 @@ class SearchScreenViewModel(
     private val savedArtworksRepository: SavedArtworksRepository,
     private val wikiDataRepository: WikiDataRepository,
 ) : ViewModel() {
-  private val _savedArtworks = MutableStateFlow<List<Artwork>>(emptyList())
-  var savedArtworks = _savedArtworks.asStateFlow()
+  private val _uiState = MutableStateFlow(SearchScreenUiState())
 
-  private val _searchQuery = MutableStateFlow("")
-
-  /** The text currently entered in the search field. */
-  val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
-
-  private val _recommendations = MutableStateFlow<List<Artwork>>(emptyList())
-
-  /** Recommendation strings to display in the search field dropdown. */
-  val recommendations: StateFlow<List<Artwork>> = _recommendations.asStateFlow()
-
-  private val _artworks = MutableStateFlow<List<Artwork>>(emptyList())
-
-  /** Artwork results to display below the search field. */
-  val artworks: StateFlow<List<Artwork>> = _artworks.asStateFlow()
+  /** Current state displayed by the Search screen. */
+  val uiState: StateFlow<SearchScreenUiState> = _uiState.asStateFlow()
 
   init {
     viewModelScope.launch {
-      refreshSavedArtworks()
-      updateRecommendations(_searchQuery.value)
+      val savedArtworks = savedArtworksRepository.getSavedArtworks()
+      _uiState.value =
+          _uiState.value.copy(
+              savedArtworks = savedArtworks,
+              recommendations = recommendationsFor(_uiState.value.query, savedArtworks),
+          )
     }
   }
 
   /**
-   * Updates the search text.
+   * Updates the search text and its cursor or selection range.
    *
-   * @param query the text entered by the user
-   * @author IJJA3141
+   * @param query text currently entered in the field
+   * @param selection cursor or selected range in the field
+   * @author Copilot
    */
-  fun onSearchQueryChanged(query: String) {
-    _searchQuery.value = query
-    updateRecommendations(query)
-    if (query.isBlank()) {
-      _artworks.value = emptyList()
-    }
+  fun onSearchInputChanged(query: String, selection: TextRange) {
+    val currentState = _uiState.value
+    _uiState.value =
+        currentState.copy(
+            query = query,
+            selection = selection,
+            recommendations = recommendationsFor(query, currentState.savedArtworks),
+            artworks = if (query.isBlank()) emptyList() else currentState.artworks,
+        )
   }
 
   /**
@@ -69,14 +83,18 @@ class SearchScreenViewModel(
    * @author IJJA3141
    */
   fun onSearchSubmitted(query: String) {
-    _searchQuery.value = query
-    _recommendations.value = emptyList()
-    if (query.isBlank()) {
-      _artworks.value = emptyList()
-      return
-    }
+    _uiState.value =
+        _uiState.value.copy(
+            query = query,
+            recommendations = emptyList(),
+            artworks = if (query.isBlank()) emptyList() else _uiState.value.artworks,
+        )
+    if (query.isBlank()) return
 
-    viewModelScope.launch { _artworks.value = wikiDataRepository.searchArtworks(query) }
+    viewModelScope.launch {
+      val results = wikiDataRepository.searchArtworks(query)
+      _uiState.value = _uiState.value.copy(artworks = results)
+    }
   }
 
   /**
@@ -86,7 +104,7 @@ class SearchScreenViewModel(
    * @author IJJA3141
    */
   fun toggleSavedArtwork(artwork: Artwork) {
-    val isCurrentlySaved = artwork.uid in _savedArtworks.value.map { it.uid }
+    val isCurrentlySaved = artwork.uid in _uiState.value.savedArtworks.map { it.uid }
 
     viewModelScope.launch {
       try {
@@ -99,26 +117,25 @@ class SearchScreenViewModel(
         // TODO: define error in interface and decide how to display it to the user
       }
 
-      refreshSavedArtworks()
+      val savedArtworks = savedArtworksRepository.getSavedArtworks()
+      _uiState.value =
+          _uiState.value.copy(
+              savedArtworks = savedArtworks,
+              recommendations = recommendationsFor(_uiState.value.query, savedArtworks),
+          )
     }
   }
 
-  private suspend fun refreshSavedArtworks() {
-    _savedArtworks.value = savedArtworksRepository.getSavedArtworks()
-  }
-
-  private fun updateRecommendations(query: String) {
-    _recommendations.value =
-        if (query.isBlank()) {
-          emptyList()
-        } else {
-          _savedArtworks.value
-              .asSequence()
-              .filter { artwork -> artwork.name.contains(query, ignoreCase = true) }
-              .distinct()
-              .toList()
-        }
-  }
+  private fun recommendationsFor(query: String, savedArtworks: List<Artwork>): List<Artwork> =
+      if (query.isBlank()) {
+        emptyList()
+      } else {
+        savedArtworks
+            .asSequence()
+            .filter { artwork -> artwork.name.contains(query, ignoreCase = true) }
+            .distinct()
+            .toList()
+      }
 
   companion object {
     /**

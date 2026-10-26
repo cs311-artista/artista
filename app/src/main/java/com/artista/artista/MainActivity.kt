@@ -111,7 +111,15 @@ fun ArtistaApp(
         )
       }
       composable(Screen.Search.route) {
-        SearchScreen(onTabSelected = { tab -> navigationActions.navigateTo(tab.destination) })
+        SearchScreen(
+            onTabSelected = { tab -> navigationActions.navigateTo(tab.destination) },
+            onArtworkClick = { artwork ->
+              navController.navigate(Screen.ArtworkDetails.createRoute(artwork.uid))
+            },
+            onRecommendationSelected = { recommendation ->
+              navController.navigate(Screen.ArtworkDetails.createRoute(recommendation.uid))
+            },
+        )
       }
     }
 
