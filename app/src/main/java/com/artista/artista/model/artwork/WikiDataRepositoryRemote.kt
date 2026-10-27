@@ -12,6 +12,38 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 
 /**
+ * Constants for Wikidata item identifiers.
+ *
+ * Comments represent WikiData nomenclature for the corresponding item.
+ *
+ * @author IJJA3141
+ */
+object WikiDataItems {
+  const val PAINTING_CLASS = "Q3305213" // painting
+}
+
+/**
+ * Constants for Wikidata property identifiers.
+ *
+ * Comments represent WikiData nomenclature for the corresponding property.
+ *
+ * @author IJJA3141
+ */
+object WikiDataProperties {
+  const val INSTANCE_OF = "P31"
+  const val SUBCLASS_OF = "P279"
+  const val TITLE = "P1476"
+  const val ARTIST = "P170" // creator
+  const val IMAGE = "P18"
+  const val INCEPTION_DATE = "P571" // date of foundation or creation
+  const val COLLECTION = "P195"
+  const val LOCATION = "P276" // located in
+  const val COORDINATES = "P625"
+  const val WIDTH = "P2049"
+  const val HEIGHT = "P2048"
+}
+
+/**
  * Remote implementation of [WikiDataRepository] backed by the Wikidata SPARQL API.
  *
  * Search requests first find a limited set of matching paintings in a subquery, then fetch their
@@ -20,13 +52,26 @@ import okhttp3.Request
  *
  * @param client HTTP client used to execute requests; inject a test client to intercept requests
  * @param endpoint Wikidata SPARQL endpoint URL
- * @author Copilot
+ * @author IJJA3141
  */
 class WikiDataRepositoryRemote(
     private val client: OkHttpClient = OkHttpClient(),
     private val endpoint: HttpUrl = "https://query.wikidata.org/sparql".toHttpUrl(),
 ) : WikiDataRepository {
 
+  /**
+   * Retrieves a single artwork by its Wikidata identifier.
+   *
+   * WikiData can return duplicate rows for the same artwork when multiple labels or measurements are
+   * present. The first parsed row is used because the repository contract expects a single artwork
+   * instance for a given identifier.
+   *
+   * @param uid Wikidata item identifier for the artwork, such as Q12345
+   * @return the artwork matching the identifier
+   * @throws AppException.InvalidInput if the identifier is blank
+   * @throws AppException.NotFound if no artwork matches the identifier
+   * @author IJJA3141
+   */
   override suspend fun getArtwork(uid: ArtworkId): Artwork {
     if (uid.isBlank()) throw AppException.InvalidInput("uid is blank")
 
@@ -36,14 +81,14 @@ class WikiDataRepositoryRemote(
         WHERE {
           VALUES ?item { wd:$uid }
           OPTIONAL { ?item rdfs:label ?itemLabel . FILTER(LANG(?itemLabel) = "en" || LANG(?itemLabel) = "") }
-          OPTIONAL { ?item wdt:P170 ?artist . ?artist rdfs:label ?artistLabel . FILTER(LANG(?artistLabel) = "en") }
-          OPTIONAL { ?item wdt:P18 ?image . }
-          OPTIONAL { ?item wdt:P571 ?inception . }
-          OPTIONAL { ?item wdt:P195 ?collection . ?collection rdfs:label ?collectionLabel . FILTER(LANG(?collectionLabel) = "en") }
-          OPTIONAL { ?item wdt:P276 ?location . ?location rdfs:label ?locationLabel . FILTER(LANG(?locationLabel) = "en") }
-          OPTIONAL { ?item wdt:P625 ?locationCoordinates . }
-          OPTIONAL { ?item wdt:P2049 ?width . }
-          OPTIONAL { ?item wdt:P2048 ?height . }
+          OPTIONAL { ?item wdt:${WikiDataProperties.ARTIST} ?artist . ?artist rdfs:label ?artistLabel . FILTER(LANG(?artistLabel) = "en") }
+          OPTIONAL { ?item wdt:${WikiDataProperties.IMAGE} ?image . }
+          OPTIONAL { ?item wdt:${WikiDataProperties.INCEPTION_DATE} ?inception . }
+          OPTIONAL { ?item wdt:${WikiDataProperties.COLLECTION} ?collection . ?collection rdfs:label ?collectionLabel . FILTER(LANG(?collectionLabel) = "en") }
+          OPTIONAL { ?item wdt:${WikiDataProperties.LOCATION} ?location . ?location rdfs:label ?locationLabel . FILTER(LANG(?locationLabel) = "en") }
+          OPTIONAL { ?item wdt:${WikiDataProperties.LOCATION} ?locationCoordinates . }
+          OPTIONAL { ?item wdt:${WikiDataProperties.WIDTH} ?width . }
+          OPTIONAL { ?item wdt:${WikiDataProperties.HEIGHT} ?height . }
           OPTIONAL { ?item schema:description ?description . FILTER(LANG(?description) = "en") }
         }
         """.trimIndent()
@@ -51,20 +96,37 @@ class WikiDataRepositoryRemote(
     val response = executeSparqlRequest(query)
     val artworks = parseArtworkResults(response)
 
-    // it might append that the api replies with the same uid multiple times, so we just return the first one
-    // this happens when the artwork has multiple labels or size (it is weird that WikiData stores the same artwork multiple times)
     return artworks.firstOrNull() ?: throw AppException.NotFound("No artwork found for uid $uid")
   }
 
-    // only searches in English for now.
+  /**
+   * Searches for artworks by label using the English-language Wikidata data set.
+   *
+   * The search is intentionally limited to English strings to keep the user-facing result set stable
+   * and avoid mixing localized labels from other languages.
+   *
+   * @param query text to search for in the artwork title
+   * @return the artworks whose English title contains the search term
+   * @author IJJA3141
+   */
   override suspend fun searchArtworks(query: String): List<Artwork> {
     if (query.isBlank()) return emptyList()
     val request = buildRequest(query)
+    println(request)
     val response = executeSparqlRequest(request)
     return parseArtworkResults(response)
   }
 
-  // For now only filters by label, but we can add more filters later (like artist, collection, etc.)
+  /**
+   * Builds a SPARQL query for label-based artwork search.
+   *
+   * Only English labels are considered for now because the app currently presents artwork titles in a
+   * single language; this keeps the query predictable while leaving room to extend the filters later.
+   *
+   * @param searchTerm user-entered text used to match artwork titles
+   * @return SPARQL query string for the Wikidata endpoint
+   * @author IJJA3141
+   */
   internal fun buildRequest(searchTerm: String): String {
     val normalized = searchTerm.trim()
     val escapedTerm =
@@ -79,21 +141,21 @@ class WikiDataRepositoryRemote(
         {
           SELECT DISTINCT ?item ?itemLabel
           WHERE {
-            wd:Q3305213 ^wdt:P279*/^wdt:P31 ?item .
+            wd:${WikiDataItems.PAINTING_CLASS} ^wdt:${WikiDataProperties.SUBCLASS_OF}*/^wdt:${WikiDataProperties.INSTANCE_OF} ?item .
             ?item rdfs:label ?itemLabel .
             FILTER(LANG(?itemLabel) = "en")
             FILTER(CONTAINS(LCASE(STR(?itemLabel)), "$escapedTerm"))
           }
           LIMIT 50
         }
-        OPTIONAL { ?item wdt:P170 ?artist . ?artist rdfs:label ?artistLabel . FILTER(LANG(?artistLabel) = "en") }
-        OPTIONAL { ?item wdt:P18 ?image . }
-        OPTIONAL { ?item wdt:P571 ?inception . }
-        OPTIONAL { ?item wdt:P195 ?collection . ?collection rdfs:label ?collectionLabel . FILTER(LANG(?collectionLabel) = "en") }
-        OPTIONAL { ?item wdt:P276 ?location . ?location rdfs:label ?locationLabel . FILTER(LANG(?locationLabel) = "en") }
-        OPTIONAL { ?item wdt:P625 ?locationCoordinates . }
-        OPTIONAL { ?item wdt:P2049 ?width . }
-        OPTIONAL { ?item wdt:P2048 ?height . }
+        OPTIONAL { ?item wdt:${WikiDataProperties.ARTIST} ?artist . ?artist rdfs:label ?artistLabel . FILTER(LANG(?artistLabel) = "en") }
+        OPTIONAL { ?item wdt:${WikiDataProperties.IMAGE} ?image . }
+        OPTIONAL { ?item wdt:${WikiDataProperties.INCEPTION_DATE} ?inception . }
+        OPTIONAL { ?item wdt:${WikiDataProperties.COLLECTION} ?collection . ?collection rdfs:label ?collectionLabel . FILTER(LANG(?collectionLabel) = "en") }
+        OPTIONAL { ?item wdt:${WikiDataProperties.LOCATION} ?location . ?location rdfs:label ?locationLabel . FILTER(LANG(?locationLabel) = "en") }
+        OPTIONAL { ?item wdt:${WikiDataProperties.LOCATION} ?locationCoordinates . }
+        OPTIONAL { ?item wdt:${WikiDataProperties.WIDTH} ?width . }
+        OPTIONAL { ?item wdt:${WikiDataProperties.HEIGHT} ?height . }
         OPTIONAL { ?item schema:description ?description . FILTER(LANG(?description) = "en") }
       }
       """.trimIndent()
@@ -134,7 +196,21 @@ class WikiDataRepositoryRemote(
         }
       }
 
+  /**
+   * Parses a SPARQL JSON response into artwork domain objects.
+   *
+   * This method is intentionally left unimplemented for now; the repository currently delegates the
+   * full response parsing to the next implementation step once the API contract is finalized.
+   *
+   * @param responseBody raw SPARQL JSON body returned by the endpoint
+   * @return the artworks encoded in the response
+   * @throws NotImplementedError until the parsing logic is implemented
+   * @author IJJA3141
+   */
   internal fun parseArtworkResults(responseBody: String): List<Artwork> {
+    println(responseBody) // for test purposes, to see the response from Wikidata
+                        // will be removed when the parsing is implemented
+
     throw NotImplementedError("Parsing of Wikidata response is not implemented yet")
   }
 }
