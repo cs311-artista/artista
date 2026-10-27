@@ -1,5 +1,6 @@
 package com.artista.artista.ui.preferences
 
+import com.artista.artista.model.artwork.ArtworkRepositoryLocal
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -17,7 +18,8 @@ class ArtistPreferencesViewModelTest {
 
   @Before
   fun setUp() {
-    viewModel = ArtistPreferencesViewModel()
+    val repository = ArtworkRepositoryLocal()
+    viewModel = ArtistPreferencesViewModel(repository)
   }
 
   /** Verifies that the popular artists of the mockup are exposed, in their display order. */
