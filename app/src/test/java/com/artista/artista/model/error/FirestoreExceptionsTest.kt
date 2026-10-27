@@ -22,6 +22,10 @@ import org.junit.Test
  */
 class FirestoreExceptionsTest {
 
+  /**
+   * Checks that each Firestore code listed in [KNOWN_MAPPINGS] becomes its matching [AppException]
+   * type.
+   */
   @Test
   fun toAppException_mapsKnownCodesToMatchingAppException() {
     KNOWN_MAPPINGS.forEach { (code, expectedType) ->
@@ -33,6 +37,7 @@ class FirestoreExceptionsTest {
     }
   }
 
+  /** Checks that every Firestore code without a dedicated type becomes [AppException.Unknown]. */
   @Test
   fun toAppException_mapsOtherCodesToUnknown() {
     // OK is excluded because Firestore refuses to build an exception with that code.
@@ -47,6 +52,7 @@ class FirestoreExceptionsTest {
     }
   }
 
+  /** Checks that the original Firestore exception is kept as the cause, so logs still show it. */
   @Test
   fun toAppException_keepsFirestoreExceptionAsCause() {
     val failure = firestoreException(Code.UNAVAILABLE)
@@ -54,11 +60,16 @@ class FirestoreExceptionsTest {
     assertSame(failure, failure.toAppException().cause)
   }
 
+  /** Checks that a successful operation returns its result unchanged. */
   @Test
   fun translateFirestoreErrors_whenOperationSucceeds_returnsItsResult() = runTest {
     assertEquals("value", translateFirestoreErrors { "value" })
   }
 
+  /**
+   * Checks that a Firestore failure is thrown as the matching [AppException], with the original as
+   * cause.
+   */
   @Test
   fun translateFirestoreErrors_whenFirestoreFails_throwsMatchingAppException() = runTest {
     val failure = firestoreException(Code.UNAVAILABLE)
@@ -69,6 +80,10 @@ class FirestoreExceptionsTest {
     assertSame(failure, thrown?.cause)
   }
 
+  /**
+   * Checks that an [AppException] thrown by the operation itself is rethrown without being
+   * translated again.
+   */
   @Test
   fun translateFirestoreErrors_whenOperationThrowsAppException_rethrowsItUnchanged() = runTest {
     val failure = AppException.NotFound("Simulated missing document")
