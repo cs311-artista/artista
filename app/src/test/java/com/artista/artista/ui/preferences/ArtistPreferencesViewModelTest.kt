@@ -1,20 +1,28 @@
 package com.artista.artista.ui.preferences
 
+import com.artista.artista.MainDispatcherRule
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 /**
  * Tests the state exposed by [ArtistPreferencesViewModel].
  *
- * @author Timz3rr
+ * @author Timz3rr, patrickmcdan
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 class ArtistPreferencesViewModelTest {
 
   private lateinit var viewModel: ArtistPreferencesViewModel
+
+  @get:Rule val mainDispatcherRule = MainDispatcherRule()
 
   @Before
   fun setUp() {
@@ -24,7 +32,9 @@ class ArtistPreferencesViewModelTest {
 
   /** Verifies that the popular artists of the mockup are exposed, in their display order. */
   @Test
-  fun initialState_exposesPopularArtists() {
+  fun initialState_exposesPopularArtists() = runTest {
+    advanceUntilIdle()
+
     assertEquals(
         listOf(PICASSO, VAN_GOGH, RENOIR, MONET, KLIMT, MATISSE),
         viewModel.uiState.value.popularArtists,
