@@ -14,7 +14,7 @@ import com.artista.artista.ui.map.UserLocation
  */
 class ArtworkRepositoryLocal : SavedArtworksRepository, WikiDataRepository {
   /** Stores all artworks available in the local repository. */
-  private val artworks: HashMap<ArtworkId, Artwork> = hashMapOf()
+  private val artworks: HashMap<ArtworkId, Artwork> = linkedMapOf()
 
   /** Stores the artworks currently saved by the user. */
   private val artworksSaved: HashMap<ArtworkId, Artwork> = hashMapOf()
