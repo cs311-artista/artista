@@ -14,13 +14,17 @@ import androidx.navigation.compose.rememberNavController
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.artista.artista.ArtistaApp
+import com.artista.artista.model.artwork.ArtworkRepositoryLocal
+import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.artwork.mockArtworks
 import com.artista.artista.ui.artwork.ArtworkCardTestTag
 import com.artista.artista.ui.artwork.ArtworkTestTags
 import com.artista.artista.ui.map.MapScreenTestTags
 import com.artista.artista.ui.map.REQUIRED_LOCATION_PERMISSIONS
 import com.artista.artista.ui.navigation.Screen
+import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -29,10 +33,36 @@ import org.junit.runner.RunWith
 /**
  * Verifies navigation actions originating from the Overview screen.
  *
- * @author hixeum
+ * @author hixeum, patrickmcdan
  */
 @RunWith(AndroidJUnit4::class)
 class OverviewScreenNavigationTest {
+  private lateinit var originalRepository: ArtworkRepositoryLocal
+
+  /**
+   * Gives each test its own seeded repository, so results do not depend on test order or on state
+   * left in the shared provider by other test classes.
+   *
+   * @author patrickmcdan
+   */
+  @Before
+  fun setUp() {
+    originalRepository = ArtworkRepositoryProvider.repository
+    ArtworkRepositoryProvider.repository =
+        ArtworkRepositoryLocal().also { repository ->
+          mockArtworks.forEach { repository.putArtworkInRepositoryUnsavedSection(it) }
+        }
+  }
+
+  /**
+   * Restores the shared repository so other tests are not affected.
+   *
+   * @author patrickmcdan
+   */
+  @After
+  fun tearDown() {
+    ArtworkRepositoryProvider.repository = originalRepository
+  }
 
   @get:Rule val composeTestRule = createAndroidComposeRule<ComponentActivity>()
 

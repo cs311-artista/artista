@@ -4,7 +4,9 @@ package com.artista.artista.ui.overview
 import com.artista.artista.MainDispatcherRule
 import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
-import com.artista.artista.model.artwork.mockArtworks
+import com.artista.artista.model.artwork.ArtworkRepositoryLocal
+import com.artista.artista.model.artwork.WikiDataRepository
+import com.artista.artista.ui.map.UserLocation
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -35,25 +37,16 @@ class OverviewScreenViewModelTest {
             artwork(name = "The Starry Night", artistName = "Vincent van Gogh"),
             artwork(name = "Girl with a Pearl Earring", artistName = "Johannes Vermeer"),
         )
-    val viewModel = OverviewViewModel(artworkProvider = { expectedArtworks })
+    val repository =
+        object : WikiDataRepository by ArtworkRepositoryLocal() {
+          override suspend fun getArtworksNearLocation(location: UserLocation?): List<Artwork> =
+              expectedArtworks
+        }
+    val viewModel = OverviewViewModel(repository)
 
     advanceUntilIdle()
 
     assertEquals(expectedArtworks, viewModel.uiState.value.artworks)
-  }
-
-  /**
-   * Verifies that the default data source provides deterministic placeholder content.
-   *
-   * @author patrickmcdan
-   */
-  @Test
-  fun overviewViewModel_defaultDataSourceProvidesPlaceholderArtworks() = runTest {
-    val viewModel = OverviewViewModel()
-
-    advanceUntilIdle()
-
-    assertEquals(mockArtworks, viewModel.uiState.value.artworks)
   }
 
   /**
@@ -63,7 +56,12 @@ class OverviewScreenViewModelTest {
    */
   @Test
   fun overviewViewModel_whenLoadingFails_exposesLoadError() = runTest {
-    val viewModel = OverviewViewModel(artworkProvider = { error("Artwork provider failure") })
+    val failing =
+        object : WikiDataRepository by ArtworkRepositoryLocal() {
+          override suspend fun getArtworksNearLocation(location: UserLocation?): List<Artwork> =
+              error("Artwork provider failure")
+        }
+    val viewModel = OverviewViewModel(failing)
 
     advanceUntilIdle()
 
@@ -78,7 +76,12 @@ class OverviewScreenViewModelTest {
    */
   @Test
   fun clearErrorMessage_removesTheCurrentError() = runTest {
-    val viewModel = OverviewViewModel(artworkProvider = { error("Artwork provider failure") })
+    val failing =
+        object : WikiDataRepository by ArtworkRepositoryLocal() {
+          override suspend fun getArtworksNearLocation(location: UserLocation?): List<Artwork> =
+              error("Artwork provider failure")
+        }
+    val viewModel = OverviewViewModel(failing)
 
     advanceUntilIdle()
     viewModel.clearErrorMessage()
