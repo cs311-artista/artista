@@ -17,6 +17,8 @@ import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.SavedArtworksRepository
 import com.artista.artista.model.artwork.WikiDataRepository
+import com.artista.artista.ui.map.UserLocation
+import kotlin.NotImplementedError
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -95,6 +97,14 @@ class SearchScreenTest {
           override suspend fun searchArtworks(query: String): List<Artwork> {
             submittedQuery = query
             return emptyList()
+          }
+
+          override suspend fun getArtworksNearLocation(location: UserLocation?): List<Artwork> {
+            throw NotImplementedError()
+          }
+
+          override suspend fun getPopularArtists(): List<String> {
+            throw NotImplementedError()
           }
         }
     val viewModel = SearchScreenViewModel(fakeArtworkRepository(), wikiRepository)
@@ -241,6 +251,14 @@ class SearchScreenTest {
 
   private fun fakeWikiRepository(): WikiDataRepository =
       object : WikiDataRepository {
+        override suspend fun getArtworksNearLocation(location: UserLocation?): List<Artwork> {
+          throw NotImplementedError()
+        }
+
+        override suspend fun getPopularArtists(): List<String> {
+          throw NotImplementedError()
+        }
+
         override suspend fun getArtwork(uid: ArtworkId): Artwork {
           throw NotImplementedError()
         }

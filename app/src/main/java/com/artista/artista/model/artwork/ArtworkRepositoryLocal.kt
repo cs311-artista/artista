@@ -1,5 +1,8 @@
 package com.artista.artista.model.artwork
 
+import com.artista.artista.ui.map.UserLocation
+
+// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 /**
  * In-memory repository for artwork data used during local app development and testing.
  *
@@ -7,7 +10,7 @@ package com.artista.artista.model.artwork
  * user's saved artworks. It supports lookups by identifier, search by name or artist, and spatial
  * filtering by a radius from a given location.</p>
  *
- * @author 5kyPhy
+ * @author 5kyPhy, patrickmcdan
  */
 class ArtworkRepositoryLocal : SavedArtworksRepository, WikiDataRepository {
   /** Stores all artworks available in the local repository. */
@@ -15,6 +18,13 @@ class ArtworkRepositoryLocal : SavedArtworksRepository, WikiDataRepository {
 
   /** Stores the artworks currently saved by the user. */
   private val artworksSaved: HashMap<ArtworkId, Artwork> = hashMapOf()
+
+  /** Returns the artworks populated in the local repository. */
+  override suspend fun getArtworksNearLocation(location: UserLocation?): List<Artwork> =
+      artworks.values.toList()
+
+  /** Returns the locally defined popular artists. */
+  override suspend fun getPopularArtists(): List<String> = mockPopularArtists
 
   override suspend fun getArtwork(uid: ArtworkId): Artwork {
     if (uid.isBlank()) throw IllegalArgumentException("uid is blank")
