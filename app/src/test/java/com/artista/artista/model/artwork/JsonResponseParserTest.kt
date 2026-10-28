@@ -2,16 +2,16 @@
 package com.artista.artista.model.artwork
 
 import com.artista.artista.model.map.Location
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneOffset
+import java.util.Date
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import java.time.Instant
-import java.time.LocalDate
-import java.time.ZoneOffset
-import java.util.Date
 
 /**
  * Tests parsing a real Wikidata SPARQL response.
@@ -99,12 +99,16 @@ class JsonResponseParserTest {
   fun testParseDate_withLocalDateParse() {
     val date = invokePrivateMethod<Date>(parser, "parseDate", "2023-01-01")
     assertNotNull(date)
-    assertEquals(Date.from(LocalDate.parse("2023-01-01").atStartOfDay(ZoneOffset.UTC).toInstant()), date)
+    assertEquals(
+        Date.from(LocalDate.parse("2023-01-01").atStartOfDay(ZoneOffset.UTC).toInstant()),
+        date,
+    )
   }
 
   @Test
   fun testParseLocation_withCoordinates() {
-    val location = invokePrivateMethod<Location?>(parser, "parseLocation", "Point(1.0 2.0)", "Test Location")
+    val location =
+        invokePrivateMethod<Location?>(parser, "parseLocation", "Point(1.0 2.0)", "Test Location")
     assertNotNull(location)
     assertEquals(1.0, location!!.longitude, 0.0)
     assertEquals(2.0, location.latitude, 0.0)
@@ -126,8 +130,18 @@ class JsonResponseParserTest {
     assertNull(location)
   }
 
-  private inline fun <reified T> invokePrivateMethod(obj: Any, methodName: String, vararg args: Any?): T {
-    val method = JsonResponseParser::class.java.getDeclaredMethod(methodName, *args.map { it?.javaClass ?: String::class.java }.toTypedArray())
+  private inline fun <reified T> invokePrivateMethod(
+      obj: Any,
+      methodName: String,
+      vararg args: Any?,
+  ): T {
+    val method =
+        JsonResponseParser::class
+            .java
+            .getDeclaredMethod(
+                methodName,
+                *args.map { it?.javaClass ?: String::class.java }.toTypedArray(),
+            )
     method.isAccessible = true
     return method.invoke(obj, *args) as T
   }

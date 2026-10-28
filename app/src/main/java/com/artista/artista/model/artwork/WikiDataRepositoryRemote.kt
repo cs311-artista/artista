@@ -1,7 +1,6 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 package com.artista.artista.model.artwork
 
-import android.util.Log
 import com.artista.artista.model.error.AppException
 import java.util.Locale
 import kotlinx.coroutines.CancellationException
@@ -61,7 +60,7 @@ class WikiDataRepositoryRemote(
 ) : WikiDataRepository {
 
   private val jsonResponseParser = JsonResponseParser()
-  
+
   private companion object {
     /** Wikidata item IDs are "Q" followed by one or more digits, e.g. Q12345. */
     val ITEM_ID_REGEX = Regex("Q\\d+")
