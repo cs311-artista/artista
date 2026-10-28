@@ -2,23 +2,29 @@
 package com.artista.artista.ui.search
 
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTextInputSelection
+import androidx.compose.ui.text.TextRange
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkId
-import com.artista.artista.model.artwork.SavedArtworksRepository
 import com.artista.artista.model.artwork.WikiDataRepository
 import com.artista.artista.ui.map.UserLocation
 import kotlin.NotImplementedError
+import com.artista.artista.ui.artwork.ArtworkCardTestTag
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -28,7 +34,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -52,8 +58,53 @@ class SearchScreenTest {
   }
 
   @Test
+  fun searchBar_requestsFocusWhenScreenIsOpened() = runTest {
+    val viewModel = createViewModel()
+
+    composeTestRule.setContent {
+      MaterialTheme { SearchScreen(onTabSelected = {}, viewModel = viewModel) }
+    }
+
+    composeTestRule.waitForIdle()
+    composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT).assertIsFocused()
+  }
+
+  @Test
+  fun searchBar_restoresCursorPositionWhenScreenIsRecreated() = runTest {
+    val viewModel = createViewModel()
+    val showSearchScreen = mutableStateOf(true)
+
+    composeTestRule.setContent {
+      MaterialTheme {
+        if (showSearchScreen.value) {
+          SearchScreen(onTabSelected = {}, viewModel = viewModel)
+        } else {
+          Text("Artwork details")
+        }
+      }
+    }
+
+    composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT).performTextInput("star")
+    composeTestRule
+        .onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT)
+        .performTextInputSelection(TextRange(2))
+    composeTestRule.waitForIdle()
+    assertEquals("star", viewModel.uiState.value.query)
+    assertEquals(TextRange(2), viewModel.uiState.value.selection)
+
+    composeTestRule.runOnIdle { showSearchScreen.value = false }
+    composeTestRule.waitForIdle()
+    composeTestRule.runOnIdle { showSearchScreen.value = true }
+    composeTestRule.waitForIdle()
+
+    val fieldSemantics =
+        composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT).fetchSemanticsNode().config
+    assertEquals(TextRange(2), fieldSemantics[SemanticsProperties.TextSelectionRange])
+  }
+
+  @Test
   fun searchBar_displaysMatchingRecommendationsFromSavedArtworks() = runTest {
-    val viewModel = SearchScreenViewModel(fakeArtworkRepository(), fakeWikiRepository())
+    val viewModel = createViewModel()
 
     composeTestRule.setContent {
       MaterialTheme { SearchScreen(onTabSelected = {}, viewModel = viewModel) }
@@ -61,42 +112,78 @@ class SearchScreenTest {
 
     composeTestRule.waitForIdle()
     advanceUntilIdle()
-    composeTestRule.onNodeWithTag("search_input").performTextInput("star")
+    composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT).performTextInput("star")
     advanceUntilIdle()
 
-    composeTestRule.onAllNodesWithTag("search_recommendation").assertCountEquals(1)
-    composeTestRule.onNodeWithTag("search_recommendation").assert(hasText("The Starry Night"))
-    composeTestRule.onNodeWithTag("search_recommendation").assertIsDisplayed()
-
-    composeTestRule.onNodeWithTag("search_input").performTextClearance()
-    composeTestRule.onNodeWithTag("search_input").performTextInput("pearl")
-    advanceUntilIdle()
-
-    composeTestRule.onAllNodesWithTag("search_recommendation").assertCountEquals(1)
     composeTestRule
-        .onNodeWithTag("search_recommendation")
+        .onAllNodesWithTag(SearchScreenTestTags.SEARCH_RECOMMENDATION)
+        .assertCountEquals(1)
+    composeTestRule
+        .onNodeWithTag(SearchScreenTestTags.SEARCH_RECOMMENDATION)
+        .assert(hasText("The Starry Night"))
+    composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_RECOMMENDATION).assertIsDisplayed()
+
+    composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT).performTextClearance()
+    composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT).performTextInput("pearl")
+    advanceUntilIdle()
+
+    composeTestRule
+        .onAllNodesWithTag(SearchScreenTestTags.SEARCH_RECOMMENDATION)
+        .assertCountEquals(1)
+    composeTestRule
+        .onNodeWithTag(SearchScreenTestTags.SEARCH_RECOMMENDATION)
         .assert(hasText("Girl with a Pearl Earring"))
         .assertIsDisplayed()
 
-    composeTestRule.onNodeWithTag("search_input").performTextClearance()
-    composeTestRule.onNodeWithTag("search_input").performTextInput("unmatched")
+    composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT).performTextClearance()
+    composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT).performTextInput("unmatched")
     advanceUntilIdle()
 
-    composeTestRule.onAllNodesWithTag("search_recommendation").assertCountEquals(0)
+    composeTestRule
+        .onAllNodesWithTag(SearchScreenTestTags.SEARCH_RECOMMENDATION)
+        .assertCountEquals(0)
   }
 
   @Test
   fun searchBar_hidesDropdownAndSubmitsOnlyWhenQueryIsSubmitted() = runTest {
-    var submittedQuery: String? = null
-    val wikiRepository =
+    val wikiRepository = SearchTestData.wikiDataRepository()
+    val viewModel = SearchScreenViewModel(SearchTestData.savedArtworksRepository(), wikiRepository)
+
+    composeTestRule.setContent {
+      MaterialTheme { SearchScreen(onTabSelected = {}, viewModel = viewModel) }
+    }
+
+    composeTestRule.waitForIdle()
+    advanceUntilIdle()
+    composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT).performTextInput("star")
+    advanceUntilIdle()
+
+    composeTestRule
+        .onAllNodesWithTag(SearchScreenTestTags.SEARCH_RECOMMENDATION)
+        .assertCountEquals(1)
+    composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_RECOMMENDATION).assertIsDisplayed()
+    assertTrue(wikiRepository.searchedQueries.isEmpty())
+
+    composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT).performImeAction()
+    advanceUntilIdle()
+
+    assertEquals(listOf("star"), wikiRepository.searchedQueries)
+    composeTestRule
+        .onAllNodesWithTag(SearchScreenTestTags.SEARCH_RECOMMENDATION)
+        .assertCountEquals(0)
+  }
+
+  @Test
+  fun searchBar_showsLoadingIndicatorUntilSearchResultsArrive() = runTest {
+    val resultsGate = CompletableDeferred<Unit>()
+    val wikiRepository = SearchTestData.wikiDataRepository()
+    val delayedWikiRepository =
         object : WikiDataRepository {
-          override suspend fun getArtwork(uid: ArtworkId): Artwork {
-            throw NotImplementedError()
-          }
+          override suspend fun getArtwork(uid: ArtworkId) = wikiRepository.getArtwork(uid)
 
           override suspend fun searchArtworks(query: String): List<Artwork> {
-            submittedQuery = query
-            return emptyList()
+            resultsGate.await()
+            return wikiRepository.searchArtworks(query)
           }
 
           override suspend fun getArtworksNearLocation(location: UserLocation?): List<Artwork> {
@@ -107,7 +194,8 @@ class SearchScreenTest {
             throw NotImplementedError()
           }
         }
-    val viewModel = SearchScreenViewModel(fakeArtworkRepository(), wikiRepository)
+    val viewModel =
+        SearchScreenViewModel(SearchTestData.savedArtworksRepository(), delayedWikiRepository)
 
     composeTestRule.setContent {
       MaterialTheme { SearchScreen(onTabSelected = {}, viewModel = viewModel) }
@@ -115,23 +203,25 @@ class SearchScreenTest {
 
     composeTestRule.waitForIdle()
     advanceUntilIdle()
-    composeTestRule.onNodeWithTag("search_input").performTextInput("star")
+    composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT).performTextInput("star")
+    composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT).performImeAction()
     advanceUntilIdle()
 
-    composeTestRule.onAllNodesWithTag("search_recommendation").assertCountEquals(1)
-    composeTestRule.onNodeWithTag("search_recommendation").assertIsDisplayed()
-    assertNull(submittedQuery)
-
-    composeTestRule.onNodeWithTag("search_input").performImeAction()
+    composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_LOADING_INDICATOR).assertIsDisplayed()
+    resultsGate.complete(Unit)
     advanceUntilIdle()
 
-    assertEquals("star", submittedQuery)
-    composeTestRule.onAllNodesWithTag("search_recommendation").assertCountEquals(0)
+    composeTestRule
+        .onAllNodesWithTag(SearchScreenTestTags.SEARCH_LOADING_INDICATOR)
+        .assertCountEquals(0)
+    composeTestRule
+        .onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD_TITLE, useUnmergedTree = true)
+        .assert(hasText("The Starry Night"))
   }
 
   @Test
   fun searchResults_displayFallbackArtistWhenArtistIsMissing() = runTest {
-    val viewModel = SearchScreenViewModel(fakeArtworkRepository(), fakeWikiRepository())
+    val viewModel = createViewModel()
 
     advanceUntilIdle()
     viewModel.onSearchSubmitted("untitled")
@@ -141,164 +231,38 @@ class SearchScreenTest {
       MaterialTheme { SearchScreen(onTabSelected = {}, viewModel = viewModel) }
     }
 
-    composeTestRule.onNodeWithText("Untitled study").assertIsDisplayed()
-    composeTestRule.onNodeWithText("Unknown Artist").assertIsDisplayed()
+    composeTestRule
+        .onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD_TITLE, useUnmergedTree = true)
+        .assert(hasText("Untitled study"))
+    composeTestRule
+        .onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD_ARTIST, useUnmergedTree = true)
+        .assert(hasText("Unknown Artist"))
   }
 
   @Test
   fun toggleSavedArtwork_usesSavedArtworkListToSaveOrRemoveArtwork() = runTest {
-    val artwork =
-        Artwork(
-            uid = "savedId",
-            name = "Saved artwork",
-            artistName = "Artist",
-            location = null,
-            conceptionDate = null,
-            dimension = null,
-            description = null,
-            museum = null,
-        )
-    val savedArtworks = mutableListOf(artwork)
-    val repository =
-        object : SavedArtworksRepository {
-          override suspend fun isArtworkSaved(uid: ArtworkId): Boolean = savedArtworks.any {
-            it.uid == uid
-          }
-
-          override suspend fun saveArtwork(artwork: Artwork) {
-            savedArtworks.add(artwork)
-          }
-
-          override suspend fun removeArtworkFromSaved(uid: ArtworkId) {
-            savedArtworks.removeAll { it.uid == uid }
-          }
-
-          override suspend fun getSavedArtworks(): List<Artwork> = savedArtworks.toList()
-        }
-    val viewModel = SearchScreenViewModel(repository, fakeWikiRepository())
+    val artwork = SearchTestData.girlWithPearlEarring.copy(uid = "savedId", name = "Saved artwork")
+    val repository = SearchTestData.savedArtworksRepository(listOf(artwork))
+    val viewModel = SearchScreenViewModel(repository, SearchTestData.wikiDataRepository())
     advanceUntilIdle()
-    assertEquals(listOf(artwork), viewModel.savedArtworks.value)
+    assertEquals(listOf(artwork), viewModel.uiState.value.savedArtworks)
 
     viewModel.toggleSavedArtwork(artwork)
     advanceUntilIdle()
 
-    assertEquals(emptyList<Artwork>(), savedArtworks)
-    assertEquals(emptyList<Artwork>(), viewModel.savedArtworks.value)
+    assertEquals(emptyList<Artwork>(), repository.savedArtworks)
+    assertEquals(emptyList<Artwork>(), viewModel.uiState.value.savedArtworks)
 
     viewModel.toggleSavedArtwork(artwork)
     advanceUntilIdle()
 
-    assertEquals(listOf(artwork), savedArtworks)
-    assertEquals(listOf(artwork), viewModel.savedArtworks.value)
+    assertEquals(listOf(artwork), repository.savedArtworks)
+    assertEquals(listOf(artwork), viewModel.uiState.value.savedArtworks)
   }
 
-  private fun fakeArtworkRepository(): SavedArtworksRepository =
-      object : SavedArtworksRepository {
-
-        private val savedArtworks = mutableListOf<Artwork>()
-        var shouldThrowError = false
-
-        override suspend fun isArtworkSaved(uid: ArtworkId): Boolean {
-          if (shouldThrowError) throw RuntimeException("Simulated error")
-          return savedArtworks.any { it.name == uid }
-        }
-
-        override suspend fun saveArtwork(artwork: Artwork) {
-          if (shouldThrowError) throw RuntimeException("Simulated database failure")
-          savedArtworks.removeAll { it.name == artwork.name }
-          savedArtworks.add(artwork)
-        }
-
-        override suspend fun removeArtworkFromSaved(uid: ArtworkId) {
-          if (shouldThrowError) throw RuntimeException("Simulated database failure")
-          savedArtworks.removeAll { it.name == uid }
-        }
-
-        override suspend fun getSavedArtworks(): List<Artwork> =
-            listOf(
-                Artwork(
-                    uid = "starryId",
-                    name = "The Starry Night",
-                    artistName = "Vincent van Gogh",
-                    location = null,
-                    conceptionDate = null,
-                    dimension = null,
-                    description = null,
-                    museum = null,
-                ),
-                Artwork(
-                    uid = "girlId",
-                    name = "Girl with a Pearl Earring",
-                    artistName = "Johannes Vermeer",
-                    location = null,
-                    conceptionDate = null,
-                    dimension = null,
-                    description = null,
-                    museum = null,
-                ),
-                Artwork(
-                    uid = "untitledId",
-                    name = "Untitled study",
-                    artistName = null,
-                    location = null,
-                    conceptionDate = null,
-                    dimension = null,
-                    description = null,
-                    museum = null,
-                ),
-            )
-      }
-
-  private fun fakeWikiRepository(): WikiDataRepository =
-      object : WikiDataRepository {
-        override suspend fun getArtworksNearLocation(location: UserLocation?): List<Artwork> {
-          throw NotImplementedError()
-        }
-
-        override suspend fun getPopularArtists(): List<String> {
-          throw NotImplementedError()
-        }
-
-        override suspend fun getArtwork(uid: ArtworkId): Artwork {
-          throw NotImplementedError()
-        }
-
-        override suspend fun searchArtworks(query: String): List<Artwork> =
-            listOf(
-                    Artwork(
-                        uid = "starryId",
-                        name = "The Starry Night",
-                        artistName = "Vincent van Gogh",
-                        location = null,
-                        conceptionDate = null,
-                        dimension = null,
-                        description = null,
-                        museum = null,
-                    ),
-                    Artwork(
-                        uid = "girlId",
-                        name = "Girl with a Pearl Earring",
-                        artistName = "Johannes Vermeer",
-                        location = null,
-                        conceptionDate = null,
-                        dimension = null,
-                        description = null,
-                        museum = null,
-                    ),
-                    Artwork(
-                        uid = "untitledId",
-                        name = "Untitled study",
-                        artistName = null,
-                        location = null,
-                        conceptionDate = null,
-                        dimension = null,
-                        description = null,
-                        museum = null,
-                    ),
-                )
-                .filter {
-                  it.name.contains(query, ignoreCase = true) ||
-                      it.artistName?.contains(query, ignoreCase = true) == true
-                }
-      }
+  private fun createViewModel() =
+      SearchScreenViewModel(
+          SearchTestData.savedArtworksRepository(),
+          SearchTestData.wikiDataRepository(),
+      )
 }

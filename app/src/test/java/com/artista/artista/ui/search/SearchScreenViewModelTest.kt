@@ -1,10 +1,11 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 package com.artista.artista.ui.search
 
+import androidx.compose.ui.text.TextRange
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkId
-import com.artista.artista.model.artwork.SavedArtworksRepository
 import com.artista.artista.model.artwork.WikiDataRepository
+import kotlinx.coroutines.CompletableDeferred
 import com.artista.artista.ui.map.UserLocation
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -15,6 +16,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -33,224 +35,144 @@ class SearchScreenViewModelTest {
   }
 
   @Test
-  fun onSearchQueryChanged_updatesSearchTextAndRecommendationsWithoutFetchingResults() = runTest {
-    val viewModel = SearchScreenViewModel(fakeArtworkRepository(), fakeWikiRepository())
+  fun onSearchInputChanged_updatesQuerySelectionAndRecommendations() = runTest {
+    val viewModel =
+        SearchScreenViewModel(
+            SearchTestData.savedArtworksRepository(),
+            SearchTestData.wikiDataRepository(),
+        )
 
     advanceUntilIdle()
-    viewModel.onSearchQueryChanged("star")
+    viewModel.onSearchInputChanged("star", TextRange(2))
     advanceUntilIdle()
 
-    assertEquals("star", viewModel.searchQuery.value)
-    assertEquals(listOf("The Starry Night"), viewModel.recommendations.value)
-    assertTrue(viewModel.artworks.value.isEmpty())
+    assertEquals("star", viewModel.uiState.value.query)
+    assertEquals(TextRange(2), viewModel.uiState.value.selection)
+    assertEquals(listOf("starryId"), viewModel.uiState.value.recommendations.map { it.uid })
+    assertEquals(
+        listOf("The Starry Night"),
+        viewModel.uiState.value.recommendations.map { it.name },
+    )
+    assertTrue(viewModel.uiState.value.artworks.isEmpty())
   }
 
   @Test
   fun onSearchSubmitted_fetchesMatchingArtworksFromWikiData() = runTest {
-    val viewModel = SearchScreenViewModel(fakeArtworkRepository(), fakeWikiRepository())
+    val viewModel =
+        SearchScreenViewModel(
+            SearchTestData.savedArtworksRepository(),
+            SearchTestData.wikiDataRepository(),
+        )
 
     advanceUntilIdle()
     viewModel.onSearchSubmitted("van gogh")
     advanceUntilIdle()
 
-    assertEquals("van gogh", viewModel.searchQuery.value)
-    assertEquals(listOf("The Starry Night", "Sunflowers"), viewModel.artworks.value.map { it.name })
+    assertEquals("van gogh", viewModel.uiState.value.query)
+    assertEquals(
+        listOf("The Starry Night", "Sunflowers"),
+        viewModel.uiState.value.artworks.map { it.name },
+    )
   }
 
   @Test
-  fun onSearchSubmitted_handlesArtworksWithoutAnArtist() = runTest {
-    val viewModel = SearchScreenViewModel(fakeArtworkRepository(), fakeWikiRepository())
+  fun onSearchSubmitted_exposesLoadingUntilResultsArrive() = runTest {
+    val results = CompletableDeferred<List<Artwork>>()
+    val wikiRepository =
+        object : WikiDataRepository {
+          override suspend fun getArtwork(uid: ArtworkId): Artwork =
+              throw NoSuchElementException("No artwork matching uid $uid was found")
+
+          override suspend fun searchArtworks(query: String): List<Artwork> = results.await()
+        }
+    val viewModel = SearchScreenViewModel(SearchTestData.savedArtworksRepository(), wikiRepository)
 
     advanceUntilIdle()
-    viewModel.onSearchSubmitted("untitled")
+    viewModel.onSearchSubmitted("star")
+    assertTrue(viewModel.uiState.value.isLoading)
+
+    results.complete(listOf(SearchTestData.starryNight))
     advanceUntilIdle()
 
-    assertEquals(listOf("Untitled study"), viewModel.artworks.value.map { it.name })
-    assertEquals(null, viewModel.artworks.value.single().artistName)
+    assertFalse(viewModel.uiState.value.isLoading)
+    assertEquals(listOf(SearchTestData.starryNight), viewModel.uiState.value.artworks)
+  }
+
+  @Test
+  fun onSearchSubmitted_onlyShowsResultsFromLatestQuery() = runTest {
+    val monetResults = CompletableDeferred<List<Artwork>>()
+    val vanGoghResults = CompletableDeferred<List<Artwork>>()
+    val wikiRepository =
+        object : WikiDataRepository {
+          override suspend fun getArtwork(uid: ArtworkId): Artwork =
+              throw NoSuchElementException("No artwork matching uid $uid was found")
+
+          override suspend fun searchArtworks(query: String): List<Artwork> =
+              when (query) {
+                "monet" -> monetResults.await()
+                "van Gogh" -> vanGoghResults.await()
+                else -> emptyList()
+              }
+        }
+    val viewModel = SearchScreenViewModel(SearchTestData.savedArtworksRepository(), wikiRepository)
+
+    advanceUntilIdle()
+    viewModel.onSearchSubmitted("monet")
+    advanceUntilIdle()
+    viewModel.onSearchSubmitted("van Gogh")
+    advanceUntilIdle()
+
+    vanGoghResults.complete(listOf(SearchTestData.starryNight))
+    advanceUntilIdle()
+    monetResults.complete(listOf(SearchTestData.sunflowers))
+    advanceUntilIdle()
+
+    assertEquals("van Gogh", viewModel.uiState.value.query)
+    assertEquals(listOf(SearchTestData.starryNight), viewModel.uiState.value.artworks)
+    assertFalse(viewModel.uiState.value.isLoading)
   }
 
   @Test
   fun blankQueries_doNotProduceRecommendations() = runTest {
-    val viewModel = SearchScreenViewModel(fakeArtworkRepository(), fakeWikiRepository())
+    val viewModel =
+        SearchScreenViewModel(
+            SearchTestData.savedArtworksRepository(),
+            SearchTestData.wikiDataRepository(),
+        )
 
     advanceUntilIdle()
-    viewModel.onSearchQueryChanged(" ")
+    viewModel.onSearchInputChanged(" ", TextRange(1))
     advanceUntilIdle()
 
-    assertEquals(" ", viewModel.searchQuery.value)
-    assertTrue(viewModel.recommendations.value.isEmpty())
+    assertEquals(" ", viewModel.uiState.value.query)
+    assertTrue(viewModel.uiState.value.recommendations.isEmpty())
   }
 
   @Test
   fun toggleSavedArtwork_addsArtworkToSavedCollection() = runTest {
-    val repository = fakeArtworkRepository()
-    val viewModel = SearchScreenViewModel(repository, fakeWikiRepository())
-    val artwork =
-        Artwork(
-            uid = "newArtworkId",
-            name = "New Artwork",
-            artistName = "Unknown Artist",
-            location = null,
-            conceptionDate = null,
-            dimension = null,
-            description = null,
-            museum = null,
-        )
+    val repository = SearchTestData.savedArtworksRepository()
+    val viewModel = SearchScreenViewModel(repository, SearchTestData.wikiDataRepository())
+    val artwork = SearchTestData.untitledStudy.copy(uid = "newArtworkId", name = "New Artwork")
 
     advanceUntilIdle()
     viewModel.toggleSavedArtwork(artwork)
     advanceUntilIdle()
 
-    assertTrue(viewModel.savedArtworks.value.any { it.uid == artwork.uid })
+    assertTrue(viewModel.uiState.value.savedArtworks.any { it.uid == artwork.uid })
     assertTrue(repository.savedArtworks.any { it.uid == artwork.uid && it.name == artwork.name })
   }
 
   @Test
   fun toggleSavedArtwork_removesArtworkFromSavedCollectionWhenAlreadySaved() = runTest {
-    val repository = fakeArtworkRepository()
-    val viewModel = SearchScreenViewModel(repository, fakeWikiRepository())
-    val artwork =
-        Artwork(
-            uid = "starryId",
-            name = "The Starry Night",
-            artistName = "Vincent van Gogh",
-            location = null,
-            conceptionDate = null,
-            dimension = null,
-            description = null,
-            museum = null,
-        )
+    val repository = SearchTestData.savedArtworksRepository(listOf(SearchTestData.starryNight))
+    val viewModel = SearchScreenViewModel(repository, SearchTestData.wikiDataRepository())
+    val artwork = SearchTestData.starryNight
 
     advanceUntilIdle()
     viewModel.toggleSavedArtwork(artwork)
     advanceUntilIdle()
 
-    assertTrue(viewModel.savedArtworks.value.none { it.uid == artwork.uid })
+    assertTrue(viewModel.uiState.value.savedArtworks.none { it.uid == artwork.uid })
     assertTrue(repository.savedArtworks.none { it.uid == artwork.uid })
   }
-
-  private fun fakeArtworkRepository(): FakeArtworkRepository =
-      FakeArtworkRepository(
-          initialSavedArtworks =
-              listOf(
-                  Artwork(
-                      uid = "starryId",
-                      name = "The Starry Night",
-                      artistName = "Vincent van Gogh",
-                      location = null,
-                      conceptionDate = null,
-                      dimension = null,
-                      description = null,
-                      museum = null,
-                  ),
-                  Artwork(
-                      uid = "girlId",
-                      name = "Girl with a Pearl Earring",
-                      artistName = "Johannes Vermeer",
-                      location = null,
-                      conceptionDate = null,
-                      dimension = null,
-                      description = null,
-                      museum = null,
-                  ),
-                  Artwork(
-                      uid = "sunflowersId",
-                      name = "Sunflowers",
-                      artistName = "Vincent van Gogh",
-                      location = null,
-                      conceptionDate = null,
-                      dimension = null,
-                      description = null,
-                      museum = null,
-                  ),
-                  Artwork(
-                      uid = "untitledId",
-                      name = "Untitled study",
-                      artistName = null,
-                      location = null,
-                      conceptionDate = null,
-                      dimension = null,
-                      description = null,
-                      museum = null,
-                  ),
-              )
-      )
-
-  private class FakeArtworkRepository(
-      initialSavedArtworks: List<Artwork> = emptyList(),
-  ) : SavedArtworksRepository {
-    val savedArtworks = initialSavedArtworks.toMutableList()
-    var shouldThrowError = false
-
-    override suspend fun isArtworkSaved(uid: ArtworkId): Boolean {
-      if (shouldThrowError) throw RuntimeException("Simulated error")
-      return savedArtworks.any { it.uid == uid }
-    }
-
-    override suspend fun saveArtwork(artwork: Artwork) {
-      if (shouldThrowError) throw RuntimeException("Simulated database failure")
-      savedArtworks.removeAll { it.uid == artwork.uid }
-      savedArtworks.add(artwork)
-    }
-
-    override suspend fun removeArtworkFromSaved(uid: ArtworkId) {
-      if (shouldThrowError) throw RuntimeException("Simulated database failure")
-      savedArtworks.removeAll { it.uid == uid }
-    }
-
-    override suspend fun getSavedArtworks(): List<Artwork> = savedArtworks.toList()
-  }
-
-  private fun fakeWikiRepository(): WikiDataRepository =
-      object : WikiDataRepository {
-        override suspend fun getArtworksNearLocation(location: UserLocation?): List<Artwork> {
-          throw NotImplementedError()
-        }
-
-        override suspend fun getPopularArtists(): List<String> {
-          throw NotImplementedError()
-        }
-
-        override suspend fun getArtwork(uid: ArtworkId): Artwork {
-          throw NotImplementedError()
-        }
-
-        override suspend fun searchArtworks(query: String): List<Artwork> =
-            listOf(
-                    Artwork(
-                        uid = "starryId",
-                        name = "The Starry Night",
-                        artistName = "Vincent van Gogh",
-                        location = null,
-                        conceptionDate = null,
-                        dimension = null,
-                        description = null,
-                        museum = null,
-                    ),
-                    Artwork(
-                        uid = "sunflowersId",
-                        name = "Sunflowers",
-                        artistName = "Vincent van Gogh",
-                        location = null,
-                        conceptionDate = null,
-                        dimension = null,
-                        description = null,
-                        museum = null,
-                    ),
-                    Artwork(
-                        uid = "untitledId",
-                        name = "Untitled study",
-                        artistName = null,
-                        location = null,
-                        conceptionDate = null,
-                        dimension = null,
-                        description = null,
-                        museum = null,
-                    ),
-                )
-                .filter {
-                  it.name.contains(query, ignoreCase = true) ||
-                      it.artistName?.contains(query, ignoreCase = true) == true
-                }
-      }
 }
