@@ -1,13 +1,18 @@
+// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+// Co-authored-by: Qwen2.5-coder
 package com.artista.artista.model.artwork
 
 import com.artista.artista.model.map.Location
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneOffset
 import java.util.Date
 import org.json.JSONObject
 
 /**
  * A utility class to parse JSON responses from the Wikidata SPARQL API.
  *
- * @author AI Assistant
+ * @author 5kyPhy
  */
 class JsonResponseParser {
 
@@ -16,7 +21,7 @@ class JsonResponseParser {
    *
    * @param responseBody raw SPARQL JSON body returned by the endpoint
    * @return the artworks encoded in the response
-   * @author AI Assistant
+   * @author 5kyPhy
    */
   fun parseArtworkResults(responseBody: String): List<Artwork> {
     val json = JSONObject(responseBody)
@@ -37,20 +42,18 @@ class JsonResponseParser {
       val height = binding.optJSONObject("height")
       val description = binding.optJSONObject("description")
 
-      val uid = item?.getString("value") ?: continue
+      val uid = item?.getString("value")?.substringAfterLast('/') ?: continue
       val name = itemLabel?.getString("value") ?: continue
       val artistName = artistLabel?.getString("value")
       val descriptionText = description?.getString("value")
-      val conceptionDate = inception?.getString("value")?.let { Date(it.toLong() * 1000) }
+      val conceptionDate = inception?.getString("value")?.let(::parseDate)
       val museum = collectionLabel?.getString("value")
-      val location =
-          locationLabel?.getString("value")?.let {
-            Location(0.0, 0.0, it)
-          }
+      val coordinates = binding.optJSONObject("locationCoordinates")?.optString("value")
+      val location = parseLocation(coordinates, locationLabel?.getString("value"))
       val dimension =
           Dimension(
-              width?.optInt("value")?.toDouble() ?: 0.0,
-              height?.optInt("value")?.toDouble() ?: 0.0,
+              width?.optString("value")?.toDoubleOrNull() ?: 0.0,
+              height?.optString("value")?.toDoubleOrNull() ?: 0.0,
           )
 
       artworks.add(
@@ -70,5 +73,30 @@ class JsonResponseParser {
     return artworks
   }
 
-  // Add similar methods for parsing artist results if needed
+  private fun parseDate(value: String): Date? {
+    return runCatching { Date.from(Instant.parse(value)) }
+        .recoverCatching {
+          Date.from(LocalDate.parse(value.take(10)).atStartOfDay(ZoneOffset.UTC).toInstant())
+        }
+        .getOrNull()
+  }
+
+  private fun parseLocation(coordinates: String?, label: String?): Location? {
+    val match = coordinates?.let { POINT_PATTERN.find(it) }
+    return when {
+      match != null ->
+          Location(
+              longitude = match.groupValues[1].toDouble(),
+              latitude = match.groupValues[2].toDouble(),
+              name = label,
+          )
+
+      label != null -> Location(0.0, 0.0, label)
+      else -> null
+    }
+  }
+
+  private companion object {
+    val POINT_PATTERN = Regex("""Point\(\s*(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)\s*\)""")
+  }
 }
