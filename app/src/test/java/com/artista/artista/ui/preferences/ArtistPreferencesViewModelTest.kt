@@ -2,6 +2,7 @@ package com.artista.artista.ui.preferences
 
 import com.artista.artista.MainDispatcherRule
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
+import com.artista.artista.model.artwork.WikiDataRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -75,6 +76,19 @@ class ArtistPreferencesViewModelTest {
     viewModel.toggleArtist(PICASSO)
 
     assertEquals(setOf(MONET), viewModel.uiState.value.selectedArtists)
+  }
+
+  /** Verifies that a failing popular artists load does not crash and leaves the list empty. */
+  @Test
+  fun init_whenLoadingPopularArtistsFails_exposesNoArtists() = runTest {
+    val repository =
+        object : WikiDataRepository by ArtworkRepositoryLocal() {
+          override suspend fun getPopularArtists(): List<String> = error("Popular artists failure")
+        }
+    val viewModel = ArtistPreferencesViewModel(repository)
+    advanceUntilIdle()
+
+    assertTrue(viewModel.uiState.value.popularArtists.isEmpty())
   }
 
   private companion object {
