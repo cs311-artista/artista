@@ -1,12 +1,17 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 package com.artista.artista.model.artwork
 
-import java.time.Instant
-import java.util.Date
+import com.artista.artista.model.map.Location
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneOffset
+import java.util.Date
 
 /**
  * Tests parsing a real Wikidata SPARQL response.
@@ -39,5 +44,91 @@ class JsonResponseParserTest {
     assertEquals(0.0, artwork.location?.latitude ?: 0.0, 0.01)
     assertEquals(53.4, artwork.dimension?.width ?: 0.0, 0.01)
     assertEquals(79.4, artwork.dimension?.height ?: 0.0, 0.01)
+  }
+
+  @Test
+  fun parseArtworkResults_parsesCapturedWikidataResponseWithNullFields() {
+    val resource =
+        requireNotNull(javaClass.getResource("/wikidata_response_null_fields.json")) {
+          "wikidata_response_null_fields.json test resource is missing"
+        }
+    val artworks = parser.parseArtworkResults(resource.readText())
+
+    assertEquals(1, artworks.size)
+    val artwork = artworks.single()
+    assertEquals("Q12419", artwork.uid)
+    assertEquals("The Thinker", artwork.name)
+    assertNull(artwork.artistName)
+    assertNull(artwork.description)
+    assertNull(artwork.conceptionDate)
+    assertEquals("Department of Sculptures of the Louvre", artwork.museum)
+    assertNull(artwork.location)
+    assertEquals(0.0, artwork.dimension?.width ?: 0.0, 0.01)
+    assertEquals(0.0, artwork.dimension?.height ?: 0.0, 0.01)
+  }
+
+  @Test
+  fun parseArtworkResults_parsesCapturedWikidataResponseWithEmptyFields() {
+    val resource =
+        requireNotNull(javaClass.getResource("/wikidata_response_empty_fields.json")) {
+          "wikidata_response_empty_fields.json test resource is missing"
+        }
+    val artworks = parser.parseArtworkResults(resource.readText())
+
+    assertEquals(1, artworks.size)
+    val artwork = artworks.single()
+    assertEquals("Q12419", artwork.uid)
+    assertEquals("The Thinker", artwork.name)
+    assertNull(artwork.artistName)
+    assertNull(artwork.description)
+    assertNull(artwork.conceptionDate)
+    assertEquals("Department of Sculptures of the Louvre", artwork.museum)
+    assertNull(artwork.location)
+    assertEquals(0.0, artwork.dimension?.width ?: 0.0, 0.01)
+    assertEquals(0.0, artwork.dimension?.height ?: 0.0, 0.01)
+  }
+
+  @Test
+  fun testParseDate_withInstantParse() {
+    val date = invokePrivateMethod<Date>(parser, "parseDate", "2023-01-01T00:00:00Z")
+    assertNotNull(date)
+    assertEquals(Date.from(Instant.parse("2023-01-01T00:00:00Z")), date)
+  }
+
+  @Test
+  fun testParseDate_withLocalDateParse() {
+    val date = invokePrivateMethod<Date>(parser, "parseDate", "2023-01-01")
+    assertNotNull(date)
+    assertEquals(Date.from(LocalDate.parse("2023-01-01").atStartOfDay(ZoneOffset.UTC).toInstant()), date)
+  }
+
+  @Test
+  fun testParseLocation_withCoordinates() {
+    val location = invokePrivateMethod<Location?>(parser, "parseLocation", "Point(1.0 2.0)", "Test Location")
+    assertNotNull(location)
+    assertEquals(1.0, location!!.longitude, 0.0)
+    assertEquals(2.0, location.latitude, 0.0)
+    assertEquals("Test Location", location.name)
+  }
+
+  @Test
+  fun testParseLocation_withLabelNoCoordinates() {
+    val location = invokePrivateMethod<Location?>(parser, "parseLocation", null, "Test Location")
+    assertNotNull(location)
+    assertEquals(0.0, location!!.longitude, 0.0)
+    assertEquals(0.0, location.latitude, 0.0)
+    assertEquals("Test Location", location.name)
+  }
+
+  @Test
+  fun testParseLocation_noCoordinatesNoLabel() {
+    val location = invokePrivateMethod<Location?>(parser, "parseLocation", null, null)
+    assertNull(location)
+  }
+
+  private inline fun <reified T> invokePrivateMethod(obj: Any, methodName: String, vararg args: Any?): T {
+    val method = JsonResponseParser::class.java.getDeclaredMethod(methodName, *args.map { it?.javaClass ?: String::class.java }.toTypedArray())
+    method.isAccessible = true
+    return method.invoke(obj, *args) as T
   }
 }
