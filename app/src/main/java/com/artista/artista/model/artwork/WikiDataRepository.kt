@@ -2,8 +2,8 @@
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.model.artwork
 
-import com.artista.artista.ui.map.UserLocation
 import com.artista.artista.model.error.AppException
+import com.artista.artista.ui.map.UserLocation
 
 /**
  * Retrieves artwork search results from Wikidata.
