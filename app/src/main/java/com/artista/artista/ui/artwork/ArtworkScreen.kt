@@ -77,8 +77,8 @@ fun ArtworkScreen(
     artworkScreenViewModel: ArtworkScreenViewModel = viewModel(),
     onBackClick: () -> Unit = {},
 ) {
-  // Sync artwork with ViewModel once when entered or when artwork changes. Keyed on uid because
-  // several artworks can share a null name.
+  // Reload the saved state each time a different artwork is shown. The key must identify the
+  // artwork: uid is unique, but name is not (several artworks can have a null name).
   LaunchedEffect(artwork.uid) { artworkScreenViewModel.setArtwork(artwork) }
 
   val uiState by artworkScreenViewModel.uiState.collectAsState()
