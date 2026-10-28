@@ -1,4 +1,5 @@
 // Co-authored-by: Gemini <gemini@google.com>
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.artwork
 
 import androidx.compose.foundation.layout.Arrangement
@@ -12,7 +13,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material3.Card
@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
+import com.artista.artista.ui.navigation.BackButton
 import java.text.DateFormat
 
 /**
@@ -99,15 +100,10 @@ fun ArtworkScreen(
               )
             },
             navigationIcon = {
-              IconButton(
+              BackButton(
                   onClick = onBackClick,
                   modifier = Modifier.testTag(ArtworkTestTags.BACK_BUTTON),
-              ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = stringResource(R.string.back),
-                )
-              }
+              )
             },
             actions = {
               IconButton(

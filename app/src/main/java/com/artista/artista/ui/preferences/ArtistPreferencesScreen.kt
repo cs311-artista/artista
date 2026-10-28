@@ -18,14 +18,12 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -51,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.artista.artista.R
+import com.artista.artista.ui.navigation.BackButton
 import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaTheme
@@ -157,16 +156,10 @@ fun ArtistPreferencesScreen(
 private fun Header(onBackClick: () -> Unit) {
   Column {
     Row(verticalAlignment = Alignment.CenterVertically) {
-      // Same icon as the artwork screen, to keep the back navigation consistent across screens.
-      IconButton(
+      BackButton(
           onClick = onBackClick,
           modifier = Modifier.size(BackButtonSize).testTag(ArtistPreferencesTestTags.BACK_BUTTON),
-      ) {
-        Icon(
-            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-            contentDescription = stringResource(R.string.back),
-        )
-      }
+      )
       Text(
           text = stringResource(R.string.artist_preferences_title),
           modifier = Modifier.testTag(ArtistPreferencesTestTags.TITLE),
