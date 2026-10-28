@@ -23,6 +23,7 @@ import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.SavedArtworksRepository
+import com.artista.artista.model.error.AppException
 import com.artista.artista.model.map.Location
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaTheme
@@ -566,7 +567,7 @@ class SavedArtworksScreenTest {
       removeGate?.await()
       if (shouldThrowError) throw RuntimeException("Simulated database failure")
       if (!savedArtworks.removeAll { it.uid == uid }) {
-        throw NoSuchElementException("No saved artwork with uid $uid")
+        throw AppException.NotFound("No saved artwork with uid $uid")
       }
     }
 

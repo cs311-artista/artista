@@ -1,6 +1,8 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.model.artwork
 
+import com.artista.artista.model.error.AppException
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -24,21 +26,24 @@ class ArtworkRepositoryLocalTest {
   }
 
   @Test
-  fun getArtwork_whenUidIsUnknown_throwsNoSuchElementException() = runTest {
+  fun getArtwork_whenUidIsUnknown_throwsNotFound() = runTest {
     val repository = ArtworkRepositoryLocal()
 
-    assertThrowsSuspend<NoSuchElementException> { repository.getArtwork("unknown") }
+    assertThrowsSuspend<AppException.NotFound> { repository.getArtwork("unknown") }
   }
 
   @Test
-  fun getArtwork_whenUidIsBlank_throwsIllegalArgumentException() = runTest {
+  fun getArtwork_whenUidIsBlank_throwsInvalidInput() = runTest {
     val repository = ArtworkRepositoryLocal()
 
-    assertThrowsSuspend<IllegalArgumentException> { repository.getArtwork(" ") }
-    assertThrowsSuspend<IllegalArgumentException> { repository.getArtwork("") }
-    assertThrowsSuspend<IllegalArgumentException> { repository.getArtwork("\n") }
+    assertThrowsSuspend<AppException.InvalidInput> { repository.getArtwork(" ") }
+    assertThrowsSuspend<AppException.InvalidInput> { repository.getArtwork("") }
+    assertThrowsSuspend<AppException.InvalidInput> { repository.getArtwork("\n") }
   }
 
+  // putArtworkInRepositoryUnsavedSection is a helper to fill the repository for demos and tests,
+  // not part of the repository interface. A duplicate uid there is a programming mistake, never an
+  // error shown to the user, so it keeps IllegalArgumentException instead of an AppException.
   @Test
   fun putArtworkInRepositoryUnsavedSection_withExistingUid_throwIllegalArgumentException() =
       runTest {
@@ -111,12 +116,12 @@ class ArtworkRepositoryLocalTest {
   }
 
   @Test
-  fun isArtworkSaved_whenUidIsBlank_throwsIllegalArgumentException() = runTest {
+  fun isArtworkSaved_whenUidIsBlank_throwsInvalidInput() = runTest {
     val repository = ArtworkRepositoryLocal()
 
-    assertThrowsSuspend<IllegalArgumentException> { repository.isArtworkSaved("") }
-    assertThrowsSuspend<IllegalArgumentException> { repository.isArtworkSaved(" ") }
-    assertThrowsSuspend<IllegalArgumentException> { repository.isArtworkSaved("\n") }
+    assertThrowsSuspend<AppException.InvalidInput> { repository.isArtworkSaved("") }
+    assertThrowsSuspend<AppException.InvalidInput> { repository.isArtworkSaved(" ") }
+    assertThrowsSuspend<AppException.InvalidInput> { repository.isArtworkSaved("\n") }
   }
 
   @Test
@@ -132,19 +137,19 @@ class ArtworkRepositoryLocalTest {
   }
 
   @Test
-  fun removeArtworkFromSaved_whenUidIsUnknown_throwsNoSuchElementException() = runTest {
+  fun removeArtworkFromSaved_whenUidIsUnknown_throwsNotFound() = runTest {
     val repository = ArtworkRepositoryLocal()
 
-    assertThrowsSuspend<NoSuchElementException> { repository.removeArtworkFromSaved("unknown") }
+    assertThrowsSuspend<AppException.NotFound> { repository.removeArtworkFromSaved("unknown") }
   }
 
   @Test
-  fun removeArtworkFromSaved_whenUidIsBlank_throwsIllegalArgumentException() = runTest {
+  fun removeArtworkFromSaved_whenUidIsBlank_throwsInvalidInput() = runTest {
     val repository = ArtworkRepositoryLocal()
 
-    assertThrowsSuspend<IllegalArgumentException> { repository.removeArtworkFromSaved("") }
-    assertThrowsSuspend<IllegalArgumentException> { repository.removeArtworkFromSaved(" ") }
-    assertThrowsSuspend<IllegalArgumentException> { repository.removeArtworkFromSaved("\n") }
+    assertThrowsSuspend<AppException.InvalidInput> { repository.removeArtworkFromSaved("") }
+    assertThrowsSuspend<AppException.InvalidInput> { repository.removeArtworkFromSaved(" ") }
+    assertThrowsSuspend<AppException.InvalidInput> { repository.removeArtworkFromSaved("\n") }
   }
 
   private suspend inline fun <reified T : Throwable> assertThrowsSuspend(

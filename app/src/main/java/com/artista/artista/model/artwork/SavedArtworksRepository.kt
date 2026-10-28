@@ -1,11 +1,18 @@
 // Co-authored-by: Gemini & Copilot
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.model.artwork
+
+import com.artista.artista.model.error.AppException
 
 /**
  * Contract defining persistent storage operations for artworks saved by the user.
  *
  * ViewModels interact with this abstraction rather than concrete implementations to maintain clean
- * separation between UI state management and persistence
+ * separation between UI state management and persistence.
+ *
+ * Failures are reported as [AppException]. Besides the cases documented on each function, any
+ * operation can fail with another [AppException] type when the backend cannot be reached or refuses
+ * the request.
  *
  * @author hixeum, IJJA3141, 5kyPhy
  */
@@ -16,7 +23,7 @@ interface SavedArtworksRepository {
    *
    * @param uid unique identifier of the artwork
    * @return true if the artwork is already saved, false otherwise
-   * @throws IllegalArgumentException if [uid] is blank
+   * @throws AppException.InvalidInput if [uid] is blank
    * @author hixeum,
    */
   suspend fun isArtworkSaved(uid: ArtworkId): Boolean
@@ -25,7 +32,7 @@ interface SavedArtworksRepository {
    * Persists an artwork to storage, updating any existing record with the same identifier.
    *
    * @param artwork the complete artwork entity to persist
-   * @throws IllegalArgumentException if the artwork title is invalid
+   * @throws AppException.InvalidInput if the artwork uid is blank
    * @author hixeum,
    */
   suspend fun saveArtwork(artwork: Artwork)
@@ -34,8 +41,8 @@ interface SavedArtworksRepository {
    * Deletes an artwork from storage using its unique identifier.
    *
    * @param uid unique identifier of the artwork to remove
-   * @throws IllegalArgumentException if [uid] is blank
-   * @throws NoSuchElementException if no artwork matches [uid]
+   * @throws AppException.InvalidInput if [uid] is blank
+   * @throws AppException.NotFound if no artwork matches [uid]
    * @author hixeum,
    */
   suspend fun removeArtworkFromSaved(uid: ArtworkId)
