@@ -21,9 +21,9 @@ import androidx.compose.ui.text.TextRange
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.WikiDataRepository
+import com.artista.artista.ui.artwork.ArtworkCardTestTag
 import com.artista.artista.ui.map.UserLocation
 import kotlin.NotImplementedError
-import com.artista.artista.ui.artwork.ArtworkCardTestTag
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
