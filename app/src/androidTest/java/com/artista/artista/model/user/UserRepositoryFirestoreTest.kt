@@ -1,6 +1,8 @@
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.model.user
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.artista.artista.model.error.AppException
 import com.artista.artista.utils.FirebaseEmulatedTest
 import com.artista.artista.utils.FirebaseEmulator
 import kotlin.reflect.KClass
@@ -16,6 +18,9 @@ import org.junit.runner.RunWith
  *
  * The tests use the local Firestore emulator so they exercise serialization, persistence, and error
  * handling without depending on the production database.
+ *
+ * Network and permission failures are not tested here because the emulator cannot reliably simulate
+ * them; their translation into `AppException` is covered by `FirestoreExceptionsTest`.
  *
  * @author Kaio R. Freitas Pereira Nascimento (krfpn)
  * @author Copilot (223556219+Copilot@users.noreply.github.com)
@@ -60,7 +65,7 @@ class UserRepositoryFirestoreTest : FirebaseEmulatedTest() {
   fun createUserThrowsWhenUserIdAlreadyExists() = runTest {
     repository.createUser(userWith(uid = testUserId))
 
-    assertRepositoryThrows(IllegalStateException::class) {
+    assertRepositoryThrows(AppException.AlreadyExists::class) {
       repository.createUser(userWith(uid = testUserId))
     }
   }
@@ -89,19 +94,19 @@ class UserRepositoryFirestoreTest : FirebaseEmulatedTest() {
 
     repository.deleteUser(testUserId)
 
-    assertRepositoryThrows(NoSuchElementException::class) { repository.getUser(testUserId) }
+    assertRepositoryThrows(AppException.NotFound::class) { repository.getUser(testUserId) }
   }
 
   /** Checks that reading an unknown identifier reports a missing user. */
   @Test
   fun getUserThrowsWhenUserDoesNotExist() = runTest {
-    assertRepositoryThrows(NoSuchElementException::class) { repository.getUser(testUserId) }
+    assertRepositoryThrows(AppException.NotFound::class) { repository.getUser(testUserId) }
   }
 
   /** Checks that updating an unknown identifier reports a missing user. */
   @Test
   fun updateUserThrowsWhenUserDoesNotExist() = runTest {
-    assertRepositoryThrows(NoSuchElementException::class) {
+    assertRepositoryThrows(AppException.NotFound::class) {
       repository.updateUser(testUserId, userWith(uid = testUserId))
     }
   }
@@ -111,7 +116,7 @@ class UserRepositoryFirestoreTest : FirebaseEmulatedTest() {
   fun updateUserThrowsWhenUserIdDoesNotMatchReplacementUserId() = runTest {
     val replacementUser = userWith(uid = "$testUserId-replacement")
 
-    assertRepositoryThrows(IllegalArgumentException::class) {
+    assertRepositoryThrows(AppException.InvalidInput::class) {
       repository.updateUser(testUserId, replacementUser)
     }
   }
@@ -119,7 +124,7 @@ class UserRepositoryFirestoreTest : FirebaseEmulatedTest() {
   /** Checks that deleting an unknown identifier reports a missing user. */
   @Test
   fun deleteUserThrowsWhenUserDoesNotExist() = runTest {
-    assertRepositoryThrows(NoSuchElementException::class) { repository.deleteUser(testUserId) }
+    assertRepositoryThrows(AppException.NotFound::class) { repository.deleteUser(testUserId) }
   }
 
   /** Checks that reading a document without a UID throws an exception. */
@@ -132,7 +137,7 @@ class UserRepositoryFirestoreTest : FirebaseEmulatedTest() {
         )
     )
 
-    assertRepositoryThrows(IllegalStateException::class) { repository.getUser(testUserId) }
+    assertRepositoryThrows(AppException.InvalidData::class) { repository.getUser(testUserId) }
   }
 
   /** Checks that reading a document without preferences throws an exception. */
@@ -140,7 +145,7 @@ class UserRepositoryFirestoreTest : FirebaseEmulatedTest() {
   fun getUserThrowsWhenStoredUserIsMissingPreferences() = runTest {
     seedRawUserDocument(mapOf("uid" to testUserId, "userName" to "Malformed User"))
 
-    assertRepositoryThrows(IllegalStateException::class) { repository.getUser(testUserId) }
+    assertRepositoryThrows(AppException.InvalidData::class) { repository.getUser(testUserId) }
   }
 
   /** Checks that a preference field with an invalid value type throws an exception. */
@@ -153,7 +158,7 @@ class UserRepositoryFirestoreTest : FirebaseEmulatedTest() {
         )
     )
 
-    assertRepositoryThrows(IllegalStateException::class) { repository.getUser(testUserId) }
+    assertRepositoryThrows(AppException.InvalidData::class) { repository.getUser(testUserId) }
   }
 
   /** Checks that a preference list containing a non-string value throws an exception. */
@@ -167,7 +172,7 @@ class UserRepositoryFirestoreTest : FirebaseEmulatedTest() {
         )
     )
 
-    assertRepositoryThrows(IllegalStateException::class) { repository.getUser(testUserId) }
+    assertRepositoryThrows(AppException.InvalidData::class) { repository.getUser(testUserId) }
   }
 
   /**
