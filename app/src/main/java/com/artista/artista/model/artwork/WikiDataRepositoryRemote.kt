@@ -62,9 +62,9 @@ class WikiDataRepositoryRemote(
   /**
    * Retrieves a single artwork by its Wikidata identifier.
    *
-   * WikiData can return duplicate rows for the same artwork when multiple labels or measurements are
-   * present. The first parsed row is used because the repository contract expects a single artwork
-   * instance for a given identifier.
+   * WikiData can return duplicate rows for the same artwork when multiple labels or measurements
+   * are present. The first parsed row is used because the repository contract expects a single
+   * artwork instance for a given identifier.
    *
    * @param uid Wikidata item identifier for the artwork, such as Q12345
    * @return the artwork matching the identifier
@@ -91,7 +91,8 @@ class WikiDataRepositoryRemote(
           OPTIONAL { ?item wdt:${WikiDataProperties.HEIGHT} ?height . }
           OPTIONAL { ?item schema:description ?description . FILTER(LANG(?description) = "en") }
         }
-        """.trimIndent()
+        """
+            .trimIndent()
 
     val response = executeSparqlRequest(query)
     val artworks = parseArtworkResults(response)
@@ -102,8 +103,8 @@ class WikiDataRepositoryRemote(
   /**
    * Searches for artworks by label using the English-language Wikidata data set.
    *
-   * The search is intentionally limited to English strings to keep the user-facing result set stable
-   * and avoid mixing localized labels from other languages.
+   * The search is intentionally limited to English strings to keep the user-facing result set
+   * stable and avoid mixing localized labels from other languages.
    *
    * @param query text to search for in the artwork title
    * @return the artworks whose English title contains the search term
@@ -120,8 +121,9 @@ class WikiDataRepositoryRemote(
   /**
    * Builds a SPARQL query for label-based artwork search.
    *
-   * Only English labels are considered for now because the app currently presents artwork titles in a
-   * single language; this keeps the query predictable while leaving room to extend the filters later.
+   * Only English labels are considered for now because the app currently presents artwork titles in
+   * a single language; this keeps the query predictable while leaving room to extend the filters
+   * later.
    *
    * @param searchTerm user-entered text used to match artwork titles
    * @return SPARQL query string for the Wikidata endpoint
@@ -129,11 +131,7 @@ class WikiDataRepositoryRemote(
    */
   internal fun buildRequest(searchTerm: String): String {
     val normalized = searchTerm.trim()
-    val escapedTerm =
-        normalized
-            .lowercase(Locale.ROOT)
-            .replace("\\", "\\\\")
-            .replace("\"", "\\\"")
+    val escapedTerm = normalized.lowercase(Locale.ROOT).replace("\\", "\\\\").replace("\"", "\\\"")
 
     return """
       SELECT ?item ?itemLabel ?artistLabel ?image ?inception ?collectionLabel ?locationLabel ?locationCoordinates ?width ?height ?description
@@ -158,7 +156,8 @@ class WikiDataRepositoryRemote(
         OPTIONAL { ?item wdt:${WikiDataProperties.HEIGHT} ?height . }
         OPTIONAL { ?item schema:description ?description . FILTER(LANG(?description) = "en") }
       }
-      """.trimIndent()
+      """
+        .trimIndent()
   }
 
   private suspend fun executeSparqlRequest(sparqlQuery: String): String =
@@ -209,7 +208,7 @@ class WikiDataRepositoryRemote(
    */
   internal fun parseArtworkResults(responseBody: String): List<Artwork> {
     println(responseBody) // for test purposes, to see the response from Wikidata
-                        // will be removed when the parsing is implemented
+    // will be removed when the parsing is implemented
 
     throw NotImplementedError("Parsing of Wikidata response is not implemented yet")
   }

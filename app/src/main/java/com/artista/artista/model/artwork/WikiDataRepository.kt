@@ -22,8 +22,8 @@ interface WikiDataRepository {
    * Returns the [Artwork] associated with the provided Wikidata identifier.
    *
    * Wikidata may return duplicate rows for the same item when multiple labels or measurements are
-   * associated with the same record. Implementations may therefore normalize the result by keeping a
-   * single representative artwork for the requested [uid].
+   * associated with the same record. Implementations may therefore normalize the result by keeping
+   * a single representative artwork for the requested [uid].
    *
    * @param uid unique identifier of the artwork, such as a Wikidata item ID
    * @return the [Artwork] requested via the [uid]

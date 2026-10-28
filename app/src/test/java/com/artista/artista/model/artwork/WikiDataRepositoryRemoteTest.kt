@@ -16,8 +16,8 @@ class WikiDataRepositoryRemoteTest {
   /**
    * /!\ This is not a unit test /!\
    *
-   * This test performs real network requests to the Wikidata SPARQL endpoint.
-   * It is intended to verify the correctness of the SPARQL query and the ability to fetch data from the remote API.
+   * This test performs real network requests to the Wikidata SPARQL endpoint. It is intended to
+   * verify the correctness of the SPARQL query and the ability to fetch data from the remote API.
    */
   // @Test
   fun runRealRequestForArtwork() = runTest {
@@ -25,11 +25,9 @@ class WikiDataRepositoryRemoteTest {
 
     try {
       println(repository.getArtwork("Q12418")) // Mona Lisa
-    }
-    catch (e: NotImplementedError) {
-     // Handle NotImplementedError if needed
-    }
-    catch (e: Exception) {
+    } catch (e: NotImplementedError) {
+      // Handle NotImplementedError if needed
+    } catch (e: Exception) {
       println(e)
     }
   }
@@ -37,8 +35,8 @@ class WikiDataRepositoryRemoteTest {
   /**
    * /!\ This is not a unit test /!\
    *
-   * This test performs real network requests to the Wikidata SPARQL endpoint.
-   * It is intended to verify the correctness of the SPARQL query and the ability to fetch data from the remote API.
+   * This test performs real network requests to the Wikidata SPARQL endpoint. It is intended to
+   * verify the correctness of the SPARQL query and the ability to fetch data from the remote API.
    */
   // @Test
   fun runRealRequestForQuery() = runTest {
@@ -46,11 +44,9 @@ class WikiDataRepositoryRemoteTest {
 
     try {
       println(repository.searchArtworks("Lise Sewing"))
-    }
-    catch (e: NotImplementedError) {
+    } catch (e: NotImplementedError) {
       // Handle NotImplementedError if needed
-    }
-    catch (e: Exception) {
+    } catch (e: Exception) {
       println(e)
     }
   }
