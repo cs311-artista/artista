@@ -4,11 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.artista.artista.model.artwork.WikiDataRepository
+import com.artista.artista.ui.error.launchCatching
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
 
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
@@ -46,7 +46,12 @@ class ArtistPreferencesViewModel(
   val uiState: StateFlow<ArtistPreferencesUiState> = _uiState.asStateFlow()
 
   init {
-    viewModelScope.launch {
+    viewModelScope.launchCatching(
+        tag = TAG,
+        onError = {
+          // Already logged by launchCatching. The grid stays empty until a retry exists.
+        },
+    ) {
       _uiState.update { it.copy(popularArtists = artworkRepository.getPopularArtists()) }
     }
   }
@@ -67,6 +72,9 @@ class ArtistPreferencesViewModel(
   }
 
   companion object {
+    /** Log tag identifying messages emitted by [ArtistPreferencesViewModel]. */
+    private const val TAG = "ArtistPreferencesViewModel"
+
     /**
      * Creates a factory for an artist-preferences ViewModel.
      *
