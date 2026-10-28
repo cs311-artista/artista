@@ -1,4 +1,5 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.search
 
 import androidx.compose.foundation.clickable
@@ -192,7 +193,9 @@ private fun SearchInput(
     LazyColumn {
       items(recommendations) { recommendation ->
         ListItem(
-            headlineContent = { Text(recommendation.name) },
+            headlineContent = {
+              Text(recommendation.name ?: stringResource(R.string.artwork_unknown_title))
+            },
             modifier =
                 Modifier.fillMaxWidth()
                     .clickable {
