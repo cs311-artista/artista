@@ -1,10 +1,10 @@
+// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 package com.artista.artista.ui.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.sp
 
 // Set of Material typography styles to start with
 val Typography =
@@ -13,24 +13,24 @@ val Typography =
             TextStyle(
                 fontFamily = FontFamily.Default,
                 fontWeight = FontWeight.Normal,
-                fontSize = 16.sp,
-                lineHeight = 24.sp,
-                letterSpacing = 0.5.sp,
+                fontSize = TypographyDimensions.bodyLargeFontSize,
+                lineHeight = TypographyDimensions.bodyLargeLineHeight,
+                letterSpacing = TypographyDimensions.bodyLargeLetterSpacing,
             )
         /* Other default text styles to override
         titleLarge = TextStyle(
             fontFamily = FontFamily.Default,
             fontWeight = FontWeight.Normal,
-            fontSize = 22.sp,
-            lineHeight = 28.sp,
-            letterSpacing = 0.sp
+            fontSize = TypographyDimensions.titleLargeFontSize,
+            lineHeight = TypographyDimensions.titleLargeLineHeight,
+            letterSpacing = TypographyDimensions.titleLargeLetterSpacing
         ),
         labelSmall = TextStyle(
             fontFamily = FontFamily.Default,
             fontWeight = FontWeight.Medium,
-            fontSize = 11.sp,
-            lineHeight = 16.sp,
-            letterSpacing = 0.5.sp
+            fontSize = TypographyDimensions.labelSmallFontSize,
+            lineHeight = TypographyDimensions.labelSmallLineHeight,
+            letterSpacing = TypographyDimensions.labelSmallLetterSpacing
         )
         */
     )

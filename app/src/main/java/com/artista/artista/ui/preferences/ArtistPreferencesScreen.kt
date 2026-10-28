@@ -47,19 +47,20 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.artista.artista.R
 import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaTheme
+import com.artista.artista.ui.theme.Dimensions
 
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
+// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 private val PillShape = RoundedCornerShape(percent = 50)
 
 // Matches the minimum touch target of IconButton, so the texts below the title line up with it.
-private val BackButtonSize = 48.dp
+private val BackButtonSize = Dimensions.preferencesBackButtonSize
 
 /**
  * Displays the popular artists the user can select as favorites to personalize their
@@ -95,8 +96,8 @@ fun ArtistPreferencesScreen(
         modifier =
             Modifier.fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 24.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+                .padding(horizontal = Dimensions.spacing24, vertical = Dimensions.spacing16),
+        verticalArrangement = Arrangement.spacedBy(Dimensions.spacing16),
     ) {
       Header(onBackClick = onBackClick)
       SearchField()
@@ -112,8 +113,8 @@ fun ArtistPreferencesScreen(
           columns = GridCells.Fixed(3),
           modifier =
               Modifier.weight(1f).fillMaxWidth().testTag(ArtistPreferencesTestTags.ARTISTS_GRID),
-          horizontalArrangement = Arrangement.spacedBy(12.dp),
-          verticalArrangement = Arrangement.spacedBy(12.dp),
+          horizontalArrangement = Arrangement.spacedBy(Dimensions.spacing12),
+          verticalArrangement = Arrangement.spacedBy(Dimensions.spacing12),
       ) {
         // Names are used as keys, so they must be unique: duplicated keys crash the grid. Switch to
         // artist identifiers once the artists come from a repository.
@@ -131,7 +132,9 @@ fun ArtistPreferencesScreen(
       Button(
           onClick = onSaveClick,
           modifier =
-              Modifier.fillMaxWidth().height(56.dp).testTag(ArtistPreferencesTestTags.SAVE_BUTTON),
+              Modifier.fillMaxWidth()
+                  .height(Dimensions.preferencesSaveButtonHeight)
+                  .testTag(ArtistPreferencesTestTags.SAVE_BUTTON),
           shape = PillShape,
           colors =
               ButtonDefaults.buttonColors(
@@ -226,14 +229,19 @@ private fun ArtistCard(artist: String, selected: Boolean, onToggle: () -> Unit) 
               // Lets accessibility services announce the card as a checkbox with its state.
               .semantics { role = Role.Checkbox }
               .testTag(ArtistPreferencesTestTags.getArtistCardTestTag(artist)),
-      shape = RoundedCornerShape(20.dp),
+      shape = RoundedCornerShape(Dimensions.cornerRadiusMedium),
       color =
           if (selected) MaterialTheme.colorScheme.surfaceContainerLowest
           else MaterialTheme.colorScheme.secondaryContainer,
-      border = if (selected) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null,
+      border =
+          if (selected) {
+            BorderStroke(Dimensions.selectedCardBorderWidth, MaterialTheme.colorScheme.primary)
+          } else {
+            null
+          },
   ) {
     Column(
-        modifier = Modifier.padding(8.dp),
+        modifier = Modifier.padding(Dimensions.spacing8),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
       Box {
@@ -241,12 +249,12 @@ private fun ArtistCard(artist: String, selected: Boolean, onToggle: () -> Unit) 
         ArtistImagePlaceholder()
         SelectionIndicator(
             selected = selected,
-            modifier = Modifier.align(Alignment.TopEnd).padding(4.dp),
+            modifier = Modifier.align(Alignment.TopEnd).padding(Dimensions.spacing4),
         )
       }
       Text(
           text = artist,
-          modifier = Modifier.padding(top = 8.dp),
+          modifier = Modifier.padding(top = Dimensions.spacing8),
           style = MaterialTheme.typography.bodySmall,
           textAlign = TextAlign.Center,
           // Two lines for every name keeps all the cards of a row at the same height.
@@ -265,7 +273,7 @@ private fun ArtistImagePlaceholder() {
       modifier =
           Modifier.fillMaxWidth()
               .aspectRatio(4f / 3f)
-              .clip(RoundedCornerShape(12.dp))
+              .clip(RoundedCornerShape(Dimensions.cornerRadiusSmall))
               .background(MaterialTheme.colorScheme.surfaceVariant),
       contentAlignment = Alignment.Center,
   ) {
@@ -288,7 +296,7 @@ private fun SelectionIndicator(selected: Boolean, modifier: Modifier = Modifier)
   Box(
       modifier =
           modifier
-              .size(24.dp)
+              .size(Dimensions.iconSizeLarge)
               .clip(CircleShape)
               .background(
                   if (selected) MaterialTheme.colorScheme.primary
@@ -300,7 +308,7 @@ private fun SelectionIndicator(selected: Boolean, modifier: Modifier = Modifier)
       Icon(
           imageVector = Icons.Filled.Check,
           contentDescription = null,
-          modifier = Modifier.size(16.dp),
+          modifier = Modifier.size(Dimensions.iconSizeSmall),
           tint = MaterialTheme.colorScheme.onPrimary,
       )
     }

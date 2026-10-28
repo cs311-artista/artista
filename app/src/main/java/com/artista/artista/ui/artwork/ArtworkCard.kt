@@ -30,12 +30,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
 import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.Dimension
 import com.artista.artista.model.map.Location
 import com.artista.artista.ui.theme.ArtistaTheme
+import com.artista.artista.ui.theme.Dimensions
 import java.util.Date
 
 /** Stable semantics tags for the artwork card UI tests. */
@@ -81,11 +81,14 @@ fun ArtworkCard(
       modifier = modifier.fillMaxWidth().testTag(testTag(ArtworkCardTestTag.ARTWORK_CARD)),
   ) {
     Column(
-        modifier = Modifier.fillMaxWidth().padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        modifier = Modifier.fillMaxWidth().padding(Dimensions.spacing12),
+        verticalArrangement = Arrangement.spacedBy(Dimensions.spacing16),
     ) {
       Surface(
-          modifier = Modifier.fillMaxWidth().height(160.dp).clip(RoundedCornerShape(12.dp)),
+          modifier =
+              Modifier.fillMaxWidth()
+                  .height(Dimensions.artworkCardImageHeight)
+                  .clip(RoundedCornerShape(Dimensions.cornerRadiusSmall)),
           color = MaterialTheme.colorScheme.primaryContainer,
       ) {
         Box(
@@ -104,8 +107,8 @@ fun ArtworkCard(
       }
 
       Column(
-          modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-          verticalArrangement = Arrangement.spacedBy(4.dp),
+          modifier = Modifier.fillMaxWidth().padding(horizontal = Dimensions.spacing8),
+          verticalArrangement = Arrangement.spacedBy(Dimensions.spacing4),
       ) {
         Text(
             text = artwork.name,
@@ -191,7 +194,7 @@ private fun ArtworkCardPreview() {
         onArtworkClick = {},
         onMapClick = {},
         onSaveClick = { _ -> },
-        modifier = Modifier.padding(16.dp),
+        modifier = Modifier.padding(Dimensions.spacing16),
     )
   }
 }

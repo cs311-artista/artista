@@ -1,3 +1,4 @@
+// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 package com.artista.artista.ui.profile
 
 import androidx.compose.foundation.background
@@ -33,7 +34,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.artista.artista.R
@@ -42,8 +42,10 @@ import com.artista.artista.model.user.UserPreference
 import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaTheme
+import com.artista.artista.ui.theme.Dimensions
 
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
+// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 private val FieldShape = RoundedCornerShape(percent = 50)
 
 /**
@@ -98,7 +100,9 @@ private fun ProfileTopBar(onLogoutClick: () -> Unit) {
   // receive the status bar insets, so the bar applies them itself.
   Row(
       modifier =
-          Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp),
+          Modifier.fillMaxWidth()
+              .statusBarsPadding()
+              .padding(horizontal = Dimensions.spacing16, vertical = Dimensions.spacing8),
       horizontalArrangement = Arrangement.End,
   ) {
     LogoutButton(onClick = onLogoutClick)
@@ -130,14 +134,19 @@ private fun ProfileContent(
               // height,
               // which makes them invisible and unclickable.
               .verticalScroll(rememberScrollState())
-              .padding(start = 24.dp, top = 16.dp, end = 24.dp, bottom = 45.dp),
+              .padding(
+                  start = Dimensions.spacing24,
+                  top = Dimensions.spacing16,
+                  end = Dimensions.spacing24,
+                  bottom = Dimensions.spacing45,
+              ),
       horizontalAlignment = Alignment.CenterHorizontally,
   ) {
     ProfilePicturePlaceholder()
-    Spacer(modifier = Modifier.height(48.dp))
+    Spacer(modifier = Modifier.height(Dimensions.spacing48))
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(24.dp),
+        verticalArrangement = Arrangement.spacedBy(Dimensions.spacing24),
     ) {
       // Styled like the buttons on purpose: the username will become editable on click (#55),
       // which will also remove the read-only branch of ProfileField.
@@ -173,8 +182,9 @@ private fun LogoutButton(onClick: () -> Unit) {
       color = MaterialTheme.colorScheme.surfaceContainerLowest,
   ) {
     Row(
-        modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier =
+            Modifier.padding(horizontal = Dimensions.spacing20, vertical = Dimensions.spacing10),
+        horizontalArrangement = Arrangement.spacedBy(Dimensions.spacing8),
         verticalAlignment = Alignment.CenterVertically,
     ) {
       // The label already names the action, so describing the icon would make screen readers
@@ -200,7 +210,7 @@ private fun ProfilePicturePlaceholder() {
       modifier =
           Modifier.fillMaxWidth(0.75f)
               .aspectRatio(1f)
-              .clip(RoundedCornerShape(30.dp))
+              .clip(RoundedCornerShape(Dimensions.cornerRadiusLarge))
               .background(MaterialTheme.colorScheme.surfaceContainerLowest)
               .testTag(UserProfileTestTags.PROFILE_PICTURE),
       contentAlignment = Alignment.Center,
@@ -232,7 +242,10 @@ private fun ProfileField(
 ) {
   val content: @Composable () -> Unit = {
     Box(
-        modifier = Modifier.fillMaxWidth().height(70.dp).padding(horizontal = 24.dp),
+        modifier =
+            Modifier.fillMaxWidth()
+                .height(Dimensions.profileFieldHeight)
+                .padding(horizontal = Dimensions.spacing24),
         contentAlignment = Alignment.Center,
     ) {
       Text(

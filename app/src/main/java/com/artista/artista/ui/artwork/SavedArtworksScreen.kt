@@ -37,7 +37,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
@@ -45,6 +44,7 @@ import com.artista.artista.model.artwork.mockArtworks
 import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaTheme
+import com.artista.artista.ui.theme.Dimensions
 
 /**
  * Displays the artworks saved by the current user.
@@ -148,7 +148,7 @@ private fun SavedArtworksScreenLayout(
         CenterAlignedTopAppBar(
             title = {
               Surface(
-                  shape = RoundedCornerShape(32.dp),
+                  shape = RoundedCornerShape(Dimensions.cornerRadiusPill),
                   color = MaterialTheme.colorScheme.surfaceContainer,
                   modifier = Modifier.testTag(SavedArtworksTestTags.TITLE),
               ) {
@@ -156,7 +156,11 @@ private fun SavedArtworksScreenLayout(
                     text = stringResource(R.string.saved_artworks_title),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                    modifier =
+                        Modifier.padding(
+                            horizontal = Dimensions.spacing20,
+                            vertical = Dimensions.spacing8,
+                        ),
                 )
               }
             },
@@ -262,7 +266,9 @@ private fun EmptySavedArtworksState(modifier: Modifier = Modifier) {
 private fun SavedArtworksLoadErrorState(onRetry: () -> Unit, modifier: Modifier = Modifier) {
   Column(
       modifier =
-          modifier.padding(horizontal = 24.dp).testTag(SavedArtworksTestTags.LOAD_ERROR_STATE),
+          modifier
+              .padding(horizontal = Dimensions.spacing24)
+              .testTag(SavedArtworksTestTags.LOAD_ERROR_STATE),
       verticalArrangement = Arrangement.Center,
       horizontalAlignment = Alignment.CenterHorizontally,
   ) {
@@ -272,7 +278,7 @@ private fun SavedArtworksLoadErrorState(onRetry: () -> Unit, modifier: Modifier 
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         textAlign = TextAlign.Center,
     )
-    Spacer(modifier = Modifier.height(16.dp))
+    Spacer(modifier = Modifier.height(Dimensions.spacing16))
     Button(
         onClick = onRetry,
         modifier = Modifier.testTag(SavedArtworksTestTags.RETRY_BUTTON),
@@ -319,8 +325,9 @@ private fun SavedArtworksList(
   // Scrollable collection of artwork cards with spacing for comfortable browsing.
   LazyColumn(
       modifier = modifier.testTag(SavedArtworksTestTags.LIST),
-      contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-      verticalArrangement = Arrangement.spacedBy(12.dp),
+      contentPadding =
+          PaddingValues(horizontal = Dimensions.spacing16, vertical = Dimensions.spacing12),
+      verticalArrangement = Arrangement.spacedBy(Dimensions.spacing12),
   ) {
     items(artworks, key = { it.uid }) { artwork ->
       ArtworkCard(

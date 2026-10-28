@@ -1,4 +1,5 @@
 // Co-authored-by: Gemini <gemini@google.com>
+// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 package com.artista.artista.ui.artwork
 
 import androidx.compose.foundation.layout.Arrangement
@@ -37,10 +38,10 @@ import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
+import com.artista.artista.ui.theme.Dimensions
 import java.text.DateFormat
 
 /**
@@ -131,20 +132,21 @@ fun ArtworkScreen(
         modifier =
             Modifier.fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 20.dp)
+                .padding(horizontal = Dimensions.spacing20)
                 .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(Dimensions.spacing12),
     ) {
-      Spacer(modifier = Modifier.height(4.dp))
+      Spacer(modifier = Modifier.height(Dimensions.spacing4))
 
       /**
        * TODO: This component serves as a placeholder for the image. Remove it, and implement
        *   component for the image.
        */
       Card(
-          modifier = Modifier.fillMaxWidth().height(220.dp),
-          shape = RoundedCornerShape(20.dp),
-          elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+          modifier = Modifier.fillMaxWidth().height(Dimensions.artworkDetailsImageHeight),
+          shape = RoundedCornerShape(Dimensions.cornerRadiusMedium),
+          elevation =
+              CardDefaults.cardElevation(defaultElevation = Dimensions.artworkCardElevation),
       ) {
         Surface(
             modifier = Modifier.fillMaxSize(),
@@ -164,7 +166,7 @@ fun ArtworkScreen(
         }
       }
 
-      Spacer(modifier = Modifier.height(4.dp))
+      Spacer(modifier = Modifier.height(Dimensions.spacing4))
 
       ArtworkFieldItem(
           label = stringResource(R.string.artwork_label_artist),
@@ -220,16 +222,16 @@ fun ArtworkFieldItem(
 ) {
   OutlinedCard(
       modifier = modifier.fillMaxWidth(),
-      shape = RoundedCornerShape(12.dp),
+      shape = RoundedCornerShape(Dimensions.cornerRadiusSmall),
   ) {
-    Column(modifier = Modifier.fillMaxWidth().padding(10.dp)) {
+    Column(modifier = Modifier.fillMaxWidth().padding(Dimensions.spacing10)) {
       Text(
           text = label,
           style = MaterialTheme.typography.labelMedium,
           color = MaterialTheme.colorScheme.primary,
           fontWeight = FontWeight.SemiBold,
       )
-      Spacer(modifier = Modifier.height(4.dp))
+      Spacer(modifier = Modifier.height(Dimensions.spacing4))
       Text(
           text = value,
           style = MaterialTheme.typography.bodyMedium,
