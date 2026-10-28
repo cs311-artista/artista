@@ -170,8 +170,7 @@ class WikiDataRepositoryRemoteTest {
     val client = testClient()
     val repository = WikiDataRepositoryRemote(client)
 
-    // Parsing is not implemented yet, so a successful HTTP round trip ends in NotImplementedError.
-    assertThrowsSuspend<NotImplementedError> { repository.getArtwork("Q12418") }
+    assertThrowsSuspend<AppException.NotFound> { repository.getArtwork("Q12418") }
 
     val request = requireNotNull(client.lastRequest)
     val sparql = requireNotNull(request.url.queryParameter("query"))
@@ -216,7 +215,7 @@ class WikiDataRepositoryRemoteTest {
     val repository = WikiDataRepositoryRemote(client)
     client.statusCode = 200
 
-    assertThrowsSuspend<NotImplementedError> { repository.searchArtworks("Mona Lisa") }
+    assertThrowsSuspend<AppException.NotFound> { repository.searchArtworks("Mona Lisa") }
 
     val request = requireNotNull(client.lastRequest)
     assertEquals("GET", request.method)
