@@ -80,6 +80,19 @@ class ArtworkRepositoryLocalTest {
   }
 
   @Test
+  fun searchArtworks_skipsArtworksWithoutAName() = runTest {
+    val repository = ArtworkRepositoryLocal()
+    val namedArtwork = artwork("starry-night", "The Starry Night")
+    val unnamedArtwork = artwork("untitled", null, "Starry Painter")
+    repository.putArtworkInRepositoryUnsavedSection(namedArtwork)
+    repository.putArtworkInRepositoryUnsavedSection(unnamedArtwork)
+
+    val results = repository.searchArtworks("starry")
+
+    assertEquals(listOf(namedArtwork), results)
+  }
+
+  @Test
   fun savedArtworks_areEmptyInitially() = runTest {
     val repository = ArtworkRepositoryLocal()
 
@@ -166,7 +179,7 @@ class ArtworkRepositoryLocalTest {
     }
   }
 
-  private fun artwork(uid: String, name: String, artistName: String? = null) =
+  private fun artwork(uid: String, name: String?, artistName: String? = null) =
       Artwork(
           uid = uid,
           name = name,
