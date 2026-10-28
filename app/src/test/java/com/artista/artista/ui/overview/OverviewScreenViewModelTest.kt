@@ -1,6 +1,7 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 package com.artista.artista.ui.overview
 
+import androidx.lifecycle.ViewModel
 import com.artista.artista.MainDispatcherRule
 import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
@@ -11,6 +12,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -88,6 +90,19 @@ class OverviewScreenViewModelTest {
 
     assertEquals(null, viewModel.uiState.value.errorMessageRes)
   }
+
+  /** Verifies that the factory refuses to create a ViewModel of another class. */
+  @Test
+  fun provideFactory_forUnknownViewModelClass_throws() {
+    val factory = OverviewViewModel.provideFactory(ArtworkRepositoryLocal())
+
+    assertThrows(IllegalArgumentException::class.java) {
+      factory.create(OtherViewModel::class.java)
+    }
+  }
+
+  /** ViewModel unrelated to the overview screen, used to trigger the factory's error. */
+  private class OtherViewModel : ViewModel()
 
   private fun artwork(name: String, artistName: String): Artwork =
       Artwork(
