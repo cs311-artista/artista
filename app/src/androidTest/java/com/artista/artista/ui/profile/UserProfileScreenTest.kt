@@ -2,7 +2,13 @@ package com.artista.artista.ui.profile
 
 import androidx.activity.ComponentActivity
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.SemanticsNodeInteraction
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextContains
@@ -11,6 +17,8 @@ import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextReplacement
+import androidx.compose.ui.text.AnnotatedString
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.artista.artista.R
 import com.artista.artista.ui.navigation.NavigationTestTags
@@ -170,6 +178,105 @@ class UserProfileScreenTest {
     composeTestRule
         .onNodeWithTag(UserProfileTestTags.LOGOUT_BUTTON)
         .assertTextEquals(composeTestRule.activity.getString(R.string.profile_logout))
+  }
+
+  /** Verifies that clicking the username opens the dialog used to edit it. */
+  @Test
+  fun username_click_opensEditDialog() {
+    setProfileContent()
+
+    openUsernameDialog()
+
+    composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME_DIALOG).assertIsDisplayed()
+  }
+
+  /** Verifies that the dialog starts from the current username, so a small change is quick. */
+  @Test
+  fun usernameDialog_prefillsCurrentUsername() {
+    val viewModel = UserProfileViewModel().apply { setUser(userNamed("Alice")) }
+    setProfileContent(viewModel = viewModel)
+
+    openUsernameDialog()
+
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.USERNAME_FIELD)
+        .assertEditableTextEquals("Alice")
+  }
+
+  /** Verifies that the placeholder is not copied into the field when the user has no username. */
+  @Test
+  fun usernameDialog_startsEmpty_whenUserHasNoUsername() {
+    setProfileContent()
+
+    openUsernameDialog()
+
+    composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME_FIELD).assertEditableTextEquals("")
+  }
+
+  /** Verifies that saving closes the dialog and displays the entered username. */
+  @Test
+  fun usernameDialog_save_displaysNewUsername() {
+    val viewModel = UserProfileViewModel().apply { setUser(userNamed("Alice")) }
+    setProfileContent(viewModel = viewModel)
+
+    openUsernameDialog()
+    composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME_FIELD).performTextReplacement("Bob")
+    composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME_SAVE).performClick()
+
+    composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME_DIALOG).assertDoesNotExist()
+    composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME).assertTextEquals("Bob")
+  }
+
+  /** Verifies that cancelling closes the dialog and discards the entered username. */
+  @Test
+  fun usernameDialog_cancel_keepsPreviousUsername() {
+    val viewModel = UserProfileViewModel().apply { setUser(userNamed("Alice")) }
+    setProfileContent(viewModel = viewModel)
+
+    openUsernameDialog()
+    composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME_FIELD).performTextReplacement("Bob")
+    composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME_CANCEL).performClick()
+
+    composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME_DIALOG).assertDoesNotExist()
+    composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME).assertTextEquals("Alice")
+  }
+
+  /** Verifies that the save button is only enabled while the entered username is valid. */
+  @Test
+  fun usernameDialog_saveButton_isEnabledOnlyForValidUsername() {
+    setProfileContent()
+    openUsernameDialog()
+    val field = composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME_FIELD)
+    val saveButton = composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME_SAVE)
+
+    field.performTextReplacement("")
+    saveButton.assertIsNotEnabled()
+
+    field.performTextReplacement("Tim_42")
+    saveButton.assertIsNotEnabled()
+
+    field.performTextReplacement("a".repeat(MAX_USERNAME_LENGTH + 1))
+    saveButton.assertIsNotEnabled()
+
+    field.performTextReplacement("Timothée 42")
+    saveButton.assertIsEnabled()
+  }
+
+  /** Clicks the username field, which opens the dialog used to edit the username. */
+  private fun openUsernameDialog() {
+    composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME).performScrollTo().performClick()
+  }
+
+  /**
+   * Asserts the content typed in a text field. [assertTextEquals] cannot be used here because it
+   * also compares the label of the field.
+   *
+   * @param expected the text expected in the field.
+   */
+  private fun SemanticsNodeInteraction.assertEditableTextEquals(expected: String) {
+    assert(
+        SemanticsMatcher.expectValue(SemanticsProperties.EditableText, AnnotatedString(expected))
+    )
   }
 
   private fun setProfileContent(
