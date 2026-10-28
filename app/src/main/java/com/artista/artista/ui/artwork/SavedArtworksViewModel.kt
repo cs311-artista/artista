@@ -10,6 +10,7 @@ import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.artwork.SavedArtworksRepository
+import com.artista.artista.model.error.AppException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -120,7 +121,7 @@ class SavedArtworksViewModel(
     viewModelScope.launch {
       try {
         savedArtworksRepository.removeArtworkFromSaved(artwork.uid)
-      } catch (exception: NoSuchElementException) {
+      } catch (exception: AppException.NotFound) {
         // The artwork is already absent from storage, which is the outcome the user asked for.
       } catch (exception: CancellationException) {
         // Leaving the screen cancels viewModelScope, and CancellationException extends Exception.

@@ -63,6 +63,15 @@
     <string name="overview_saved_artworks_action">Saved artworks</string>
     <string name="overview_search_placeholder">Search artworks or artists</string>
 
+    <!-- Default error messages, one per AppException type -->
+    <string name="error_not_found">This item no longer exists.</string>
+    <string name="error_already_exists">This item already exists.</string>
+    <string name="error_invalid_input">Some information is invalid. Please check it and try again.</string>
+    <string name="error_network">Couldn\'t reach the server. Check your connection and try again.</string>
+    <string name="error_unauthorized">Your session has expired. Please sign in again.</string>
+    <string name="error_invalid_data">Received unexpected data. Please try again later.</string>
+    <string name="error_unknown">Something went wrong. Please try again.</string>
+
     <!-- Bottom navigation -->
     <string name="navigation_overview">Overview</string>
     <string name="navigation_map">Map</string>

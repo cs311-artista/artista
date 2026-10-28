@@ -1,5 +1,7 @@
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.model.user
 
+import com.artista.artista.model.error.AppException
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -63,7 +65,7 @@ class UserRepositoryProviderTest {
     try {
       UserRepositoryProvider.repository.getUser(user.uid)
       throw AssertionError("The reset repository should not contain previous users")
-    } catch (_: NoSuchElementException) {
+    } catch (_: AppException.NotFound) {
       // Expected: reset creates a fresh in-memory repository.
     }
   }
