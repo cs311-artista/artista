@@ -10,6 +10,8 @@ import okhttp3.Request
 import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Ignore
 import org.junit.Test
@@ -53,6 +55,30 @@ class WikiDataRepositoryRemoteTest {
   }
 
   @Test
+  fun wikiDataConstants_haveExpectedFormatAndAreUnique() {
+    assertEquals("Q3305213", WikiDataItems.PAINTING_CLASS)
+    assertTrue(WikiDataItems.PAINTING_CLASS.matches(Regex("Q\\d+")))
+
+    val properties =
+        listOf(
+            WikiDataProperties.INSTANCE_OF,
+            WikiDataProperties.SUBCLASS_OF,
+            WikiDataProperties.TITLE,
+            WikiDataProperties.ARTIST,
+            WikiDataProperties.IMAGE,
+            WikiDataProperties.INCEPTION_DATE,
+            WikiDataProperties.COLLECTION,
+            WikiDataProperties.LOCATION,
+            WikiDataProperties.COORDINATES,
+            WikiDataProperties.WIDTH,
+            WikiDataProperties.HEIGHT,
+        )
+
+    properties.forEach { assertTrue("$it is not a property ID", it.matches(Regex("P\\d+"))) }
+    assertEquals("Property IDs must be unique", properties.size, properties.toSet().size)
+  }
+
+  @Test
   fun buildRequest_escapesSearchTermAndUsesEnglishLabels() {
     val repository = WikiDataRepositoryRemote()
 
@@ -61,6 +87,108 @@ class WikiDataRepositoryRemoteTest {
     assertTrue(query.contains("wd:Q3305213"))
     assertTrue(query.contains("FILTER(LANG(?itemLabel) = \"en\")"))
     assertTrue(query.contains("mona \\\"lisa\\\""))
+  }
+
+  @Test
+  fun buildRequest_trimsSurroundingWhitespace() {
+    val repository = WikiDataRepositoryRemote()
+
+    val padded = repository.buildRequest("  \t Mona Lisa \n ")
+
+    assertEquals(repository.buildRequest("Mona Lisa"), padded)
+    assertTrue(padded.contains("\"mona lisa\""))
+  }
+
+  @Test
+  fun buildRequest_escapesBackslashBeforeQuote() {
+    val repository = WikiDataRepositoryRemote()
+
+    // Input is: a\b"c
+    val query = repository.buildRequest("a\\b\"c")
+
+    // Expected literal is: "a\\b\"c"
+    assertTrue(query.contains("""FILTER(CONTAINS(LCASE(STR(?itemLabel)), "a\\b\"c"))"""))
+  }
+
+  @Test
+  fun buildRequest_keepsInjectionAttemptInsideStringLiteral() {
+    val repository = WikiDataRepositoryRemote()
+
+    val query = repository.buildRequest("x\" ) } UNION { ?s ?p ?o #")
+
+    // The quote is escaped, so everything stays inside the CONTAINS string literal.
+    assertTrue(
+        query.contains("""FILTER(CONTAINS(LCASE(STR(?itemLabel)), "x\" ) } union { ?s ?p ?o #"))""")
+    )
+  }
+
+  @Test
+  fun buildRequest_hasExpectedStructure() {
+    val repository = WikiDataRepositoryRemote()
+
+    val query = repository.buildRequest("Mona Lisa")
+
+    assertTrue(query.startsWith("SELECT"))
+    assertEquals(query.trim(), query)
+    assertTrue(query.contains("SELECT DISTINCT ?item ?itemLabel"))
+    assertTrue(query.contains("LIMIT 50"))
+    assertTrue(query.contains("wd:Q3305213 ^wdt:P279*/^wdt:P31 ?item"))
+    assertTrue(query.contains("FILTER(CONTAINS(LCASE(STR(?itemLabel)), \"mona lisa\"))"))
+    assertEquals(
+        "Braces must be balanced",
+        query.count { it == '{' },
+        query.count { it == '}' },
+    )
+  }
+
+  @Test
+  fun getArtwork_whenUidIsNotAnExactItemId_throwsInvalidInputWithoutRequest() = runTest {
+    val client = testClient()
+    val repository = WikiDataRepositoryRemote(client)
+
+    listOf(
+            "Q123\n",
+            " Q123",
+            "Q123 ",
+            "Q-1",
+            "Q1.5",
+            "QQ1",
+            "Q 1",
+            "P31",
+            "wd:Q123",
+            "Q\u0661\u0662\u0663", // Arabic-Indic digits must not count as \d
+        )
+        .forEach { uid ->
+          assertThrowsSuspend<AppException.InvalidInput> { repository.getArtwork(uid) }
+        }
+
+    assertNull("no request should be registered", client.lastRequest)
+  }
+
+  @Test
+  fun getArtwork_sendsRequestForRequestedItemWithExpectedHeaders() = runTest {
+    val client = testClient()
+    val repository = WikiDataRepositoryRemote(client)
+
+    // Parsing is not implemented yet, so a successful HTTP round trip ends in NotImplementedError.
+    assertThrowsSuspend<NotImplementedError> { repository.getArtwork("Q12418") }
+
+    val request = requireNotNull(client.lastRequest)
+    val sparql = requireNotNull(request.url.queryParameter("query"))
+    assertEquals("GET", request.method)
+    assertEquals("json", request.url.queryParameter("format"))
+    assertEquals("application/sparql-results+json", request.header("Accept"))
+    assertTrue(request.header("User-Agent")!!.startsWith("Artista/1.0"))
+    assertTrue(sparql.contains("VALUES ?item { wd:Q12418 }"))
+    assertTrue(sparql.contains("LANG(?itemLabel) = \"en\" || LANG(?itemLabel) = \"\""))
+    assertFalse("getArtwork must not use the search subquery", sparql.contains("LIMIT"))
+  }
+
+  @Test
+  fun getArtwork_whenServerReturnsError_throwsNetwork() = runTest {
+    val repository = WikiDataRepositoryRemote(testClient(statusCode = 500))
+
+    assertThrowsSuspend<AppException.Network> { repository.getArtwork("Q12418") }
   }
 
   @Test
