@@ -134,10 +134,10 @@ fun SearchScreen(
 }
 
 /**
- * Displays the query input and any recommendation strings supplied by the ViewModel.
+ * Displays the query input and any recommendation artwork supplied by the ViewModel.
  *
  * @param textFieldState text and cursor state currently shown in the search field
- * @param recommendations strings to show in the dropdown
+ * @param recommendations artwork entries to show in the dropdown
  * @param onQueryChanged called when the user edits the query or selection
  * @param onSearchSubmitted called when the user submits the query from the keyboard
  * @param onRecommendationSelected called when the user selects a dropdown recommendation

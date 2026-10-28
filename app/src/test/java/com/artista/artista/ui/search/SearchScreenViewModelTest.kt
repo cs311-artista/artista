@@ -16,6 +16,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertFalse
 import org.junit.Before
 import org.junit.Test
 
@@ -92,7 +93,7 @@ class SearchScreenViewModelTest {
     results.complete(listOf(SearchTestData.starryNight))
     advanceUntilIdle()
 
-    assertTrue(!viewModel.uiState.value.isLoading)
+    assertFalse(viewModel.uiState.value.isLoading)
     assertEquals(listOf(SearchTestData.starryNight), viewModel.uiState.value.artworks)
   }
 
@@ -127,7 +128,7 @@ class SearchScreenViewModelTest {
 
     assertEquals("van Gogh", viewModel.uiState.value.query)
     assertEquals(listOf(SearchTestData.starryNight), viewModel.uiState.value.artworks)
-    assertTrue(!viewModel.uiState.value.isLoading)
+    assertFalse(viewModel.uiState.value.isLoading)
   }
 
   @Test
