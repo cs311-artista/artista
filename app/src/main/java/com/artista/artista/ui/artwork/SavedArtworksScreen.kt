@@ -217,6 +217,7 @@ object SavedArtworksTestTags {
   const val LOADING_STATE = "saved_artworks_loading_state"
   const val LOAD_ERROR_STATE = "saved_artworks_load_error_state"
   const val RETRY_BUTTON = "saved_artworks_retry_button"
+  const val IMAGE = "saved_artwork_image"
 
   /** Tag of the card showing [artwork]. */
   fun card(artwork: Artwork): String = "${ArtworkCardTestTag.ARTWORK_CARD}_${artwork.uid}"

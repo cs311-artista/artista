@@ -22,6 +22,7 @@ class LaunchCatchingTest {
   /** Errors reported through `onError`, in the order they were received. */
   private val reportedErrors = mutableListOf<AppException>()
 
+  /** Checks that a successful block runs to the end and never calls `onError`. */
   @Test
   fun launchCatching_whenBlockSucceeds_runsBlockWithoutReportingError() = runTest {
     var blockCompleted = false
@@ -33,6 +34,7 @@ class LaunchCatchingTest {
     assertTrue(reportedErrors.isEmpty())
   }
 
+  /** Checks that an [AppException] thrown by the block reaches `onError` unchanged. */
   @Test
   fun launchCatching_whenBlockThrowsAppException_reportsTheSameException() = runTest {
     val failure = AppException.Network()
@@ -44,6 +46,10 @@ class LaunchCatchingTest {
     assertSame(failure, reportedErrors.single())
   }
 
+  /**
+   * Checks that any other exception reaches `onError` as [AppException.Unknown], with the original
+   * exception as its cause.
+   */
   @Test
   fun launchCatching_whenBlockThrowsOtherException_reportsUnknownWithOriginalCause() = runTest {
     val failure = IllegalStateException("Simulated unexpected failure")
@@ -56,6 +62,7 @@ class LaunchCatchingTest {
     assertSame(failure, reportedError.cause)
   }
 
+  /** Checks that cancelling the coroutine stops it silently, without calling `onError`. */
   @Test
   fun launchCatching_whenCancelled_doesNotReportError() = runTest {
     // Cancellation throws a CancellationException inside the block; it must stop the coroutine

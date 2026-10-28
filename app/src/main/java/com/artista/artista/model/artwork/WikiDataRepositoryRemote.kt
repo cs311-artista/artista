@@ -1,6 +1,7 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 package com.artista.artista.model.artwork
 
+import android.util.Log
 import com.artista.artista.model.error.AppException
 import java.util.Locale
 import kotlinx.coroutines.CancellationException
@@ -60,6 +61,11 @@ class WikiDataRepositoryRemote(
 ) : WikiDataRepository {
 
   private val jsonResponseParser = JsonResponseParser()
+  
+  private companion object {
+    /** Wikidata item IDs are "Q" followed by one or more digits, e.g. Q12345. */
+    val ITEM_ID_REGEX = Regex("Q\\d+")
+  }
 
   /**
    * Retrieves a single artwork by its Wikidata identifier.
@@ -76,6 +82,9 @@ class WikiDataRepositoryRemote(
    */
   override suspend fun getArtwork(uid: ArtworkId): Artwork {
     if (uid.isBlank()) throw AppException.InvalidInput("uid is blank")
+    if (!uid.matches(ITEM_ID_REGEX)) {
+      throw AppException.InvalidInput("uid is not a valid Wikidata item ID: $uid")
+    }
 
     val query =
         """
@@ -115,7 +124,6 @@ class WikiDataRepositoryRemote(
   override suspend fun searchArtworks(query: String): List<Artwork> {
     if (query.isBlank()) return emptyList()
     val request = buildRequest(query)
-    println(request)
     val response = executeSparqlRequest(request)
     return jsonResponseParser.parseArtworkResults(response)
   }
@@ -125,7 +133,7 @@ class WikiDataRepositoryRemote(
    *
    * Only English labels are considered for now because the app currently presents artwork titles in
    * a single language; this keeps the query predictable while leaving room to extend the filters
-   * later.
+   * later. Only paintings are used for now.
    *
    * @param searchTerm user-entered text used to match artwork titles
    * @return SPARQL query string for the Wikidata endpoint
@@ -162,7 +170,7 @@ class WikiDataRepositoryRemote(
         .trimIndent()
   }
 
-  private suspend fun executeSparqlRequest(sparqlQuery: String): String =
+  internal suspend fun executeSparqlRequest(sparqlQuery: String): String =
       withContext(Dispatchers.IO) {
         val url =
             endpoint
@@ -174,7 +182,7 @@ class WikiDataRepositoryRemote(
             Request.Builder()
                 .url(url)
                 .header("Accept", "application/sparql-results+json")
-                .header("User-Agent", "Artista/1.0")
+                .header("User-Agent", "Artista/1.0 (https://github.com/cs311-artista/artista)")
                 .get()
                 .build()
 

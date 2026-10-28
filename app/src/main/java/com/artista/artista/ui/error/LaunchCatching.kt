@@ -28,14 +28,14 @@ fun CoroutineScope.launchCatching(
 ): Job = launch {
   try {
     block()
-  } catch (exception: CancellationException) {
+  } catch (exception: CancellationException) { // volontary return not really a bug
     // Cancellation is how a coroutine stops (e.g. the user left the screen), not a failure.
     // CancellationException extends Exception, so it must be rethrown before the catches below.
     throw exception
-  } catch (exception: AppException) {
+  } catch (exception: AppException) { // one of the artista exeption
     Log.e(tag, "Operation failed.", exception)
     onError(exception)
-  } catch (exception: Exception) {
+  } catch (exception: Exception) { // else, all other exeptions
     Log.e(tag, "Unexpected failure.", exception)
     onError(AppException.Unknown(exception.message, exception))
   }
