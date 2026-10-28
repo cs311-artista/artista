@@ -2,6 +2,7 @@
 // Co-authored-by: Qwen2.5-coder
 package com.artista.artista.model.artwork
 
+import com.artista.artista.model.error.AppException
 import com.artista.artista.model.map.Location
 import java.time.Instant
 import java.time.LocalDate
@@ -26,6 +27,9 @@ class JsonResponseParser {
   fun parseArtworkResults(responseBody: String): List<Artwork> {
     val json = JSONObject(responseBody)
     val results = json.getJSONObject("results")
+    if (results == null || !results.has("bindings")) {
+      throw AppException.NotFound("No artwork found in the response")
+    }
     val bindings = results.getJSONArray("bindings")
 
     val artworks = mutableListOf<Artwork>()
