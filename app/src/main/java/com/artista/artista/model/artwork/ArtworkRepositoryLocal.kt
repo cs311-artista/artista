@@ -1,5 +1,7 @@
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.model.artwork
 
+import com.artista.artista.model.error.AppException
 import com.artista.artista.ui.map.UserLocation
 
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
@@ -27,8 +29,8 @@ class ArtworkRepositoryLocal : SavedArtworksRepository, WikiDataRepository {
   override suspend fun getPopularArtists(): List<String> = mockPopularArtists
 
   override suspend fun getArtwork(uid: ArtworkId): Artwork {
-    if (uid.isBlank()) throw IllegalArgumentException("uid is blank")
-    return artworks[uid] ?: throw NoSuchElementException("No Artwork match uid: $uid was found")
+    if (uid.isBlank()) throw AppException.InvalidInput("uid is blank")
+    return artworks[uid] ?: throw AppException.NotFound("No Artwork match uid: $uid was found")
   }
 
   override suspend fun searchArtworks(query: String): List<Artwork> {
@@ -37,7 +39,7 @@ class ArtworkRepositoryLocal : SavedArtworksRepository, WikiDataRepository {
   }
 
   override suspend fun isArtworkSaved(uid: ArtworkId): Boolean {
-    if (uid.isBlank()) throw IllegalArgumentException("uid is empty")
+    if (uid.isBlank()) throw AppException.InvalidInput("uid is empty")
     return artworksSaved.containsKey(uid)
   }
 
@@ -47,7 +49,7 @@ class ArtworkRepositoryLocal : SavedArtworksRepository, WikiDataRepository {
   }
 
   override suspend fun removeArtworkFromSaved(uid: ArtworkId) {
-    if (!isArtworkSaved(uid)) throw NoSuchElementException("No artwork matching uid $uid was found")
+    if (!isArtworkSaved(uid)) throw AppException.NotFound("No artwork matching uid $uid was found")
     artworksSaved.remove(uid)
   }
 
@@ -60,6 +62,10 @@ class ArtworkRepositoryLocal : SavedArtworksRepository, WikiDataRepository {
    * Repository which would not be accessible like it in production code. Its purpose is to set up
    * the repository in a way such that tests and demos using [ArtworkRepositoryLocal] can have data
    * to work with.
+   *
+   * It is not part of the repository interface, so a duplicate uid here is a programming mistake,
+   * never an error shown to the user: it keeps [IllegalArgumentException] instead of an
+   * [AppException].
    *
    * @param artwork the [Artwork] which should be added to the fictional backend
    * @throws IllegalArgumentException if trying to put a second artwork with the same [Artwork.uid]
