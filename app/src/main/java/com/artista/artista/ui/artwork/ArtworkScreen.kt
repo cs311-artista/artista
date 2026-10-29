@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
+import com.artista.artista.model.map.Location
 import com.artista.artista.resources.C
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
@@ -231,7 +232,13 @@ fun ArtworkScreen(
 
       // Only show the map-tile if the location of the artwork is actually specified
       if (artwork.location != null) {
-        MapTile(modifier, mapTileCameraPositionState, mapTileMarkerState, artwork.location, artwork.name)
+        MapTile(
+            modifier,
+            mapTileCameraPositionState,
+            mapTileMarkerState,
+            artwork.location,
+            artwork.name,
+        )
       }
     }
   }
