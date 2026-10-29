@@ -132,11 +132,11 @@ fun ArtworkScreen(
         modifier =
             Modifier.fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = Dimensions.spacing20)
+                .padding(horizontal = Dimensions.artworkDetailsContentHorizontalPadding)
                 .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(Dimensions.spacing12),
+        verticalArrangement = Arrangement.spacedBy(Dimensions.artworkDetailsSectionSpacing),
     ) {
-      Spacer(modifier = Modifier.height(Dimensions.spacing4))
+      Spacer(modifier = Modifier.height(Dimensions.artworkDetailsImageVerticalSpacing))
 
       /**
        * TODO: This component serves as a placeholder for the image. Remove it, and implement
@@ -166,7 +166,7 @@ fun ArtworkScreen(
         }
       }
 
-      Spacer(modifier = Modifier.height(Dimensions.spacing4))
+      Spacer(modifier = Modifier.height(Dimensions.artworkDetailsImageVerticalSpacing))
 
       ArtworkFieldItem(
           label = stringResource(R.string.artwork_label_artist),
@@ -224,14 +224,14 @@ fun ArtworkFieldItem(
       modifier = modifier.fillMaxWidth(),
       shape = RoundedCornerShape(Dimensions.cornerRadiusSmall),
   ) {
-    Column(modifier = Modifier.fillMaxWidth().padding(Dimensions.spacing10)) {
+    Column(modifier = Modifier.fillMaxWidth().padding(Dimensions.artworkFieldContentPadding)) {
       Text(
           text = label,
           style = MaterialTheme.typography.labelMedium,
           color = MaterialTheme.colorScheme.primary,
           fontWeight = FontWeight.SemiBold,
       )
-      Spacer(modifier = Modifier.height(Dimensions.spacing4))
+      Spacer(modifier = Modifier.height(Dimensions.artworkFieldLabelValueSpacing))
       Text(
           text = value,
           style = MaterialTheme.typography.bodyMedium,

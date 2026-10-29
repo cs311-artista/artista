@@ -178,7 +178,10 @@ private fun SearchInput(
             onExpandedChange = { expanded = it },
             modifier =
                 Modifier.fillMaxWidth()
-                    .padding(horizontal = Dimensions.spacing16, vertical = Dimensions.spacing8)
+                    .padding(
+                        horizontal = Dimensions.searchInputHorizontalPadding,
+                        vertical = Dimensions.searchInputVerticalPadding,
+                    )
                     .focusRequester(focusRequester)
                     .testTag(SearchScreenTestTags.SEARCH_INPUT),
             placeholder = { Text(stringResource(R.string.search_placeholder)) },
@@ -225,8 +228,11 @@ private fun ArtworkResults(
   LazyColumn(
       modifier = modifier.testTag(SearchScreenTestTags.ARTWORK_RESULTS),
       contentPadding =
-          PaddingValues(horizontal = Dimensions.spacing16, vertical = Dimensions.spacing8),
-      verticalArrangement = Arrangement.spacedBy(Dimensions.spacing8),
+          PaddingValues(
+              horizontal = Dimensions.searchResultsHorizontalPadding,
+              vertical = Dimensions.searchResultsVerticalPadding,
+          ),
+      verticalArrangement = Arrangement.spacedBy(Dimensions.searchResultItemSpacing),
   ) {
     items(artworks) { artwork ->
       ArtworkCard(

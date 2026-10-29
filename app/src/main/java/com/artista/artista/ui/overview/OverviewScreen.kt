@@ -105,10 +105,10 @@ fun OverviewScreen(
               Modifier.fillMaxSize().padding(innerPadding).testTag(OverviewTestTags.ARTWORK_LIST),
           contentPadding =
               PaddingValues(
-                  horizontal = Dimensions.spacing16,
-                  vertical = Dimensions.spacing8,
+                  horizontal = Dimensions.overviewListHorizontalPadding,
+                  vertical = Dimensions.overviewListVerticalPadding,
               ),
-          verticalArrangement = Arrangement.spacedBy(Dimensions.spacing8),
+          verticalArrangement = Arrangement.spacedBy(Dimensions.overviewListItemSpacing),
       ) {
         items(uiState.artworks) { artwork ->
           ArtworkCard(
@@ -148,8 +148,8 @@ private fun OverviewSearchBar(
               .fillMaxWidth()
               .statusBarsPadding()
               .padding(
-                  horizontal = Dimensions.spacing16,
-                  vertical = Dimensions.spacing8,
+                  horizontal = Dimensions.overviewSearchBarHorizontalPadding,
+                  vertical = Dimensions.overviewSearchBarVerticalPadding,
               )
               .height(Dimensions.overviewSearchBarHeight)
               .clickable(role = Role.Button, onClick = onClick)
@@ -160,7 +160,9 @@ private fun OverviewSearchBar(
       tonalElevation = Dimensions.overviewSearchBarElevation,
   ) {
     Row(
-        modifier = Modifier.fillMaxSize().padding(horizontal = Dimensions.spacing16),
+        modifier =
+            Modifier.fillMaxSize()
+                .padding(horizontal = Dimensions.overviewSearchBarContentHorizontalPadding),
         verticalAlignment = Alignment.CenterVertically,
     ) {
       Icon(
@@ -170,7 +172,7 @@ private fun OverviewSearchBar(
       )
       Text(
           text = stringResource(R.string.overview_search_placeholder),
-          modifier = Modifier.padding(start = Dimensions.spacing12),
+          modifier = Modifier.padding(start = Dimensions.overviewSearchBarIconTextSpacing),
           color = MaterialTheme.colorScheme.onSurfaceVariant,
       )
     }
@@ -188,7 +190,7 @@ private fun OverviewErrorContent(onSavedArtworksClick: () -> Unit) {
   Column(
       modifier = Modifier.fillMaxWidth().testTag(OverviewTestTags.ERROR_MESSAGE),
       horizontalAlignment = Alignment.CenterHorizontally,
-      verticalArrangement = Arrangement.spacedBy(Dimensions.spacing12),
+      verticalArrangement = Arrangement.spacedBy(Dimensions.overviewErrorActionSpacing),
   ) {
     Text(text = stringResource(R.string.overview_load_error))
     Button(

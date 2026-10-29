@@ -81,8 +81,8 @@ fun ArtworkCard(
       modifier = modifier.fillMaxWidth().testTag(testTag(ArtworkCardTestTag.ARTWORK_CARD)),
   ) {
     Column(
-        modifier = Modifier.fillMaxWidth().padding(Dimensions.spacing12),
-        verticalArrangement = Arrangement.spacedBy(Dimensions.spacing16),
+        modifier = Modifier.fillMaxWidth().padding(Dimensions.artworkCardContentPadding),
+        verticalArrangement = Arrangement.spacedBy(Dimensions.artworkCardSectionSpacing),
     ) {
       Surface(
           modifier =
@@ -107,8 +107,10 @@ fun ArtworkCard(
       }
 
       Column(
-          modifier = Modifier.fillMaxWidth().padding(horizontal = Dimensions.spacing8),
-          verticalArrangement = Arrangement.spacedBy(Dimensions.spacing4),
+          modifier =
+              Modifier.fillMaxWidth()
+                  .padding(horizontal = Dimensions.artworkCardTextHorizontalPadding),
+          verticalArrangement = Arrangement.spacedBy(Dimensions.artworkCardTextSpacing),
       ) {
         Text(
             text = artwork.name,
@@ -194,7 +196,7 @@ private fun ArtworkCardPreview() {
         onArtworkClick = {},
         onMapClick = {},
         onSaveClick = { _ -> },
-        modifier = Modifier.padding(Dimensions.spacing16),
+        modifier = Modifier.padding(Dimensions.artworkCardPreviewPadding),
     )
   }
 }

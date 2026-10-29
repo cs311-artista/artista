@@ -70,7 +70,10 @@ fun BottomNavigationMenu(
         modifier =
             Modifier.align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .padding(horizontal = Dimensions.spacing16, vertical = Dimensions.spacing16)
+                .padding(
+                    horizontal = Dimensions.navigationBarHorizontalPadding,
+                    vertical = Dimensions.navigationBarVerticalPadding,
+                )
                 .clip(RoundedCornerShape(Dimensions.cornerRadiusPill))
                 .testTag(NavigationTestTags.BOTTOM_NAVIGATION_MENU),
         containerColor = MaterialTheme.colorScheme.surfaceContainer,

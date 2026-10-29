@@ -84,10 +84,13 @@ fun AuthScreenContent(
     Column(
         modifier =
             Modifier.fillMaxSize()
-                .padding(horizontal = Dimensions.spacing24, vertical = Dimensions.spacing32),
+                .padding(
+                    horizontal = Dimensions.authenticationScreenHorizontalPadding,
+                    vertical = Dimensions.authenticationScreenVerticalPadding,
+                ),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-      Spacer(Modifier.height(Dimensions.spacing48))
+      Spacer(Modifier.height(Dimensions.authenticationHeroTopSpacing))
 
       // Hero artwork for the authentication screen.
       Image(
@@ -101,7 +104,7 @@ fun AuthScreenContent(
           contentScale = ContentScale.Crop,
       )
 
-      Spacer(Modifier.height(Dimensions.spacing16))
+      Spacer(Modifier.height(Dimensions.authenticationHeroTitleSpacing))
 
       Text(
           text = stringResource(R.string.app_name),
@@ -109,7 +112,7 @@ fun AuthScreenContent(
           color = MaterialTheme.colorScheme.onTertiaryContainer,
       )
 
-      Spacer(Modifier.height(Dimensions.spacing8))
+      Spacer(Modifier.height(Dimensions.authenticationTitleTaglineSpacing))
 
       Text(
           text = stringResource(R.string.auth_tagline),
@@ -134,7 +137,10 @@ fun AuthScreenContent(
                   disabledContentColor = MaterialTheme.colorScheme.onSurface,
               ),
           contentPadding =
-              PaddingValues(horizontal = Dimensions.spacing20, vertical = Dimensions.spacingNone),
+              PaddingValues(
+                  horizontal = Dimensions.authenticationButtonHorizontalPadding,
+                  vertical = Dimensions.authenticationButtonVerticalPadding,
+              ),
       ) {
         if (state.isLoading) {
           CircularProgressIndicator(
@@ -152,12 +158,12 @@ fun AuthScreenContent(
               // colour.
               tint = Color.Unspecified,
           )
-          Spacer(Modifier.width(Dimensions.spacing10))
+          Spacer(Modifier.width(Dimensions.authenticationButtonIconLabelSpacing))
           Text(text = stringResource(R.string.sign_in_with_google))
         }
       }
 
-      Spacer(Modifier.height(Dimensions.spacing24))
+      Spacer(Modifier.height(Dimensions.authenticationScreenBottomSpacing))
     }
 
     SnackbarHost(

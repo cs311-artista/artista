@@ -158,8 +158,8 @@ private fun SavedArtworksScreenLayout(
                     fontWeight = FontWeight.Bold,
                     modifier =
                         Modifier.padding(
-                            horizontal = Dimensions.spacing20,
-                            vertical = Dimensions.spacing8,
+                            horizontal = Dimensions.savedArtworksTitleHorizontalPadding,
+                            vertical = Dimensions.savedArtworksTitleVerticalPadding,
                         ),
                 )
               }
@@ -267,7 +267,7 @@ private fun SavedArtworksLoadErrorState(onRetry: () -> Unit, modifier: Modifier 
   Column(
       modifier =
           modifier
-              .padding(horizontal = Dimensions.spacing24)
+              .padding(horizontal = Dimensions.savedArtworksErrorHorizontalPadding)
               .testTag(SavedArtworksTestTags.LOAD_ERROR_STATE),
       verticalArrangement = Arrangement.Center,
       horizontalAlignment = Alignment.CenterHorizontally,
@@ -278,7 +278,7 @@ private fun SavedArtworksLoadErrorState(onRetry: () -> Unit, modifier: Modifier 
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         textAlign = TextAlign.Center,
     )
-    Spacer(modifier = Modifier.height(Dimensions.spacing16))
+    Spacer(modifier = Modifier.height(Dimensions.savedArtworksRetryButtonSpacing))
     Button(
         onClick = onRetry,
         modifier = Modifier.testTag(SavedArtworksTestTags.RETRY_BUTTON),
@@ -326,8 +326,11 @@ private fun SavedArtworksList(
   LazyColumn(
       modifier = modifier.testTag(SavedArtworksTestTags.LIST),
       contentPadding =
-          PaddingValues(horizontal = Dimensions.spacing16, vertical = Dimensions.spacing12),
-      verticalArrangement = Arrangement.spacedBy(Dimensions.spacing12),
+          PaddingValues(
+              horizontal = Dimensions.savedArtworksListHorizontalPadding,
+              vertical = Dimensions.savedArtworksListVerticalPadding,
+          ),
+      verticalArrangement = Arrangement.spacedBy(Dimensions.savedArtworksItemSpacing),
   ) {
     items(artworks, key = { it.uid }) { artwork ->
       ArtworkCard(

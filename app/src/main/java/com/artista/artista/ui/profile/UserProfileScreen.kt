@@ -102,7 +102,10 @@ private fun ProfileTopBar(onLogoutClick: () -> Unit) {
       modifier =
           Modifier.fillMaxWidth()
               .statusBarsPadding()
-              .padding(horizontal = Dimensions.spacing16, vertical = Dimensions.spacing8),
+              .padding(
+                  horizontal = Dimensions.profileTopBarHorizontalPadding,
+                  vertical = Dimensions.profileTopBarVerticalPadding,
+              ),
       horizontalArrangement = Arrangement.End,
   ) {
     LogoutButton(onClick = onLogoutClick)
@@ -135,18 +138,18 @@ private fun ProfileContent(
               // which makes them invisible and unclickable.
               .verticalScroll(rememberScrollState())
               .padding(
-                  start = Dimensions.spacing24,
-                  top = Dimensions.spacing16,
-                  end = Dimensions.spacing24,
-                  bottom = Dimensions.spacing45,
+                  start = Dimensions.profileContentHorizontalPadding,
+                  top = Dimensions.profileContentTopPadding,
+                  end = Dimensions.profileContentHorizontalPadding,
+                  bottom = Dimensions.profileContentBottomPadding,
               ),
       horizontalAlignment = Alignment.CenterHorizontally,
   ) {
     ProfilePicturePlaceholder()
-    Spacer(modifier = Modifier.height(Dimensions.spacing48))
+    Spacer(modifier = Modifier.height(Dimensions.profilePictureFieldsSpacing))
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(Dimensions.spacing24),
+        verticalArrangement = Arrangement.spacedBy(Dimensions.profileFieldSpacing),
     ) {
       // Styled like the buttons on purpose: the username will become editable on click (#55),
       // which will also remove the read-only branch of ProfileField.
@@ -183,8 +186,11 @@ private fun LogoutButton(onClick: () -> Unit) {
   ) {
     Row(
         modifier =
-            Modifier.padding(horizontal = Dimensions.spacing20, vertical = Dimensions.spacing10),
-        horizontalArrangement = Arrangement.spacedBy(Dimensions.spacing8),
+            Modifier.padding(
+                horizontal = Dimensions.logoutButtonHorizontalPadding,
+                vertical = Dimensions.logoutButtonVerticalPadding,
+            ),
+        horizontalArrangement = Arrangement.spacedBy(Dimensions.logoutButtonIconLabelSpacing),
         verticalAlignment = Alignment.CenterVertically,
     ) {
       // The label already names the action, so describing the icon would make screen readers
@@ -245,7 +251,7 @@ private fun ProfileField(
         modifier =
             Modifier.fillMaxWidth()
                 .height(Dimensions.profileFieldHeight)
-                .padding(horizontal = Dimensions.spacing24),
+                .padding(horizontal = Dimensions.profileFieldHorizontalPadding),
         contentAlignment = Alignment.Center,
     ) {
       Text(

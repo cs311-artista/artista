@@ -96,8 +96,11 @@ fun ArtistPreferencesScreen(
         modifier =
             Modifier.fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = Dimensions.spacing24, vertical = Dimensions.spacing16),
-        verticalArrangement = Arrangement.spacedBy(Dimensions.spacing16),
+                .padding(
+                    horizontal = Dimensions.artistPreferencesScreenHorizontalPadding,
+                    vertical = Dimensions.artistPreferencesScreenVerticalPadding,
+                ),
+        verticalArrangement = Arrangement.spacedBy(Dimensions.artistPreferencesSectionSpacing),
     ) {
       Header(onBackClick = onBackClick)
       SearchField()
@@ -113,8 +116,10 @@ fun ArtistPreferencesScreen(
           columns = GridCells.Fixed(3),
           modifier =
               Modifier.weight(1f).fillMaxWidth().testTag(ArtistPreferencesTestTags.ARTISTS_GRID),
-          horizontalArrangement = Arrangement.spacedBy(Dimensions.spacing12),
-          verticalArrangement = Arrangement.spacedBy(Dimensions.spacing12),
+          horizontalArrangement =
+              Arrangement.spacedBy(Dimensions.artistPreferencesGridHorizontalSpacing),
+          verticalArrangement =
+              Arrangement.spacedBy(Dimensions.artistPreferencesGridVerticalSpacing),
       ) {
         // Names are used as keys, so they must be unique: duplicated keys crash the grid. Switch to
         // artist identifiers once the artists come from a repository.
@@ -241,7 +246,7 @@ private fun ArtistCard(artist: String, selected: Boolean, onToggle: () -> Unit) 
           },
   ) {
     Column(
-        modifier = Modifier.padding(Dimensions.spacing8),
+        modifier = Modifier.padding(Dimensions.artistCardContentPadding),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
       Box {
@@ -249,12 +254,14 @@ private fun ArtistCard(artist: String, selected: Boolean, onToggle: () -> Unit) 
         ArtistImagePlaceholder()
         SelectionIndicator(
             selected = selected,
-            modifier = Modifier.align(Alignment.TopEnd).padding(Dimensions.spacing4),
+            modifier =
+                Modifier.align(Alignment.TopEnd)
+                    .padding(Dimensions.artistCardSelectionIndicatorPadding),
         )
       }
       Text(
           text = artist,
-          modifier = Modifier.padding(top = Dimensions.spacing8),
+          modifier = Modifier.padding(top = Dimensions.artistCardNameTopSpacing),
           style = MaterialTheme.typography.bodySmall,
           textAlign = TextAlign.Center,
           // Two lines for every name keeps all the cards of a row at the same height.
