@@ -9,6 +9,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.artista.artista.R
+import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.SavedArtworksRepository
@@ -39,7 +40,7 @@ class ArtworkScreenTest {
       Artwork(
           uid = "monaId",
           name = "Mona Lisa",
-          artistName = "Leonardo da Vinci",
+          artist = Artist("test-da-vinci", "Leonardo da Vinci"),
           description = "A portrait of Lisa Gherardini, wife of Francesco del Giocondo.",
           conceptionDate = null,
           museum = "Musée du Louvre",
@@ -124,7 +125,7 @@ class ArtworkScreenTest {
             Artwork(
                 uid = "starryId",
                 name = "The Starry Night",
-                artistName = "Vincent van Gogh",
+                artist = Artist("test-van-gogh", "Vincent van Gogh"),
                 location = null,
                 conceptionDate = null,
                 dimension = null,

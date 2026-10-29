@@ -2,6 +2,7 @@
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.model.artwork
 
+import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.error.AppException
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -192,7 +193,7 @@ class ArtworkRepositoryLocalTest {
       Artwork(
           uid = uid,
           name = name,
-          artistName = artistName,
+          artist = artistName?.let { Artist(uid = "test-$it", name = it) },
           location = null,
           conceptionDate = null,
           dimension = null,

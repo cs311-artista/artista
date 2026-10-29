@@ -2,6 +2,7 @@
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.artwork
 
+import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.SavedArtworksRepository
@@ -34,7 +35,7 @@ class ArtworkScreenViewModelTest {
       Artwork(
           uid = "monaId",
           name = "Mona Lisa",
-          artistName = "Leonardo da Vinci",
+          artist = Artist("test-da-vinci", "Leonardo da Vinci"),
           description = "Portrait of Lisa Gherardini",
           conceptionDate = null,
           museum = "Louvre",
@@ -151,7 +152,7 @@ class ArtworkScreenViewModelTest {
             Artwork(
                 uid = "starryId",
                 name = "The Starry Night",
-                artistName = "Vincent van Gogh",
+                artist = Artist("test-van-gogh", "Vincent van Gogh"),
                 location = null,
                 conceptionDate = null,
                 dimension = null,

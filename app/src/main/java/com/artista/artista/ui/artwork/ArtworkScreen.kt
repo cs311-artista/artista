@@ -169,7 +169,7 @@ fun ArtworkScreen(
 
       ArtworkFieldItem(
           label = stringResource(R.string.artwork_label_artist),
-          value = artwork.artistName ?: stringResource(R.string.artwork_unknown_artist),
+          value = artwork.artist?.name ?: stringResource(R.string.artwork_unknown_artist),
       )
 
       ArtworkFieldItem(
@@ -262,7 +262,7 @@ fun ArtworkFieldItem(
 //  val sampleArtwork =
 //      Artwork(
 //          name = "Mona Lisa",
-//          artistName = "Leonardo da Vinci",
+//          artist = Artist(uid = "preview-da-vinci", name = "Leonardo da Vinci"),
 //          description = "A portrait of Lisa Gherardini, wife of Francesco del Giocondo.",
 //          conceptionDate = monaLisaDate,
 //          museum = "Musée du Louvre",

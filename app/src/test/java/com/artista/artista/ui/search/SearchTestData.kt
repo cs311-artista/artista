@@ -2,6 +2,7 @@
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.search
 
+import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.SavedArtworksRepository
@@ -14,7 +15,7 @@ internal object SearchTestData {
       Artwork(
           uid = "starryId",
           name = "The Starry Night",
-          artistName = "Vincent van Gogh",
+          artist = Artist("test-van-gogh-1", "Vincent van Gogh"),
           location = null,
           conceptionDate = null,
           dimension = null,
@@ -26,7 +27,7 @@ internal object SearchTestData {
       Artwork(
           uid = "girlId",
           name = "Girl with a Pearl Earring",
-          artistName = "Johannes Vermeer",
+          artist = Artist("test-vermeer", "Johannes Vermeer"),
           location = null,
           conceptionDate = null,
           dimension = null,
@@ -38,7 +39,7 @@ internal object SearchTestData {
       Artwork(
           uid = "sunflowersId",
           name = "Sunflowers",
-          artistName = "Vincent van Gogh",
+          artist = Artist("test-van-gogh-1", "Vincent van Gogh"),
           location = null,
           conceptionDate = null,
           dimension = null,
@@ -50,7 +51,7 @@ internal object SearchTestData {
       Artwork(
           uid = "untitledId",
           name = "Untitled study",
-          artistName = null,
+          artist = null,
           location = null,
           conceptionDate = null,
           dimension = null,
@@ -107,7 +108,7 @@ internal class FakeWikiDataRepository(
     throw NotImplementedError("Not yet implemented")
   }
 
-  override suspend fun getPopularArtists(): List<String> {
+  override suspend fun getPopularArtists(): List<Artist> {
     throw NotImplementedError("Not yet implemented")
   }
 
@@ -119,7 +120,7 @@ internal class FakeWikiDataRepository(
     searchedQueries.add(query)
     return artworks.filter {
       it.name?.contains(query, ignoreCase = true) == true ||
-          it.artistName?.contains(query, ignoreCase = true) == true
+          it.artist?.name?.contains(query, ignoreCase = true) == true
     }
   }
 }
