@@ -131,6 +131,10 @@ class JsonResponseParserTest {
     assertNull(location)
   }
 
+  /**
+   * This function allows for the calling of the private functions inside JsonResponseParser, in
+   * order to be able to test them. It works through reflection of those functions.
+   */
   private inline fun <reified T> invokePrivateMethod(
       obj: Any,
       methodName: String,
