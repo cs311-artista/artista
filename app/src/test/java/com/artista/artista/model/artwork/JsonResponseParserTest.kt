@@ -49,6 +49,41 @@ class JsonResponseParserTest {
   }
 
   @Test
+  fun parseArtworkResults_parsesMultipleCapturedWikidataResponses() {
+    val resource =
+        requireNotNull(javaClass.getResource("/wikidata_response_multiple.json")) {
+          "wikidata_response_multiple.json test resource is missing"
+        }
+    val artworks = parser.parseArtworkResults(resource.readText())
+
+    assertEquals(2, artworks.size)
+
+    var artwork = artworks[0]
+    assertEquals("Q12418", artwork.uid)
+    assertEquals("Mona Lisa", artwork.name)
+    assertEquals("Leonardo da Vinci", artwork.artistName)
+    assertEquals("oil painting by Leonardo da Vinci in the Louvre, Paris", artwork.description)
+    assertEquals(Date.from(Instant.parse("1503-01-01T00:00:00Z")), artwork.conceptionDate)
+    assertEquals("Department of Paintings of the Louvre", artwork.museum)
+    assertEquals("Salle des États, Louvre", artwork.location?.name)
+    assertEquals(0.0, artwork.location?.longitude ?: 0.0, 0.01)
+    assertEquals(0.0, artwork.location?.latitude ?: 0.0, 0.01)
+    assertEquals(53.4, artwork.dimension?.width ?: 0.0, 0.01)
+    assertEquals(79.4, artwork.dimension?.height ?: 0.0, 0.01)
+
+    artwork = artworks[1]
+    assertEquals("Q12419", artwork.uid)
+    assertEquals("The Thinker", artwork.name)
+    assertNull(artwork.artistName)
+    assertNull(artwork.description)
+    assertNull(artwork.conceptionDate)
+    assertEquals("Department of Sculptures of the Louvre", artwork.museum)
+    assertNull(artwork.location)
+    assertEquals(0.0, artwork.dimension?.width ?: 0.0, 0.01)
+    assertEquals(0.0, artwork.dimension?.height ?: 0.0, 0.01)
+  }
+
+  @Test
   fun parseArtworkResults_parsesCapturedWikidataResponseWithNullFields() {
     val resource =
         requireNotNull(javaClass.getResource("/wikidata_response_null_fields.json")) {
