@@ -2,6 +2,7 @@
 package com.artista.artista.model.artwork
 
 import android.util.Log
+import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.error.AppException
 import com.artista.artista.ui.map.UserLocation
 import java.util.Locale
@@ -64,7 +65,7 @@ class WikiDataRepositoryRemote(
     throw NotImplementedError("Not yet implemented")
   }
 
-  override suspend fun getPopularArtists(): List<String> {
+  override suspend fun getPopularArtists(): List<Artist> {
     throw NotImplementedError("Not yet implemented")
   }
 

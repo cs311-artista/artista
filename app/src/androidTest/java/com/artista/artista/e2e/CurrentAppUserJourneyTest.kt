@@ -263,7 +263,7 @@ class CurrentAppUserJourneyTest {
     composeTestRule.waitForIdle()
     composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SCREEN).assertIsDisplayed()
 
-    val artistCard = ArtistPreferencesTestTags.getArtistCardTestTag("Pablo Picasso")
+    val artistCard = ArtistPreferencesTestTags.getArtistCardTestTag("mock-artist-001")
     composeTestRule
         .onNodeWithTag(ArtistPreferencesTestTags.ARTISTS_GRID)
         .performScrollToNode(hasTestTag(artistCard))

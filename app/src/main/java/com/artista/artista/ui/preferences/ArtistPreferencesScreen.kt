@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.artista.artista.R
+import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
@@ -120,13 +121,11 @@ fun ArtistPreferencesScreen(
           horizontalArrangement = Arrangement.spacedBy(12.dp),
           verticalArrangement = Arrangement.spacedBy(12.dp),
       ) {
-        // Names are used as keys, so they must be unique: duplicated keys crash the grid. Switch to
-        // artist identifiers once the artists come from a repository.
-        items(uiState.popularArtists, key = { it }) { artist ->
+        items(uiState.popularArtists, key = { it.uid }) { artist ->
           ArtistCard(
               artist = artist,
-              selected = artist in uiState.selectedArtists,
-              onToggle = { artistPreferencesViewModel.toggleArtist(artist) },
+              selected = artist.uid in uiState.selectedArtists,
+              onToggle = { artistPreferencesViewModel.toggleArtist(artist.uid) },
           )
         }
       }
@@ -216,12 +215,12 @@ private fun SearchField() {
 /**
  * Card of a popular artist, which the user can click to select or deselect the artist.
  *
- * @param artist Name of the artist displayed by the card.
+ * @param artist Artist displayed by the card.
  * @param selected Whether the artist is currently selected.
  * @param onToggle Callback invoked when the card is clicked.
  */
 @Composable
-private fun ArtistCard(artist: String, selected: Boolean, onToggle: () -> Unit) {
+private fun ArtistCard(artist: Artist, selected: Boolean, onToggle: () -> Unit) {
   // A checkable Surface, unlike a clickable one, exposes the on/off state used by assertIsOn.
   Surface(
       checked = selected,
@@ -230,7 +229,7 @@ private fun ArtistCard(artist: String, selected: Boolean, onToggle: () -> Unit) 
           Modifier.fillMaxWidth()
               // Lets accessibility services announce the card as a checkbox with its state.
               .semantics { role = Role.Checkbox }
-              .testTag(ArtistPreferencesTestTags.getArtistCardTestTag(artist)),
+              .testTag(ArtistPreferencesTestTags.getArtistCardTestTag(artist.uid)),
       shape = RoundedCornerShape(20.dp),
       color =
           if (selected) MaterialTheme.colorScheme.surfaceContainerLowest
@@ -250,7 +249,7 @@ private fun ArtistCard(artist: String, selected: Boolean, onToggle: () -> Unit) 
         )
       }
       Text(
-          text = artist,
+          text = artist.name,
           modifier = Modifier.padding(top = 8.dp),
           style = MaterialTheme.typography.bodySmall,
           textAlign = TextAlign.Center,
@@ -318,8 +317,8 @@ private fun SelectionIndicator(selected: Boolean, modifier: Modifier = Modifier)
 private fun ArtistPreferencesScreenPreview() {
   val viewModel = remember {
     ArtistPreferencesViewModel(ArtworkRepositoryProvider.repository).apply {
-      toggleArtist("Vincent van Gogh")
-      toggleArtist("Claude Monet")
+      toggleArtist("mock-artist-002")
+      toggleArtist("mock-artist-004")
     }
   }
   ArtistaTheme {
