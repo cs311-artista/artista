@@ -24,11 +24,34 @@ class FakeGoogleCredentialProvider(
   var callCount: Int = 0
     private set
 
+  /**
+   * When set, [clearSession] returns a failure carrying this instead of clearing the session.
+   *
+   * @author timo-by
+   */
+  var clearSessionError: Throwable? = null
+
+  /**
+   * Number of times [clearSession] has been called.
+   *
+   * @author timo-by
+   */
+  var clearSessionCallCount: Int = 0
+    private set
+
   override suspend fun getIdToken(): Result<String> {
     callCount++
     error?.let {
       return Result.failure(it)
     }
     return Result.success(idToken)
+  }
+
+  override suspend fun clearSession(): Result<Unit> {
+    clearSessionCallCount++
+    clearSessionError?.let {
+      return Result.failure(it)
+    }
+    return Result.success(Unit)
   }
 }
