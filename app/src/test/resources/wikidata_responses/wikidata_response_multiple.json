@@ -1,0 +1,94 @@
+{
+  "head": {
+    "vars": [
+      "item",
+      "itemLabel",
+      "artistLabel",
+      "image",
+      "inception",
+      "collectionLabel",
+      "locationLabel",
+      "locationCoordinates",
+      "width",
+      "height",
+      "description"
+    ]
+  },
+  "results": {
+    "bindings": [
+      {
+        "item": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q12418"
+        },
+        "description": {
+          "xml:lang": "en",
+          "type": "literal",
+          "value": "oil painting by Leonardo da Vinci in the Louvre, Paris"
+        },
+        "locationLabel": {
+          "xml:lang": "en",
+          "type": "literal",
+          "value": "Salle des États, Louvre"
+        },
+        "collectionLabel": {
+          "xml:lang": "en",
+          "type": "literal",
+          "value": "Department of Paintings of the Louvre"
+        },
+        "artistLabel": {
+          "xml:lang": "en",
+          "type": "literal",
+          "value": "Leonardo da Vinci"
+        },
+        "itemLabel": {
+          "xml:lang": "en",
+          "type": "literal",
+          "value": "Mona Lisa"
+        },
+        "image": {
+          "type": "uri",
+          "value": "http://commons.wikimedia.org/wiki/Special:FilePath/Mona%20Lisa%2C%20by%20Leonardo%20da%20Vinci%2C%20from%20C2RMF%20retouched.jpg"
+        },
+        "inception": {
+          "datatype": "http://www.w3.org/2001/XMLSchema#dateTime",
+          "type": "literal",
+          "value": "1503-01-01T00:00:00Z"
+        },
+        "width": {
+          "datatype": "http://www.w3.org/2001/XMLSchema#decimal",
+          "type": "literal",
+          "value": "53.4"
+        },
+        "height": {
+          "datatype": "http://www.w3.org/2001/XMLSchema#decimal",
+          "type": "literal",
+          "value": "79.4"
+        }
+      },
+      {
+        "item": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q12419"
+        },
+        "description": "",
+        "locationLabel": "",
+        "collectionLabel": {
+          "xml:lang": "en",
+          "type": "literal",
+          "value": "Department of Sculptures of the Louvre"
+        },
+        "artistLabel": "",
+        "itemLabel": {
+          "xml:lang": "en",
+          "type": "literal",
+          "value": "The Thinker"
+        },
+        "image": "",
+        "inception": "",
+        "width": "",
+        "height": ""
+      }
+    ]
+  }
+}

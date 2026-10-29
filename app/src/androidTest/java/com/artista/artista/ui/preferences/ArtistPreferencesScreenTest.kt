@@ -17,6 +17,8 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.artista.artista.R
+import com.artista.artista.model.artwork.ArtworkRepositoryLocal
+import com.artista.artista.model.artwork.WikiDataRepository
 import com.artista.artista.ui.navigation.NavigationTestTags
 import com.artista.artista.ui.navigation.Tab
 import org.junit.Assert.assertTrue
@@ -25,10 +27,11 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
+// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 /**
  * Verifies the user-visible behavior of the artist preferences screen.
  *
- * @author Timz3rr
+ * @author Timz3rr, patrickmcdan
  */
 @RunWith(AndroidJUnit4::class)
 class ArtistPreferencesScreenTest {
@@ -87,7 +90,7 @@ class ArtistPreferencesScreenTest {
   /** Verifies that every popular artist has a card displaying its name. */
   @Test
   fun artistsGrid_displaysCardForEachPopularArtist() {
-    val viewModel = ArtistPreferencesViewModel()
+    val viewModel = createViewModel()
     setPreferencesContent(viewModel = viewModel)
 
     viewModel.uiState.value.popularArtists.forEach { artist ->
@@ -103,7 +106,7 @@ class ArtistPreferencesScreenTest {
   /** Verifies that clicking an artist card toggles its selection. */
   @Test
   fun artistCard_click_togglesSelection() {
-    val viewModel = ArtistPreferencesViewModel()
+    val viewModel = createViewModel()
     setPreferencesContent(viewModel = viewModel)
     val card =
         composeTestRule.onNodeWithTag(
@@ -168,7 +171,7 @@ class ArtistPreferencesScreenTest {
   }
 
   private fun setPreferencesContent(
-      viewModel: ArtistPreferencesViewModel = ArtistPreferencesViewModel(),
+      viewModel: ArtistPreferencesViewModel = createViewModel(),
       onBackClick: () -> Unit = {},
       onSaveClick: () -> Unit = {},
       onTabSelected: (Tab) -> Unit = {},
@@ -192,4 +195,28 @@ class ArtistPreferencesScreenTest {
    * @return the resolved string.
    */
   private fun stringOf(resId: Int): String = composeTestRule.activity.getString(resId)
+
+  /** Artists served by the fake repository, so the tests do not depend on the mock list. */
+  private val testArtists = listOf("Pablo Picasso", "Vincent van Gogh", "Claude Monet")
+
+  /**
+   * Creates a catalog whose popular artists are [testArtists].
+   *
+   * Every other method is forwarded to an empty [ArtworkRepositoryLocal], since this screen only
+   * needs the popular artists.
+   *
+   * @return the fake repository
+   */
+  private fun fakeWikiRepository(): WikiDataRepository =
+      object : WikiDataRepository by ArtworkRepositoryLocal() {
+        override suspend fun getPopularArtists(): List<String> = testArtists
+      }
+
+  /**
+   * Creates the ViewModel under test with fake dependencies.
+   *
+   * @return a ViewModel backed by [fakeWikiRepository]
+   */
+  private fun createViewModel(): ArtistPreferencesViewModel =
+      ArtistPreferencesViewModel(fakeWikiRepository())
 }

@@ -6,6 +6,7 @@ import androidx.compose.ui.text.TextRange
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.WikiDataRepository
+import com.artista.artista.ui.map.UserLocation
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -99,6 +100,14 @@ class SearchScreenViewModelTest {
     val results = CompletableDeferred<List<Artwork>>()
     val wikiRepository =
         object : WikiDataRepository {
+          override suspend fun getArtworksNearLocation(location: UserLocation?): List<Artwork> {
+            throw NotImplementedError("Not yet implemented")
+          }
+
+          override suspend fun getPopularArtists(): List<String> {
+            throw NotImplementedError("Not yet implemented")
+          }
+
           override suspend fun getArtwork(uid: ArtworkId): Artwork =
               throw NoSuchElementException("No artwork matching uid $uid was found")
 
@@ -123,6 +132,14 @@ class SearchScreenViewModelTest {
     val vanGoghResults = CompletableDeferred<List<Artwork>>()
     val wikiRepository =
         object : WikiDataRepository {
+          override suspend fun getArtworksNearLocation(location: UserLocation?): List<Artwork> {
+            throw NotImplementedError("Not yet implemented")
+          }
+
+          override suspend fun getPopularArtists(): List<String> {
+            throw NotImplementedError("Not yet implemented")
+          }
+
           override suspend fun getArtwork(uid: ArtworkId): Artwork =
               throw NoSuchElementException("No artwork matching uid $uid was found")
 

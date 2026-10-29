@@ -41,6 +41,21 @@ object ArtworkRepositoryProvider {
 }
 
 /**
+ * Provides representative artist suggestions for local development and previews.
+ *
+ * @author Timz3rr, patrickmcdan
+ */
+val mockPopularArtists: List<String> =
+    listOf(
+        "Pablo Picasso",
+        "Vincent van Gogh",
+        "Pierre-Auguste Renoir",
+        "Claude Monet",
+        "Gustav Klimt",
+        "Henri Matisse",
+    )
+
+/**
  * Provides representative artwork data for local development and previews.
  *
  * @author Copilot

@@ -6,6 +6,7 @@ import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.SavedArtworksRepository
 import com.artista.artista.model.artwork.WikiDataRepository
+import com.artista.artista.ui.map.UserLocation
 
 /** Shared artwork samples and repository fakes for Search tests. */
 internal object SearchTestData {
@@ -101,6 +102,14 @@ internal class FakeWikiDataRepository(
     private val artworks: List<Artwork>,
 ) : WikiDataRepository {
   val searchedQueries = mutableListOf<String>()
+
+  override suspend fun getArtworksNearLocation(location: UserLocation?): List<Artwork> {
+    throw NotImplementedError("Not yet implemented")
+  }
+
+  override suspend fun getPopularArtists(): List<String> {
+    throw NotImplementedError("Not yet implemented")
+  }
 
   override suspend fun getArtwork(uid: ArtworkId): Artwork =
       artworks.firstOrNull { it.uid == uid }

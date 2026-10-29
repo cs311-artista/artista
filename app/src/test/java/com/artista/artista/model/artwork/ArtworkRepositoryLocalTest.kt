@@ -165,6 +165,15 @@ class ArtworkRepositoryLocalTest {
     assertThrowsSuspend<AppException.InvalidInput> { repository.removeArtworkFromSaved("\n") }
   }
 
+  /** Verifies that the nearby query returns the populated artworks in insertion order. */
+  @Test
+  fun getArtworksNearLocation_returnsPopulatedArtworksInInsertionOrder() = runTest {
+    val repository = ArtworkRepositoryLocal()
+    mockArtworks.forEach { repository.putArtworkInRepositoryUnsavedSection(it) }
+
+    assertEquals(mockArtworks, repository.getArtworksNearLocation(null))
+  }
+
   private suspend inline fun <reified T : Throwable> assertThrowsSuspend(
       crossinline block: suspend () -> Unit
   ) {
