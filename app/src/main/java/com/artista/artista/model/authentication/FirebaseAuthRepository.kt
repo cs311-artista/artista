@@ -85,13 +85,30 @@ class FirebaseAuthRepository(private val auth: FirebaseAuth) : AuthRepository {
       runAuthCatching(Throwable::toFirebaseAuthError) { auth.signOut() }
 
   /**
-   * Adapts a Firebase user to the domain's thin [AuthUser] abstraction.
+   * Adapts a Firebase account to the domain's thin [AuthUser] abstraction.
    *
-   * @return the domain representation of this Firebase user
+   * Only reads the two fields the domain exposes, so the rest of the Firebase profile never leaks
+   * past the model layer.
+   *
+   * @return the domain representation of this account
    * @author timo-by
    */
-  private fun FirebaseUser.toAuthUser(): AuthUser = FirebaseAuthUser(uid)
+  private fun FirebaseUser.toAuthUser(): AuthUser = authUserOf(uid = uid, displayName = displayName)
 }
+
+/**
+ * Builds the domain representation of an authenticated account from its raw Firebase fields.
+ *
+ * Takes the raw fields rather than a `FirebaseUser` because that type can neither be constructed
+ * nor mocked on the JVM, so keeping the mapping free of it is what makes the exposed display name
+ * verifiable by `./gradlew check` instead of only against the Authentication emulator.
+ *
+ * @param uid the stable identifier Firebase assigns to the account
+ * @param displayName the name the account's provider reports, or `null` when it reports none
+ * @return the domain representation of the account
+ * @author timo-by
+ */
+internal fun authUserOf(uid: String, displayName: String?): AuthUser = FirebaseAuthUser(uid = uid)
 
 /**
  * Classifies a Firebase failure.
@@ -124,6 +141,10 @@ internal fun Throwable.toFirebaseAuthError(): AuthError =
  * [AuthUser] backed by a Firebase Authentication account.
  *
  * @param uid the stable identifier Firebase assigns to the account
+ * @param displayName the name the account's provider reports, or `null` when it reports none
  * @author timo-by
  */
-data class FirebaseAuthUser(override val uid: String) : AuthUser
+data class FirebaseAuthUser(
+    override val uid: String,
+    override val displayName: String? = null,
+) : AuthUser

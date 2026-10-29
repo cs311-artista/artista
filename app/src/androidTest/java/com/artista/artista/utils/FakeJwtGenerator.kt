@@ -46,20 +46,36 @@ object FakeJwtGenerator {
    *   the same subject reuses the Firebase account created the first time. The account's uid is
    *   minted by the emulator and is not this value
    * @param email the e-mail claim, which the emulator requires to be verified
+   * @param name the name claim, or `null` to leave it out, which is how Google reports an account
+   *   whose user never set a display name
    * @return a three-segment JWT, signed with an empty signature
    * @author timo-by
    */
   fun generateFakeJwt(
       userId: String = nextUserId(),
       email: String = "$userId@example.com",
+      name: String? = null,
   ): String {
     val issuedAt = System.currentTimeMillis() / 1000
+    // Only added when the caller supplies one, so an account without a display name stays a case
+    // tests can produce.
+    val nameClaim = name?.let { ",\"name\":\"${escape(it)}\"" } ?: ""
     val payload =
         """{"iss":"$ISSUER","sub":"$userId","aud":"$AUDIENCE","iat":$issuedAt,""" +
-            """"exp":${issuedAt + LIFETIME_SECONDS},"email":"$email","email_verified":true}"""
+            """"exp":${issuedAt + LIFETIME_SECONDS},"email":"$email","email_verified":true""" +
+            "$nameClaim}"
 
     return "${encode(HEADER)}.${encode(payload)}.${encode("")}"
   }
+
+  /**
+   * Escapes the characters of a claim value that would otherwise break the JSON payload.
+   *
+   * @param value the raw claim value
+   * @return the value with backslashes and double quotes escaped
+   * @author timo-by
+   */
+  private fun escape(value: String): String = value.replace("\\", "\\\\").replace("\"", "\\\"")
 
   /**
    * Produces the next unused subject.

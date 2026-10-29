@@ -79,8 +79,7 @@ class FirebaseAuthRepositoryTest {
    *
    * Account continuity is what a returning user depends on, and it is what a repository that
    * created a new account per sign-in would break. The uid is not compared with the token's subject
-   * because the emulator mints its own. This is the only test that reaches [FirebaseAuthUser],
-   * which is what the UI will identify the signed-in user by.
+   * because the emulator mints its own.
    *
    * @author timo-by
    */
@@ -97,6 +96,26 @@ class FirebaseAuthRepositoryTest {
   }
 
   /**
+   * Verifies that the name the Google account reports is exposed as the signed-in account's display
+   * name, which is the value a new profile will default its username to.
+   *
+   * The mapping itself is unit-tested on the JVM by `GoogleAccountMappingTest`. What only the
+   * emulator can check is the wiring around it: that the display name read from the Firebase
+   * account is the value the mapping receives, rather than another profile field such as the e-mail
+   * address.
+   *
+   * @author timo-by
+   */
+  @Test
+  fun signIn_exposesTheDisplayName() = runTest {
+    val name = "Alice Martin"
+
+    val signedIn = repository.signIn(FakeJwtGenerator.generateFakeJwt(name = name)).getOrThrow()
+
+    assertEquals(name, signedIn.displayName)
+  }
+
+  /**
    * Verifies that two different Google accounts do not collapse into one session, which is what an
    * account identity taken from a shared value rather than from the token would produce.
    *
@@ -108,6 +127,128 @@ class FirebaseAuthRepositoryTest {
     val second = repository.signIn(FakeJwtGenerator.generateFakeJwt()).getOrThrow()
 
     assertNotEquals(first.uid, second.uid)
+  }
+
+  /**
+   * Verifies that an account whose Google profile carries no name exposes none, which is the state
+   * a profile screen has to answer by asking for a name instead of defaulting to an empty one.
+   *
+   * The named account is signed in first on purpose: asserting a `null` on its own also holds for a
+   * repository that never reads the name at all, so it would not fail if the wiring broke.
+   *
+   * @author timo-by
+   */
+  @Test
+  fun signIn_withoutANameClaim_exposesNoDisplayName() = runTest {
+    repository.signIn(FakeJwtGenerator.generateFakeJwt(name = "Alice")).getOrThrow()
+
+    val nameless = repository.signIn(FakeJwtGenerator.generateFakeJwt()).getOrThrow()
+
+    assertNull(nameless.displayName)
+  }
+
+  /**
+   * Verifies that a name made only of spaces reaches the caller as none rather than as a blank
+   * string, since Google lets a user set a name that renders as empty.
+   *
+   * @author timo-by
+   */
+  @Test
+  fun signIn_withABlankNameClaim_exposesNoDisplayName() = runTest {
+    val unnamed = repository.signIn(FakeJwtGenerator.generateFakeJwt(name = "   ")).getOrThrow()
+
+    assertNull(unnamed.displayName)
+  }
+
+  /**
+   * Verifies that the padding a real Google profile sometimes carries is gone by the time the name
+   * is exposed, so a profile defaulting to it does not store the padding.
+   *
+   * @author timo-by
+   */
+  @Test
+  fun signIn_trimsTheReportedName() = runTest {
+    val padded =
+        repository.signIn(FakeJwtGenerator.generateFakeJwt(name = "  Alice  ")).getOrThrow()
+
+    assertEquals("Alice", padded.displayName)
+  }
+
+  /**
+   * Verifies that a name containing the characters a JSON payload has to escape arrives intact,
+   * which is what makes every other test in this class trust the generator's escaping.
+   *
+   * @author timo-by
+   */
+  @Test
+  fun signIn_withANameContainingQuotes_exposesItVerbatim() = runTest {
+    val quoted = "Alice \"Al\" Martin"
+
+    val signedIn = repository.signIn(FakeJwtGenerator.generateFakeJwt(name = quoted)).getOrThrow()
+
+    assertEquals(quoted, signedIn.displayName)
+  }
+
+  /**
+   * Verifies that a name outside ASCII survives the token round trip unchanged, since the payload
+   * is encoded by hand and a name is exactly the field that carries non-ASCII characters.
+   *
+   * @author timo-by
+   */
+  @Test
+  fun signIn_withANonAsciiName_exposesItVerbatim() = runTest {
+    val name = "Amélie Müller"
+
+    val signedIn = repository.signIn(FakeJwtGenerator.generateFakeJwt(name = name)).getOrThrow()
+
+    assertEquals(name, signedIn.displayName)
+  }
+
+  /**
+   * Verifies that the state flow carries the display name, not only the sign-in result, so a screen
+   * that collects the restored session of a returning user has the name to default to.
+   *
+   * @author timo-by
+   */
+  @Test
+  fun authState_carriesTheDisplayNameOfTheSession() = runTest {
+    val name = "Alice Martin"
+
+    repository.signIn(FakeJwtGenerator.generateFakeJwt(name = name)).getOrThrow()
+
+    assertEquals(name, repository.authState.first { it != null }?.displayName)
+  }
+
+  /**
+   * Verifies that each session exposes the name of its own account, which a repository reading one
+   * cached name would get wrong as soon as a second account signed in on the device.
+   *
+   * @author timo-by
+   */
+  @Test
+  fun signIn_withTwoAccounts_exposesEachAccountsOwnName() = runTest {
+    val alice = repository.signIn(FakeJwtGenerator.generateFakeJwt(name = "Alice")).getOrThrow()
+    val bob = repository.signIn(FakeJwtGenerator.generateFakeJwt(name = "Bob")).getOrThrow()
+
+    assertEquals("Alice", alice.displayName)
+    assertEquals("Bob", bob.displayName)
+    assertEquals("Bob", repository.authState.first { it != null }?.displayName)
+  }
+
+  /**
+   * Verifies that signing in again with the same account reports the same name, so a returning user
+   * does not lose the name their profile defaulted to.
+   *
+   * @author timo-by
+   */
+  @Test
+  fun signIn_withTheSameAccountTwice_exposesTheSameDisplayName() = runTest {
+    val token = FakeJwtGenerator.generateFakeJwt(name = "Alice Martin")
+
+    val first = repository.signIn(token).getOrThrow()
+    val second = repository.signIn(token).getOrThrow()
+
+    assertEquals(first.displayName, second.displayName)
   }
 
   /**

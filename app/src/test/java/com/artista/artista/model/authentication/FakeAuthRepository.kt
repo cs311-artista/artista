@@ -100,6 +100,8 @@ class FakeAuthRepository(initialUser: AuthUser? = null) : AuthRepository {
  * Trivial [AuthUser] implementation used by tests.
  *
  * @param uid the unique identifier to expose
+ * @param displayName the provider's name for the account, or `null` for an account without one
  * @author timo-by
  */
-data class FakeAuthUser(override val uid: String) : AuthUser
+data class FakeAuthUser(override val uid: String, override val displayName: String? = null) :
+    AuthUser
