@@ -103,12 +103,21 @@ class FirebaseAuthRepository(private val auth: FirebaseAuth) : AuthRepository {
  * nor mocked on the JVM, so keeping the mapping free of it is what makes the exposed display name
  * verifiable by `./gradlew check` instead of only against the Authentication emulator.
  *
+ * The display name is trimmed and a blank one is reported as `null`, so a caller that defaults a
+ * profile's username to it never stores a name that would render as empty.
+ *
  * @param uid the stable identifier Firebase assigns to the account
  * @param displayName the name the account's provider reports, or `null` when it reports none
  * @return the domain representation of the account
  * @author timo-by
  */
-internal fun authUserOf(uid: String, displayName: String?): AuthUser = FirebaseAuthUser(uid = uid)
+internal fun authUserOf(uid: String, displayName: String?): AuthUser =
+    FirebaseAuthUser(
+        uid = uid,
+        // Google trims nothing, so a name made of spaces would be stored as an empty username by
+        // a caller defaulting the profile to it.
+        displayName = displayName?.trim()?.takeIf { it.isNotEmpty() },
+    )
 
 /**
  * Classifies a Firebase failure.
