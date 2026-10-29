@@ -171,6 +171,27 @@ class ArtistPreferencesScreenTest {
     composeTestRule.onNodeWithTag(NavigationTestTags.getTabTestTag(Tab.Map)).assertIsNotSelected()
   }
 
+  /** Verifies that two artists with the same name get their own cards and toggle independently. */
+  @Test
+  fun artistsWithSameName_haveIndependentCards() {
+    val first = Artist("test-same-1", "Same Name")
+    val second = Artist("test-same-2", "Same Name")
+    val repository =
+        object : WikiDataRepository by ArtworkRepositoryLocal() {
+          override suspend fun getPopularArtists(): List<Artist> = listOf(first, second)
+        }
+    setPreferencesContent(viewModel = ArtistPreferencesViewModel(repository))
+    val firstCard =
+        composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.getArtistCardTestTag(first.uid))
+    val secondCard =
+        composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.getArtistCardTestTag(second.uid))
+
+    firstCard.performClick()
+
+    firstCard.assertIsOn()
+    secondCard.assertIsOff()
+  }
+
   private fun setPreferencesContent(
       viewModel: ArtistPreferencesViewModel = createViewModel(),
       onBackClick: () -> Unit = {},

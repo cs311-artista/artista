@@ -79,7 +79,22 @@ class ArtistPreferencesViewModelTest {
     assertEquals(setOf(MONET.uid), viewModel.uiState.value.selectedArtists)
   }
 
-    assertEquals(setOf(MONET), viewModel.uiState.value.selectedArtists)
+  /** Verifies that artists sharing a name are selected independently, since selection uses ids. */
+  @Test
+  fun toggleArtist_artistsWithSameName_areSelectedIndependently() = runTest {
+    val first = Artist("test-same-1", "Same Name")
+    val second = Artist("test-same-2", "Same Name")
+    val repository =
+        object : WikiDataRepository by ArtworkRepositoryLocal() {
+          override suspend fun getPopularArtists(): List<Artist> = listOf(first, second)
+        }
+    val viewModel = ArtistPreferencesViewModel(repository)
+    advanceUntilIdle()
+    assertEquals(listOf(first, second), viewModel.uiState.value.popularArtists)
+
+    viewModel.toggleArtist(first.uid)
+
+    assertEquals(setOf(first.uid), viewModel.uiState.value.selectedArtists)
   }
 
   /** Verifies that a failing popular artists load does not crash and leaves the list empty. */
