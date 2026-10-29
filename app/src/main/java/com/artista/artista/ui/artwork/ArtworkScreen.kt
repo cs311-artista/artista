@@ -61,6 +61,7 @@ object ArtworkTestTags {
   const val SAVE_BUTTON = "artwork_save_button"
   const val BACK_BUTTON = "artwork_back_button"
   const val ARTWORK_TITLE = "artwork_title"
+  const val ARTWORK_MAP_TILE = "artwork_map_tile"
 }
 
 /**
@@ -292,7 +293,9 @@ fun MapTile(
       modifier = modifier.fillMaxWidth(),
       shape = RoundedCornerShape(12.dp),
   ) {
-    Column(modifier = Modifier.fillMaxWidth().padding(10.dp)) {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(10.dp).testTag(ArtworkTestTags.ARTWORK_MAP_TILE)
+    ) {
       Text(
           text = location.name?.let { location.name } ?: "",
           style = MaterialTheme.typography.labelMedium,
