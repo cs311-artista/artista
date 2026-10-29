@@ -38,7 +38,7 @@ internal object SearchTestData {
       Artwork(
           uid = "sunflowersId",
           name = "Sunflowers",
-          artist = Artist("test-van-gogh-2", "Vincent van Gogh"),
+          artist = Artist("test-van-gogh-1", "Vincent van Gogh"),
           location = null,
           conceptionDate = null,
           dimension = null,

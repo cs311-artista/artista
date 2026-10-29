@@ -176,7 +176,7 @@ class OverviewScreenTest {
       Artwork(
           uid = "$name-$artistName",
           name = name,
-          artist = Artist(uid = artistName, name = artistName),
+          artist = Artist(uid = "uid-$artistName", name = artistName),
           description = null,
           conceptionDate = null,
           museum = null,
