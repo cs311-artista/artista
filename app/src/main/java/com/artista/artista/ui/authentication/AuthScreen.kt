@@ -126,7 +126,7 @@ fun AuthScreenContent(
           onClick = onSignInClick,
           enabled = !state.isLoading,
           modifier =
-              Modifier.height(Dimensions.authenticationButtonHeight)
+              Modifier.height(Dimensions.standardTouchTargetSize)
                   .testTag(C.Tag.auth_google_sign_in_button),
           shape = RoundedCornerShape(percent = Dimensions.authenticationButtonCornerRadiusPercent),
           colors =

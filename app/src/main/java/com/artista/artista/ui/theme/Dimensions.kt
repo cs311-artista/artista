@@ -102,9 +102,8 @@ internal object Dimensions {
   val overviewSearchBarHeight = standardControlHeight
   val preferencesSaveButtonHeight = standardControlHeight
 
-  private val standardTouchTargetSize = 48.dp
-  val authenticationButtonHeight = standardTouchTargetSize
-  val preferencesBackButtonSize = standardTouchTargetSize
+  /** Shared 48 dp size for the authentication button and preferences back-button touch target. */
+  val standardTouchTargetSize = 48.dp
 
   /** Height of each profile field. */
   val profileFieldHeight = 70.dp

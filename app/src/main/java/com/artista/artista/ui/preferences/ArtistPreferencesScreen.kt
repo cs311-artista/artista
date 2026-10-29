@@ -59,9 +59,6 @@ import com.artista.artista.ui.theme.Dimensions
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 private val PillShape = RoundedCornerShape(percent = 50)
 
-// Matches the minimum touch target of IconButton, so the texts below the title line up with it.
-private val BackButtonSize = Dimensions.preferencesBackButtonSize
-
 /**
  * Displays the popular artists the user can select as favorites to personalize their
  * recommendations.
@@ -168,7 +165,9 @@ private fun Header(onBackClick: () -> Unit) {
       // Same icon as the artwork screen, to keep the back navigation consistent across screens.
       IconButton(
           onClick = onBackClick,
-          modifier = Modifier.size(BackButtonSize).testTag(ArtistPreferencesTestTags.BACK_BUTTON),
+          modifier =
+              Modifier.size(Dimensions.standardTouchTargetSize)
+                  .testTag(ArtistPreferencesTestTags.BACK_BUTTON),
       ) {
         Icon(
             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
@@ -185,7 +184,8 @@ private fun Header(onBackClick: () -> Unit) {
     Text(
         text = stringResource(R.string.artist_preferences_description),
         modifier =
-            Modifier.padding(start = BackButtonSize).testTag(ArtistPreferencesTestTags.DESCRIPTION),
+            Modifier.padding(start = Dimensions.standardTouchTargetSize)
+                .testTag(ArtistPreferencesTestTags.DESCRIPTION),
         style = MaterialTheme.typography.bodyLarge,
         color = MaterialTheme.colorScheme.primary,
     )
