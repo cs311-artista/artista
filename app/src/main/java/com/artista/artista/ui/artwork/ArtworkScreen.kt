@@ -297,10 +297,13 @@ fun MapTile(
 ) {
   OutlinedCard(
       modifier = modifier.fillMaxWidth(),
-      shape = RoundedCornerShape(12.dp),
+      shape = RoundedCornerShape(Dimensions.cornerRadiusSmall),
   ) {
     Column(
-        modifier = Modifier.fillMaxWidth().padding(10.dp).testTag(ArtworkTestTags.ARTWORK_MAP_TILE)
+        modifier =
+            Modifier.fillMaxWidth()
+                .padding(Dimensions.artworkMapTileContentPadding)
+                .testTag(ArtworkTestTags.ARTWORK_MAP_TILE)
     ) {
       Text(
           text = location.name?.let { location.name } ?: "",
@@ -308,9 +311,9 @@ fun MapTile(
           color = MaterialTheme.colorScheme.primary,
           fontWeight = FontWeight.SemiBold,
       )
-      Spacer(modifier = Modifier.height(4.dp))
+      Spacer(modifier = Modifier.height(Dimensions.artworkMapTileTitleSpacing))
       GoogleMap(
-          modifier = Modifier.fillMaxWidth().height(284.dp),
+          modifier = Modifier.fillMaxWidth().height(Dimensions.artworkMapTileHeight),
           cameraPositionState = cameraPositionState,
       ) {
         Marker(

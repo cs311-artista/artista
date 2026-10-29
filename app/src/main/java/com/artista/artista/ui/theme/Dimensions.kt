@@ -51,6 +51,9 @@ internal object Dimensions {
   val artworkDetailsImageVerticalSpacing = 4.dp
   val artworkFieldContentPadding = 10.dp
   val artworkFieldLabelValueSpacing = 4.dp
+  val artworkMapTileContentPadding = 10.dp
+  val artworkMapTileTitleSpacing = 4.dp
+  val artworkMapTileHeight = 284.dp
 
   /** Height of artwork images in artwork cards. */
   val artworkCardImageHeight = 160.dp
