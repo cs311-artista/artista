@@ -36,7 +36,8 @@ class ArtworkRepositoryLocal : SavedArtworksRepository, WikiDataRepository {
 
   override suspend fun searchArtworks(query: String): List<Artwork> {
     if (query.isBlank()) return emptyList()
-    return artworks.values.filter { it.name.contains(query, ignoreCase = true) }
+    // Artworks without a name can never match a name search.
+    return artworks.values.filter { it.name?.contains(query, ignoreCase = true) == true }
   }
 
   override suspend fun isArtworkSaved(uid: ArtworkId): Boolean {

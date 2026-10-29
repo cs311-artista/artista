@@ -1,4 +1,5 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.search
 
 import com.artista.artista.model.artist.Artist
@@ -118,7 +119,7 @@ internal class FakeWikiDataRepository(
   override suspend fun searchArtworks(query: String): List<Artwork> {
     searchedQueries.add(query)
     return artworks.filter {
-      it.name.contains(query, ignoreCase = true) ||
+      it.name?.contains(query, ignoreCase = true) == true ||
           it.artist?.name?.contains(query, ignoreCase = true) == true
     }
   }

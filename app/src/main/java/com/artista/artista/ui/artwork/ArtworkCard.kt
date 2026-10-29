@@ -1,4 +1,5 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.artwork
 
 import androidx.compose.foundation.layout.Arrangement
@@ -109,7 +110,7 @@ fun ArtworkCard(
           verticalArrangement = Arrangement.spacedBy(4.dp),
       ) {
         Text(
-            text = artwork.name,
+            text = artwork.name ?: stringResource(R.string.artwork_unknown_title),
             modifier =
                 Modifier.fillMaxWidth().testTag(testTag(ArtworkCardTestTag.ARTWORK_CARD_TITLE)),
             style = MaterialTheme.typography.titleLarge,

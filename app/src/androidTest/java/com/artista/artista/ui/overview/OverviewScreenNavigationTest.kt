@@ -1,3 +1,4 @@
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.overview
 
 import androidx.activity.ComponentActivity
@@ -154,7 +155,9 @@ class OverviewScreenNavigationTest {
     composeTestRule.onAllNodesWithTag(OverviewTestTags.ARTWORK_ITEM)[0].performClick()
 
     composeTestRule.onNodeWithTag(ArtworkTestTags.ARTWORK_SCREEN).assertIsDisplayed()
-    composeTestRule.onNodeWithTag(ArtworkTestTags.ARTWORK_TITLE).assertTextEquals(artwork.name)
+    composeTestRule
+        .onNodeWithTag(ArtworkTestTags.ARTWORK_TITLE)
+        .assertTextEquals(checkNotNull(artwork.name))
     composeTestRule.runOnIdle {
       assertEquals(Screen.ArtworkDetails.route, navController.currentDestination?.route)
       assertEquals(

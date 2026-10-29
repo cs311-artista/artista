@@ -1,4 +1,5 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.search
 
 import androidx.compose.ui.text.TextRange
@@ -55,6 +56,25 @@ class SearchScreenViewModelTest {
         viewModel.uiState.value.recommendations.map { it.name },
     )
     assertTrue(viewModel.uiState.value.artworks.isEmpty())
+  }
+
+  @Test
+  fun onSearchInputChanged_ignoresSavedArtworksWithoutAName() = runTest {
+    val starryNight = SearchTestData.savedArtworks.first { it.uid == "starryId" }
+    val viewModel =
+        SearchScreenViewModel(
+            SearchTestData.savedArtworksRepository(
+                initialSavedArtworks =
+                    listOf(starryNight, starryNight.copy(uid = "noNameId", name = null))
+            ),
+            SearchTestData.wikiDataRepository(),
+        )
+
+    advanceUntilIdle()
+    viewModel.onSearchInputChanged("star", TextRange(4))
+    advanceUntilIdle()
+
+    assertEquals(listOf("starryId"), viewModel.uiState.value.recommendations.map { it.uid })
   }
 
   @Test

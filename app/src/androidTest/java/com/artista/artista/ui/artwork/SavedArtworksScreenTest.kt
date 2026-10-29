@@ -95,7 +95,8 @@ class SavedArtworksScreenTest {
 
     val artistName = checkNotNull(savedArtwork.artist?.name)
     composeTestRule.onNodeWithText(artistName).assertIsDisplayed()
-    composeTestRule.onNodeWithText(savedArtwork.name).assertIsDisplayed()
+    val title = checkNotNull(savedArtwork.name)
+    composeTestRule.onNodeWithText(title).assertIsDisplayed()
   }
 
   /** Verifies that an artwork without an artist name displays the shared fallback text. */
@@ -108,6 +109,19 @@ class SavedArtworksScreenTest {
 
     composeTestRule
         .onNodeWithText(composeTestRule.activity.getString(R.string.artwork_unknown_artist))
+        .assertIsDisplayed()
+  }
+
+  /** Verifies that an artwork without a name displays the shared fallback title. */
+  @Test
+  fun savedArtworksScreen_whenNameIsUnknown_displaysFallbackTitle() {
+    fakeRepository.savedArtworks.add(savedArtwork.copy(name = null))
+    setScreenContent()
+
+    composeTestRule.waitForIdle()
+
+    composeTestRule
+        .onNodeWithText(composeTestRule.activity.getString(R.string.artwork_unknown_title))
         .assertIsDisplayed()
   }
 
