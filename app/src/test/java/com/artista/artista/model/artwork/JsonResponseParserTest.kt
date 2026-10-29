@@ -51,7 +51,9 @@ class JsonResponseParserTest {
   @Test
   fun parseArtworkResults_parsesMultipleCapturedWikidataResponses() {
     val resource =
-        requireNotNull(javaClass.getResource("/wikidata_responses/wikidata_response_multiple.json")) {
+        requireNotNull(
+            javaClass.getResource("/wikidata_responses/wikidata_response_multiple.json")
+        ) {
           "wikidata_response_multiple.json test resource is missing"
         }
     val artworks = parser.parseArtworkResults(resource.readText())
@@ -86,7 +88,9 @@ class JsonResponseParserTest {
   @Test
   fun parseArtworkResults_parsesCapturedWikidataResponseWithNullFields() {
     val resource =
-        requireNotNull(javaClass.getResource("/wikidata_responses/wikidata_response_null_fields.json")) {
+        requireNotNull(
+            javaClass.getResource("/wikidata_responses/wikidata_response_null_fields.json")
+        ) {
           "wikidata_response_null_fields.json test resource is missing"
         }
     val artworks = parser.parseArtworkResults(resource.readText())
@@ -106,7 +110,9 @@ class JsonResponseParserTest {
   @Test
   fun parseArtworkResults_parsesCapturedWikidataResponseWithEmptyFields() {
     val resource =
-        requireNotNull(javaClass.getResource("/wikidata_responses/wikidata_response_empty_fields.json")) {
+        requireNotNull(
+            javaClass.getResource("/wikidata_responses/wikidata_response_empty_fields.json")
+        ) {
           "wikidata_response_empty_fields.json test resource is missing"
         }
     val artworks = parser.parseArtworkResults(resource.readText())
