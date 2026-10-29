@@ -2,13 +2,15 @@ package com.artista.artista.ui.profile
 
 import com.artista.artista.utils.userNamed
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 /**
- * Tests the state exposed by [UserProfileViewModel].
+ * Tests the state exposed by [UserProfileViewModel] and the username validation rule.
  *
  * @author Timz3rr
  */
@@ -59,5 +61,125 @@ class UserProfileViewModelTest {
     viewModel.setUser(userNamed("Bob"))
 
     assertEquals("Bob", viewModel.uiState.value.username)
+  }
+
+  /** Verifies that a valid username replaces the placeholder. */
+  @Test
+  fun updateUsername_exposesNewUsername() {
+    viewModel.updateUsername("Alice")
+
+    assertEquals("Alice", viewModel.uiState.value.username)
+  }
+
+  /** Verifies that a username entered by the user replaces the one of the provided user. */
+  @Test
+  fun updateUsername_replacesUsernameSetByUser() {
+    viewModel.setUser(userNamed("Alice"))
+    viewModel.updateUsername("Bob")
+
+    assertEquals("Bob", viewModel.uiState.value.username)
+  }
+
+  /** Verifies that surrounding whitespace typed by mistake is not stored in the username. */
+  @Test
+  fun updateUsername_trimsWhitespace() {
+    viewModel.updateUsername("  John Doe  ")
+
+    assertEquals("John Doe", viewModel.uiState.value.username)
+  }
+
+  /** Verifies that an invalid username leaves the current username unchanged. */
+  @Test
+  fun updateUsername_withInvalidName_keepsPreviousUsername() {
+    viewModel.setUser(userNamed("Alice"))
+    viewModel.updateUsername("Alice!")
+
+    assertEquals("Alice", viewModel.uiState.value.username)
+  }
+
+  /** Verifies that an invalid username does not replace the placeholder. */
+  @Test
+  fun updateUsername_withInvalidName_keepsPlaceholder() {
+    viewModel.updateUsername("   ")
+
+    assertNull(viewModel.uiState.value.username)
+  }
+
+  /** Verifies that the username is stored in composed form, whatever form it was typed in. */
+  @Test
+  fun updateUsername_storesComposedForm() {
+    viewModel.updateUsername("Timothe\u0301e")
+
+    assertEquals("Timothée", viewModel.uiState.value.username)
+  }
+
+  /** Verifies that letters, digits and spaces are accepted. */
+  @Test
+  fun isValidUsername_acceptsLettersDigitsAndSpaces() {
+    assertTrue(isValidUsername("John Doe 42"))
+  }
+
+  /** Verifies that accented letters are accepted, so users can write their real name. */
+  @Test
+  fun isValidUsername_acceptsAccentedLetters() {
+    assertTrue(isValidUsername("Timothée"))
+  }
+
+  /** Verifies that accents typed in decomposed form (letter + combining mark) are accepted. */
+  @Test
+  fun isValidUsername_acceptsDecomposedAccents() {
+    assertTrue(isValidUsername("Timothe\u0301e"))
+  }
+
+  /** Verifies that a combining accent does not count as an extra character for the length limit. */
+  @Test
+  fun isValidUsername_countsDecomposedAccentAsOneCharacter() {
+    assertTrue(isValidUsername("e\u0301".repeat(MAX_USERNAME_LENGTH)))
+  }
+
+  /** Verifies that surrounding whitespace is ignored, since it is trimmed before saving. */
+  @Test
+  fun isValidUsername_ignoresSurroundingWhitespace() {
+    assertTrue(isValidUsername("  Alice  "))
+  }
+
+  /** Verifies that an empty or blank username is rejected. */
+  @Test
+  fun isValidUsername_rejectsBlankName() {
+    assertFalse(isValidUsername(""))
+    assertFalse(isValidUsername("   "))
+  }
+
+  /** Verifies that a username of exactly the maximum length is accepted. */
+  @Test
+  fun isValidUsername_acceptsMaxLength() {
+    assertTrue(isValidUsername("a".repeat(MAX_USERNAME_LENGTH)))
+  }
+
+  /** Verifies that a username longer than the maximum length is rejected. */
+  @Test
+  fun isValidUsername_rejectsTooLongName() {
+    assertFalse(isValidUsername("a".repeat(MAX_USERNAME_LENGTH + 1)))
+  }
+
+  /** Verifies that the length is measured after trimming, as the trimmed name is what is saved. */
+  @Test
+  fun isValidUsername_measuresLengthAfterTrimming() {
+    assertTrue(isValidUsername("  " + "a".repeat(MAX_USERNAME_LENGTH) + "  "))
+  }
+
+  /** Verifies that symbols and punctuation are rejected. */
+  @Test
+  fun isValidUsername_rejectsSpecialCharacters() {
+    assertFalse(isValidUsername("Tim_42"))
+    assertFalse(isValidUsername("tim@epfl"))
+    assertFalse(isValidUsername("Alice!"))
+  }
+
+  /** Verifies that tabs and line breaks are rejected: only plain spaces may separate words. */
+  @Test
+  fun isValidUsername_rejectsTabsAndLineBreaks() {
+    assertFalse(isValidUsername("John\tDoe"))
+    assertFalse(isValidUsername("John\nDoe"))
   }
 }

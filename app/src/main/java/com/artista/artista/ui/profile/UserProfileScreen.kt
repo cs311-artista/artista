@@ -1,3 +1,5 @@
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
+// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 package com.artista.artista.ui.profile
 
 import androidx.compose.foundation.background
@@ -17,14 +19,20 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Logout
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,8 +51,6 @@ import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaTheme
 import com.artista.artista.ui.theme.Dimensions
 
-// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
-// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 private val FieldShape = RoundedCornerShape(percent = 50)
 
 /**
@@ -81,6 +87,7 @@ fun UserProfileScreen(
   ) { innerPadding ->
     ProfileContent(
         username = uiState.username,
+        onUsernameSave = userProfileViewModel::updateUsername,
         onPreferencesClick = onPreferencesClick,
         onSavedArtworkClick = onSavedArtworkClick,
         modifier = Modifier.padding(innerPadding),
@@ -115,6 +122,7 @@ private fun ProfileTopBar(onLogoutClick: () -> Unit) {
  * Profile picture and fields of the profile screen, scrollable when they do not fit on the screen.
  *
  * @param username Name of the user, or null to display the placeholder.
+ * @param onUsernameSave Callback invoked with the username saved from the edit dialog.
  * @param onPreferencesClick Callback invoked when the preferences button is clicked.
  * @param onSavedArtworkClick Callback invoked when the saved artwork button is clicked.
  * @param modifier Modifier applied to the content, used to apply the padding of the Scaffold.
@@ -122,10 +130,26 @@ private fun ProfileTopBar(onLogoutClick: () -> Unit) {
 @Composable
 private fun ProfileContent(
     username: String?,
+    onUsernameSave: (String) -> Unit,
     onPreferencesClick: () -> Unit,
     onSavedArtworkClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+  // Saveable so that the dialog stays open when the screen is rotated.
+  var isEditingUsername by rememberSaveable { mutableStateOf(false) }
+
+  if (isEditingUsername) {
+    EditUsernameDialog(
+        // The placeholder is not a name, so the field starts empty when the user has none.
+        initialUsername = username.orEmpty(),
+        onSave = { newName ->
+          onUsernameSave(newName)
+          isEditingUsername = false
+        },
+        onDismiss = { isEditingUsername = false },
+    )
+  }
+
   Column(
       // The top bar already separates the picture from the top of the screen, so the top padding is
       // smaller than the bottom one.
@@ -150,11 +174,10 @@ private fun ProfileContent(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(Dimensions.profileFieldSpacing),
     ) {
-      // Styled like the buttons on purpose: the username will become editable on click (#55),
-      // which will also remove the read-only branch of ProfileField.
       ProfileField(
           text = username ?: stringResource(R.string.profile_username_placeholder),
-          textModifier = Modifier.testTag(UserProfileTestTags.USERNAME),
+          modifier = Modifier.testTag(UserProfileTestTags.USERNAME),
+          onClick = { isEditingUsername = true },
       )
       ProfileField(
           text = stringResource(R.string.profile_preferences),
@@ -230,22 +253,24 @@ private fun ProfilePicturePlaceholder() {
 }
 
 /**
- * Pill-shaped field of the profile screen, clickable only when [onClick] is provided.
+ * Pill-shaped clickable field of the profile screen.
  *
  * @param text Text displayed in the field.
+ * @param onClick Callback invoked when the field is clicked.
  * @param modifier Modifier applied to the field container.
- * @param textModifier Modifier applied to the text, used to tag non-clickable fields whose text is
- *   not merged into the container semantics.
- * @param onClick Callback invoked when the field is clicked, or null for a read-only field.
  */
 @Composable
 private fun ProfileField(
     text: String,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    textModifier: Modifier = Modifier,
-    onClick: (() -> Unit)? = null,
 ) {
-  val content: @Composable () -> Unit = {
+  Surface(
+      onClick = onClick,
+      modifier = modifier.fillMaxWidth(),
+      shape = FieldShape,
+      color = MaterialTheme.colorScheme.surfaceContainerLowest,
+  ) {
     Box(
         modifier =
             Modifier.fillMaxWidth()
@@ -255,7 +280,6 @@ private fun ProfileField(
     ) {
       Text(
           text = text,
-          modifier = textModifier,
           style = MaterialTheme.typography.titleMedium,
           color = MaterialTheme.colorScheme.primary,
           maxLines = 1,
@@ -263,20 +287,68 @@ private fun ProfileField(
       )
     }
   }
-  val fieldModifier = modifier.fillMaxWidth()
-  val fieldColor = MaterialTheme.colorScheme.surfaceContainerLowest
+}
 
-  if (onClick == null) {
-    Surface(modifier = fieldModifier, shape = FieldShape, color = fieldColor, content = content)
-  } else {
-    Surface(
-        onClick = onClick,
-        modifier = fieldModifier,
-        shape = FieldShape,
-        color = fieldColor,
-        content = content,
-    )
-  }
+/**
+ * Dialog letting the user enter a new username.
+ *
+ * The save button stays disabled while the entered name is rejected by [isValidUsername], and the
+ * rules are shown under the field so the user knows why.
+ *
+ * @param initialUsername Text the field starts with.
+ * @param onSave Callback invoked with the entered username when the user saves it.
+ * @param onDismiss Callback invoked when the dialog is closed without saving.
+ */
+@Composable
+private fun EditUsernameDialog(
+    initialUsername: String,
+    onSave: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+  // Kept in the dialog rather than in the ViewModel: it is only a draft, and the real username must
+  // not change until the user saves. Saveable so that the text being typed survives a screen
+  // rotation.
+  var draft by rememberSaveable { mutableStateOf(initialUsername) }
+
+  AlertDialog(
+      // Also called on a tap outside the dialog or a back press, which behave like Cancel.
+      onDismissRequest = onDismiss,
+      modifier = Modifier.testTag(UserProfileTestTags.USERNAME_DIALOG),
+      title = { Text(stringResource(R.string.profile_username_dialog_title)) },
+      text = {
+        OutlinedTextField(
+            value = draft,
+            // The field only displays draft, so each keystroke must be written back to it.
+            onValueChange = { draft = it },
+            modifier = Modifier.testTag(UserProfileTestTags.USERNAME_FIELD),
+            label = { Text(stringResource(R.string.profile_username_label)) },
+            supportingText = {
+              // The limit is passed as an argument so that the text follows MAX_USERNAME_LENGTH.
+              Text(stringResource(R.string.profile_username_rules, MAX_USERNAME_LENGTH))
+            },
+            // A username fits on one line, so Enter must not insert a line break.
+            singleLine = true,
+        )
+      },
+      confirmButton = {
+        TextButton(
+            onClick = { onSave(draft) },
+            modifier = Modifier.testTag(UserProfileTestTags.USERNAME_SAVE),
+            // Recomputed on each keystroke, so the button reacts while the user types.
+            enabled = isValidUsername(draft),
+        ) {
+          Text(stringResource(R.string.profile_username_save))
+        }
+      },
+      dismissButton = {
+        TextButton(
+            onClick = onDismiss,
+            modifier = Modifier.testTag(UserProfileTestTags.USERNAME_CANCEL),
+        ) {
+          Text(stringResource(R.string.profile_username_cancel))
+        }
+      },
+  )
 }
 
 /** Previews the user profile screen with a sample user in Android Studio. */
@@ -289,4 +361,11 @@ private fun UserProfileScreenPreview() {
     }
   }
   ArtistaTheme { UserProfileScreen(onLogoutClick = {}, userProfileViewModel = viewModel) }
+}
+
+/** Previews the username edit dialog in Android Studio. */
+@Preview(showBackground = true)
+@Composable
+private fun EditUsernameDialogPreview() {
+  ArtistaTheme { EditUsernameDialog(initialUsername = "Artista Fan", onSave = {}, onDismiss = {}) }
 }

@@ -18,10 +18,13 @@ import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextInputSelection
 import androidx.compose.ui.text.TextRange
+import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.WikiDataRepository
 import com.artista.artista.ui.artwork.ArtworkCardTestTag
+import com.artista.artista.ui.map.UserLocation
+import kotlin.NotImplementedError
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -182,6 +185,14 @@ class SearchScreenTest {
           override suspend fun searchArtworks(query: String): List<Artwork> {
             resultsGate.await()
             return wikiRepository.searchArtworks(query)
+          }
+
+          override suspend fun getArtworksNearLocation(location: UserLocation?): List<Artwork> {
+            throw NotImplementedError()
+          }
+
+          override suspend fun getPopularArtists(): List<Artist> {
+            throw NotImplementedError()
           }
         }
     val viewModel =

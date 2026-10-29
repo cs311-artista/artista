@@ -52,6 +52,14 @@ class MainActivity : ComponentActivity() {
    */
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+
+    // Demo data: Overview reads from ArtworkRepositoryProvider, which starts empty.
+    // TODO: remove once a real WikiData repository replaces the local mock.
+    if (!isRepositorySeeded) {
+      ArtworkRepositoryProvider.populateAPI()
+      isRepositorySeeded = true
+    }
+
     setContent {
       ArtistaTheme {
         Surface(
@@ -62,6 +70,11 @@ class MainActivity : ComponentActivity() {
         }
       }
     }
+  }
+
+  private companion object {
+    /** Whether the repository was already seeded in this process; seeding twice throws. */
+    var isRepositorySeeded = false
   }
 }
 

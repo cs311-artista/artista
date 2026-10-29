@@ -1,8 +1,11 @@
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.model.artwork
 
+import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.error.AppException
+import com.artista.artista.ui.map.UserLocation
 
+// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 /**
  * In-memory repository for artwork data used during local app development and testing.
  *
@@ -10,14 +13,21 @@ import com.artista.artista.model.error.AppException
  * user's saved artworks. It supports lookups by identifier, search by name or artist, and spatial
  * filtering by a radius from a given location.</p>
  *
- * @author 5kyPhy
+ * @author 5kyPhy, patrickmcdan
  */
 class ArtworkRepositoryLocal : SavedArtworksRepository, WikiDataRepository {
   /** Stores all artworks available in the local repository. */
-  private val artworks: HashMap<ArtworkId, Artwork> = hashMapOf()
+  private val artworks: HashMap<ArtworkId, Artwork> = linkedMapOf()
 
   /** Stores the artworks currently saved by the user. */
   private val artworksSaved: HashMap<ArtworkId, Artwork> = hashMapOf()
+
+  /** Returns the artworks populated in the local repository. */
+  override suspend fun getArtworksNearLocation(location: UserLocation?): List<Artwork> =
+      artworks.values.toList()
+
+  /** Returns the locally defined popular artists. */
+  override suspend fun getPopularArtists(): List<Artist> = mockPopularArtists
 
   override suspend fun getArtwork(uid: ArtworkId): Artwork {
     if (uid.isBlank()) throw AppException.InvalidInput("uid is blank")
@@ -26,7 +36,8 @@ class ArtworkRepositoryLocal : SavedArtworksRepository, WikiDataRepository {
 
   override suspend fun searchArtworks(query: String): List<Artwork> {
     if (query.isBlank()) return emptyList()
-    return artworks.values.filter { it.name.contains(query, ignoreCase = true) }
+    // Artworks without a name can never match a name search.
+    return artworks.values.filter { it.name?.contains(query, ignoreCase = true) == true }
   }
 
   override suspend fun isArtworkSaved(uid: ArtworkId): Boolean {
