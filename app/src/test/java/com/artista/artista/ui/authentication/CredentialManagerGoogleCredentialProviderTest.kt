@@ -1,22 +1,11 @@
 package com.artista.artista.ui.authentication
 
-import android.app.PendingIntent
-import android.content.Context
 import android.os.Bundle
-import android.os.CancellationSignal
 import android.util.Base64
-import androidx.credentials.ClearCredentialStateRequest
-import androidx.credentials.CreateCredentialRequest
-import androidx.credentials.CreateCredentialResponse
-import androidx.credentials.CredentialManager
-import androidx.credentials.CredentialManagerCallback
 import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.GetCredentialResponse
-import androidx.credentials.PrepareGetCredentialResponse
-import androidx.credentials.exceptions.ClearCredentialException
-import androidx.credentials.exceptions.CreateCredentialException
-import androidx.credentials.exceptions.GetCredentialException
+import androidx.credentials.exceptions.NoCredentialException
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.artista.artista.model.error.AppException
@@ -24,7 +13,6 @@ import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import java.util.concurrent.CancellationException
-import java.util.concurrent.Executor
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -148,7 +136,7 @@ class CredentialManagerGoogleCredentialProviderTest {
   @Test
   fun idToken_defaultCallAsksCredentialManagerAndReturnsItsCredential() = runTest {
     val idToken = fakeIdToken()
-    val credentialManager = FakeCredentialManager { responseOf(googleIdToken(idToken)) }
+    val credentialManager = FakeCredentialManager(response = responseOf(googleIdToken(idToken)))
     val provider =
         CredentialManagerGoogleCredentialProvider(
             context = ApplicationProvider.getApplicationContext(),
@@ -158,6 +146,27 @@ class CredentialManagerGoogleCredentialProviderTest {
 
     assertEquals(idToken, provider.getIdToken().getOrThrow())
     assertEquals(1, credentialManager.requests.size)
+  }
+
+  /**
+   * Verifies that a failure raised by the default Credential Manager call is classified like any
+   * other, rather than escaping as an SDK exception a screen would not know how to read.
+   *
+   * [NoCredentialException] is used because it is the one failure whose classification the screen
+   * acts on: it is reported as [NoGoogleAccountException], not as an error.
+   *
+   * @author timo-by
+   */
+  @Test
+  fun idToken_defaultCallClassifiesACredentialManagerFailure() = runTest {
+    val provider =
+        CredentialManagerGoogleCredentialProvider(
+            context = ApplicationProvider.getApplicationContext(),
+            serverClientId = SERVER_CLIENT_ID,
+            credentialManager = FakeCredentialManager(error = NoCredentialException(CANCELLED)),
+        )
+
+    assertTrue(provider.getIdToken().exceptionOrNull() is NoGoogleAccountException)
   }
 
   /**
@@ -266,90 +275,4 @@ class CredentialManagerGoogleCredentialProviderTest {
     fun responseOf(credential: CustomCredential): GetCredentialResponse =
         GetCredentialResponse(credential)
   }
-}
-
-/**
- * Stands in for the platform [CredentialManager] behind the provider's default request.
- *
- * Only the get-credential call the provider makes is implemented; the operations it never asks for
- * fail loudly rather than silently succeeding, so a change that starts using them is noticed.
- *
- * @param answer the outcome the call reports, either a credential or the exception it throws
- * @author timo-by
- */
-private class FakeCredentialManager(
-    private val answer: () -> GetCredentialResponse,
-) : CredentialManager {
-
-  /**
-   * The requests this manager was asked, in order, so a test can inspect what the provider built.
-   */
-  val requests: MutableList<GetCredentialRequest> = mutableListOf()
-
-  /**
-   * Records the request and answers it on the given executor, the way the real call reports back.
-   *
-   * @param context the context the provider passed
-   * @param request the request the provider built
-   * @param cancellationSignal ignored, the answer is immediate
-   * @param executor the executor the answer is delivered on
-   * @param callback the callback that receives the answer
-   * @author timo-by
-   */
-  override fun getCredentialAsync(
-      context: Context,
-      request: GetCredentialRequest,
-      cancellationSignal: CancellationSignal?,
-      executor: Executor,
-      callback: CredentialManagerCallback<GetCredentialResponse, GetCredentialException>,
-  ) {
-    requests += request
-    executor.execute {
-      try {
-        callback.onResult(answer())
-      } catch (e: GetCredentialException) {
-        callback.onError(e)
-      }
-    }
-  }
-
-  override fun getCredentialAsync(
-      context: Context,
-      pendingGetCredentialHandle: PrepareGetCredentialResponse.PendingGetCredentialHandle,
-      cancellationSignal: CancellationSignal?,
-      executor: Executor,
-      callback: CredentialManagerCallback<GetCredentialResponse, GetCredentialException>,
-  ): Unit = unsupported()
-
-  override fun prepareGetCredentialAsync(
-      request: GetCredentialRequest,
-      cancellationSignal: CancellationSignal?,
-      executor: Executor,
-      callback: CredentialManagerCallback<PrepareGetCredentialResponse, GetCredentialException>,
-  ): Unit = unsupported()
-
-  override fun createCredentialAsync(
-      context: Context,
-      request: CreateCredentialRequest,
-      cancellationSignal: CancellationSignal?,
-      executor: Executor,
-      callback: CredentialManagerCallback<CreateCredentialResponse, CreateCredentialException>,
-  ): Unit = unsupported()
-
-  override fun clearCredentialStateAsync(
-      request: ClearCredentialStateRequest,
-      cancellationSignal: CancellationSignal?,
-      executor: Executor,
-      callback: CredentialManagerCallback<Void?, ClearCredentialException>,
-  ): Unit = unsupported()
-
-  override fun createSettingsPendingIntent(): PendingIntent = unsupported()
-
-  /**
-   * Reports that the provider asked for an operation the sign-in flow does not use.
-   *
-   * @return never returns
-   * @author timo-by
-   */
-  private fun unsupported(): Nothing = throw UnsupportedOperationException("not used by sign-in")
 }
