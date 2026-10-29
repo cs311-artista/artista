@@ -30,10 +30,8 @@ import org.junit.runner.RunWith
  * itself. Those are the decisions a wrong option makes, and they cannot be checked on a device
  * without several Google accounts.
  *
- * Only the wiring between those calls and the result is covered here; the classification of a
- * failure and the reading of a returned credential are pure and live in `CredentialMappingTest`.
- *
- * Robolectric is used only to supply a real [Bundle] for the credential payload.
+ * The classification of a failure and the reading of a returned credential are pure and live in
+ * `CredentialMappingTest`. Robolectric only supplies a real [Bundle] for the payload.
  *
  * @author timo-by
  */
@@ -41,8 +39,8 @@ import org.junit.runner.RunWith
 class CredentialManagerGoogleCredentialProviderTest {
 
   /**
-   * Verifies that the request asks Google's chooser for an ID token, which is the flow the screen
-   * is documented to use.
+   * Verifies that the request asks Google's chooser for an ID token, the flow the screen is
+   * documented to use.
    *
    * @author timo-by
    */
@@ -57,10 +55,11 @@ class CredentialManagerGoogleCredentialProviderTest {
   }
 
   /**
-   * Verifies that the request does not fall back to the credential sheet option. That option is the
-   * one whose auto-select and authorized-accounts flags decide whether the user is signed in
-   * without seeing the chooser, which is the outcome this flow must never produce: signing in is
-   * always a decision here, because the screen is only reachable once a session has ended.
+   * Verifies that the request does not fall back to the credential sheet option, whose auto-select
+   * and authorized-accounts flags decide whether the user signs in without seeing the chooser.
+   *
+   * Signing in is always a decision here, because the screen is only reachable once a session has
+   * ended.
    *
    * @author timo-by
    */
@@ -74,8 +73,8 @@ class CredentialManagerGoogleCredentialProviderTest {
   /**
    * Verifies that the ID token carried by a Google credential is what the caller receives.
    *
-   * Every other case here answers with a credential the provider refuses, so this is the only test
-   * on the path a successful tap takes.
+   * Every other case answers with a credential the provider refuses, so this is the only test on
+   * the path a successful tap takes.
    *
    * @author timo-by
    */
@@ -89,7 +88,7 @@ class CredentialManagerGoogleCredentialProviderTest {
 
   /**
    * Verifies that a Google credential whose payload cannot be read is reported as a generic failure
-   * instead of escaping as an exception, since the user has no different action to take for it.
+   * instead of escaping as an exception.
    *
    * @author timo-by
    */

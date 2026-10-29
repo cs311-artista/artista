@@ -7,18 +7,14 @@ import java.util.concurrent.atomic.AtomicInteger
 /**
  * Generates the unsigned Google ID tokens the local Authentication emulator accepts.
  *
- * The emulator verifies neither the signature nor the issuer of an ID token: it decodes the payload
- * and creates the account its claims describe. That is what lets the token exchange be tested
- * without a real Google account or the account chooser, which no instrumented test can drive. A
- * signed token would be needed against the production project, where the signature is checked.
- *
- * The claims mirror what Google issues: issuer, subject, audience, validity window, and a verified
- * e-mail address.
+ * The emulator verifies neither the signature nor the issuer: it decodes the payload and creates
+ * the account its claims describe. That is what lets the token exchange be tested without a real
+ * Google account or the account chooser, which no instrumented test can drive. Against the
+ * production project a signed token would be needed.
  *
  * The subject identifies the Google account, not the Firebase one: the emulator mints its own
- * opaque uid for the account it creates, and two tokens carrying the same subject resolve to the
- * same account, and therefore the same uid, across sign-ins. Tests must assert that continuity
- * rather than comparing a uid with a subject.
+ * opaque uid, and two tokens with the same subject resolve to the same account across sign-ins.
+ * Tests assert that continuity instead of comparing a uid with a subject.
  *
  * @author timo-by
  */
@@ -42,12 +38,11 @@ object FakeJwtGenerator {
   /**
    * Builds an unsigned Google ID token.
    *
-   * @param userId the subject claim; it identifies the Google account, and signing in again with
-   *   the same subject reuses the Firebase account created the first time. The account's uid is
-   *   minted by the emulator and is not this value
+   * @param userId the subject claim; signing in again with the same subject reuses the Firebase
+   *   account created the first time. Its uid is minted by the emulator and is not this value
    * @param email the e-mail claim, which the emulator requires to be verified
    * @param name the name claim, or `null` to leave it out, which is how Google reports an account
-   *   whose user never set a display name
+   *   without a display name
    * @return a three-segment JWT, signed with an empty signature
    * @author timo-by
    */

@@ -17,11 +17,10 @@ import org.junit.runner.RunWith
  * Credential Manager failure is classified, and how a returned credential is turned into an ID
  * token.
  *
- * Both functions are pure, so they are called directly. The provider's own test injects the two
- * Credential Manager calls and covers the wiring around them; what it cannot see is whether the
- * wiring classifies or parses correctly, which is what these cases pin.
+ * Both are pure, so they are called directly. The provider's own test covers the wiring around
+ * them; what it cannot see is whether that wiring classifies or parses correctly.
  *
- * Robolectric is used only to supply a real [Bundle] for the credential payload.
+ * Robolectric only supplies a real [Bundle] for the credential payload.
  *
  * @author timo-by
  */
@@ -29,8 +28,8 @@ import org.junit.runner.RunWith
 class CredentialMappingTest {
 
   /**
-   * Verifies that dismissing the Google sheet is reported as [AuthError.Cancelled] and not as a
-   * generic failure, so the screen can stay quiet instead of alarming the user.
+   * Verifies that dismissing the Google sheet is reported as [AuthError.Cancelled], so the screen
+   * can stay quiet instead of alarming the user.
    *
    * @author timo-by
    */
@@ -62,9 +61,9 @@ class CredentialMappingTest {
   }
 
   /**
-   * Verifies that a credential which is not a Google ID token - a passkey, for example, since
-   * Credential Manager returns both - is reported as [AuthError.InvalidCredentials] and does not
-   * reach the parsing step, which would throw on a foreign payload.
+   * Verifies that a credential which is not a Google ID token - a passkey, for example - is
+   * reported as [AuthError.InvalidCredentials] without reaching the parsing step, which would throw
+   * on a foreign payload.
    *
    * @author timo-by
    */

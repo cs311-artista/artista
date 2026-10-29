@@ -9,20 +9,19 @@ import org.junit.Test
 
 // Co-authored-by: DeepSeek Flash
 /**
- * Unit tests for [runAuthCatching], the single wrapper every authentication boundary reports its
- * failures through.
+ * Unit tests for [runAuthCatching], the wrapper every authentication boundary reports failures
+ * through.
  *
- * The rule it encodes - cancellation is the caller being torn down and is never a failure to report
- * - is the one that a copy-pasted `try`/`catch` gets wrong, so it is pinned once here rather than
- *   four times through the classes that use it.
+ * The rule it encodes - cancellation is the caller being torn down, never a failure to report - is
+ * the one a copy-pasted `try`/`catch` gets wrong, so it is pinned once here instead of through each
+ * caller.
  *
  * @author timo-by
  */
 class AuthFailureHandlingTest {
 
   /**
-   * Verifies that a successful call is returned as a success carrying its value, so the wrapper
-   * does not change the outcome of the calls it wraps.
+   * Verifies that a successful call is returned as a success carrying its value.
    *
    * @author timo-by
    */
@@ -35,7 +34,7 @@ class AuthFailureHandlingTest {
 
   /**
    * Verifies that a platform failure is classified and wrapped, keeping the original exception as
-   * the cause, which is what the caller displays and what a crash report still shows.
+   * the cause so a crash report still shows it.
    *
    * @author timo-by
    */
@@ -50,8 +49,8 @@ class AuthFailureHandlingTest {
   }
 
   /**
-   * Verifies that an [AuthException] raised inside the call is passed through unchanged instead of
-   * being wrapped again, which would nest one classified failure inside another.
+   * Verifies that an [AuthException] raised inside the call is passed through instead of being
+   * wrapped again, which would nest one classified failure inside another.
    *
    * This is the path a call takes when it reports a failure of its own, such as a sign-in that
    * produced no session.
@@ -68,8 +67,7 @@ class AuthFailureHandlingTest {
   }
 
   /**
-   * Verifies that cancellation is rethrown rather than reported, since a screen that is already
-   * gone must not be shown a failure for work it cancelled.
+   * Verifies that cancellation is rethrown rather than reported.
    *
    * @author timo-by
    */

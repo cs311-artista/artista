@@ -6,13 +6,12 @@ import org.junit.Test
 
 // Co-authored-by: DeepSeek Flash
 /**
- * Unit tests for [AuthException] and [toAuthError], the pair the UI uses to turn a failed [Result]
- * back into the domain outcome it presents.
+ * Unit tests for [AuthException] and [toAuthError], the pair that turns a failed [Result] back into
+ * the domain outcome the UI presents.
  *
- * Both authentication paths - the repository and the credential provider - report their failures
- * through [Result], so this is the one conversion every caller performs. It is pinned here because
- * a fallback that let an [AuthError.Unknown] through for a classified failure would silently turn a
- * specific message into a generic one.
+ * Both the repository and the credential provider report through [Result], so this is the one
+ * conversion every caller performs. A fallback that let an [AuthError.Unknown] through for a
+ * classified failure would silently turn a specific message into a generic one.
  *
  * @author timo-by
  */
@@ -20,7 +19,7 @@ class AuthErrorTest {
 
   /**
    * Verifies that a failure carrying an [AuthException] is read back as the outcome it was created
-   * with, which is what lets the UI branch on the reason instead of on a message.
+   * with, so the UI can branch on the reason instead of on a message.
    *
    * @author timo-by
    */
@@ -33,8 +32,7 @@ class AuthErrorTest {
 
   /**
    * Verifies that a failure carrying no [AuthException] is reported as [AuthError.Unknown] rather
-   * than escaping as a null or as the raw exception, since a caller has no other way to describe
-   * it.
+   * than escaping as a null or as the raw exception.
    *
    * @author timo-by
    */

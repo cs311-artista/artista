@@ -18,16 +18,11 @@ import kotlinx.coroutines.tasks.await
 /**
  * Firebase Authentication implementation of [AuthRepository], using the Google provider.
  *
- * The session is persisted on the device by Firebase Authentication itself: the signed-in user is
- * cached in local storage and restored when the application process starts again. That is why
+ * Firebase persists the session on the device and restores it when the process starts, so
  * [authState] is built on [FirebaseAuth.addAuthStateListener] rather than on a value read once at
- * construction: the listener is invoked with the restored user, so a returning user is already
- * signed in before the first frame is drawn, and it is invoked again whenever the session changes
- * (sign-in, sign-out, or a session revoked by Firebase). Until that first callback the repository
- * reports nothing, which is what lets the UI tell "signed out" apart from "not known yet".
- *
- * No explicit persistence call is made, because the Android SDK has no way to disable on-device
- * persistence and does not need to be told to enable it.
+ * construction: the listener is invoked with the restored user and again on every session change.
+ * Until that first callback the repository reports nothing, which is what lets the UI tell "signed
+ * out" apart from "not known yet".
  *
  * @param auth the Firebase Authentication entry point; injected so callers can point it at the
  *   Authentication emulator in tests
@@ -68,9 +63,8 @@ class FirebaseAuthRepository(private val auth: FirebaseAuth) : AuthRepository {
   override suspend fun signIn(idToken: String): Result<AuthUser> =
       runAuthCatching(Throwable::toFirebaseAuthError) {
         val credential = GoogleAuthProvider.getCredential(idToken, null)
-        // Awaiting the Task keeps the Firebase call asynchronous without blocking a thread. A
-        // successful sign-in task always carries a user; when it somehow does not, the exchange
-        // yielded no session, so there is nothing to sign in with.
+        // A successful sign-in task always carries a user; when it does not, the exchange yielded
+        // no session, so there is nothing to sign in with.
         auth.signInWithCredential(credential).await().user?.toAuthUser()
             ?: throw AuthException(AuthError.Unknown)
       }
@@ -85,10 +79,8 @@ class FirebaseAuthRepository(private val auth: FirebaseAuth) : AuthRepository {
       runAuthCatching(Throwable::toFirebaseAuthError) { auth.signOut() }
 
   /**
-   * Adapts a Firebase account to the domain's thin [AuthUser] abstraction.
-   *
-   * Only reads the two fields the domain exposes, so the rest of the Firebase profile never leaks
-   * past the model layer.
+   * Adapts a Firebase account to the domain's thin [AuthUser] abstraction, reading only the two
+   * fields the domain exposes.
    *
    * @return the domain representation of this account
    * @author timo-by
@@ -99,12 +91,10 @@ class FirebaseAuthRepository(private val auth: FirebaseAuth) : AuthRepository {
 /**
  * Builds the domain representation of an authenticated account from its raw Firebase fields.
  *
- * Takes the raw fields rather than a `FirebaseUser` because that type can neither be constructed
- * nor mocked on the JVM, so keeping the mapping free of it is what makes the exposed display name
- * verifiable by `./gradlew check` instead of only against the Authentication emulator.
- *
- * The display name is trimmed and a blank one is reported as `null`, so a caller that defaults a
- * profile's username to it never stores a name that would render as empty.
+ * Takes raw fields rather than a `FirebaseUser`, which can neither be constructed nor mocked on the
+ * JVM: that is what makes the displayed name verifiable by `./gradlew check` instead of only
+ * against the emulator. A blank name is reported as `null`, so a caller defaulting a profile's
+ * username to it never stores a name that renders as empty.
  *
  * @param uid the stable identifier Firebase assigns to the account
  * @param displayName the name the account's provider reports, or `null` when it reports none
@@ -122,15 +112,11 @@ internal fun authUserOf(uid: String, displayName: String?): AuthUser =
 /**
  * Classifies a Firebase failure.
  *
- * Only the outcomes a user can act on are distinguished; everything else collapses to
- * [AuthError.Unknown] rather than leaking an SDK message to the screen.
+ * Only the outcomes a user can act on are named; every other `FirebaseAuthException` subclass (too
+ * many requests, account already in use) is matched by the fallback and collapses to
+ * [AuthError.Unknown]. That is why no arm on the parent type exists: it would change no outcome.
  *
- * Declared at file level rather than as a private member so it can be unit-tested without the
- * Authentication emulator that [FirebaseAuthRepository] itself needs.
- *
- * Only the two outcomes above are named. Every `FirebaseAuthException` subclass, including the ones
- * a user cannot act differently on (too many requests, an account already in use), is matched by
- * the fallback, which is why no arm on the parent type exists: it would change no outcome.
+ * Declared at file level so it can be unit-tested without the emulator.
  *
  * @return the domain outcome matching this failure
  * @author timo-by

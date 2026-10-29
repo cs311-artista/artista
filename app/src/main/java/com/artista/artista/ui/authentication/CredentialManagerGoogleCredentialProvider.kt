@@ -44,20 +44,13 @@ class CredentialManagerGoogleCredentialProvider(
   /**
    * Shows Google's account chooser and returns the resulting ID token.
    *
-   * The request asks for the button flow rather than for the credential sheet, because the screen
-   * that calls it is only reachable when there is no session: either the user signed out, or the
-   * session was revoked. Who signs in next is therefore a decision, and the request must not make
-   * it on the user's behalf:
+   * The request asks for the button flow rather than the credential sheet, because the screen is
+   * only reachable when there is no session and who signs in next is the user's decision: signing
+   * someone back in right after they tapped "Log out" is the one thing this flow must never do, and
+   * filtering the list to already-authorized accounts would stop a user with several Google
+   * accounts from switching.
    *
-   * - No automatic selection is requested. Signing a user back in right after they tapped "Log out"
-   *   is the one thing this flow must never do, and auto-select would also depend on device state
-   *   (a single eligible account, no pending consent) that is not ours to inspect.
-   * - The account list is not filtered to accounts already authorized for this application. Signing
-   *   out is how a user with several Google accounts gets to switch, so every account has to be
-   *   offered rather than only the one that was used before.
-   *
-   * The authenticity of the token is verified by Firebase Authentication when it is exchanged for a
-   * session, not here.
+   * The token's authenticity is verified by Firebase Authentication on exchange, not here.
    *
    * @return success with the Google ID token, or failure carrying an [AuthException]
    * @author timo-by
@@ -79,9 +72,8 @@ class CredentialManagerGoogleCredentialProvider(
 /**
  * Reads the Google ID token out of the credential Credential Manager returned.
  *
- * Passkeys and custom credentials can appear in the same response, so the type is checked before
- * parsing: [GoogleIdTokenCredential.createFrom] would otherwise throw on a payload that is not an
- * ID token.
+ * Passkeys can appear in the same response, so the type is checked before parsing:
+ * [GoogleIdTokenCredential.createFrom] would otherwise throw on a payload that is not an ID token.
  *
  * @return success with the ID token, or failure carrying an [AuthException]
  * @author timo-by
@@ -103,13 +95,9 @@ internal fun Credential.toGoogleIdToken(): Result<String> {
 /**
  * Classifies a failure raised by the Credential Manager flow.
  *
- * Both outcomes below extend `GetCredentialException`, so each is matched by its own type rather
- * than by the shared parent: an arm on the parent would collapse them into [AuthError.Unknown] and
- * the user would lose the reason. Every other Credential Manager failure - and anything
- * unforeseen - falls into the generic outcome, because the user has no different action to take for
- * it. A transport failure is one of them: Credential Manager reports it as a generic
- * `GetCredentialUnknownException` or `GetCredentialInterruptedException`, so it surfaces as
- * [AuthError.Unknown] rather than [AuthError.Network], which is the repository's outcome.
+ * The two outcomes a user can act on extend the same parent, so each is matched by its own type: an
+ * arm on the parent would collapse them into [AuthError.Unknown]. Every other failure, a transport
+ * one included, falls into the generic outcome because the user has no different action to take.
  *
  * @return the domain outcome matching this failure
  * @author timo-by

@@ -7,8 +7,8 @@ import com.google.firebase.auth.auth
 /**
  * Composition root for the authentication repository.
  *
- * Keeps the Firebase dependency in the model layer, mirroring the other repositories' providers, so
- * the UI never has to import Firebase to obtain an [AuthRepository].
+ * Keeps the Firebase dependency in the model layer so the UI never imports Firebase to obtain an
+ * [AuthRepository], mirroring [com.artista.artista.model.user.UserRepositoryProvider].
  *
  * @author timo-by
  */
@@ -21,11 +21,9 @@ object AuthRepositoryProvider {
   /**
    * The repository used by the application.
    *
-   * Settable so a test can point the application at a fake, mirroring
-   * [com.artista.artista.model.user.UserRepositoryProvider]. The Firebase-backed implementation is
-   * created lazily on first read, because [Firebase.auth] requires the default
-   * [com.google.firebase.FirebaseApp] to be initialized first, which happens while the application
-   * starts.
+   * Settable so a test can point the application at a fake. The Firebase-backed implementation is
+   * created lazily, because [Firebase.auth] needs the default [com.google.firebase.FirebaseApp] to
+   * be initialized first.
    *
    * @author timo-by
    */

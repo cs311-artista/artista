@@ -14,9 +14,8 @@ import org.junit.Test
  * Unit tests for [toFirebaseAuthError], the classification that decides what the user is told when
  * a Firebase authentication call fails.
  *
- * Run on the JVM rather than against the Authentication emulator, because the mapping is pure: it
- * only inspects the exception type. Covering it here keeps the most user-visible decision in the
- * repository on the fast path, where `./gradlew check` guards it on every change.
+ * The mapping only inspects the exception type, so it runs on the JVM and `./gradlew check` guards
+ * the most user-visible decision in the repository without an emulator.
  *
  * @author timo-by
  */
@@ -24,7 +23,7 @@ class FirebaseAuthErrorClassifierTest {
 
   /**
    * Verifies that a rejected credential - an expired or forged ID token - is reported as
-   * [AuthError.InvalidCredentials], which the screen describes as "Google rejected the sign-in".
+   * [AuthError.InvalidCredentials].
    *
    * @author timo-by
    */
@@ -37,7 +36,7 @@ class FirebaseAuthErrorClassifierTest {
 
   /**
    * Verifies that an unknown or disabled account is grouped with a rejected credential, since the
-   * user's only recovery is to try a different account either way.
+   * recovery is the same: try a different account.
    *
    * @author timo-by
    */
@@ -50,7 +49,7 @@ class FirebaseAuthErrorClassifierTest {
 
   /**
    * Verifies that Firebase reporting a network failure is reported as [AuthError.Network], so the
-   * user is told to check their connection rather than that authentication failed.
+   * user is told to check their connection.
    *
    * @author timo-by
    */
@@ -63,7 +62,7 @@ class FirebaseAuthErrorClassifierTest {
    * Verifies that throttling is reported as [AuthError.Unknown].
    *
    * Retrying later is the only recovery and the screen already offers another attempt, so a
-   * dedicated outcome would add a string resource without adding an action.
+   * dedicated outcome would add a string without adding an action.
    *
    * @author timo-by
    */
@@ -76,10 +75,7 @@ class FirebaseAuthErrorClassifierTest {
 
   /**
    * Verifies that an account already linked to another credential is reported as
-   * [AuthError.Unknown].
-   *
-   * The user signs in with Google only, so the collision cannot be resolved from the screen and a
-   * dedicated outcome would describe a situation the UI cannot act on.
+   * [AuthError.Unknown], since the screen cannot resolve it.
    *
    * @author timo-by
    */
@@ -96,7 +92,7 @@ class FirebaseAuthErrorClassifierTest {
 
   /**
    * Verifies that a plain IO failure - which the SDK also raises when the transport drops - is
-   * reported as [AuthError.Network] and not as a generic failure.
+   * reported as [AuthError.Network].
    *
    * @author timo-by
    */
@@ -109,8 +105,8 @@ class FirebaseAuthErrorClassifierTest {
    * Verifies that anything the repository cannot classify becomes [AuthError.Unknown] instead of
    * escaping as an SDK message.
    *
-   * This is also what covers every `FirebaseAuthException` subclass that is left unnamed, so the
-   * classifier needs no arm on the parent type.
+   * This also covers every unnamed `FirebaseAuthException` subclass, so the classifier needs no arm
+   * on the parent type.
    *
    * @author timo-by
    */
