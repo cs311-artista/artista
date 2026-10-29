@@ -1,3 +1,4 @@
+// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 // Co-authored-by: Gemini <gemini@google.com>
 package com.artista.artista.ui.artwork
 
@@ -148,7 +149,7 @@ fun ArtworkScreen(
       ) {
         Surface(
             modifier = Modifier.fillMaxSize(),
-            color = MaterialTheme.colorScheme.surfaceVariant,
+            color = MaterialTheme.colorScheme.surface,
         ) {
           Column(
               modifier = Modifier.fillMaxSize(),

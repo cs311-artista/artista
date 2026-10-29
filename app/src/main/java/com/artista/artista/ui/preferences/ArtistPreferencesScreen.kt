@@ -1,3 +1,5 @@
+// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+
 package com.artista.artista.ui.preferences
 
 import androidx.compose.foundation.BorderStroke
@@ -38,7 +40,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -53,6 +54,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.artista.artista.R
 import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
+import com.artista.artista.ui.theme.ArtistaColors
 import com.artista.artista.ui.theme.ArtistaTheme
 
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
@@ -85,8 +87,7 @@ fun ArtistPreferencesScreen(
 
   Scaffold(
       modifier = Modifier.fillMaxSize().testTag(ArtistPreferencesTestTags.SCREEN),
-      // Same brand-tinted background as the profile screen, which this screen belongs to.
-      containerColor = MaterialTheme.colorScheme.primaryContainer,
+      containerColor = MaterialTheme.colorScheme.background,
       bottomBar = {
         BottomNavigationMenu(selectedTab = Tab.Profile, onTabSelected = onTabSelected)
       },
@@ -135,7 +136,7 @@ fun ArtistPreferencesScreen(
           shape = PillShape,
           colors =
               ButtonDefaults.buttonColors(
-                  containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+                  containerColor = ArtistaColors.Surface,
                   contentColor = MaterialTheme.colorScheme.primary,
               ),
       ) {
@@ -200,10 +201,10 @@ private fun SearchField() {
       // It therefore looks usable although it is not, until searching is implemented.
       colors =
           TextFieldDefaults.colors(
-              disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+              disabledContainerColor = ArtistaColors.Surface,
               disabledPlaceholderColor = MaterialTheme.colorScheme.primary,
               disabledLeadingIconColor = MaterialTheme.colorScheme.primary,
-              disabledIndicatorColor = Color.Transparent,
+              disabledIndicatorColor = ArtistaColors.Transparent,
           ),
   )
 }
@@ -227,9 +228,7 @@ private fun ArtistCard(artist: String, selected: Boolean, onToggle: () -> Unit) 
               .semantics { role = Role.Checkbox }
               .testTag(ArtistPreferencesTestTags.getArtistCardTestTag(artist)),
       shape = RoundedCornerShape(20.dp),
-      color =
-          if (selected) MaterialTheme.colorScheme.surfaceContainerLowest
-          else MaterialTheme.colorScheme.secondaryContainer,
+      color = ArtistaColors.Surface,
       border = if (selected) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null,
   ) {
     Column(
@@ -291,8 +290,7 @@ private fun SelectionIndicator(selected: Boolean, modifier: Modifier = Modifier)
               .size(24.dp)
               .clip(CircleShape)
               .background(
-                  if (selected) MaterialTheme.colorScheme.primary
-                  else MaterialTheme.colorScheme.surfaceContainerLowest
+                  if (selected) MaterialTheme.colorScheme.primary else ArtistaColors.Surface
               ),
       contentAlignment = Alignment.Center,
   ) {

@@ -1,3 +1,5 @@
+// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+
 package com.artista.artista.ui.profile
 
 import androidx.compose.foundation.background
@@ -71,8 +73,7 @@ fun UserProfileScreen(
 
   Scaffold(
       modifier = Modifier.fillMaxSize().testTag(UserProfileTestTags.SCREEN),
-      // The mockup uses a brand-tinted background behind white cards, unlike the usual surface.
-      containerColor = MaterialTheme.colorScheme.primaryContainer,
+      containerColor = MaterialTheme.colorScheme.background,
       topBar = { ProfileTopBar(onLogoutClick = onLogoutClick) },
       bottomBar = {
         BottomNavigationMenu(selectedTab = Tab.Profile, onTabSelected = onTabSelected)
@@ -170,7 +171,7 @@ private fun LogoutButton(onClick: () -> Unit) {
       onClick = onClick,
       modifier = Modifier.testTag(UserProfileTestTags.LOGOUT_BUTTON),
       shape = FieldShape,
-      color = MaterialTheme.colorScheme.surfaceContainerLowest,
+      color = MaterialTheme.colorScheme.surface,
   ) {
     Row(
         modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
@@ -201,7 +202,7 @@ private fun ProfilePicturePlaceholder() {
           Modifier.fillMaxWidth(0.75f)
               .aspectRatio(1f)
               .clip(RoundedCornerShape(30.dp))
-              .background(MaterialTheme.colorScheme.surfaceContainerLowest)
+              .background(MaterialTheme.colorScheme.surface)
               .testTag(UserProfileTestTags.PROFILE_PICTURE),
       contentAlignment = Alignment.Center,
   ) {
@@ -246,7 +247,7 @@ private fun ProfileField(
     }
   }
   val fieldModifier = modifier.fillMaxWidth()
-  val fieldColor = MaterialTheme.colorScheme.surfaceContainerLowest
+  val fieldColor = MaterialTheme.colorScheme.surface
 
   if (onClick == null) {
     Surface(modifier = fieldModifier, shape = FieldShape, color = fieldColor, content = content)

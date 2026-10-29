@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -276,6 +277,11 @@ private fun SavedArtworksLoadErrorState(onRetry: () -> Unit, modifier: Modifier 
     Button(
         onClick = onRetry,
         modifier = Modifier.testTag(SavedArtworksTestTags.RETRY_BUTTON),
+        colors =
+            ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.primary,
+            ),
     ) {
       Text(text = stringResource(R.string.saved_artworks_try_again))
     }

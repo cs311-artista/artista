@@ -1,3 +1,5 @@
+// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+
 package com.artista.artista.ui.authentication
 
 import androidx.compose.foundation.Image
@@ -43,6 +45,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.artista.artista.R
 import com.artista.artista.resources.C
+import com.artista.artista.ui.theme.ArtistaColors
 import com.artista.artista.ui.theme.ArtistaTheme
 import kotlinx.coroutines.launch
 
@@ -77,7 +80,7 @@ fun AuthScreenContent(
       modifier =
           modifier
               .fillMaxSize()
-              .background(MaterialTheme.colorScheme.tertiaryContainer)
+              .background(MaterialTheme.colorScheme.background)
               .testTag(C.Tag.auth_screen_container),
   ) {
     Column(
@@ -103,7 +106,7 @@ fun AuthScreenContent(
       Text(
           text = stringResource(R.string.app_name),
           style = MaterialTheme.typography.displayMedium.copy(fontFamily = FontFamily.Serif),
-          color = MaterialTheme.colorScheme.onTertiaryContainer,
+          color = MaterialTheme.colorScheme.onBackground,
       )
 
       Spacer(Modifier.height(8.dp))
@@ -111,7 +114,7 @@ fun AuthScreenContent(
       Text(
           text = stringResource(R.string.auth_tagline),
           style = MaterialTheme.typography.titleMedium,
-          color = MaterialTheme.colorScheme.onTertiaryContainer,
+          color = MaterialTheme.colorScheme.onBackground,
       )
 
       Spacer(Modifier.weight(1f))
@@ -123,10 +126,10 @@ fun AuthScreenContent(
           shape = RoundedCornerShape(percent = 50),
           colors =
               ButtonDefaults.buttonColors(
-                  containerColor = Color.White,
-                  contentColor = MaterialTheme.colorScheme.onSurface,
-                  disabledContainerColor = Color.White,
-                  disabledContentColor = MaterialTheme.colorScheme.onSurface,
+                  containerColor = ArtistaColors.Surface,
+                  contentColor = ArtistaColors.OnSurface,
+                  disabledContainerColor = ArtistaColors.Surface,
+                  disabledContentColor = ArtistaColors.OnSurface,
               ),
           contentPadding = PaddingValues(horizontal = 20.dp, vertical = 0.dp),
       ) {
@@ -134,7 +137,7 @@ fun AuthScreenContent(
           CircularProgressIndicator(
               modifier = Modifier.size(22.dp).testTag(C.Tag.auth_loading_indicator),
               strokeWidth = 2.dp,
-              color = MaterialTheme.colorScheme.onSurface,
+              color = ArtistaColors.OnSurface,
           )
         } else {
           Icon(
@@ -217,7 +220,7 @@ fun AuthScreen(
 }
 
 /** Preview of the signed-out sign-in screen. */
-@Preview(showBackground = true, backgroundColor = 0xFFEFB8C8)
+@Preview(showBackground = true)
 @Composable
 private fun AuthScreenContentPreview() {
   ArtistaTheme {
