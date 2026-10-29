@@ -23,7 +23,7 @@ const val MAX_USERNAME_LENGTH = 20
  * @author Timz3rr
  */
 fun isValidUsername(name: String): Boolean {
-  val trimmed = name.trim()
+  val trimmed = name.trim() // remove spaces at first and last position of the string
   // A plain space is checked instead of isWhitespace() so that tabs and line breaks are rejected.
   return trimmed.isNotEmpty() &&
       trimmed.length <= MAX_USERNAME_LENGTH &&

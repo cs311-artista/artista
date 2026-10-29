@@ -262,19 +262,33 @@ class UserProfileScreenTest {
     saveButton.assertIsEnabled()
   }
 
-  /** Clicks the username field, which opens the dialog used to edit the username. */
+  /**
+   * Simulates the user clicking the username field, which opens the dialog used to edit the
+   * username. Shared by the dialog tests so that each of them starts from an open dialog.
+   */
   private fun openUsernameDialog() {
+    // The profile content is scrollable: on a small screen the field may be off screen, and a click
+    // on a node that is not displayed fails.
     composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME).performScrollTo().performClick()
   }
 
   /**
-   * Asserts the content typed in a text field. [assertTextEquals] cannot be used here because it
-   * also compares the label of the field.
+   * Asserts the content typed in a text field. It does not act on the screen: it only fails the
+   * test when the field holds another text.
+   *
+   * [assertTextEquals] cannot be used here because the semantics of an OutlinedTextField expose the
+   * label in [SemanticsProperties.Text] and the typed content in
+   * [SemanticsProperties.EditableText], and [assertTextEquals] compares both.
+   *
+   * Declared as an extension so that it chains like the built-in assertions:
+   * `onNodeWithTag(tag).assertEditableTextEquals("Alice")`.
    *
    * @param expected the text expected in the field.
    */
   private fun SemanticsNodeInteraction.assertEditableTextEquals(expected: String) {
     assert(
+        // EditableText is stored as an AnnotatedString, so the expected String is wrapped to be
+        // comparable with it.
         SemanticsMatcher.expectValue(SemanticsProperties.EditableText, AnnotatedString(expected))
     )
   }

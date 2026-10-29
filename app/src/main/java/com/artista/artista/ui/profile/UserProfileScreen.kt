@@ -287,22 +287,28 @@ private fun EditUsernameDialog(
     onSave: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
-  // Saveable so that the text being typed survives a screen rotation.
+  // Kept in the dialog rather than in the ViewModel: it is only a draft, and the real username must
+  // not change until the user saves. Saveable so that the text being typed survives a screen
+  // rotation.
   var draft by rememberSaveable { mutableStateOf(initialUsername) }
 
   AlertDialog(
+      // Also called on a tap outside the dialog or a back press, which behave like Cancel.
       onDismissRequest = onDismiss,
       modifier = Modifier.testTag(UserProfileTestTags.USERNAME_DIALOG),
       title = { Text(stringResource(R.string.profile_username_dialog_title)) },
       text = {
         OutlinedTextField(
             value = draft,
+            // The field only displays draft, so each keystroke must be written back to it.
             onValueChange = { draft = it },
             modifier = Modifier.testTag(UserProfileTestTags.USERNAME_FIELD),
             label = { Text(stringResource(R.string.profile_username_label)) },
             supportingText = {
+              // The limit is passed as an argument so that the text follows MAX_USERNAME_LENGTH.
               Text(stringResource(R.string.profile_username_rules, MAX_USERNAME_LENGTH))
             },
+            // A username fits on one line, so Enter must not insert a line break.
             singleLine = true,
         )
       },
@@ -310,6 +316,7 @@ private fun EditUsernameDialog(
         TextButton(
             onClick = { onSave(draft) },
             modifier = Modifier.testTag(UserProfileTestTags.USERNAME_SAVE),
+            // Recomputed on each keystroke, so the button reacts while the user types.
             enabled = isValidUsername(draft),
         ) {
           Text(stringResource(R.string.profile_username_save))
