@@ -116,8 +116,8 @@ internal object Dimensions {
   val artworkCardElevation = shallowElevation
   val overviewSearchBarElevation = shallowElevation
 
-  val selectedCardBorderWidth = 2.dp
-  val progressIndicatorStrokeWidth = selectedCardBorderWidth
+  /** Shared stroke width for selected card borders and progress indicators. */
+  val standardStrokeWidth = 2.dp
 }
 
 /**

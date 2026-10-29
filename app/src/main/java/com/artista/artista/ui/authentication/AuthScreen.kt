@@ -146,7 +146,7 @@ fun AuthScreenContent(
           CircularProgressIndicator(
               modifier =
                   Modifier.size(Dimensions.iconSizeMedium).testTag(C.Tag.auth_loading_indicator),
-              strokeWidth = Dimensions.progressIndicatorStrokeWidth,
+              strokeWidth = Dimensions.standardStrokeWidth,
               color = MaterialTheme.colorScheme.onSurface,
           )
         } else {

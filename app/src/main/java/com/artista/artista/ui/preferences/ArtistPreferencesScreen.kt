@@ -240,7 +240,7 @@ private fun ArtistCard(artist: String, selected: Boolean, onToggle: () -> Unit) 
           else MaterialTheme.colorScheme.secondaryContainer,
       border =
           if (selected) {
-            BorderStroke(Dimensions.selectedCardBorderWidth, MaterialTheme.colorScheme.primary)
+            BorderStroke(Dimensions.standardStrokeWidth, MaterialTheme.colorScheme.primary)
           } else {
             null
           },
