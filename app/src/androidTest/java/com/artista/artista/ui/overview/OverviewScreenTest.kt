@@ -13,6 +13,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
 import com.artista.artista.model.artwork.WikiDataRepository
@@ -175,7 +176,7 @@ class OverviewScreenTest {
       Artwork(
           uid = "$name-$artistName",
           name = name,
-          artistName = artistName,
+          artist = Artist(uid = "uid-$artistName", name = artistName),
           description = null,
           conceptionDate = null,
           museum = null,

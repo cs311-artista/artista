@@ -1,6 +1,7 @@
 package com.artista.artista.ui.preferences
 
 import com.artista.artista.MainDispatcherRule
+import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
 import com.artista.artista.model.artwork.WikiDataRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -51,16 +52,16 @@ class ArtistPreferencesViewModelTest {
   /** Verifies that toggling an unselected artist selects it. */
   @Test
   fun toggleArtist_selectsUnselectedArtist() {
-    viewModel.toggleArtist(PICASSO)
+    viewModel.toggleArtist(PICASSO.uid)
 
-    assertEquals(setOf(PICASSO), viewModel.uiState.value.selectedArtists)
+    assertEquals(setOf(PICASSO.uid), viewModel.uiState.value.selectedArtists)
   }
 
   /** Verifies that toggling an artist twice brings it back to its initial unselected state. */
   @Test
   fun toggleArtist_twice_leavesArtistUnselected() {
-    viewModel.toggleArtist(PICASSO)
-    viewModel.toggleArtist(PICASSO)
+    viewModel.toggleArtist(PICASSO.uid)
+    viewModel.toggleArtist(PICASSO.uid)
 
     assertTrue(viewModel.uiState.value.selectedArtists.isEmpty())
   }
@@ -68,14 +69,32 @@ class ArtistPreferencesViewModelTest {
   /** Verifies that toggling an artist leaves the selection of the other artists unchanged. */
   @Test
   fun toggleArtist_keepsOtherSelections() {
-    viewModel.toggleArtist(PICASSO)
-    viewModel.toggleArtist(MONET)
+    viewModel.toggleArtist(PICASSO.uid)
+    viewModel.toggleArtist(MONET.uid)
 
-    assertEquals(setOf(PICASSO, MONET), viewModel.uiState.value.selectedArtists)
+    assertEquals(setOf(PICASSO.uid, MONET.uid), viewModel.uiState.value.selectedArtists)
 
-    viewModel.toggleArtist(PICASSO)
+    viewModel.toggleArtist(PICASSO.uid)
 
-    assertEquals(setOf(MONET), viewModel.uiState.value.selectedArtists)
+    assertEquals(setOf(MONET.uid), viewModel.uiState.value.selectedArtists)
+  }
+
+  /** Verifies that artists sharing a name are selected independently, since selection uses ids. */
+  @Test
+  fun toggleArtist_artistsWithSameName_areSelectedIndependently() = runTest {
+    val first = Artist("test-same-1", "Same Name")
+    val second = Artist("test-same-2", "Same Name")
+    val repository =
+        object : WikiDataRepository by ArtworkRepositoryLocal() {
+          override suspend fun getPopularArtists(): List<Artist> = listOf(first, second)
+        }
+    val viewModel = ArtistPreferencesViewModel(repository)
+    advanceUntilIdle()
+    assertEquals(listOf(first, second), viewModel.uiState.value.popularArtists)
+
+    viewModel.toggleArtist(first.uid)
+
+    assertEquals(setOf(first.uid), viewModel.uiState.value.selectedArtists)
   }
 
   /** Verifies that a failing popular artists load does not crash and leaves the list empty. */
@@ -83,7 +102,7 @@ class ArtistPreferencesViewModelTest {
   fun init_whenLoadingPopularArtistsFails_exposesNoArtists() = runTest {
     val repository =
         object : WikiDataRepository by ArtworkRepositoryLocal() {
-          override suspend fun getPopularArtists(): List<String> = error("Popular artists failure")
+          override suspend fun getPopularArtists(): List<Artist> = error("Popular artists failure")
         }
     val viewModel = ArtistPreferencesViewModel(repository)
     advanceUntilIdle()
@@ -92,11 +111,11 @@ class ArtistPreferencesViewModelTest {
   }
 
   private companion object {
-    const val PICASSO = "Pablo Picasso"
-    const val VAN_GOGH = "Vincent van Gogh"
-    const val RENOIR = "Pierre-Auguste Renoir"
-    const val MONET = "Claude Monet"
-    const val KLIMT = "Gustav Klimt"
-    const val MATISSE = "Henri Matisse"
+    val PICASSO = Artist("mock-artist-001", "Pablo Picasso")
+    val VAN_GOGH = Artist("mock-artist-002", "Vincent van Gogh")
+    val RENOIR = Artist("mock-artist-003", "Pierre-Auguste Renoir")
+    val MONET = Artist("mock-artist-004", "Claude Monet")
+    val KLIMT = Artist("mock-artist-005", "Gustav Klimt")
+    val MATISSE = Artist("mock-artist-006", "Henri Matisse")
   }
 }

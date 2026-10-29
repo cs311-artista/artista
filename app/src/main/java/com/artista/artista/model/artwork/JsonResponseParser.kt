@@ -2,6 +2,7 @@
 // Co-authored-by: Qwen2.5-coder
 package com.artista.artista.model.artwork
 
+import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.error.AppException
 import com.artista.artista.model.map.Location
 import java.time.Instant
@@ -54,7 +55,14 @@ class JsonResponseParser {
 
       val uid = item?.getString("value")?.substringAfterLast('/') ?: continue
       val name = itemLabel?.getString("value") ?: continue
-      val artistName = artistLabel?.getString("value")
+      val artistName = artistLabel?.optString("value")?.takeIf { it.isNotBlank() }
+      val artistModel =
+          if (artistName != null) {
+            // TODO: Replace the name-based UID with the Wikidata artist entity ID.
+            Artist(uid = "uid-$artistName", name = artistName)
+          } else {
+            null
+          }
       val descriptionText = description?.getString("value")
       val conceptionDate = inception?.getString("value")?.let(::parseDate)
       val museum = collectionLabel?.getString("value")
@@ -74,7 +82,7 @@ class JsonResponseParser {
           Artwork(
               uid = uid,
               name = name,
-              artistName = artistName,
+              artist = artistModel,
               description = descriptionText,
               conceptionDate = conceptionDate,
               museum = museum,

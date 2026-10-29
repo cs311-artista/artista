@@ -2,6 +2,7 @@
 package com.artista.artista.ui.search
 
 import androidx.compose.ui.text.TextRange
+import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.WikiDataRepository
@@ -84,7 +85,7 @@ class SearchScreenViewModelTest {
             throw NotImplementedError("Not yet implemented")
           }
 
-          override suspend fun getPopularArtists(): List<String> {
+          override suspend fun getPopularArtists(): List<Artist> {
             throw NotImplementedError("Not yet implemented")
           }
 
@@ -116,7 +117,7 @@ class SearchScreenViewModelTest {
             throw NotImplementedError("Not yet implemented")
           }
 
-          override suspend fun getPopularArtists(): List<String> {
+          override suspend fun getPopularArtists(): List<Artist> {
             throw NotImplementedError("Not yet implemented")
           }
 
