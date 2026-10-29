@@ -41,7 +41,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
@@ -51,6 +50,7 @@ import com.artista.artista.ui.artwork.ArtworkCard
 import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaTheme
+import com.artista.artista.ui.theme.Dimensions
 
 /** Stable semantics tags used by SearchScreen UI tests. */
 object SearchScreenTestTags {
@@ -187,7 +187,10 @@ private fun SearchInput(
             onExpandedChange = { expanded = it },
             modifier =
                 Modifier.fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .padding(
+                        horizontal = Dimensions.searchInputHorizontalPadding,
+                        vertical = Dimensions.searchInputVerticalPadding,
+                    )
                     .focusRequester(focusRequester)
                     .testTag(SearchScreenTestTags.SEARCH_INPUT),
             placeholder = { Text(stringResource(R.string.search_placeholder)) },
@@ -235,8 +238,12 @@ private fun ArtworkResults(
 ) {
   LazyColumn(
       modifier = modifier.testTag(SearchScreenTestTags.ARTWORK_RESULTS),
-      contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-      verticalArrangement = Arrangement.spacedBy(8.dp),
+      contentPadding =
+          PaddingValues(
+              horizontal = Dimensions.searchResultsHorizontalPadding,
+              vertical = Dimensions.searchResultsVerticalPadding,
+          ),
+      verticalArrangement = Arrangement.spacedBy(Dimensions.searchResultItemSpacing),
   ) {
     items(artworks) { artwork ->
       ArtworkCard(

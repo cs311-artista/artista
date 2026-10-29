@@ -1,3 +1,4 @@
+// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 package com.artista.artista.ui.authentication
 
 import androidx.compose.foundation.Image
@@ -40,10 +41,10 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
 import com.artista.artista.R
 import com.artista.artista.resources.C
 import com.artista.artista.ui.theme.ArtistaTheme
+import com.artista.artista.ui.theme.Dimensions
 import kotlinx.coroutines.launch
 
 // Co-authored-by: DeepSeek Flash
@@ -81,10 +82,15 @@ fun AuthScreenContent(
               .testTag(C.Tag.auth_screen_container),
   ) {
     Column(
-        modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 32.dp),
+        modifier =
+            Modifier.fillMaxSize()
+                .padding(
+                    horizontal = Dimensions.authenticationScreenHorizontalPadding,
+                    vertical = Dimensions.authenticationScreenVerticalPadding,
+                ),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-      Spacer(Modifier.height(48.dp))
+      Spacer(Modifier.height(Dimensions.authenticationHeroTopSpacing))
 
       // Hero artwork for the authentication screen.
       Image(
@@ -98,7 +104,7 @@ fun AuthScreenContent(
           contentScale = ContentScale.Crop,
       )
 
-      Spacer(Modifier.height(16.dp))
+      Spacer(Modifier.height(Dimensions.authenticationHeroTitleSpacing))
 
       Text(
           text = stringResource(R.string.app_name),
@@ -106,7 +112,7 @@ fun AuthScreenContent(
           color = MaterialTheme.colorScheme.onTertiaryContainer,
       )
 
-      Spacer(Modifier.height(8.dp))
+      Spacer(Modifier.height(Dimensions.authenticationTitleTaglineSpacing))
 
       Text(
           text = stringResource(R.string.auth_tagline),
@@ -119,8 +125,10 @@ fun AuthScreenContent(
       Button(
           onClick = onSignInClick,
           enabled = !state.isLoading,
-          modifier = Modifier.height(48.dp).testTag(C.Tag.auth_google_sign_in_button),
-          shape = RoundedCornerShape(percent = 50),
+          modifier =
+              Modifier.height(Dimensions.standardTouchTargetSize)
+                  .testTag(C.Tag.auth_google_sign_in_button),
+          shape = RoundedCornerShape(percent = Dimensions.authenticationButtonCornerRadiusPercent),
           colors =
               ButtonDefaults.buttonColors(
                   containerColor = Color.White,
@@ -128,29 +136,34 @@ fun AuthScreenContent(
                   disabledContainerColor = Color.White,
                   disabledContentColor = MaterialTheme.colorScheme.onSurface,
               ),
-          contentPadding = PaddingValues(horizontal = 20.dp, vertical = 0.dp),
+          contentPadding =
+              PaddingValues(
+                  horizontal = Dimensions.authenticationButtonHorizontalPadding,
+                  vertical = Dimensions.authenticationButtonVerticalPadding,
+              ),
       ) {
         if (state.isLoading) {
           CircularProgressIndicator(
-              modifier = Modifier.size(22.dp).testTag(C.Tag.auth_loading_indicator),
-              strokeWidth = 2.dp,
+              modifier =
+                  Modifier.size(Dimensions.iconSizeMedium).testTag(C.Tag.auth_loading_indicator),
+              strokeWidth = Dimensions.standardStrokeWidth,
               color = MaterialTheme.colorScheme.onSurface,
           )
         } else {
           Icon(
               painter = painterResource(R.drawable.ic_google_logo),
               contentDescription = null,
-              modifier = Modifier.size(22.dp),
+              modifier = Modifier.size(Dimensions.iconSizeMedium),
               // Keep the brand's multi-colour logo; the default tint would flatten it to one
               // colour.
               tint = Color.Unspecified,
           )
-          Spacer(Modifier.width(10.dp))
+          Spacer(Modifier.width(Dimensions.authenticationButtonIconLabelSpacing))
           Text(text = stringResource(R.string.sign_in_with_google))
         }
       }
 
-      Spacer(Modifier.height(24.dp))
+      Spacer(Modifier.height(Dimensions.authenticationScreenBottomSpacing))
     }
 
     SnackbarHost(
