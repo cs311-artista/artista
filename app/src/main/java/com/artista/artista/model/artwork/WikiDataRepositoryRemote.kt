@@ -3,6 +3,7 @@ package com.artista.artista.model.artwork
 
 import android.util.Log
 import com.artista.artista.model.error.AppException
+import com.artista.artista.ui.map.UserLocation
 import java.util.Locale
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -59,6 +60,13 @@ class WikiDataRepositoryRemote(
     private val client: OkHttpClient = OkHttpClient(),
     private val endpoint: HttpUrl = "https://query.wikidata.org/sparql".toHttpUrl(),
 ) : WikiDataRepository {
+  override suspend fun getArtworksNearLocation(location: UserLocation?): List<Artwork> {
+    throw NotImplementedError("Not yet implemented")
+  }
+
+  override suspend fun getPopularArtists(): List<String> {
+    throw NotImplementedError("Not yet implemented")
+  }
 
   private companion object {
     /** Wikidata item IDs are "Q" followed by one or more digits, e.g. Q12345. */

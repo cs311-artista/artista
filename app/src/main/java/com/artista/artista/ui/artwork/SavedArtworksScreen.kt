@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
+import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.artwork.mockArtworks
 import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
@@ -69,7 +70,10 @@ fun SavedArtworksScreen(
     onTabSelected: (Tab) -> Unit,
     onMapClick: (Artwork) -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: SavedArtworksViewModel = viewModel(),
+    viewModel: SavedArtworksViewModel =
+        viewModel(
+            factory = SavedArtworksViewModel.provideFactory(ArtworkRepositoryProvider.repository)
+        ),
 ) {
   val uiState by viewModel.uiState.collectAsState()
 

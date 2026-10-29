@@ -1,28 +1,41 @@
 package com.artista.artista.ui.preferences
 
+import com.artista.artista.MainDispatcherRule
+import com.artista.artista.model.artwork.ArtworkRepositoryLocal
+import com.artista.artista.model.artwork.WikiDataRepository
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 /**
  * Tests the state exposed by [ArtistPreferencesViewModel].
  *
- * @author Timz3rr
+ * @author Timz3rr, patrickmcdan
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 class ArtistPreferencesViewModelTest {
 
   private lateinit var viewModel: ArtistPreferencesViewModel
 
+  @get:Rule val mainDispatcherRule = MainDispatcherRule()
+
   @Before
   fun setUp() {
-    viewModel = ArtistPreferencesViewModel()
+    val repository = ArtworkRepositoryLocal()
+    viewModel = ArtistPreferencesViewModel(repository)
   }
 
   /** Verifies that the popular artists of the mockup are exposed, in their display order. */
   @Test
-  fun initialState_exposesPopularArtists() {
+  fun initialState_exposesPopularArtists() = runTest {
+    advanceUntilIdle()
+
     assertEquals(
         listOf(PICASSO, VAN_GOGH, RENOIR, MONET, KLIMT, MATISSE),
         viewModel.uiState.value.popularArtists,
@@ -63,6 +76,19 @@ class ArtistPreferencesViewModelTest {
     viewModel.toggleArtist(PICASSO)
 
     assertEquals(setOf(MONET), viewModel.uiState.value.selectedArtists)
+  }
+
+  /** Verifies that a failing popular artists load does not crash and leaves the list empty. */
+  @Test
+  fun init_whenLoadingPopularArtistsFails_exposesNoArtists() = runTest {
+    val repository =
+        object : WikiDataRepository by ArtworkRepositoryLocal() {
+          override suspend fun getPopularArtists(): List<String> = error("Popular artists failure")
+        }
+    val viewModel = ArtistPreferencesViewModel(repository)
+    advanceUntilIdle()
+
+    assertTrue(viewModel.uiState.value.popularArtists.isEmpty())
   }
 
   private companion object {
