@@ -27,6 +27,8 @@ import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingExcept
  *   required, because [getIdToken] shows that UI
  * @param serverClientId the web client ID of the Firebase project; Credential Manager needs it to
  *   issue an ID token that Firebase can verify
+ * @param credentialManager the Credential Manager this provider asks, injectable so a test can
+ *   answer the default call without the system UI
  * @param requestCredential the Credential Manager call that shows the chooser, injectable so a test
  *   can observe the request it builds and answer it without the system UI
  * @author timo-by
@@ -34,9 +36,10 @@ import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingExcept
 class CredentialManagerGoogleCredentialProvider(
     private val context: Context,
     private val serverClientId: String,
+    private val credentialManager: CredentialManager = CredentialManager.create(context),
     private val requestCredential: suspend (GetCredentialRequest) -> GetCredentialResponse =
         { request ->
-          CredentialManager.create(context).getCredential(context, request)
+          credentialManager.getCredential(context, request)
         },
 ) : GoogleCredentialProvider {
 
