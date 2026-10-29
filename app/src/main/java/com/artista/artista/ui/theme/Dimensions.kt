@@ -10,6 +10,24 @@ import androidx.compose.ui.unit.sp
  * @author hixeum
  */
 internal object Dimensions {
+  // Shared shapes and control dimensions.
+  val cornerRadiusSmall = 12.dp
+  val cornerRadiusMedium = 20.dp
+  val cornerRadiusLarge = 30.dp
+  val cornerRadiusPill = 32.dp
+
+  /** Shared 48 dp size for the authentication button and preferences back-button touch target. */
+  val standardTouchTargetSize = 48.dp
+  val iconSizeSmall = 16.dp
+  val iconSizeMedium = 22.dp
+  val iconSizeLarge = 24.dp
+
+  /** Shared stroke width for selected card borders and progress indicators. */
+  val standardStrokeWidth = 2.dp
+
+  private val standardControlHeight = 56.dp
+  private val shallowElevation = 2.dp
+
   // Authentication screen.
   val authenticationScreenHorizontalPadding = 24.dp
   val authenticationScreenVerticalPadding = 32.dp
@@ -34,6 +52,14 @@ internal object Dimensions {
   val artworkFieldContentPadding = 10.dp
   val artworkFieldLabelValueSpacing = 4.dp
 
+  /** Height of artwork images in artwork cards. */
+  val artworkCardImageHeight = 160.dp
+
+  /** Height of the artwork image on the artwork details screen. */
+  val artworkDetailsImageHeight = 220.dp
+
+  val artworkCardElevation = shallowElevation
+
   // Saved artworks screen.
   val savedArtworksTitleHorizontalPadding = 20.dp
   val savedArtworksTitleVerticalPadding = 8.dp
@@ -52,6 +78,8 @@ internal object Dimensions {
   val overviewSearchBarContentHorizontalPadding = 16.dp
   val overviewSearchBarIconTextSpacing = 12.dp
   val overviewErrorActionSpacing = 12.dp
+  val overviewSearchBarHeight = standardControlHeight
+  val overviewSearchBarElevation = shallowElevation
 
   // Search screen.
   val searchInputHorizontalPadding = 16.dp
@@ -69,6 +97,7 @@ internal object Dimensions {
   val artistCardContentPadding = 8.dp
   val artistCardSelectionIndicatorPadding = 4.dp
   val artistCardNameTopSpacing = 8.dp
+  val preferencesSaveButtonHeight = standardControlHeight
 
   // Profile screen.
   val profileTopBarHorizontalPadding = 16.dp
@@ -82,42 +111,12 @@ internal object Dimensions {
   val logoutButtonVerticalPadding = 10.dp
   val logoutButtonIconLabelSpacing = 8.dp
   val profileFieldHorizontalPadding = 24.dp
+  /** Height of each profile field. */
+  val profileFieldHeight = 70.dp
 
   // Bottom navigation.
   val navigationBarHorizontalPadding = 16.dp
   val navigationBarVerticalPadding = 16.dp
-
-  val cornerRadiusSmall = 12.dp
-  val cornerRadiusMedium = 20.dp
-  val cornerRadiusLarge = 30.dp
-  val cornerRadiusPill = 32.dp
-
-  /** Height of artwork images in artwork cards. */
-  val artworkCardImageHeight = 160.dp
-
-  /** Height of the artwork image on the artwork details screen. */
-  val artworkDetailsImageHeight = 220.dp
-
-  private val standardControlHeight = 56.dp
-  val overviewSearchBarHeight = standardControlHeight
-  val preferencesSaveButtonHeight = standardControlHeight
-
-  /** Shared 48 dp size for the authentication button and preferences back-button touch target. */
-  val standardTouchTargetSize = 48.dp
-
-  /** Height of each profile field. */
-  val profileFieldHeight = 70.dp
-
-  val iconSizeSmall = 16.dp
-  val iconSizeMedium = 22.dp
-  val iconSizeLarge = 24.dp
-
-  private val shallowElevation = 2.dp
-  val artworkCardElevation = shallowElevation
-  val overviewSearchBarElevation = shallowElevation
-
-  /** Shared stroke width for selected card borders and progress indicators. */
-  val standardStrokeWidth = 2.dp
 }
 
 /**
