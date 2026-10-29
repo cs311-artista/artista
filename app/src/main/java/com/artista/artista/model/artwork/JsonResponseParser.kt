@@ -60,14 +60,15 @@ class JsonResponseParser {
       val museum = collectionLabel?.getString("value")
       val coordinates = binding.optJSONObject("locationCoordinates")?.optString("value")
       val location = parseLocation(coordinates, locationLabel?.getString("value"))
-      val dimension: Dimension? = if (width != null && height != null ) {
-        Dimension(
-          width.optString("value").toDouble(),
-          height.optString("value").toDouble()
-        )
-      } else {
-        null
-      }
+      val dimension: Dimension? =
+          if (width != null && height != null) {
+            Dimension(
+                width.optString("value").toDouble(),
+                height.optString("value").toDouble(),
+            )
+          } else {
+            null
+          }
 
       artworks.add(
           Artwork(
