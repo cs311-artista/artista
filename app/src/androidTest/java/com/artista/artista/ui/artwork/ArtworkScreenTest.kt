@@ -3,16 +3,19 @@
 package com.artista.artista.ui.artwork
 
 import androidx.activity.ComponentActivity
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.artista.artista.R
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.SavedArtworksRepository
+import com.artista.artista.model.map.Location
 import com.artista.artista.ui.theme.ArtistaTheme
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertFalse
@@ -48,6 +51,16 @@ class ArtworkScreenTest {
           dimension = null,
       )
 
+  private val sampleArtworkWithLocation =
+      sampleArtwork.copy(
+          location =
+              Location(
+                  25.0,
+                  25.0,
+                  "testLocation",
+              )
+      )
+
   @Before
   fun setUp() {
     fakeRepository = FakeArtworkRepository()
@@ -80,6 +93,24 @@ class ArtworkScreenTest {
     }
 
     runBlocking { assertFalse(fakeRepository.isArtworkSaved(sampleArtwork.uid)) }
+  }
+
+  @Test
+  fun artworkScreen_whenLocationIsProvided_mapTileIsDisplayed() {
+    setScreenContent(artwork = sampleArtworkWithLocation)
+
+    composeTestRule.onNodeWithTag(ArtworkTestTags.ARTWORK_MAP_TILE).assertExists()
+
+    composeTestRule.onNodeWithTag(ArtworkTestTags.ARTWORK_MAP_TILE).performScrollTo()
+
+    composeTestRule.onNodeWithTag(ArtworkTestTags.ARTWORK_MAP_TILE).assertIsDisplayed()
+  }
+
+  @Test
+  fun artworkScreen_whenLocationIsNotProvided_mapTileIsNotDisplayed() {
+    setScreenContent()
+
+    composeTestRule.onNodeWithTag(ArtworkTestTags.ARTWORK_MAP_TILE).assertDoesNotExist()
   }
 
   @Test
