@@ -1,6 +1,7 @@
 package com.artista.artista.model.authentication
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.artista.artista.model.error.AppException
 import com.artista.artista.utils.FakeJwtGenerator
 import com.artista.artista.utils.FirebaseEmulator
 import kotlinx.coroutines.flow.first
@@ -111,19 +112,20 @@ class FirebaseAuthRepositoryTest {
   }
 
   /**
-   * Verifies that a token the emulator rejects reaches the caller as a domain error rather than as
-   * an SDK exception.
+   * Verifies that a token the emulator rejects reaches the caller as an [AppException] rather than
+   * as an SDK exception.
    *
    * The emulator answers a request it cannot decode with `INVALID_ID_TOKEN`, which the SDK raises
-   * as a rejected credential.
+   * as a rejected credential, so the user is told to sign in again rather than shown an SDK
+   * message.
    *
    * @author timo-by
    */
   @Test
-  fun signIn_withATokenTheEmulatorRejects_failsWithInvalidCredentials() = runTest {
-    val error = (repository.signIn(NOT_A_TOKEN).exceptionOrNull() as AuthException).error
+  fun signIn_withATokenTheEmulatorRejects_failsWithUnauthorized() = runTest {
+    val failure = repository.signIn(NOT_A_TOKEN).exceptionOrNull()
 
-    assertEquals(AuthError.InvalidCredentials, error)
+    assertTrue(failure is AppException.Unauthorized)
   }
 
   /** Verifies that signing out clears the session the state flow reports. */

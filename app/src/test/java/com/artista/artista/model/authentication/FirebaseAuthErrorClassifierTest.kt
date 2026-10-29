@@ -1,5 +1,6 @@
 package com.artista.artista.model.authentication
 
+import com.artista.artista.model.error.AppException
 import com.google.firebase.FirebaseNetworkException
 import com.google.firebase.FirebaseTooManyRequestsException
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
@@ -11,8 +12,8 @@ import org.junit.Test
 
 // Co-authored-by: DeepSeek Flash
 /**
- * Unit tests for [toFirebaseAuthError], the classification that decides what the user is told when
- * a Firebase authentication call fails.
+ * Unit tests for [toAppException], the classification that decides what the user is told when a
+ * Firebase authentication call fails.
  *
  * Run on the JVM rather than against the Authentication emulator, because the mapping is pure: it
  * only inspects the exception type. Covering it here keeps the most user-visible decision in the
@@ -24,15 +25,15 @@ class FirebaseAuthErrorClassifierTest {
 
   /**
    * Verifies that a rejected credential - an expired or forged ID token - is reported as
-   * [AuthError.InvalidCredentials], which the screen describes as "Google rejected the sign-in".
+   * [AppException.Unauthorized], which tells the user to sign in again.
    *
    * @author timo-by
    */
   @Test
-  fun rejectedCredentialIsReportedAsInvalidCredentials() {
+  fun rejectedCredentialIsReportedAsUnauthorized() {
     val cause = FirebaseAuthInvalidCredentialsException("ERROR_INVALID_CREDENTIAL", "bad token")
 
-    assertEquals(AuthError.InvalidCredentials, cause.toFirebaseAuthError())
+    assertTranslatedTo(AppException.Unauthorized::class.java, cause)
   }
 
   /**
@@ -42,25 +43,25 @@ class FirebaseAuthErrorClassifierTest {
    * @author timo-by
    */
   @Test
-  fun unknownAccountIsReportedAsInvalidCredentials() {
+  fun unknownAccountIsReportedAsUnauthorized() {
     val cause = FirebaseAuthInvalidUserException("ERROR_USER_NOT_FOUND", "no such user")
 
-    assertEquals(AuthError.InvalidCredentials, cause.toFirebaseAuthError())
+    assertTranslatedTo(AppException.Unauthorized::class.java, cause)
   }
 
   /**
-   * Verifies that Firebase reporting a network failure is reported as [AuthError.Network], so the
-   * user is told to check their connection rather than that authentication failed.
+   * Verifies that Firebase reporting a network failure is reported as [AppException.Network], so
+   * the user is told to check their connection rather than that authentication failed.
    *
    * @author timo-by
    */
   @Test
   fun firebaseNetworkFailureIsReportedAsNetwork() {
-    assertEquals(AuthError.Network, FirebaseNetworkException("offline").toFirebaseAuthError())
+    assertTranslatedTo(AppException.Network::class.java, FirebaseNetworkException("offline"))
   }
 
   /**
-   * Verifies that throttling is reported as [AuthError.Unknown].
+   * Verifies that throttling is reported as [AppException.Unknown].
    *
    * Retrying later is the only recovery and the screen already offers another attempt, so a
    * dedicated outcome would add a string resource without adding an action.
@@ -69,14 +70,15 @@ class FirebaseAuthErrorClassifierTest {
    */
   @Test
   fun throttlingIsReportedAsUnknown() {
-    val cause = FirebaseTooManyRequestsException("too many requests")
-
-    assertEquals(AuthError.Unknown, cause.toFirebaseAuthError())
+    assertTranslatedTo(
+        AppException.Unknown::class.java,
+        FirebaseTooManyRequestsException("too many requests"),
+    )
   }
 
   /**
    * Verifies that an account already linked to another credential is reported as
-   * [AuthError.Unknown].
+   * [AppException.Unknown].
    *
    * The user signs in with Google only, so the collision cannot be resolved from the screen and a
    * dedicated outcome would describe a situation the UI cannot act on.
@@ -85,28 +87,28 @@ class FirebaseAuthErrorClassifierTest {
    */
   @Test
   fun accountCollisionIsReportedAsUnknown() {
-    val cause =
+    assertTranslatedTo(
+        AppException.Unknown::class.java,
         FirebaseAuthUserCollisionException(
             "ERROR_ACCOUNT_EXISTS_WITH_DIFFERENT_CREDENTIAL",
             "already linked",
-        )
-
-    assertEquals(AuthError.Unknown, cause.toFirebaseAuthError())
+        ),
+    )
   }
 
   /**
    * Verifies that a plain IO failure - which the SDK also raises when the transport drops - is
-   * reported as [AuthError.Network] and not as a generic failure.
+   * reported as [AppException.Network] and not as a generic failure.
    *
    * @author timo-by
    */
   @Test
   fun ioFailureIsReportedAsNetwork() {
-    assertEquals(AuthError.Network, IOException("connection reset").toFirebaseAuthError())
+    assertTranslatedTo(AppException.Network::class.java, IOException("connection reset"))
   }
 
   /**
-   * Verifies that anything the repository cannot classify becomes [AuthError.Unknown] instead of
+   * Verifies that anything the repository cannot classify becomes [AppException.Unknown] instead of
    * escaping as an SDK message.
    *
    * This is also what covers every `FirebaseAuthException` subclass that is left unnamed, so the
@@ -116,6 +118,20 @@ class FirebaseAuthErrorClassifierTest {
    */
   @Test
   fun unclassifiedFailureIsReportedAsUnknown() {
-    assertEquals(AuthError.Unknown, IllegalStateException("boom").toFirebaseAuthError())
+    assertTranslatedTo(AppException.Unknown::class.java, IllegalStateException("boom"))
+  }
+
+  /**
+   * Asserts that [cause] is translated to [expected].
+   *
+   * Compares classes rather than instances so a failure prints the type that was produced, and so
+   * the cause carried by the translation does not have to be rebuilt in every test.
+   *
+   * @param expected the [AppException] type the classifier must produce
+   * @param cause the platform failure to translate
+   * @author timo-by
+   */
+  private fun assertTranslatedTo(expected: Class<out AppException>, cause: Throwable) {
+    assertEquals(expected, cause.toAppException().javaClass)
   }
 }

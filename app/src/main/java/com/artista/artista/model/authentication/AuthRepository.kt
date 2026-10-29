@@ -1,5 +1,6 @@
 package com.artista.artista.model.authentication
 
+import com.artista.artista.model.error.AppException
 import kotlinx.coroutines.flow.Flow
 
 // Co-authored-by: DeepSeek Flash
@@ -8,6 +9,9 @@ import kotlinx.coroutines.flow.Flow
  *
  * ViewModels depend on this interface only, never on a concrete Firebase implementation, so the
  * sign-in and sign-out logic stays unit-testable with a fake (see `FakeAuthRepository`).
+ *
+ * Failures are reported as [AppException], the vocabulary every repository in the app translates
+ * its backend failures into.
  *
  * @author timo-by
  */
@@ -37,7 +41,7 @@ interface AuthRepository {
    * credential stays inside the implementation.
    *
    * @param idToken the Google ID token returned by Credential Manager
-   * @return success with the signed-in user, or failure carrying an [AuthException] that describes
+   * @return success with the signed-in user, or failure carrying an [AppException] that describes
    *   what went wrong in terms the UI can present
    * @author timo-by
    */
@@ -46,7 +50,7 @@ interface AuthRepository {
   /**
    * Signs the currently authenticated user out.
    *
-   * @return success, or failure carrying an [AuthException]
+   * @return success, or failure carrying an [AppException]
    * @author timo-by
    */
   suspend fun signOut(): Result<Unit>

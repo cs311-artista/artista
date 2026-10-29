@@ -1,5 +1,6 @@
 package com.artista.artista.model.authentication
 
+import com.artista.artista.model.error.AppException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -34,24 +35,25 @@ class AuthFailureHandlingTest {
   }
 
   /**
-   * Verifies that a platform failure is classified and wrapped, keeping the original exception as
-   * the cause, which is what the caller displays and what a crash report still shows.
+   * Verifies that a platform failure is handed to the classifier, and that the classifier's
+   * translation - not the raw exception - is what the caller receives, with the platform exception
+   * still reachable as its cause so a crash report keeps showing where it came from.
    *
    * @author timo-by
    */
   @Test
-  fun aPlatformFailureIsClassified() = runTest {
+  fun aPlatformFailureIsTranslatedAndKeepsItsCause() = runTest {
     val cause = IllegalArgumentException(FAILED)
 
-    val failure = runAuthCatching(::classify) { throw cause }.exceptionOrNull() as AuthException
+    val failure = runAuthCatching(::classify) { throw cause }.exceptionOrNull() as AppException
 
-    assertEquals(AuthError.InvalidCredentials, failure.error)
+    assertEquals(FAILED, failure.message)
     assertSame(cause, failure.cause)
   }
 
   /**
-   * Verifies that an [AuthException] raised inside the call is passed through unchanged instead of
-   * being wrapped again, which would nest one classified failure inside another.
+   * Verifies that an [AppException] raised inside the call is passed through unchanged instead of
+   * being translated again, which would nest one classified failure inside another.
    *
    * This is the path a call takes when it reports a failure of its own, such as a sign-in that
    * produced no session.
@@ -60,7 +62,7 @@ class AuthFailureHandlingTest {
    */
   @Test
   fun anAlreadyClassifiedFailureIsPassedThrough() = runTest {
-    val raised = AuthException(AuthError.Unknown)
+    val raised = AppException.Unknown()
 
     val failure = runAuthCatching(::classify) { throw raised }.exceptionOrNull()
 
@@ -87,13 +89,15 @@ class AuthFailureHandlingTest {
   }
 
   /**
-   * Stands in for the classifiers the production callers pass in.
+   * Stands in for the classifiers the production callers pass in, forwarding the platform message
+   * and exception the way the real ones do.
    *
    * @param cause the failure to classify
    * @return the outcome the assertions expect
    * @author timo-by
    */
-  private fun classify(cause: Throwable): AuthError = AuthError.InvalidCredentials
+  private fun classify(cause: Throwable): AppException =
+      AppException.Unauthorized(cause.message, cause)
 
   private companion object {
     const val TOKEN = "google-id-token"

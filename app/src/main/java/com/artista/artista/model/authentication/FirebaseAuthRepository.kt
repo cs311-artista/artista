@@ -1,5 +1,6 @@
 package com.artista.artista.model.authentication
 
+import com.artista.artista.model.error.AppException
 import com.google.firebase.FirebaseNetworkException
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
@@ -25,6 +26,9 @@ import kotlinx.coroutines.tasks.await
  * signed in before the first frame is drawn, and it is invoked again whenever the session changes
  * (sign-in, sign-out, or a session revoked by Firebase). Until that first callback the repository
  * reports nothing, which is what lets the UI tell "signed out" apart from "not known yet".
+ *
+ * Failures are reported as [AppException], the vocabulary every repository in the app translates
+ * its backend failures into.
  *
  * No explicit persistence call is made, because the Android SDK has no way to disable on-device
  * persistence and does not need to be told to enable it.
@@ -62,27 +66,27 @@ class FirebaseAuthRepository(private val auth: FirebaseAuth) : AuthRepository {
    * Exchanges a Google ID token for a Firebase session and persists it on the device.
    *
    * @param idToken the Google ID token returned by Credential Manager
-   * @return success with the signed-in user, or failure carrying an [AuthException]
+   * @return success with the signed-in user, or failure carrying an [AppException]
    * @author timo-by
    */
   override suspend fun signIn(idToken: String): Result<AuthUser> =
-      runAuthCatching(Throwable::toFirebaseAuthError) {
+      runAuthCatching(Throwable::toAppException) {
         val credential = GoogleAuthProvider.getCredential(idToken, null)
         // Awaiting the Task keeps the Firebase call asynchronous without blocking a thread. A
         // successful sign-in task always carries a user; when it somehow does not, the exchange
         // yielded no session, so there is nothing to sign in with.
         auth.signInWithCredential(credential).await().user?.toAuthUser()
-            ?: throw AuthException(AuthError.Unknown)
+            ?: throw AppException.Unknown()
       }
 
   /**
    * Clears the persisted session, so the next launch starts signed out.
    *
-   * @return success, or failure carrying an [AuthException]
+   * @return success, or failure carrying an [AppException]
    * @author timo-by
    */
   override suspend fun signOut(): Result<Unit> =
-      runAuthCatching(Throwable::toFirebaseAuthError) { auth.signOut() }
+      runAuthCatching(Throwable::toAppException) { auth.signOut() }
 
   /**
    * Adapts a Firebase user to the domain's thin [AuthUser] abstraction.
@@ -94,30 +98,28 @@ class FirebaseAuthRepository(private val auth: FirebaseAuth) : AuthRepository {
 }
 
 /**
- * Classifies a Firebase failure.
+ * Translates a Firebase Authentication failure into the matching [AppException].
  *
- * Only the outcomes a user can act on are distinguished; everything else collapses to
- * [AuthError.Unknown] rather than leaking an SDK message to the screen.
+ * Only the outcomes a user can act on differently are named. Every other `FirebaseAuthException` -
+ * throttling, an account already linked to another credential - is matched by the fallback, which
+ * is why no arm on that parent type exists: it would change no outcome, and the user has nothing
+ * different to do. The original exception is kept as the cause so logs still show its code.
  *
  * Declared at file level rather than as a private member so it can be unit-tested without the
  * Authentication emulator that [FirebaseAuthRepository] itself needs.
  *
- * Only the two outcomes above are named. Every `FirebaseAuthException` subclass, including the ones
- * a user cannot act differently on (too many requests, an account already in use), is matched by
- * the fallback, which is why no arm on the parent type exists: it would change no outcome.
- *
- * @return the domain outcome matching this failure
+ * @return the [AppException] matching this failure
  * @author timo-by
  */
-internal fun Throwable.toFirebaseAuthError(): AuthError =
+internal fun Throwable.toAppException(): AppException =
     when (this) {
       is FirebaseAuthInvalidCredentialsException,
-      is FirebaseAuthInvalidUserException -> AuthError.InvalidCredentials
+      is FirebaseAuthInvalidUserException -> AppException.Unauthorized(message, this)
 
       is FirebaseNetworkException,
-      is IOException -> AuthError.Network
+      is IOException -> AppException.Network(message, this)
 
-      else -> AuthError.Unknown
+      else -> AppException.Unknown(message, this)
     }
 
 /**
