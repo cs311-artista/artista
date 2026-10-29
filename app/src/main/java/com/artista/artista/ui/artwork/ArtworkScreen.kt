@@ -77,8 +77,8 @@ fun ArtworkScreen(
     artworkScreenViewModel: ArtworkScreenViewModel = viewModel(),
     onBackClick: () -> Unit = {},
 ) {
-  // Sync artwork with ViewModel once when entered or when artwork changes
-  LaunchedEffect(artwork.name) { artworkScreenViewModel.setArtwork(artwork) }
+  // uid or name would work the same here; uid is used only for consistency.
+  LaunchedEffect(artwork.uid) { artworkScreenViewModel.setArtwork(artwork) }
 
   val uiState by artworkScreenViewModel.uiState.collectAsState()
   val isSaved = uiState.isSaved
@@ -93,7 +93,7 @@ fun ArtworkScreen(
         CenterAlignedTopAppBar(
             title = {
               Text(
-                  text = artwork.name,
+                  text = artwork.name ?: stringResource(R.string.artwork_unknown_title),
                   style = MaterialTheme.typography.titleLarge,
                   fontWeight = FontWeight.Bold,
                   modifier = Modifier.testTag(ArtworkTestTags.ARTWORK_TITLE),
@@ -164,7 +164,7 @@ fun ArtworkScreen(
 
       ArtworkFieldItem(
           label = stringResource(R.string.artwork_label_artist),
-          value = artwork.artistName ?: stringResource(R.string.artwork_unknown_artist),
+          value = artwork.artist?.name ?: stringResource(R.string.artwork_unknown_artist),
       )
 
       ArtworkFieldItem(
@@ -257,7 +257,7 @@ fun ArtworkFieldItem(
 //  val sampleArtwork =
 //      Artwork(
 //          name = "Mona Lisa",
-//          artistName = "Leonardo da Vinci",
+//          artist = Artist(uid = "preview-da-vinci", name = "Leonardo da Vinci"),
 //          description = "A portrait of Lisa Gherardini, wife of Francesco del Giocondo.",
 //          conceptionDate = monaLisaDate,
 //          museum = "Musée du Louvre",

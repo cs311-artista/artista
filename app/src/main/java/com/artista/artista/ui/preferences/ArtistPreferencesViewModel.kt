@@ -3,6 +3,8 @@ package com.artista.artista.ui.preferences
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.artista.artista.model.artist.Artist
+import com.artista.artista.model.artist.ArtistId
 import com.artista.artista.model.artwork.WikiDataRepository
 import com.artista.artista.ui.error.launchCatching
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,12 +21,12 @@ import kotlinx.coroutines.flow.update
  * user data, and the selection only becomes a preference once the user saves it.
  *
  * @property popularArtists the artists suggested to the user, in display order.
- * @property selectedArtists the artists the user has selected as favorites.
- * @author Timz3rr
+ * @property selectedArtists identifiers of the artists the user has selected as favorites.
+ * @author Timz3rr, patrickmcdan
  */
 data class ArtistPreferencesUiState(
-    val popularArtists: List<String> = emptyList(),
-    val selectedArtists: Set<String> = emptySet(),
+    val popularArtists: List<Artist> = emptyList(),
+    val selectedArtists: Set<ArtistId> = emptySet(),
 )
 
 /**
@@ -59,14 +61,14 @@ class ArtistPreferencesViewModel(
   /**
    * Selects the given artist, or deselects it if it is already selected.
    *
-   * @param artist the name of the artist to toggle.
-   * @author Timz3rr
+   * @param artistId the identifier of the artist to toggle.
+   * @author Timz3rr, patrickmcdan
    */
-  fun toggleArtist(artist: String) {
+  fun toggleArtist(artistId: ArtistId) {
     _uiState.update { state ->
       val selectedArtists =
-          if (artist in state.selectedArtists) state.selectedArtists - artist
-          else state.selectedArtists + artist
+          if (artistId in state.selectedArtists) state.selectedArtists - artistId
+          else state.selectedArtists + artistId
       state.copy(selectedArtists = selectedArtists)
     }
   }

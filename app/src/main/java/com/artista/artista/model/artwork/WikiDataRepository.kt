@@ -2,6 +2,7 @@
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.model.artwork
 
+import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.error.AppException
 import com.artista.artista.ui.map.UserLocation
 
@@ -34,10 +35,10 @@ interface WikiDataRepository {
   /**
    * Returns the artists suggested by the application.
    *
-   * @return popular artist names in display order
+   * @return popular artists in display order
    * @author patrickmcdan
    */
-  suspend fun getPopularArtists(): List<String>
+  suspend fun getPopularArtists(): List<Artist>
 
   /**
    * Returns the [Artwork] associated with the provided Wikidata identifier.

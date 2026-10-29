@@ -10,6 +10,7 @@ import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.map.Location
 import org.junit.Assert.assertEquals
@@ -38,7 +39,7 @@ class ArtworkCardTest {
         Artwork(
             uid = "monaLisa",
             name = "Mona Lisa",
-            artistName = "Leonardo da Vinci",
+            artist = Artist("test-da-vinci", "Leonardo da Vinci"),
             description = "A portrait of Lisa Gherardini",
             conceptionDate = null,
             museum = "Louvre",
@@ -102,7 +103,7 @@ class ArtworkCardTest {
         Artwork(
             uid = "nightWatch",
             name = "The Night Watch",
-            artistName = "Rembrandt",
+            artist = Artist("test-rembrandt", "Rembrandt"),
             description = "An iconic Dutch Golden Age painting",
             conceptionDate = null,
             museum = null,
@@ -142,7 +143,7 @@ class ArtworkCardTest {
         Artwork(
             uid = "unknownArtist",
             name = "Untitled Study",
-            artistName = null,
+            artist = null,
             description = null,
             conceptionDate = null,
             museum = null,

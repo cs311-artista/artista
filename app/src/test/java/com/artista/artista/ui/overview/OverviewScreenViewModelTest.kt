@@ -4,6 +4,7 @@ package com.artista.artista.ui.overview
 import androidx.lifecycle.ViewModel
 import com.artista.artista.MainDispatcherRule
 import com.artista.artista.R
+import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
 import com.artista.artista.model.artwork.WikiDataRepository
@@ -108,7 +109,7 @@ class OverviewScreenViewModelTest {
       Artwork(
           uid = "$name-$artistName",
           name = name,
-          artistName = artistName,
+          artist = Artist(uid = "test-$artistName", name = artistName),
           description = null,
           conceptionDate = null,
           museum = null,
