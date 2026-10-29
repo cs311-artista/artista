@@ -93,6 +93,13 @@ private val LightColorScheme =
         surfaceContainerHighest = ArtistaColors.SurfaceContainerHighest,
     )
 
+/**
+ * Applies the Artista color scheme and typography to the provided content.
+ *
+ * @author Copilot
+ * @param darkTheme whether to use the dark color scheme
+ * @param content composable content styled by the Artista theme
+ */
 @Composable
 fun ArtistaTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
