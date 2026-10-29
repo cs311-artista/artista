@@ -15,11 +15,12 @@ interface GoogleCredentialProvider {
   /**
    * Requests a Google ID token from Credential Manager.
    *
-   * Triggers the Google sign-in sheet; on success the returned token is exchanged for a Firebase
+   * Triggers the Google account chooser; on success the returned token is exchanged for a Firebase
    * session by the authentication repository.
    *
-   * @return success with the Google ID token, or failure carrying the cause (e.g. no credential
-   *   available, or the user cancelled)
+   * @return success with the Google ID token, or failure carrying an
+   *   [com.artista.artista.model.authentication.AuthException] that describes what went wrong (the
+   *   user cancelled, no account is available, ...)
    * @author timo-by
    */
   suspend fun getIdToken(): Result<String>

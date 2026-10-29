@@ -4,9 +4,8 @@ package com.artista.artista.model.authentication
 /**
  * Minimal representation of an authenticated user.
  *
- * Intentionally a thin abstraction, decoupled from the future `User` data class: the sign-in and
- * sign-out logic (and their tests) can be written before that class exists, then extended later
- * without rewriting existing tests.
+ * Kept thin and decoupled from the `User` profile so the sign-in logic can be written before that
+ * class exists.
  *
  * @author timo-by
  */
@@ -18,4 +17,15 @@ interface AuthUser {
    * @author timo-by
    */
   val uid: String
+
+  /**
+   * Name the identity provider reports for this account, so a new profile can default its username
+   * to it instead of starting empty.
+   *
+   * Deliberately not the profile's username: `User.userName` stays the name the user owns and can
+   * change. `null` when the provider reports no name, or only blank characters.
+   *
+   * @author timo-by
+   */
+  val displayName: String?
 }
