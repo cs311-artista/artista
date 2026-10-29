@@ -17,6 +17,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.artista.artista.R
+import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
 import com.artista.artista.model.artwork.WikiDataRepository
 import com.artista.artista.ui.navigation.NavigationTestTags
@@ -94,12 +95,12 @@ class ArtistPreferencesScreenTest {
     setPreferencesContent(viewModel = viewModel)
 
     viewModel.uiState.value.popularArtists.forEach { artist ->
-      val cardTag = ArtistPreferencesTestTags.getArtistCardTestTag(artist)
+      val cardTag = ArtistPreferencesTestTags.getArtistCardTestTag(artist.uid)
       // The grid is lazy, so cards below the fold only exist once scrolled into view.
       composeTestRule
           .onNodeWithTag(ArtistPreferencesTestTags.ARTISTS_GRID)
           .performScrollToNode(hasTestTag(cardTag))
-      composeTestRule.onNodeWithTag(cardTag).assertIsDisplayed().assertTextContains(artist)
+      composeTestRule.onNodeWithTag(cardTag).assertIsDisplayed().assertTextContains(artist.name)
     }
   }
 
@@ -111,7 +112,7 @@ class ArtistPreferencesScreenTest {
     val card =
         composeTestRule.onNodeWithTag(
             ArtistPreferencesTestTags.getArtistCardTestTag(
-                viewModel.uiState.value.popularArtists.first()
+                viewModel.uiState.value.popularArtists.first().uid
             )
         )
 
@@ -170,6 +171,27 @@ class ArtistPreferencesScreenTest {
     composeTestRule.onNodeWithTag(NavigationTestTags.getTabTestTag(Tab.Map)).assertIsNotSelected()
   }
 
+  /** Verifies that two artists with the same name get their own cards and toggle independently. */
+  @Test
+  fun artistsWithSameName_haveIndependentCards() {
+    val first = Artist("test-same-1", "Same Name")
+    val second = Artist("test-same-2", "Same Name")
+    val repository =
+        object : WikiDataRepository by ArtworkRepositoryLocal() {
+          override suspend fun getPopularArtists(): List<Artist> = listOf(first, second)
+        }
+    setPreferencesContent(viewModel = ArtistPreferencesViewModel(repository))
+    val firstCard =
+        composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.getArtistCardTestTag(first.uid))
+    val secondCard =
+        composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.getArtistCardTestTag(second.uid))
+
+    firstCard.performClick()
+
+    firstCard.assertIsOn()
+    secondCard.assertIsOff()
+  }
+
   private fun setPreferencesContent(
       viewModel: ArtistPreferencesViewModel = createViewModel(),
       onBackClick: () -> Unit = {},
@@ -197,7 +219,12 @@ class ArtistPreferencesScreenTest {
   private fun stringOf(resId: Int): String = composeTestRule.activity.getString(resId)
 
   /** Artists served by the fake repository, so the tests do not depend on the mock list. */
-  private val testArtists = listOf("Pablo Picasso", "Vincent van Gogh", "Claude Monet")
+  private val testArtists =
+      listOf(
+          Artist("test-picasso", "Pablo Picasso"),
+          Artist("test-van-gogh", "Vincent van Gogh"),
+          Artist("test-monet", "Claude Monet"),
+      )
 
   /**
    * Creates a catalog whose popular artists are [testArtists].
@@ -209,7 +236,7 @@ class ArtistPreferencesScreenTest {
    */
   private fun fakeWikiRepository(): WikiDataRepository =
       object : WikiDataRepository by ArtworkRepositoryLocal() {
-        override suspend fun getPopularArtists(): List<String> = testArtists
+        override suspend fun getPopularArtists(): List<Artist> = testArtists
       }
 
   /**

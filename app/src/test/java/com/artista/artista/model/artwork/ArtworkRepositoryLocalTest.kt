@@ -2,6 +2,7 @@
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.model.artwork
 
+import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.error.AppException
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -77,6 +78,19 @@ class ArtworkRepositoryLocalTest {
     artworks.forEach(repository::putArtworkInRepositoryUnsavedSection)
 
     assert(repository.searchArtworks("").toSet().isEmpty())
+  }
+
+  @Test
+  fun searchArtworks_skipsArtworksWithoutAName() = runTest {
+    val repository = ArtworkRepositoryLocal()
+    val namedArtwork = artwork("starry-night", "The Starry Night")
+    val unnamedArtwork = artwork("untitled", null, "Starry Painter")
+    repository.putArtworkInRepositoryUnsavedSection(namedArtwork)
+    repository.putArtworkInRepositoryUnsavedSection(unnamedArtwork)
+
+    val results = repository.searchArtworks("starry")
+
+    assertEquals(listOf(namedArtwork), results)
   }
 
   @Test
@@ -175,11 +189,11 @@ class ArtworkRepositoryLocalTest {
     }
   }
 
-  private fun artwork(uid: String, name: String, artistName: String? = null) =
+  private fun artwork(uid: String, name: String?, artistName: String? = null) =
       Artwork(
           uid = uid,
           name = name,
-          artistName = artistName,
+          artist = artistName?.let { Artist(uid = "test-$it", name = it) },
           location = null,
           conceptionDate = null,
           dimension = null,

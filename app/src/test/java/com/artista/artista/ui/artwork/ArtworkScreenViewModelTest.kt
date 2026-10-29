@@ -1,6 +1,8 @@
 // Co-authored-by: Gemini <gemini@google.com>
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.artwork
 
+import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.SavedArtworksRepository
@@ -33,7 +35,7 @@ class ArtworkScreenViewModelTest {
       Artwork(
           uid = "monaId",
           name = "Mona Lisa",
-          artistName = "Leonardo da Vinci",
+          artist = Artist("test-da-vinci", "Leonardo da Vinci"),
           description = "Portrait of Lisa Gherardini",
           conceptionDate = null,
           museum = "Louvre",
@@ -79,7 +81,7 @@ class ArtworkScreenViewModelTest {
     viewModel.toggleSaveArtwork()
 
     assertTrue(viewModel.uiState.value.isSaved)
-    assertTrue(fakeRepository.isArtworkSaved(sampleArtwork.name))
+    assertTrue(fakeRepository.isArtworkSaved(sampleArtwork.uid))
   }
 
   @Test
@@ -91,8 +93,21 @@ class ArtworkScreenViewModelTest {
         viewModel.toggleSaveArtwork()
 
         assertFalse(viewModel.uiState.value.isSaved)
-        assertFalse(fakeRepository.isArtworkSaved(sampleArtwork.name))
+        assertFalse(fakeRepository.isArtworkSaved(sampleArtwork.uid))
       }
+
+  @Test
+  fun setArtwork_whenArtworkHasNoName_tracksSavedStateByUid() = runTest {
+    val untitledArtwork = sampleArtwork.copy(name = null)
+    fakeRepository.saveArtwork(untitledArtwork)
+
+    viewModel.setArtwork(untitledArtwork)
+    assertTrue(viewModel.uiState.value.isSaved)
+
+    viewModel.toggleSaveArtwork()
+    assertFalse(viewModel.uiState.value.isSaved)
+    assertFalse(fakeRepository.isArtworkSaved(untitledArtwork.uid))
+  }
 
   @Test
   fun toggleSaveArtwork_whenCurrentArtworkIsNull_doesNothing() {
@@ -118,18 +133,18 @@ class ArtworkScreenViewModelTest {
 
     override suspend fun isArtworkSaved(uid: ArtworkId): Boolean {
       if (shouldThrowError) throw RuntimeException("Simulated error")
-      return savedArtworks.any { it.name == uid }
+      return savedArtworks.any { it.uid == uid }
     }
 
     override suspend fun saveArtwork(artwork: Artwork) {
       if (shouldThrowError) throw RuntimeException("Simulated database failure")
-      savedArtworks.removeAll { it.name == artwork.name }
+      savedArtworks.removeAll { it.uid == artwork.uid }
       savedArtworks.add(artwork)
     }
 
     override suspend fun removeArtworkFromSaved(uid: ArtworkId) {
       if (shouldThrowError) throw RuntimeException("Simulated database failure")
-      savedArtworks.removeAll { it.name == uid }
+      savedArtworks.removeAll { it.uid == uid }
     }
 
     override suspend fun getSavedArtworks(): List<Artwork> =
@@ -137,7 +152,7 @@ class ArtworkScreenViewModelTest {
             Artwork(
                 uid = "starryId",
                 name = "The Starry Night",
-                artistName = "Vincent van Gogh",
+                artist = Artist("test-van-gogh", "Vincent van Gogh"),
                 location = null,
                 conceptionDate = null,
                 dimension = null,

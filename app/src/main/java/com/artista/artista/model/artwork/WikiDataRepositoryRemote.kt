@@ -1,7 +1,7 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 package com.artista.artista.model.artwork
 
-import android.util.Log
+import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.error.AppException
 import com.artista.artista.ui.map.UserLocation
 import java.util.Locale
@@ -64,9 +64,11 @@ class WikiDataRepositoryRemote(
     throw NotImplementedError("Not yet implemented")
   }
 
-  override suspend fun getPopularArtists(): List<String> {
+  override suspend fun getPopularArtists(): List<Artist> {
     throw NotImplementedError("Not yet implemented")
   }
+
+  private val jsonResponseParser = JsonResponseParser()
 
   private companion object {
     /** Wikidata item IDs are "Q" followed by one or more digits, e.g. Q12345. */
@@ -112,7 +114,7 @@ class WikiDataRepositoryRemote(
             .trimIndent()
 
     val response = executeSparqlRequest(query)
-    val artworks = parseArtworkResults(response)
+    val artworks = jsonResponseParser.parseArtworkResults(response)
 
     return artworks.firstOrNull() ?: throw AppException.NotFound("No artwork found for uid $uid")
   }
@@ -131,7 +133,7 @@ class WikiDataRepositoryRemote(
     if (query.isBlank()) return emptyList()
     val request = buildRequest(query)
     val response = executeSparqlRequest(request)
-    return parseArtworkResults(response)
+    return jsonResponseParser.parseArtworkResults(response)
   }
 
   /**
@@ -210,22 +212,4 @@ class WikiDataRepositoryRemote(
           throw AppException.Network("Unable to read Wikidata response", exception)
         }
       }
-
-  /**
-   * Parses a SPARQL JSON response into artwork domain objects.
-   *
-   * This method is intentionally left unimplemented for now; the repository currently delegates the
-   * full response parsing to the next implementation step once the API contract is finalized.
-   *
-   * @param responseBody raw SPARQL JSON body returned by the endpoint
-   * @return the artworks encoded in the response
-   * @throws NotImplementedError until the parsing logic is implemented
-   * @author IJJA3141
-   */
-  internal fun parseArtworkResults(responseBody: String): List<Artwork> {
-    Log.d("Artwork", responseBody) // for test purposes, to see the response from Wikidata
-    // will be removed when the parsing is implemented
-
-    throw NotImplementedError("Parsing of Wikidata response is not implemented yet")
-  }
 }

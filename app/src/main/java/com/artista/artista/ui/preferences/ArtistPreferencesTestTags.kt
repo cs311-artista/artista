@@ -1,5 +1,7 @@
 package com.artista.artista.ui.preferences
 
+import com.artista.artista.model.artist.ArtistId
+
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 /**
  * Provides stable semantics tags for the artist preferences screen UI tests.
@@ -35,9 +37,9 @@ object ArtistPreferencesTestTags {
   /**
    * Returns the tag identifying the card of a specific artist.
    *
-   * @param artist the name of the artist displayed by the card.
+   * @param artistId the identifier of the artist displayed by the card.
    * @return the tag of the card, unique for each artist.
-   * @author Timz3rr
+   * @author Timz3rr, patrickmcdan
    */
-  fun getArtistCardTestTag(artist: String): String = "artist_preferences_card_$artist"
+  fun getArtistCardTestTag(artistId: ArtistId): String = "artist_preferences_card_$artistId"
 }

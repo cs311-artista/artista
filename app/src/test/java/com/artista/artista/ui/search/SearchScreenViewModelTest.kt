@@ -1,7 +1,9 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.search
 
 import androidx.compose.ui.text.TextRange
+import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.WikiDataRepository
@@ -57,6 +59,25 @@ class SearchScreenViewModelTest {
   }
 
   @Test
+  fun onSearchInputChanged_ignoresSavedArtworksWithoutAName() = runTest {
+    val starryNight = SearchTestData.savedArtworks.first { it.uid == "starryId" }
+    val viewModel =
+        SearchScreenViewModel(
+            SearchTestData.savedArtworksRepository(
+                initialSavedArtworks =
+                    listOf(starryNight, starryNight.copy(uid = "noNameId", name = null))
+            ),
+            SearchTestData.wikiDataRepository(),
+        )
+
+    advanceUntilIdle()
+    viewModel.onSearchInputChanged("star", TextRange(4))
+    advanceUntilIdle()
+
+    assertEquals(listOf("starryId"), viewModel.uiState.value.recommendations.map { it.uid })
+  }
+
+  @Test
   fun onSearchSubmitted_fetchesMatchingArtworksFromWikiData() = runTest {
     val viewModel =
         SearchScreenViewModel(
@@ -84,7 +105,7 @@ class SearchScreenViewModelTest {
             throw NotImplementedError("Not yet implemented")
           }
 
-          override suspend fun getPopularArtists(): List<String> {
+          override suspend fun getPopularArtists(): List<Artist> {
             throw NotImplementedError("Not yet implemented")
           }
 
@@ -116,7 +137,7 @@ class SearchScreenViewModelTest {
             throw NotImplementedError("Not yet implemented")
           }
 
-          override suspend fun getPopularArtists(): List<String> {
+          override suspend fun getPopularArtists(): List<Artist> {
             throw NotImplementedError("Not yet implemented")
           }
 

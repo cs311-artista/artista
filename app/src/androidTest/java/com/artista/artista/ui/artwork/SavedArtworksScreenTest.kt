@@ -20,6 +20,7 @@ import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performScrollToNode
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.artista.artista.R
+import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.SavedArtworksRepository
@@ -53,7 +54,7 @@ class SavedArtworksScreenTest {
       Artwork(
           uid = "starryId",
           name = "The Starry Night",
-          artistName = "Vincent van Gogh",
+          artist = Artist("test-van-gogh", "Vincent van Gogh"),
           description = "A landscape under a swirling night sky.",
           conceptionDate = null,
           museum = "Museum of Modern Art",
@@ -92,21 +93,35 @@ class SavedArtworksScreenTest {
 
     composeTestRule.waitForIdle()
 
-    val artistName = checkNotNull(savedArtwork.artistName)
+    val artistName = checkNotNull(savedArtwork.artist?.name)
     composeTestRule.onNodeWithText(artistName).assertIsDisplayed()
-    composeTestRule.onNodeWithText(savedArtwork.name).assertIsDisplayed()
+    val title = checkNotNull(savedArtwork.name)
+    composeTestRule.onNodeWithText(title).assertIsDisplayed()
   }
 
   /** Verifies that an artwork without an artist name displays the shared fallback text. */
   @Test
   fun savedArtworksScreen_whenArtistIsUnknown_displaysFallbackText() {
-    fakeRepository.savedArtworks.add(savedArtwork.copy(artistName = null))
+    fakeRepository.savedArtworks.add(savedArtwork.copy(artist = null))
     setScreenContent()
 
     composeTestRule.waitForIdle()
 
     composeTestRule
         .onNodeWithText(composeTestRule.activity.getString(R.string.artwork_unknown_artist))
+        .assertIsDisplayed()
+  }
+
+  /** Verifies that an artwork without a name displays the shared fallback title. */
+  @Test
+  fun savedArtworksScreen_whenNameIsUnknown_displaysFallbackTitle() {
+    fakeRepository.savedArtworks.add(savedArtwork.copy(name = null))
+    setScreenContent()
+
+    composeTestRule.waitForIdle()
+
+    composeTestRule
+        .onNodeWithText(composeTestRule.activity.getString(R.string.artwork_unknown_title))
         .assertIsDisplayed()
   }
 

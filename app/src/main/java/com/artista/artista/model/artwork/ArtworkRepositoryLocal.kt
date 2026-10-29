@@ -1,6 +1,7 @@
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.model.artwork
 
+import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.error.AppException
 import com.artista.artista.ui.map.UserLocation
 
@@ -26,7 +27,7 @@ class ArtworkRepositoryLocal : SavedArtworksRepository, WikiDataRepository {
       artworks.values.toList()
 
   /** Returns the locally defined popular artists. */
-  override suspend fun getPopularArtists(): List<String> = mockPopularArtists
+  override suspend fun getPopularArtists(): List<Artist> = mockPopularArtists
 
   override suspend fun getArtwork(uid: ArtworkId): Artwork {
     if (uid.isBlank()) throw AppException.InvalidInput("uid is blank")
@@ -35,7 +36,8 @@ class ArtworkRepositoryLocal : SavedArtworksRepository, WikiDataRepository {
 
   override suspend fun searchArtworks(query: String): List<Artwork> {
     if (query.isBlank()) return emptyList()
-    return artworks.values.filter { it.name.contains(query, ignoreCase = true) }
+    // Artworks without a name can never match a name search.
+    return artworks.values.filter { it.name?.contains(query, ignoreCase = true) == true }
   }
 
   override suspend fun isArtworkSaved(uid: ArtworkId): Boolean {

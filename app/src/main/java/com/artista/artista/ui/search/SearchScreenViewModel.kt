@@ -1,4 +1,5 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.search
 
 import androidx.compose.ui.text.TextRange
@@ -170,7 +171,8 @@ class SearchScreenViewModel(
       } else {
         savedArtworks
             .asSequence()
-            .filter { artwork -> artwork.name.contains(query, ignoreCase = true) }
+            // Artworks without a name can never match a name search.
+            .filter { artwork -> artwork.name?.contains(query, ignoreCase = true) == true }
             .distinct()
             .toList()
       }
