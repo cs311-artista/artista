@@ -31,9 +31,9 @@ class JsonResponseParser {
         try {
           json.getJSONObject("results")
         } catch (e: JSONException) {
-          throw AppException.InvalidData("No result provided in json $json", e)
+          throw AppException.NotFound("No result provided in json $json", e)
         }
-    if (!results.has("bindings")) {
+    if (results == null || !results.has("bindings")) {
       throw AppException.NotFound("No artwork found in the response")
     }
     val bindings = results.getJSONArray("bindings")
