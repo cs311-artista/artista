@@ -231,7 +231,7 @@ fun ArtworkScreen(
 
       // Only show the map-tile if the location of the artwork is actually specified
       if (artwork.location != null) {
-        MapTile(modifier, mapTileCameraPositionState, mapTileMarkerState, artwork)
+        MapTile(modifier, mapTileCameraPositionState, mapTileMarkerState, artwork.location, artwork.name)
       }
     }
   }
@@ -278,7 +278,8 @@ fun ArtworkFieldItem(
  * @param modifier optional modifier for the card container
  * @param cameraPositionState the state of the camera position on the map
  * @param markerState the state of the marker position on the map
- * @param artwork the artwork which is displayed on the map
+ * @param location the location of the artwork which is displayed on the map
+ * @param artworkName the name of the artwork which is displayed on the map
  * @author 5kyPhy
  */
 @Composable
@@ -286,9 +287,9 @@ fun MapTile(
     modifier: Modifier = Modifier,
     cameraPositionState: CameraPositionState,
     markerState: MarkerState,
-    artwork: Artwork,
+    location: Location,
+    artworkName: String,
 ) {
-  val location = artwork.location!!
   OutlinedCard(
       modifier = modifier.fillMaxWidth(),
       shape = RoundedCornerShape(12.dp),
@@ -309,7 +310,7 @@ fun MapTile(
       ) {
         Marker(
             state = markerState,
-            title = artwork.name,
+            title = artworkName,
         )
       }
     }
