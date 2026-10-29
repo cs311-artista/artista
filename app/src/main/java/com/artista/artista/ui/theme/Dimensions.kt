@@ -18,6 +18,7 @@ internal object Dimensions {
   val authenticationTitleTaglineSpacing = 8.dp
   val authenticationButtonHorizontalPadding = 20.dp
   val authenticationButtonVerticalPadding = 0.dp
+  val authenticationButtonCornerRadiusPercent = 50
   val authenticationButtonIconLabelSpacing = 10.dp
   val authenticationScreenBottomSpacing = 24.dp
 
