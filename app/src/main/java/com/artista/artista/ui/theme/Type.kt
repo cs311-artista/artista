@@ -17,20 +17,4 @@ val Typography =
                 lineHeight = TypographyDimensions.bodyLargeLineHeight,
                 letterSpacing = TypographyDimensions.bodyLargeLetterSpacing,
             )
-        /* Other default text styles to override
-        titleLarge = TextStyle(
-            fontFamily = FontFamily.Default,
-            fontWeight = FontWeight.Normal,
-            fontSize = TypographyDimensions.titleLargeFontSize,
-            lineHeight = TypographyDimensions.titleLargeLineHeight,
-            letterSpacing = TypographyDimensions.titleLargeLetterSpacing
-        ),
-        labelSmall = TextStyle(
-            fontFamily = FontFamily.Default,
-            fontWeight = FontWeight.Medium,
-            fontSize = TypographyDimensions.labelSmallFontSize,
-            lineHeight = TypographyDimensions.labelSmallLineHeight,
-            letterSpacing = TypographyDimensions.labelSmallLetterSpacing
-        )
-        */
     )

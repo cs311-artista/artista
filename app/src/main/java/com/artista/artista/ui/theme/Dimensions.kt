@@ -129,13 +129,4 @@ internal object TypographyDimensions {
   val bodyLargeFontSize = 16.sp
   val bodyLargeLineHeight = 24.sp
   val bodyLargeLetterSpacing = 0.5.sp
-
-  // other default text styles to override (specified in Type.kt)
-  val titleLargeFontSize = 22.sp
-  val titleLargeLineHeight = 28.sp
-  val titleLargeLetterSpacing = 0.sp
-
-  val labelSmallFontSize = 11.sp
-  val labelSmallLineHeight = 16.sp
-  val labelSmallLetterSpacing = 0.5.sp
 }
