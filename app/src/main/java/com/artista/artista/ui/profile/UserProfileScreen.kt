@@ -1,4 +1,3 @@
-// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 package com.artista.artista.ui.profile
 
 import androidx.compose.foundation.background
