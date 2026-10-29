@@ -41,9 +41,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
-import com.artista.artista.ui.navigation.BackButton
 import com.artista.artista.model.map.Location
 import com.artista.artista.resources.C
+import com.artista.artista.ui.navigation.BackButton
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.CameraPositionState
