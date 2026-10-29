@@ -9,4 +9,5 @@
 local.properties
 app/google-services.json
 firestore-debug.log
+firebase-debug.log
 .agents/
