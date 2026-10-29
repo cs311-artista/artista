@@ -136,7 +136,7 @@ fun ArtistPreferencesScreen(
           shape = PillShape,
           colors =
               ButtonDefaults.buttonColors(
-                  containerColor = ArtistaColors.Surface,
+                  containerColor = MaterialTheme.colorScheme.surface,
                   contentColor = MaterialTheme.colorScheme.primary,
               ),
       ) {
@@ -201,7 +201,7 @@ private fun SearchField() {
       // It therefore looks usable although it is not, until searching is implemented.
       colors =
           TextFieldDefaults.colors(
-              disabledContainerColor = ArtistaColors.Surface,
+              disabledContainerColor = MaterialTheme.colorScheme.surface,
               disabledPlaceholderColor = MaterialTheme.colorScheme.primary,
               disabledLeadingIconColor = MaterialTheme.colorScheme.primary,
               disabledIndicatorColor = ArtistaColors.Transparent,
@@ -228,7 +228,7 @@ private fun ArtistCard(artist: String, selected: Boolean, onToggle: () -> Unit) 
               .semantics { role = Role.Checkbox }
               .testTag(ArtistPreferencesTestTags.getArtistCardTestTag(artist)),
       shape = RoundedCornerShape(20.dp),
-      color = ArtistaColors.Surface,
+      color = MaterialTheme.colorScheme.surface,
       border = if (selected) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null,
   ) {
     Column(
@@ -290,7 +290,8 @@ private fun SelectionIndicator(selected: Boolean, modifier: Modifier = Modifier)
               .size(24.dp)
               .clip(CircleShape)
               .background(
-                  if (selected) MaterialTheme.colorScheme.primary else ArtistaColors.Surface
+                  if (selected) MaterialTheme.colorScheme.primary
+                  else MaterialTheme.colorScheme.surface
               ),
       contentAlignment = Alignment.Center,
   ) {

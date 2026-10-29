@@ -126,9 +126,9 @@ fun AuthScreenContent(
           shape = RoundedCornerShape(percent = 50),
           colors =
               ButtonDefaults.buttonColors(
-                  containerColor = ArtistaColors.Surface,
+                  containerColor = MaterialTheme.colorScheme.surface,
                   contentColor = ArtistaColors.OnSurface,
-                  disabledContainerColor = ArtistaColors.Surface,
+                  disabledContainerColor = MaterialTheme.colorScheme.surface,
                   disabledContentColor = ArtistaColors.OnSurface,
               ),
           contentPadding = PaddingValues(horizontal = 20.dp, vertical = 0.dp),
