@@ -8,6 +8,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
 import java.util.Date
+import org.json.JSONException
 import org.json.JSONObject
 
 /**
@@ -59,11 +60,14 @@ class JsonResponseParser {
       val museum = collectionLabel?.getString("value")
       val coordinates = binding.optJSONObject("locationCoordinates")?.optString("value")
       val location = parseLocation(coordinates, locationLabel?.getString("value"))
-      val dimension =
-          Dimension(
-              width?.optString("value")?.toDoubleOrNull() ?: 0.0,
-              height?.optString("value")?.toDoubleOrNull() ?: 0.0,
-          )
+      val dimension: Dimension? = if (width != null && height != null ) {
+        Dimension(
+          width.optString("value").toDouble(),
+          height.optString("value").toDouble()
+        )
+      } else {
+        null
+      }
 
       artworks.add(
           Artwork(

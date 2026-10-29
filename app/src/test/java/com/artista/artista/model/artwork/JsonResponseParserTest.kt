@@ -65,8 +65,7 @@ class JsonResponseParserTest {
     assertNull(artwork.conceptionDate)
     assertEquals("Department of Sculptures of the Louvre", artwork.museum)
     assertNull(artwork.location)
-    assertEquals(0.0, artwork.dimension?.width ?: 0.0, 0.01)
-    assertEquals(0.0, artwork.dimension?.height ?: 0.0, 0.01)
+    assertNull(artwork.dimension)
   }
 
   @Test
