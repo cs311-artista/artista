@@ -26,8 +26,13 @@ class JsonResponseParser {
    */
   fun parseArtworkResults(responseBody: String): List<Artwork> {
     val json = JSONObject(responseBody)
-    val results = json.getJSONObject("results")
-    if (results == null || !results.has("bindings")) {
+    val results =
+        try {
+          json.getJSONObject("results")
+        } catch (e: JSONException) {
+          throw AppException.InvalidData("No result provided in json $json", e)
+        }
+    if (!results.has("bindings")) {
       throw AppException.NotFound("No artwork found in the response")
     }
     val bindings = results.getJSONArray("bindings")
