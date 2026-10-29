@@ -3,10 +3,11 @@ package com.artista.artista.ui.overview
 
 import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
-import com.artista.artista.model.artwork.mockArtworks
+import com.artista.artista.model.artwork.WikiDataRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -27,14 +28,13 @@ data class OverviewUiState(
 /**
  * Provides the artwork entries displayed by the Overview screen.
  *
- * The provider is injected so the placeholder source can be replaced by an artwork repository
- * without changing the screen's state contract.
+ * The repository is injected so data access remains outside the UI layer.
  *
- * @param artworkProvider source used to load the artwork entries
+ * @param artworkRepository repository used to load the artwork entries
  * @author patrickmcdan
  */
 class OverviewViewModel(
-    private val artworkProvider: suspend () -> List<Artwork> = { mockArtworks }
+    private val artworkRepository: WikiDataRepository,
 ) : ViewModel() {
 
   private val _uiState = MutableStateFlow(OverviewUiState())
@@ -46,14 +46,14 @@ class OverviewViewModel(
   }
 
   /**
-   * Refreshes the Overview state by loading artworks from the provider.
+   * Refreshes the Overview state by loading artworks from the repository.
    *
    * @author patrickmcdan
    */
   fun refreshUiState() {
     viewModelScope.launch {
       try {
-        _uiState.value = OverviewUiState(artworks = artworkProvider())
+        _uiState.value = OverviewUiState(artworks = artworkRepository.getArtworksNearLocation())
       } catch (_: Exception) {
         // Error classification is not defined yet, so keep this failure handling generic.
         _uiState.value = _uiState.value.copy(errorMessageRes = R.string.overview_load_error)
@@ -68,5 +68,25 @@ class OverviewViewModel(
    */
   fun clearErrorMessage() {
     _uiState.value = _uiState.value.copy(errorMessageRes = null)
+  }
+
+  companion object {
+    /**
+     * Creates a factory for an overview ViewModel with its repository dependency.
+     *
+     * @param repository repository used to load nearby artworks
+     * @return factory that creates [OverviewViewModel] instances
+     * @author patrickmcdan
+     */
+    fun provideFactory(repository: WikiDataRepository): ViewModelProvider.Factory =
+        object : ViewModelProvider.Factory {
+          @Suppress("UNCHECKED_CAST")
+          override fun <T : ViewModel> create(modelClass: Class<T>): T {
+            if (modelClass.isAssignableFrom(OverviewViewModel::class.java)) {
+              return OverviewViewModel(repository) as T
+            }
+            throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
+          }
+        }
   }
 }

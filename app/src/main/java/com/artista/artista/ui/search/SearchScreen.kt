@@ -45,6 +45,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkId
+import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.ui.artwork.ArtworkCard
 import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
@@ -78,7 +79,14 @@ object SearchScreenTestTags {
  */
 @Composable
 fun SearchScreen(
-    viewModel: SearchScreenViewModel = viewModel(),
+    viewModel: SearchScreenViewModel =
+        viewModel(
+            factory =
+                SearchScreenViewModel.provideFactory(
+                    savedArtworksRepository = ArtworkRepositoryProvider.repository,
+                    wikiDataRepository = ArtworkRepositoryProvider.repository,
+                )
+        ),
     onTabSelected: (Tab) -> Unit,
     onArtworkClick: (Artwork) -> Unit = {},
     onMapClick: (Artwork) -> Unit = {},

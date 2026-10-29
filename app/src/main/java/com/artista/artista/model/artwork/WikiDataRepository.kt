@@ -1,8 +1,9 @@
-// Co-authored-by: Copilot
+// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.model.artwork
 
 import com.artista.artista.model.error.AppException
+import com.artista.artista.ui.map.UserLocation
 
 /**
  * Repository for retrieving artwork metadata from Wikidata.
@@ -17,6 +18,26 @@ import com.artista.artista.model.error.AppException
  * @author IJJA3141
  */
 interface WikiDataRepository {
+
+  /**
+   * Returns artworks available near the supplied location.
+   *
+   * The local implementation currently returns all populated artworks because no distance filtering
+   * rule has been defined by the application.
+   *
+   * @param location reference location, or null when no location is available
+   * @return artworks available to display
+   * @author patrickmcdan
+   */
+  suspend fun getArtworksNearLocation(location: UserLocation? = null): List<Artwork>
+
+  /**
+   * Returns the artists suggested by the application.
+   *
+   * @return popular artist names in display order
+   * @author patrickmcdan
+   */
+  suspend fun getPopularArtists(): List<String>
 
   /**
    * Returns the [Artwork] associated with the provided Wikidata identifier.

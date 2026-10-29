@@ -50,6 +50,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.artista.artista.R
 import com.artista.artista.ui.navigation.BackButton
+import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaTheme
@@ -78,7 +79,11 @@ fun ArtistPreferencesScreen(
     onBackClick: () -> Unit,
     onSaveClick: () -> Unit,
     onTabSelected: (Tab) -> Unit,
-    artistPreferencesViewModel: ArtistPreferencesViewModel = viewModel(),
+    artistPreferencesViewModel: ArtistPreferencesViewModel =
+        viewModel(
+            factory =
+                ArtistPreferencesViewModel.provideFactory(ArtworkRepositoryProvider.repository)
+        ),
 ) {
   val uiState by artistPreferencesViewModel.uiState.collectAsStateWithLifecycle()
 
@@ -305,7 +310,7 @@ private fun SelectionIndicator(selected: Boolean, modifier: Modifier = Modifier)
 @Composable
 private fun ArtistPreferencesScreenPreview() {
   val viewModel = remember {
-    ArtistPreferencesViewModel().apply {
+    ArtistPreferencesViewModel(ArtworkRepositoryProvider.repository).apply {
       toggleArtist("Vincent van Gogh")
       toggleArtist("Claude Monet")
     }

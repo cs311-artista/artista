@@ -41,6 +41,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
+import com.artista.artista.model.artwork.ArtworkRepositoryLocal
+import com.artista.artista.model.artwork.ArtworkRepositoryProvider
+import com.artista.artista.model.artwork.mockArtworks
 import com.artista.artista.ui.artwork.ArtworkCard
 import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
@@ -92,7 +95,8 @@ private object OverviewDimensions {
  */
 @Composable
 fun OverviewScreen(
-    viewModel: OverviewViewModel = viewModel(),
+    viewModel: OverviewViewModel =
+        viewModel(factory = OverviewViewModel.provideFactory(ArtworkRepositoryProvider.repository)),
     onTabSelected: (Tab) -> Unit = {},
     onArtworkClick: (Artwork) -> Unit = {},
     onSavedArtworksClick: () -> Unit = {},
@@ -226,6 +230,10 @@ private fun OverviewErrorContent(onSavedArtworksClick: () -> Unit) {
 @Preview(showBackground = true)
 @Composable
 private fun OverviewScreenPreview() {
-  val viewModel = remember { OverviewViewModel() }
+  val viewModel = remember {
+    val repository = ArtworkRepositoryLocal()
+    mockArtworks.forEach { repository.putArtworkInRepositoryUnsavedSection(it) }
+    OverviewViewModel(repository)
+  }
   ArtistaTheme { OverviewScreen(viewModel = viewModel) }
 }

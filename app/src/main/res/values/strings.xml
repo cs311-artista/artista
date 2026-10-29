@@ -1,5 +1,5 @@
 <!-- Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com> -->
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name">Artista</string>
     <string name="title_activity_main">MainActivity</string>
     <string name="title_activity_second">SecondActivity</string>
@@ -31,6 +31,12 @@
     <string name="profile_username_placeholder">USERNAME</string>
     <string name="profile_preferences">ARTIST PREFERENCES</string>
     <string name="profile_saved_artwork">SAVED ARTWORKS</string>
+    <string name="profile_username_dialog_title">Edit username</string>
+    <string name="profile_username_label">Username</string>
+    <!-- Always formatted with MAX_USERNAME_LENGTH (20), which never needs the singular form. -->
+    <string name="profile_username_rules" tools:ignore="PluralsCandidate">Letters, digits and spaces, up to %1$d characters</string>
+    <string name="profile_username_save">Save</string>
+    <string name="profile_username_cancel">Cancel</string>
     <!-- Artist preferences screen -->
     <string name="artist_preferences_title">Artist Preferences</string>
     <string name="artist_preferences_description">Select your favorite artists to personalize your recommendations</string>
