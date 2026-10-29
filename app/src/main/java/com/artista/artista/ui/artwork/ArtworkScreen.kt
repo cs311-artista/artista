@@ -296,7 +296,7 @@ fun MapTile(
     cameraPositionState: CameraPositionState,
     markerState: MarkerState,
     location: Location,
-    artworkName: String,
+    artworkName: String?,
 ) {
   OutlinedCard(
       modifier = modifier.fillMaxWidth(),
