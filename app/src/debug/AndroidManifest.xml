@@ -1,6 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
-    <application android:networkSecurityConfig="@xml/network_security_config" />
+    <!--
+      Debug builds only cache emulator data (Firebase Auth tokens, Firestore documents) that is
+      worthless after a reinstall, so backup is switched off here instead of inheriting
+      allowBackup="true" from the main manifest. This keeps `adb backup` and Auto Backup from
+      pulling those credentials off the device, which is the Sonar hotspot S6358 ("Allowing
+      application backups is security-sensitive"). The release manifest keeps its own backup
+      policy, so nothing changes for shipped builds.
+
+      allowBackup is flagged as deprecated for Android 12+ because backup should normally be
+      scoped with dataExtractionRules, but those rules can only exclude paths - they cannot
+      disable backup altogether, which is what we want for a debug build. Suppressing the lint
+      warning is therefore intentional.
+    -->
+    <application
+        android:allowBackup="false"
+        android:networkSecurityConfig="@xml/network_security_config"
+        tools:ignore="AllowBackup,DataExtractionRules"
+        tools:replace="android:allowBackup" />
 
 </manifest>
