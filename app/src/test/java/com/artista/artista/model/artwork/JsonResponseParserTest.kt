@@ -14,7 +14,9 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
 /**
- * Tests parsing a real Wikidata SPARQL response.
+ * Tests parsing a captured Wikidata SPARQL response. The parsed wikidata_response.json was captured
+ * through a call from the WikiDataRepositoryRemote, and therefore represents real-world data,
+ * without having to make API calls each time we test.
  *
  * @author 5kyPhy
  */
