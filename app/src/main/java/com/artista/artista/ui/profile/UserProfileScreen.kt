@@ -1,3 +1,4 @@
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.profile
 
 import androidx.compose.foundation.background
@@ -49,7 +50,6 @@ import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaTheme
 
-// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 private val FieldShape = RoundedCornerShape(percent = 50)
 
 /**

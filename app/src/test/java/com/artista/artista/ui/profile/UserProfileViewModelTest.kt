@@ -105,6 +105,14 @@ class UserProfileViewModelTest {
     assertNull(viewModel.uiState.value.username)
   }
 
+  /** Verifies that the username is stored in composed form, whatever form it was typed in. */
+  @Test
+  fun updateUsername_storesComposedForm() {
+    viewModel.updateUsername("Timothe\u0301e")
+
+    assertEquals("Timothée", viewModel.uiState.value.username)
+  }
+
   /** Verifies that letters, digits and spaces are accepted. */
   @Test
   fun isValidUsername_acceptsLettersDigitsAndSpaces() {
@@ -115,6 +123,18 @@ class UserProfileViewModelTest {
   @Test
   fun isValidUsername_acceptsAccentedLetters() {
     assertTrue(isValidUsername("Timothée"))
+  }
+
+  /** Verifies that accents typed in decomposed form (letter + combining mark) are accepted. */
+  @Test
+  fun isValidUsername_acceptsDecomposedAccents() {
+    assertTrue(isValidUsername("Timothe\u0301e"))
+  }
+
+  /** Verifies that a combining accent does not count as an extra character for the length limit. */
+  @Test
+  fun isValidUsername_countsDecomposedAccentAsOneCharacter() {
+    assertTrue(isValidUsername("e\u0301".repeat(MAX_USERNAME_LENGTH)))
   }
 
   /** Verifies that surrounding whitespace is ignored, since it is trimmed before saving. */
