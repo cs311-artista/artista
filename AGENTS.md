@@ -1,3 +1,4 @@
+<!-- Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com> -->
 # AGENTS.md
 
 Durable rules for any AI agent working in this repository. Read this before acting.
@@ -12,18 +13,18 @@ A Kotlin/Android Artista app (`com.artista.artista`), built with an **MVVM** arc
 
 ## Architecture rules
 
-- Keep the **MVVM** separation. **ViewModels never import Firebase** or a repository implementation; they depend on repository interfaces. Firebase lives only in the `model/` repositories.
+- Keep the **MVVM** separation. ViewModels never receive a concrete implementation: they depend on repository interfaces.
 
 ## Language and documentation
 
 - **Everything is in English**: code, identifiers, comments, KDoc, test names, commit messages, PR descriptions.
-- Every public class, function and property gets a **KDoc** comment describing what it does, its parameters and its return value:
+- Every public class and function gets a **KDoc** comment describing what it does, its parameters and its return value. Constants, properties and one-line functions whose name says everything may skip it:
 
 ```kotlin
 /**
  * Computes the total price of an order line.
  * 
- * @author the one writting 
+ * @author the one writing
  * @param price unit price of the product
  * @param quantity number of units
  * @return the total price
@@ -36,13 +37,13 @@ fun calculateTotal(price: Double, quantity: Int): Double = price * quantity
 
 ## Branches
 
-Format: `<type>-<short-description>`
+Format: `<type>/<short-description>`
 
 - `<type>` is one of the commit types below (`feat`, `fix`, `refactor`, `test`, `docs`, `ci`, `chore`, ...).
 - `<short-description>` is brief, lowercase and hyphen-separated.
-- Hyphens only, **no slashes**. Do not put the issue number in the branch name; it goes in the PR and in commit footers.
+- Do not put the issue number in the branch name; it goes in the PR and in commit footers.
 
-Examples: `feat-login-screen`, `fix-location-permission-crash`, `refactor-repository-layer`.
+Examples: `feat/login-screen`, `fix/location-permission-crash`, `refactor/repository-layer`.
 
 ## Commits
 
@@ -69,28 +70,30 @@ Commits are made by humans. We follow **Conventional Commits**:
 | `chore`    | Other maintenance tasks                                 |
 
 - Description in the **imperative mood**, **lowercase**, **no trailing period** (`add`, not `Added`).
+- Be descriptive: say what changed, and avoid generic messages like `fix` or `update`.
 - First line **at most 72 characters**.
 - Optional scope names the affected area: `feat(auth): add google sign-in`.
-- Use the body to explain **why** when it isn't obvious.
-- Reference the issue in the footer: `Refs #12` or `Closes #12`.
+- Use the body, after a blank line, to explain **why** when it isn't obvious, wrapped at 72 characters.
 - Breaking changes: `!` after the type/scope (`feat(api)!: ...`) plus a `BREAKING CHANGE:` footer.
 - Keep commits **focused and small**; never mix unrelated changes. Push regularly.
 - Stage only the files you changed; never `git add .` or `git add -A` (it can pull in local config like `local.properties`).
-- **Acknowledge your contributors**: an AI agent is a contributor, so add a `Co-authored-by:` footer crediting it.
+- **Acknowledge your contributors**: an AI agent is a contributor, so credit it with a `Co-authored-by:` footer in the commit message and a `Co-authored-by:` comment at the top of each file it created or modified.
 
 ## Testing and TDD
 
-- We follow **TDD**: write the tests **before** the implementation whenever applicable.
-- **All new code comes with unit tests**, in the **same PR** as the feature.
+- **Tests are required; TDD is encouraged**: writing them before the implementation is recommended, not mandatory.
+- **All new code comes with tests**, in the **same PR** as the feature.
 - **UI tests identify elements by test tags** (`Modifier.testTag(...)`), never by pixel positions or screen coordinates.
+- Keep **one `@Preview` per screen**; previews count against coverage, so cover the other states with UI tests.
 - Read failing tests carefully and iterate until they pass.
 
 ## Definition of done
 
 - The feature works and matches the acceptance criteria of its issue.
-- Tests are written (TDD) and included in the PR.
+- Tests are written and included in the PR.
 - `./gradlew check` is green (unit tests + lint) and `./gradlew ktfmtCheck` passes (formatting).
 - Features covered by instrumented tests (under `androidTest/`) also pass `./gradlew connectedDebugAndroidTest`, with an Android emulator and the Firebase emulator running.
+  These tests take a long time, so the agent asks once per session whether to run them itself or leave them to the developer.
 - **CI passes** on the PR. CI runs after pushing, so the rule is "green before merging", not "green before pushing".
 - The PR links its issue and has at least one accepting review.
 
@@ -98,9 +101,6 @@ Commits are made by humans. We follow **Conventional Commits**:
 
 - Make one **bounded, reviewable** change per PR. If it sprawls across unrelated files, split it.
 - Read the failing tests carefully and iterate until `./gradlew check` passes.
-- Stage only the files you changed; never `git add .` or `git add -A` (it can pull in local config like `local.properties`).
-- Commit with an imperative subject of at most 50 characters, capitalized (e.g. `Add user authentication`). Add a body wrapped at 72 characters when the subject is not enough.
-- **Acknowledge your contributors** at the top of the file: credit the AI that wrote it with a `Co-authored-by` line. An AI agent is a contributor, so credit it.
 
 ## Agent boundaries
 
@@ -114,6 +114,6 @@ The agent **only writes code and tests**, and may run local builds and tests (`.
 
 When its work is done, the agent stops and summarizes the changed files. It may **suggest** a commit message following the conventions above; a human decides whether to use it.
 
-## Your role
+## The role of the Developer
 
 You provide the goal, the context, the acceptance criteria and the permissions. The agent plans, acts and observes. **You review the diff, and you own every line you submit.** "The agent wrote it" is not a defence.
