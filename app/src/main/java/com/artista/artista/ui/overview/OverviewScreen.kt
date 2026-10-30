@@ -161,7 +161,7 @@ private fun OverviewSearchBar(
               .semantics(mergeDescendants = true) {}
               .testTag(OverviewTestTags.SEARCH_BAR),
       shape = MaterialTheme.shapes.extraLarge,
-      color = MaterialTheme.colorScheme.surface,,
+      color = MaterialTheme.colorScheme.surface,
       tonalElevation = Dimensions.overviewSearchBarElevation,
   ) {
     Row(

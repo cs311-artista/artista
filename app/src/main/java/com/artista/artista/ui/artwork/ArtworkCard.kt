@@ -91,7 +91,7 @@ fun ArtworkCard(
               Modifier.fillMaxWidth()
                   .height(Dimensions.artworkCardImageHeight)
                   .clip(RoundedCornerShape(Dimensions.cornerRadiusSmall)),
-          color = MaterialTheme.colorScheme.surfaceVariant,,
+          color = MaterialTheme.colorScheme.surfaceVariant,
       ) {
         Box(
             modifier = Modifier.fillMaxSize(),
