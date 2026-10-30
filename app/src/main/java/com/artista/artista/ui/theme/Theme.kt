@@ -96,7 +96,6 @@ private val LightColorScheme =
 /**
  * Applies the Artista color scheme and typography to the provided content.
  *
- * @author Copilot
  * @param darkTheme whether to use the dark color scheme
  * @param content composable content styled by the Artista theme
  */
@@ -112,7 +111,7 @@ fun ArtistaTheme(
       val activity = view.context as ComponentActivity
       activity.enableEdgeToEdge()
       val window = activity.window
-      WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = darkTheme
+      WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
     }
   }
 

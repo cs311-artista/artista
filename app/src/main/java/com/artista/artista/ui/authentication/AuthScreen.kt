@@ -43,7 +43,6 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.tooling.preview.Preview
 import com.artista.artista.R
 import com.artista.artista.resources.C
-import com.artista.artista.ui.theme.ArtistaColors
 import com.artista.artista.ui.theme.ArtistaTheme
 import com.artista.artista.ui.theme.Dimensions
 import kotlinx.coroutines.launch
@@ -133,9 +132,9 @@ fun AuthScreenContent(
           colors =
               ButtonDefaults.buttonColors(
                   containerColor = MaterialTheme.colorScheme.surface,
-                  contentColor = ArtistaColors.OnSurface,
+                  contentColor = MaterialTheme.colorScheme.onSurface,
                   disabledContainerColor = MaterialTheme.colorScheme.surface,
-                  disabledContentColor = ArtistaColors.OnSurface,
+                  disabledContentColor = MaterialTheme.colorScheme.onSurface,
               ),
           contentPadding =
               PaddingValues(
