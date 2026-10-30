@@ -91,7 +91,7 @@ fun ArtworkCard(
               Modifier.fillMaxWidth()
                   .height(Dimensions.artworkCardImageHeight)
                   .clip(RoundedCornerShape(Dimensions.cornerRadiusSmall)),
-          color = MaterialTheme.colorScheme.primaryContainer,
+          color = MaterialTheme.colorScheme.surfaceVariant,
       ) {
         Box(
             modifier = Modifier.fillMaxSize(),
@@ -143,7 +143,7 @@ fun ArtworkCard(
             modifier = Modifier.testTag(testTag(ArtworkCardTestTag.ARTWORK_CARD_MAP_BUTTON)),
             colors =
                 ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    containerColor = MaterialTheme.colorScheme.surface,
                     contentColor = MaterialTheme.colorScheme.onSurface,
                 ),
         ) {
@@ -156,7 +156,7 @@ fun ArtworkCard(
             modifier = Modifier.testTag(testTag(ArtworkCardTestTag.ARTWORK_CARD_SAVE_BUTTON)),
             colors =
                 ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    containerColor = MaterialTheme.colorScheme.surface,
                     contentColor = MaterialTheme.colorScheme.onSurface,
                 ),
         ) {

@@ -78,7 +78,7 @@ fun AuthScreenContent(
       modifier =
           modifier
               .fillMaxSize()
-              .background(MaterialTheme.colorScheme.tertiaryContainer)
+              .background(MaterialTheme.colorScheme.background)
               .testTag(C.Tag.auth_screen_container),
   ) {
     Column(
@@ -109,7 +109,7 @@ fun AuthScreenContent(
       Text(
           text = stringResource(R.string.app_name),
           style = MaterialTheme.typography.displayMedium.copy(fontFamily = FontFamily.Serif),
-          color = MaterialTheme.colorScheme.onTertiaryContainer,
+          color = MaterialTheme.colorScheme.onBackground,
       )
 
       Spacer(Modifier.height(Dimensions.authenticationTitleTaglineSpacing))
@@ -117,7 +117,7 @@ fun AuthScreenContent(
       Text(
           text = stringResource(R.string.auth_tagline),
           style = MaterialTheme.typography.titleMedium,
-          color = MaterialTheme.colorScheme.onTertiaryContainer,
+          color = MaterialTheme.colorScheme.onBackground,
       )
 
       Spacer(Modifier.weight(1f))
@@ -131,9 +131,9 @@ fun AuthScreenContent(
           shape = RoundedCornerShape(percent = Dimensions.authenticationButtonCornerRadiusPercent),
           colors =
               ButtonDefaults.buttonColors(
-                  containerColor = Color.White,
+                  containerColor = MaterialTheme.colorScheme.surface,
                   contentColor = MaterialTheme.colorScheme.onSurface,
-                  disabledContainerColor = Color.White,
+                  disabledContainerColor = MaterialTheme.colorScheme.surface,
                   disabledContentColor = MaterialTheme.colorScheme.onSurface,
               ),
           contentPadding =
@@ -230,7 +230,7 @@ fun AuthScreen(
 }
 
 /** Preview of the signed-out sign-in screen. */
-@Preview(showBackground = true, backgroundColor = 0xFFEFB8C8)
+@Preview(showBackground = true)
 @Composable
 private fun AuthScreenContentPreview() {
   ArtistaTheme {

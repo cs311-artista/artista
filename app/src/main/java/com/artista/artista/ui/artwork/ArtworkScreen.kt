@@ -1,3 +1,4 @@
+// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 // Co-authored-by: Gemini <gemini@google.com>
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
@@ -175,7 +176,7 @@ fun ArtworkScreen(
       ) {
         Surface(
             modifier = Modifier.fillMaxSize(),
-            color = MaterialTheme.colorScheme.surfaceVariant,
+            color = MaterialTheme.colorScheme.surface,
         ) {
           Column(
               modifier = Modifier.fillMaxSize(),

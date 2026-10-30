@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -160,7 +161,7 @@ private fun OverviewSearchBar(
               .semantics(mergeDescendants = true) {}
               .testTag(OverviewTestTags.SEARCH_BAR),
       shape = MaterialTheme.shapes.extraLarge,
-      color = MaterialTheme.colorScheme.surfaceContainerHighest,
+      color = MaterialTheme.colorScheme.surface,
       tonalElevation = Dimensions.overviewSearchBarElevation,
   ) {
     Row(
@@ -200,6 +201,11 @@ private fun OverviewErrorContent(onSavedArtworksClick: () -> Unit) {
     Button(
         onClick = onSavedArtworksClick,
         modifier = Modifier.testTag(OverviewTestTags.SAVED_ARTWORKS_BUTTON),
+        colors =
+            ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.primary,
+            ),
     ) {
       Text(text = stringResource(R.string.overview_saved_artworks_action))
     }

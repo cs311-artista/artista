@@ -1,3 +1,5 @@
+// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+
 package com.artista.artista.ui.preferences
 
 import androidx.compose.foundation.BorderStroke
@@ -36,7 +38,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -53,6 +54,7 @@ import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.ui.navigation.BackButton
 import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
+import com.artista.artista.ui.theme.ArtistaColors
 import com.artista.artista.ui.theme.ArtistaTheme
 import com.artista.artista.ui.theme.Dimensions
 
@@ -88,8 +90,7 @@ fun ArtistPreferencesScreen(
 
   Scaffold(
       modifier = Modifier.fillMaxSize().testTag(ArtistPreferencesTestTags.SCREEN),
-      // Same brand-tinted background as the profile screen, which this screen belongs to.
-      containerColor = MaterialTheme.colorScheme.primaryContainer,
+      containerColor = MaterialTheme.colorScheme.background,
       bottomBar = {
         BottomNavigationMenu(selectedTab = Tab.Profile, onTabSelected = onTabSelected)
       },
@@ -143,7 +144,7 @@ fun ArtistPreferencesScreen(
           shape = PillShape,
           colors =
               ButtonDefaults.buttonColors(
-                  containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+                  containerColor = MaterialTheme.colorScheme.surface,
                   contentColor = MaterialTheme.colorScheme.primary,
               ),
       ) {
@@ -205,10 +206,10 @@ private fun SearchField() {
       // It therefore looks usable although it is not, until searching is implemented.
       colors =
           TextFieldDefaults.colors(
-              disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+              disabledContainerColor = MaterialTheme.colorScheme.surface,
               disabledPlaceholderColor = MaterialTheme.colorScheme.primary,
               disabledLeadingIconColor = MaterialTheme.colorScheme.primary,
-              disabledIndicatorColor = Color.Transparent,
+              disabledIndicatorColor = ArtistaColors.Transparent,
           ),
   )
 }
@@ -304,7 +305,7 @@ private fun SelectionIndicator(selected: Boolean, modifier: Modifier = Modifier)
               .clip(CircleShape)
               .background(
                   if (selected) MaterialTheme.colorScheme.primary
-                  else MaterialTheme.colorScheme.surfaceContainerLowest
+                  else MaterialTheme.colorScheme.surface
               ),
       contentAlignment = Alignment.Center,
   ) {

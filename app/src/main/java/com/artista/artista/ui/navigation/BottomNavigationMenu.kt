@@ -76,7 +76,7 @@ fun BottomNavigationMenu(
                 )
                 .clip(RoundedCornerShape(Dimensions.cornerRadiusPill))
                 .testTag(NavigationTestTags.BOTTOM_NAVIGATION_MENU),
-        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        containerColor = MaterialTheme.colorScheme.surface,
     ) {
       tabs.forEach { tab ->
         val name = stringResource(tab.nameResId)
