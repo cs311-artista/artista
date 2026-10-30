@@ -1,5 +1,6 @@
 package com.artista.artista.model.authentication
 
+import com.artista.artista.model.error.AppException
 import kotlinx.coroutines.flow.Flow
 
 // Co-authored-by: DeepSeek Flash
@@ -9,6 +10,9 @@ import kotlinx.coroutines.flow.Flow
  * ViewModels depend on this interface only, never on a concrete Firebase implementation, so the
  * sign-in and sign-out logic stays unit-testable with a fake (see `FakeAuthRepository`).
  *
+ * Failures are reported as [AppException], the vocabulary every repository in the app translates
+ * its backend failures into.
+ *
  * @author timo-by
  */
 interface AuthRepository {
@@ -17,7 +21,9 @@ interface AuthRepository {
    * Observable authentication state.
    *
    * Emits the currently signed-in user, or `null` when nobody is signed in. The stream reflects
-   * sign-in and sign-out as they happen, without requiring a manual refresh.
+   * sign-in and sign-out as they happen, without requiring a manual refresh, and emits nothing at
+   * all until the backend has reported the session, so a collector can tell a signed-out user apart
+   * from a session that is still being restored.
    *
    * This lives on the repository rather than only on the ViewModel because a session can change
    * without any ViewModel asking for it, for example a revoked or expired session cleared by
@@ -35,7 +41,8 @@ interface AuthRepository {
    * credential stays inside the implementation.
    *
    * @param idToken the Google ID token returned by Credential Manager
-   * @return success with the signed-in user, or failure carrying the cause
+   * @return success with the signed-in user, or failure carrying an [AppException] that describes
+   *   what went wrong in terms the UI can present
    * @author timo-by
    */
   suspend fun signIn(idToken: String): Result<AuthUser>
@@ -43,7 +50,7 @@ interface AuthRepository {
   /**
    * Signs the currently authenticated user out.
    *
-   * @return success, or failure carrying the cause
+   * @return success, or failure carrying an [AppException]
    * @author timo-by
    */
   suspend fun signOut(): Result<Unit>

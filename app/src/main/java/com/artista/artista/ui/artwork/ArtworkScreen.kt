@@ -1,5 +1,7 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 // Co-authored-by: Gemini <gemini@google.com>
+// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.artwork
 
 import androidx.compose.foundation.layout.Arrangement
@@ -13,7 +15,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material3.Card
@@ -38,10 +39,20 @@ import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
+import com.artista.artista.model.map.Location
+import com.artista.artista.resources.C
+import com.artista.artista.ui.navigation.BackButton
+import com.artista.artista.ui.theme.Dimensions
+import com.google.android.gms.maps.model.CameraPosition
+import com.google.android.gms.maps.model.LatLng
+import com.google.maps.android.compose.CameraPositionState
+import com.google.maps.android.compose.GoogleMap
+import com.google.maps.android.compose.Marker
+import com.google.maps.android.compose.MarkerState
+import com.google.maps.android.compose.rememberCameraPositionState
 import java.text.DateFormat
 
 /**
@@ -54,6 +65,7 @@ object ArtworkTestTags {
   const val SAVE_BUTTON = "artwork_save_button"
   const val BACK_BUTTON = "artwork_back_button"
   const val ARTWORK_TITLE = "artwork_title"
+  const val ARTWORK_MAP_TILE = "artwork_map_tile"
 }
 
 /**
@@ -77,8 +89,8 @@ fun ArtworkScreen(
     artworkScreenViewModel: ArtworkScreenViewModel = viewModel(),
     onBackClick: () -> Unit = {},
 ) {
-  // Sync artwork with ViewModel once when entered or when artwork changes
-  LaunchedEffect(artwork.name) { artworkScreenViewModel.setArtwork(artwork) }
+  // uid or name would work the same here; uid is used only for consistency.
+  LaunchedEffect(artwork.uid) { artworkScreenViewModel.setArtwork(artwork) }
 
   val uiState by artworkScreenViewModel.uiState.collectAsState()
   val isSaved = uiState.isSaved
@@ -87,28 +99,42 @@ fun ArtworkScreen(
   // Cache the formatter to prevent re-instantiation across recompositions
   val dateFormatter = remember(locale) { DateFormat.getDateInstance(DateFormat.MEDIUM, locale) }
 
+  // Set the camera position and marker position of the artwork, if the [artwork.location] is
+  // specified. This only needs to be done once, as the artwork is not going to be moving around.
+  val mapTileCameraPositionState = rememberCameraPositionState {
+    position =
+        artwork.location?.let {
+          CameraPosition.fromLatLngZoom(
+              LatLng(it.latitude, it.longitude),
+              C.Constants.DEFAULT_MAP_ZOOM,
+          )
+        } ?: C.Constants.DEFAULT_MAP_POSITION
+  }
+  val mapTileMarkerState = remember {
+    MarkerState(
+        position =
+            artwork.location?.let { LatLng(it.latitude, it.longitude) }
+                ?: LatLng(C.Constants.DEFAULT_MAP_LAT, C.Constants.DEFAULT_MAP_LONG)
+    )
+  }
+
   Scaffold(
       modifier = modifier.testTag(ArtworkTestTags.ARTWORK_SCREEN),
       topBar = {
         CenterAlignedTopAppBar(
             title = {
               Text(
-                  text = artwork.name,
+                  text = artwork.name ?: stringResource(R.string.artwork_unknown_title),
                   style = MaterialTheme.typography.titleLarge,
                   fontWeight = FontWeight.Bold,
                   modifier = Modifier.testTag(ArtworkTestTags.ARTWORK_TITLE),
               )
             },
             navigationIcon = {
-              IconButton(
+              BackButton(
                   onClick = onBackClick,
                   modifier = Modifier.testTag(ArtworkTestTags.BACK_BUTTON),
-              ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = stringResource(R.string.back),
-                )
-              }
+              )
             },
             actions = {
               IconButton(
@@ -132,20 +158,21 @@ fun ArtworkScreen(
         modifier =
             Modifier.fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 20.dp)
+                .padding(horizontal = Dimensions.artworkDetailsContentHorizontalPadding)
                 .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(Dimensions.artworkDetailsSectionSpacing),
     ) {
-      Spacer(modifier = Modifier.height(4.dp))
+      Spacer(modifier = Modifier.height(Dimensions.artworkDetailsImageVerticalSpacing))
 
       /**
        * TODO: This component serves as a placeholder for the image. Remove it, and implement
        *   component for the image.
        */
       Card(
-          modifier = Modifier.fillMaxWidth().height(220.dp),
-          shape = RoundedCornerShape(20.dp),
-          elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+          modifier = Modifier.fillMaxWidth().height(Dimensions.artworkDetailsImageHeight),
+          shape = RoundedCornerShape(Dimensions.cornerRadiusMedium),
+          elevation =
+              CardDefaults.cardElevation(defaultElevation = Dimensions.artworkCardElevation),
       ) {
         Surface(
             modifier = Modifier.fillMaxSize(),
@@ -165,11 +192,11 @@ fun ArtworkScreen(
         }
       }
 
-      Spacer(modifier = Modifier.height(4.dp))
+      Spacer(modifier = Modifier.height(Dimensions.artworkDetailsImageVerticalSpacing))
 
       ArtworkFieldItem(
           label = stringResource(R.string.artwork_label_artist),
-          value = artwork.artistName ?: stringResource(R.string.artwork_unknown_artist),
+          value = artwork.artist?.name ?: stringResource(R.string.artwork_unknown_artist),
       )
 
       ArtworkFieldItem(
@@ -201,6 +228,17 @@ fun ArtworkScreen(
                 stringResource(R.string.artwork_location_format, it.latitude, it.longitude)
               } ?: stringResource(R.string.artwork_no_location),
       )
+
+      // Only show the map-tile if the location of the artwork is actually specified
+      if (artwork.location != null) {
+        MapTile(
+            modifier,
+            mapTileCameraPositionState,
+            mapTileMarkerState,
+            artwork.location,
+            artwork.name,
+        )
+      }
     }
   }
 }
@@ -221,21 +259,69 @@ fun ArtworkFieldItem(
 ) {
   OutlinedCard(
       modifier = modifier.fillMaxWidth(),
-      shape = RoundedCornerShape(12.dp),
+      shape = RoundedCornerShape(Dimensions.cornerRadiusSmall),
   ) {
-    Column(modifier = Modifier.fillMaxWidth().padding(10.dp)) {
+    Column(modifier = Modifier.fillMaxWidth().padding(Dimensions.artworkFieldContentPadding)) {
       Text(
           text = label,
           style = MaterialTheme.typography.labelMedium,
           color = MaterialTheme.colorScheme.primary,
           fontWeight = FontWeight.SemiBold,
       )
-      Spacer(modifier = Modifier.height(4.dp))
+      Spacer(modifier = Modifier.height(Dimensions.artworkFieldLabelValueSpacing))
       Text(
           text = value,
           style = MaterialTheme.typography.bodyMedium,
           color = MaterialTheme.colorScheme.onSurface,
       )
+    }
+  }
+}
+
+/**
+ * Displays the Map Tile on the screen
+ *
+ * @param modifier optional modifier for the card container
+ * @param cameraPositionState the state of the camera position on the map
+ * @param markerState the state of the marker position on the map
+ * @param location the location of the artwork which is displayed on the map
+ * @param artworkName the name of the artwork which is displayed on the map
+ * @author 5kyPhy
+ */
+@Composable
+fun MapTile(
+    modifier: Modifier = Modifier,
+    cameraPositionState: CameraPositionState,
+    markerState: MarkerState,
+    location: Location,
+    artworkName: String?,
+) {
+  OutlinedCard(
+      modifier = modifier.fillMaxWidth(),
+      shape = RoundedCornerShape(Dimensions.cornerRadiusSmall),
+  ) {
+    Column(
+        modifier =
+            Modifier.fillMaxWidth()
+                .padding(Dimensions.artworkMapTileContentPadding)
+                .testTag(ArtworkTestTags.ARTWORK_MAP_TILE)
+    ) {
+      Text(
+          text = location.name?.let { location.name } ?: "",
+          style = MaterialTheme.typography.labelMedium,
+          color = MaterialTheme.colorScheme.primary,
+          fontWeight = FontWeight.SemiBold,
+      )
+      Spacer(modifier = Modifier.height(Dimensions.artworkMapTileTitleSpacing))
+      GoogleMap(
+          modifier = Modifier.fillMaxWidth().height(Dimensions.artworkMapTileHeight),
+          cameraPositionState = cameraPositionState,
+      ) {
+        Marker(
+            state = markerState,
+            title = artworkName,
+        )
+      }
     }
   }
 }
@@ -262,7 +348,7 @@ fun ArtworkFieldItem(
 //  val sampleArtwork =
 //      Artwork(
 //          name = "Mona Lisa",
-//          artistName = "Leonardo da Vinci",
+//          artist = Artist(uid = "preview-da-vinci", name = "Leonardo da Vinci"),
 //          description = "A portrait of Lisa Gherardini, wife of Francesco del Giocondo.",
 //          conceptionDate = monaLisaDate,
 //          museum = "Musée du Louvre",

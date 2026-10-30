@@ -37,15 +37,17 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
+import com.artista.artista.model.artwork.ArtworkRepositoryLocal
+import com.artista.artista.model.artwork.ArtworkRepositoryProvider
+import com.artista.artista.model.artwork.mockArtworks
 import com.artista.artista.ui.artwork.ArtworkCard
 import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaTheme
+import com.artista.artista.ui.theme.Dimensions
 
 /**
  * Provides stable semantics tags for Overview screen UI tests.
@@ -62,26 +64,6 @@ object OverviewTestTags {
 }
 
 /**
- * Dimensions used by the Overview screen.
- *
- * Kept local until a project-wide dimensions convention is established.
- *
- * @author patrickmcdan
- */
-private object OverviewDimensions {
-  val listHorizontalPadding: Dp = 16.dp
-  val listVerticalPadding: Dp = 8.dp
-  val listItemSpacing: Dp = 8.dp
-  val searchBarHorizontalPadding: Dp = 16.dp
-  val searchBarVerticalPadding: Dp = 8.dp
-  val searchBarHeight: Dp = 56.dp
-  val searchBarContentPadding: Dp = 16.dp
-  val searchBarTextSpacing: Dp = 12.dp
-  val searchBarElevation: Dp = 2.dp
-  val errorContentSpacing: Dp = 12.dp
-}
-
-/**
  * Displays the artwork overview using the state supplied by its ViewModel.
  *
  * @param onTabSelected callback invoked when a bottom-navigation destination is selected
@@ -93,7 +75,8 @@ private object OverviewDimensions {
  */
 @Composable
 fun OverviewScreen(
-    viewModel: OverviewViewModel = viewModel(),
+    viewModel: OverviewViewModel =
+        viewModel(factory = OverviewViewModel.provideFactory(ArtworkRepositoryProvider.repository)),
     onTabSelected: (Tab) -> Unit = {},
     onArtworkClick: (Artwork) -> Unit = {},
     onSavedArtworksClick: () -> Unit = {},
@@ -127,10 +110,10 @@ fun OverviewScreen(
               Modifier.fillMaxSize().padding(innerPadding).testTag(OverviewTestTags.ARTWORK_LIST),
           contentPadding =
               PaddingValues(
-                  horizontal = OverviewDimensions.listHorizontalPadding,
-                  vertical = OverviewDimensions.listVerticalPadding,
+                  horizontal = Dimensions.overviewListHorizontalPadding,
+                  vertical = Dimensions.overviewListVerticalPadding,
               ),
-          verticalArrangement = Arrangement.spacedBy(OverviewDimensions.listItemSpacing),
+          verticalArrangement = Arrangement.spacedBy(Dimensions.overviewListItemSpacing),
       ) {
         items(uiState.artworks) { artwork ->
           ArtworkCard(
@@ -170,20 +153,21 @@ private fun OverviewSearchBar(
               .fillMaxWidth()
               .statusBarsPadding()
               .padding(
-                  horizontal = OverviewDimensions.searchBarHorizontalPadding,
-                  vertical = OverviewDimensions.searchBarVerticalPadding,
+                  horizontal = Dimensions.overviewSearchBarHorizontalPadding,
+                  vertical = Dimensions.overviewSearchBarVerticalPadding,
               )
-              .height(OverviewDimensions.searchBarHeight)
+              .height(Dimensions.overviewSearchBarHeight)
               .clickable(role = Role.Button, onClick = onClick)
               .semantics(mergeDescendants = true) {}
               .testTag(OverviewTestTags.SEARCH_BAR),
       shape = MaterialTheme.shapes.extraLarge,
-      color = MaterialTheme.colorScheme.surface,
-      tonalElevation = OverviewDimensions.searchBarElevation,
+      color = MaterialTheme.colorScheme.surface,,
+      tonalElevation = Dimensions.overviewSearchBarElevation,
   ) {
     Row(
         modifier =
-            Modifier.fillMaxSize().padding(horizontal = OverviewDimensions.searchBarContentPadding),
+            Modifier.fillMaxSize()
+                .padding(horizontal = Dimensions.overviewSearchBarContentHorizontalPadding),
         verticalAlignment = Alignment.CenterVertically,
     ) {
       Icon(
@@ -193,7 +177,7 @@ private fun OverviewSearchBar(
       )
       Text(
           text = stringResource(R.string.overview_search_placeholder),
-          modifier = Modifier.padding(start = OverviewDimensions.searchBarTextSpacing),
+          modifier = Modifier.padding(start = Dimensions.overviewSearchBarIconTextSpacing),
           color = MaterialTheme.colorScheme.onSurfaceVariant,
       )
     }
@@ -211,7 +195,7 @@ private fun OverviewErrorContent(onSavedArtworksClick: () -> Unit) {
   Column(
       modifier = Modifier.fillMaxWidth().testTag(OverviewTestTags.ERROR_MESSAGE),
       horizontalAlignment = Alignment.CenterHorizontally,
-      verticalArrangement = Arrangement.spacedBy(OverviewDimensions.errorContentSpacing),
+      verticalArrangement = Arrangement.spacedBy(Dimensions.overviewErrorActionSpacing),
   ) {
     Text(text = stringResource(R.string.overview_load_error))
     Button(
@@ -232,6 +216,10 @@ private fun OverviewErrorContent(onSavedArtworksClick: () -> Unit) {
 @Preview(showBackground = true)
 @Composable
 private fun OverviewScreenPreview() {
-  val viewModel = remember { OverviewViewModel() }
+  val viewModel = remember {
+    val repository = ArtworkRepositoryLocal()
+    mockArtworks.forEach { repository.putArtworkInRepositoryUnsavedSection(it) }
+    OverviewViewModel(repository)
+  }
   ArtistaTheme { OverviewScreen(viewModel = viewModel) }
 }

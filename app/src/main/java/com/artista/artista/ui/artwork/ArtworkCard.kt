@@ -1,4 +1,5 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.artwork
 
 import androidx.compose.foundation.layout.Arrangement
@@ -30,12 +31,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
 import com.artista.artista.R
+import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.Dimension
 import com.artista.artista.model.map.Location
 import com.artista.artista.ui.theme.ArtistaTheme
+import com.artista.artista.ui.theme.Dimensions
 import java.util.Date
 
 /** Stable semantics tags for the artwork card UI tests. */
@@ -81,12 +83,15 @@ fun ArtworkCard(
       modifier = modifier.fillMaxWidth().testTag(testTag(ArtworkCardTestTag.ARTWORK_CARD)),
   ) {
     Column(
-        modifier = Modifier.fillMaxWidth().padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        modifier = Modifier.fillMaxWidth().padding(Dimensions.artworkCardContentPadding),
+        verticalArrangement = Arrangement.spacedBy(Dimensions.artworkCardSectionSpacing),
     ) {
       Surface(
-          modifier = Modifier.fillMaxWidth().height(160.dp).clip(RoundedCornerShape(12.dp)),
-          color = MaterialTheme.colorScheme.surfaceVariant,
+          modifier =
+              Modifier.fillMaxWidth()
+                  .height(Dimensions.artworkCardImageHeight)
+                  .clip(RoundedCornerShape(Dimensions.cornerRadiusSmall)),
+          color = MaterialTheme.colorScheme.surfaceVariant,,
       ) {
         Box(
             modifier = Modifier.fillMaxSize(),
@@ -104,11 +109,13 @@ fun ArtworkCard(
       }
 
       Column(
-          modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-          verticalArrangement = Arrangement.spacedBy(4.dp),
+          modifier =
+              Modifier.fillMaxWidth()
+                  .padding(horizontal = Dimensions.artworkCardTextHorizontalPadding),
+          verticalArrangement = Arrangement.spacedBy(Dimensions.artworkCardTextSpacing),
       ) {
         Text(
-            text = artwork.name,
+            text = artwork.name ?: stringResource(R.string.artwork_unknown_title),
             modifier =
                 Modifier.fillMaxWidth().testTag(testTag(ArtworkCardTestTag.ARTWORK_CARD_TITLE)),
             style = MaterialTheme.typography.titleLarge,
@@ -116,7 +123,7 @@ fun ArtworkCard(
             textAlign = TextAlign.Center,
         )
         Text(
-            text = artwork.artistName ?: stringResource(R.string.artwork_unknown_artist),
+            text = artwork.artist?.name ?: stringResource(R.string.artwork_unknown_artist),
             modifier =
                 Modifier.fillMaxWidth().testTag(testTag(ArtworkCardTestTag.ARTWORK_CARD_ARTIST)),
             style = MaterialTheme.typography.bodyLarge,
@@ -176,7 +183,7 @@ private fun ArtworkCardPreview() {
       Artwork(
           uid = "monaLisa",
           name = "Mona Lisa",
-          artistName = "Leonardo da Vinci",
+          artist = Artist(uid = "preview-artist-001", name = "Leonardo da Vinci"),
           description = "A portrait of Lisa Gherardini, painted in the early 16th century.",
           conceptionDate = Date(0L),
           museum = "Musée du Louvre",
@@ -191,7 +198,7 @@ private fun ArtworkCardPreview() {
         onArtworkClick = {},
         onMapClick = {},
         onSaveClick = { _ -> },
-        modifier = Modifier.padding(16.dp),
+        modifier = Modifier.padding(Dimensions.artworkCardPreviewPadding),
     )
   }
 }

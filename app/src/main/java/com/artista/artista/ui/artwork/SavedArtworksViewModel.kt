@@ -5,10 +5,10 @@ package com.artista.artista.ui.artwork
 import android.util.Log
 import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
-import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.artwork.SavedArtworksRepository
 import com.artista.artista.model.error.AppException
 import kotlinx.coroutines.CancellationException
@@ -42,13 +42,11 @@ data class SavedArtworksUIState(
 /**
  * Provides saved artworks state and actions to [SavedArtworksScreen].
  *
- * @param savedArtworksRepository repository used to load and remove saved artworks. Defaults to the
- *   shared [ArtworkRepositoryProvider.repository]; tests pass a fake instead.
+ * @param savedArtworksRepository repository used to load and remove saved artworks
  * @author Kaio R. Freitas Pereira Nascimento (krfpn)
  */
 class SavedArtworksViewModel(
-    private val savedArtworksRepository: SavedArtworksRepository =
-        ArtworkRepositoryProvider.repository,
+    private val savedArtworksRepository: SavedArtworksRepository,
 ) : ViewModel() {
 
   private val _uiState = MutableStateFlow(SavedArtworksUIState())
@@ -171,9 +169,27 @@ class SavedArtworksViewModel(
     _uiState.update { it.copy(unsaveErrorMessageResId = null) }
   }
 
-  /** Provides constants used by the ViewModel for structured diagnostic logging. */
-  private companion object {
+  /** Holds the log tag and the factory that creates [SavedArtworksViewModel]. */
+  companion object {
     /** Log tag identifying messages emitted by [SavedArtworksViewModel]. */
     private const val TAG = "SavedArtworksViewModel"
+
+    /**
+     * Creates a factory for a saved-artworks ViewModel with its repository dependency.
+     *
+     * @param repository repository used to load and update saved artworks
+     * @return factory that creates [SavedArtworksViewModel] instances
+     * @author patrickmcdan
+     */
+    fun provideFactory(repository: SavedArtworksRepository): ViewModelProvider.Factory =
+        object : ViewModelProvider.Factory {
+          @Suppress("UNCHECKED_CAST")
+          override fun <T : ViewModel> create(modelClass: Class<T>): T {
+            if (modelClass.isAssignableFrom(SavedArtworksViewModel::class.java)) {
+              return SavedArtworksViewModel(repository) as T
+            }
+            throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
+          }
+        }
   }
 }

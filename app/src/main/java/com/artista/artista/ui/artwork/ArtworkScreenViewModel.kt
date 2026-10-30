@@ -1,4 +1,5 @@
 // Co-authored-by: Gemini <gemini@google.com>
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.artwork
 
 import androidx.lifecycle.ViewModel
@@ -51,7 +52,7 @@ class ArtworkScreenViewModel(
    */
   fun setArtwork(artwork: Artwork) {
     viewModelScope.launch {
-      val saved = savedArtworkRepository.isArtworkSaved(artwork.name)
+      val saved = savedArtworkRepository.isArtworkSaved(artwork.uid)
       _uiState.update { it.copy(artwork = artwork, isSaved = saved) }
     }
   }
@@ -73,7 +74,7 @@ class ArtworkScreenViewModel(
     viewModelScope.launch {
       try {
         if (wasSaved) {
-          savedArtworkRepository.removeArtworkFromSaved(artwork.name)
+          savedArtworkRepository.removeArtworkFromSaved(artwork.uid)
         } else {
           savedArtworkRepository.saveArtwork(artwork)
         }

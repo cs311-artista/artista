@@ -20,14 +20,12 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -48,20 +46,21 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.artista.artista.R
+import com.artista.artista.model.artist.Artist
+import com.artista.artista.model.artwork.ArtworkRepositoryProvider
+import com.artista.artista.ui.navigation.BackButton
 import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaColors
 import com.artista.artista.ui.theme.ArtistaTheme
+import com.artista.artista.ui.theme.Dimensions
 
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
+// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 private val PillShape = RoundedCornerShape(percent = 50)
-
-// Matches the minimum touch target of IconButton, so the texts below the title line up with it.
-private val BackButtonSize = 48.dp
 
 /**
  * Displays the popular artists the user can select as favorites to personalize their
@@ -81,7 +80,11 @@ fun ArtistPreferencesScreen(
     onBackClick: () -> Unit,
     onSaveClick: () -> Unit,
     onTabSelected: (Tab) -> Unit,
-    artistPreferencesViewModel: ArtistPreferencesViewModel = viewModel(),
+    artistPreferencesViewModel: ArtistPreferencesViewModel =
+        viewModel(
+            factory =
+                ArtistPreferencesViewModel.provideFactory(ArtworkRepositoryProvider.repository)
+        ),
 ) {
   val uiState by artistPreferencesViewModel.uiState.collectAsStateWithLifecycle()
 
@@ -96,8 +99,11 @@ fun ArtistPreferencesScreen(
         modifier =
             Modifier.fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 24.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+                .padding(
+                    horizontal = Dimensions.artistPreferencesScreenHorizontalPadding,
+                    vertical = Dimensions.artistPreferencesScreenVerticalPadding,
+                ),
+        verticalArrangement = Arrangement.spacedBy(Dimensions.artistPreferencesSectionSpacing),
     ) {
       Header(onBackClick = onBackClick)
       SearchField()
@@ -113,16 +119,16 @@ fun ArtistPreferencesScreen(
           columns = GridCells.Fixed(3),
           modifier =
               Modifier.weight(1f).fillMaxWidth().testTag(ArtistPreferencesTestTags.ARTISTS_GRID),
-          horizontalArrangement = Arrangement.spacedBy(12.dp),
-          verticalArrangement = Arrangement.spacedBy(12.dp),
+          horizontalArrangement =
+              Arrangement.spacedBy(Dimensions.artistPreferencesGridHorizontalSpacing),
+          verticalArrangement =
+              Arrangement.spacedBy(Dimensions.artistPreferencesGridVerticalSpacing),
       ) {
-        // Names are used as keys, so they must be unique: duplicated keys crash the grid. Switch to
-        // artist identifiers once the artists come from a repository.
-        items(uiState.popularArtists, key = { it }) { artist ->
+        items(uiState.popularArtists, key = { it.uid }) { artist ->
           ArtistCard(
               artist = artist,
-              selected = artist in uiState.selectedArtists,
-              onToggle = { artistPreferencesViewModel.toggleArtist(artist) },
+              selected = artist.uid in uiState.selectedArtists,
+              onToggle = { artistPreferencesViewModel.toggleArtist(artist.uid) },
           )
         }
       }
@@ -132,7 +138,9 @@ fun ArtistPreferencesScreen(
       Button(
           onClick = onSaveClick,
           modifier =
-              Modifier.fillMaxWidth().height(56.dp).testTag(ArtistPreferencesTestTags.SAVE_BUTTON),
+              Modifier.fillMaxWidth()
+                  .height(Dimensions.preferencesSaveButtonHeight)
+                  .testTag(ArtistPreferencesTestTags.SAVE_BUTTON),
           shape = PillShape,
           colors =
               ButtonDefaults.buttonColors(
@@ -158,16 +166,12 @@ fun ArtistPreferencesScreen(
 private fun Header(onBackClick: () -> Unit) {
   Column {
     Row(verticalAlignment = Alignment.CenterVertically) {
-      // Same icon as the artwork screen, to keep the back navigation consistent across screens.
-      IconButton(
+      BackButton(
           onClick = onBackClick,
-          modifier = Modifier.size(BackButtonSize).testTag(ArtistPreferencesTestTags.BACK_BUTTON),
-      ) {
-        Icon(
-            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-            contentDescription = stringResource(R.string.back),
-        )
-      }
+          modifier =
+              Modifier.size(Dimensions.standardTouchTargetSize)
+                  .testTag(ArtistPreferencesTestTags.BACK_BUTTON),
+      )
       Text(
           text = stringResource(R.string.artist_preferences_title),
           modifier = Modifier.testTag(ArtistPreferencesTestTags.TITLE),
@@ -178,7 +182,8 @@ private fun Header(onBackClick: () -> Unit) {
     Text(
         text = stringResource(R.string.artist_preferences_description),
         modifier =
-            Modifier.padding(start = BackButtonSize).testTag(ArtistPreferencesTestTags.DESCRIPTION),
+            Modifier.padding(start = Dimensions.standardTouchTargetSize)
+                .testTag(ArtistPreferencesTestTags.DESCRIPTION),
         style = MaterialTheme.typography.bodyLarge,
         color = MaterialTheme.colorScheme.primary,
     )
@@ -212,12 +217,12 @@ private fun SearchField() {
 /**
  * Card of a popular artist, which the user can click to select or deselect the artist.
  *
- * @param artist Name of the artist displayed by the card.
+ * @param artist Artist displayed by the card.
  * @param selected Whether the artist is currently selected.
  * @param onToggle Callback invoked when the card is clicked.
  */
 @Composable
-private fun ArtistCard(artist: String, selected: Boolean, onToggle: () -> Unit) {
+private fun ArtistCard(artist: Artist, selected: Boolean, onToggle: () -> Unit) {
   // A checkable Surface, unlike a clickable one, exposes the on/off state used by assertIsOn.
   Surface(
       checked = selected,
@@ -226,13 +231,20 @@ private fun ArtistCard(artist: String, selected: Boolean, onToggle: () -> Unit) 
           Modifier.fillMaxWidth()
               // Lets accessibility services announce the card as a checkbox with its state.
               .semantics { role = Role.Checkbox }
-              .testTag(ArtistPreferencesTestTags.getArtistCardTestTag(artist)),
-      shape = RoundedCornerShape(20.dp),
-      color = MaterialTheme.colorScheme.surface,
-      border = if (selected) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null,
+              .testTag(ArtistPreferencesTestTags.getArtistCardTestTag(artist.uid)),
+      shape = RoundedCornerShape(Dimensions.cornerRadiusMedium),
+      color =
+          if (selected) MaterialTheme.colorScheme.surfaceContainerLowest
+          else MaterialTheme.colorScheme.secondaryContainer,
+      border =
+          if (selected) {
+            BorderStroke(Dimensions.standardStrokeWidth, MaterialTheme.colorScheme.primary)
+          } else {
+            null
+          },
   ) {
     Column(
-        modifier = Modifier.padding(8.dp),
+        modifier = Modifier.padding(Dimensions.artistCardContentPadding),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
       Box {
@@ -240,12 +252,14 @@ private fun ArtistCard(artist: String, selected: Boolean, onToggle: () -> Unit) 
         ArtistImagePlaceholder()
         SelectionIndicator(
             selected = selected,
-            modifier = Modifier.align(Alignment.TopEnd).padding(4.dp),
+            modifier =
+                Modifier.align(Alignment.TopEnd)
+                    .padding(Dimensions.artistCardSelectionIndicatorPadding),
         )
       }
       Text(
-          text = artist,
-          modifier = Modifier.padding(top = 8.dp),
+          text = artist.name,
+          modifier = Modifier.padding(top = Dimensions.artistCardNameTopSpacing),
           style = MaterialTheme.typography.bodySmall,
           textAlign = TextAlign.Center,
           // Two lines for every name keeps all the cards of a row at the same height.
@@ -264,7 +278,7 @@ private fun ArtistImagePlaceholder() {
       modifier =
           Modifier.fillMaxWidth()
               .aspectRatio(4f / 3f)
-              .clip(RoundedCornerShape(12.dp))
+              .clip(RoundedCornerShape(Dimensions.cornerRadiusSmall))
               .background(MaterialTheme.colorScheme.surfaceVariant),
       contentAlignment = Alignment.Center,
   ) {
@@ -287,7 +301,7 @@ private fun SelectionIndicator(selected: Boolean, modifier: Modifier = Modifier)
   Box(
       modifier =
           modifier
-              .size(24.dp)
+              .size(Dimensions.iconSizeLarge)
               .clip(CircleShape)
               .background(
                   if (selected) MaterialTheme.colorScheme.primary
@@ -299,7 +313,7 @@ private fun SelectionIndicator(selected: Boolean, modifier: Modifier = Modifier)
       Icon(
           imageVector = Icons.Filled.Check,
           contentDescription = null,
-          modifier = Modifier.size(16.dp),
+          modifier = Modifier.size(Dimensions.iconSizeSmall),
           tint = MaterialTheme.colorScheme.onPrimary,
       )
     }
@@ -311,9 +325,9 @@ private fun SelectionIndicator(selected: Boolean, modifier: Modifier = Modifier)
 @Composable
 private fun ArtistPreferencesScreenPreview() {
   val viewModel = remember {
-    ArtistPreferencesViewModel().apply {
-      toggleArtist("Vincent van Gogh")
-      toggleArtist("Claude Monet")
+    ArtistPreferencesViewModel(ArtworkRepositoryProvider.repository).apply {
+      toggleArtist("mock-artist-002")
+      toggleArtist("mock-artist-004")
     }
   }
   ArtistaTheme {

@@ -1,0 +1,44 @@
+{
+  "head": {
+    "vars": [
+      "item",
+      "itemLabel",
+      "artistLabel",
+      "image",
+      "inception",
+      "collectionLabel",
+      "locationLabel",
+      "locationCoordinates",
+      "width",
+      "height",
+      "description"
+    ]
+  },
+  "results": {
+    "bindings": [
+      {
+        "item": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q12419"
+        },
+        "description": null,
+        "locationLabel": null,
+        "collectionLabel": {
+          "xml:lang": "en",
+          "type": "literal",
+          "value": "Department of Sculptures of the Louvre"
+        },
+        "artistLabel": null,
+        "itemLabel": {
+          "xml:lang": "en",
+          "type": "literal",
+          "value": "The Thinker"
+        },
+        "image": null,
+        "inception": null,
+        "width": null,
+        "height": null
+      }
+    ]
+  }
+}

@@ -13,7 +13,11 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.Artwork
+import com.artista.artista.model.artwork.ArtworkRepositoryLocal
+import com.artista.artista.model.artwork.WikiDataRepository
+import com.artista.artista.ui.map.UserLocation
 import com.artista.artista.ui.navigation.NavigationTestTags
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaTheme
@@ -89,7 +93,12 @@ class OverviewScreenTest {
   @Test
   fun overviewScreen_whenLoadingFails_showsSavedArtworksAction() {
     var savedArtworksRequested = false
-    val viewModel = OverviewViewModel(artworkProvider = { error("Artwork provider failure") })
+    val failing =
+        object : WikiDataRepository by ArtworkRepositoryLocal() {
+          override suspend fun getArtworksNearLocation(location: UserLocation?): List<Artwork> =
+              error("Artwork provider failure")
+        }
+    val viewModel = OverviewViewModel(failing)
 
     composeTestRule.setContent {
       ArtistaTheme {
@@ -130,7 +139,8 @@ class OverviewScreenTest {
   @Test
   fun overviewScreen_searchBarClick_invokesSearchCallback() {
     var searchRequested = false
-    val viewModel = OverviewViewModel(artworkProvider = { emptyList() })
+    val repository = ArtworkRepositoryLocal()
+    val viewModel = OverviewViewModel(repository)
 
     composeTestRule.setContent {
       ArtistaTheme {
@@ -148,7 +158,9 @@ class OverviewScreenTest {
   }
 
   private fun setOverviewContent(artworks: List<Artwork>) {
-    val viewModel = OverviewViewModel(artworkProvider = { artworks })
+    val repository = ArtworkRepositoryLocal()
+    artworks.forEach { repository.putArtworkInRepositoryUnsavedSection(it) }
+    val viewModel = OverviewViewModel(repository)
 
     composeTestRule.setContent {
       ArtistaTheme {
@@ -164,7 +176,7 @@ class OverviewScreenTest {
       Artwork(
           uid = "$name-$artistName",
           name = name,
-          artistName = artistName,
+          artist = Artist(uid = "uid-$artistName", name = artistName),
           description = null,
           conceptionDate = null,
           museum = null,

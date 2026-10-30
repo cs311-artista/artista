@@ -20,8 +20,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import com.artista.artista.R
+import com.artista.artista.ui.theme.Dimensions
 
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 /**
@@ -70,8 +70,11 @@ fun BottomNavigationMenu(
         modifier =
             Modifier.align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 16.dp)
-                .clip(RoundedCornerShape(32.dp))
+                .padding(
+                    horizontal = Dimensions.navigationBarHorizontalPadding,
+                    vertical = Dimensions.navigationBarVerticalPadding,
+                )
+                .clip(RoundedCornerShape(Dimensions.cornerRadiusPill))
                 .testTag(NavigationTestTags.BOTTOM_NAVIGATION_MENU),
         containerColor = MaterialTheme.colorScheme.surface,
     ) {
