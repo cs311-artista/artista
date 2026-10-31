@@ -24,7 +24,6 @@ A Kotlin/Android Artista app (`com.artista.artista`), built with an **MVVM** arc
 /**
  * Computes the total price of an order line.
  * 
- * @author the one writing
  * @param price unit price of the product
  * @param quantity number of units
  * @return the total price
