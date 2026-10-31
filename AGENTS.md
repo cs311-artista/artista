@@ -28,11 +28,12 @@ A Kotlin/Android Artista app (`com.artista.artista`), built with an **MVVM** arc
  * @param price unit price of the product
  * @param quantity number of units
  * @return the total price
+ * @author the one writing
  */
 fun calculateTotal(price: Double, quantity: Int): Double = price * quantity
 ```
 
-- Use `@param` for each parameter, `@author` with the github ID of the author, `@return` when the function returns something, and `@throws` when it can throw.
+- Use `@param` for each parameter, `@author` with the GitHub ID of the author, `@return` when the function returns something, and `@throws` when it can throw.
 - Comments explain **why**, not what the code already says.
 
 ## Branches
@@ -101,6 +102,7 @@ Commits are made by humans. We follow **Conventional Commits**:
 
 - Make one **bounded, reviewable** change per PR. If it sprawls across unrelated files, split it.
 - Read the failing tests carefully and iterate until `./gradlew check` passes.
+- Declare dimensions in `ui/theme/Dimensions.kt` and colors in `ui/theme/Color.kt`, and use those instead of hardcoding values in screens.
 
 ## Agent boundaries
 
@@ -116,4 +118,4 @@ When its work is done, the agent stops and summarizes the changed files. It may 
 
 ## The role of the Developer
 
-You provide the goal, the context, the acceptance criteria and the permissions. The agent plans, acts and observes. **You review the diff, and you own every line you submit.** "The agent wrote it" is not a defence.
+You provide the goal, the context, the acceptance criteria and the permissions. The agent plans, acts and observes. **You review the diff, and you own every line you submit.** "The agent wrote it" is not a defense.
