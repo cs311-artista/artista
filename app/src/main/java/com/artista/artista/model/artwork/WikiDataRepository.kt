@@ -4,7 +4,7 @@ package com.artista.artista.model.artwork
 
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.error.AppException
-import com.artista.artista.ui.map.UserLocation
+import com.artista.artista.model.map.UserLocation
 
 /**
  * Repository for retrieving artwork metadata from Wikidata.

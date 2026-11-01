@@ -3,7 +3,7 @@ package com.artista.artista.model.artwork
 
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.error.AppException
-import com.artista.artista.ui.map.UserLocation
+import com.artista.artista.model.map.UserLocation
 
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 /**

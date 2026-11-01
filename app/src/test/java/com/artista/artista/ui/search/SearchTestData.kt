@@ -7,7 +7,7 @@ import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.SavedArtworksRepository
 import com.artista.artista.model.artwork.WikiDataRepository
-import com.artista.artista.ui.map.UserLocation
+import com.artista.artista.model.map.UserLocation
 
 /** Shared artwork samples and repository fakes for Search tests. */
 internal object SearchTestData {
