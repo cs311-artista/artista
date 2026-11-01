@@ -22,12 +22,27 @@ import kotlinx.coroutines.flow.update
  *
  * @property popularArtists the artists suggested to the user, in display order.
  * @property selectedArtists identifiers of the artists the user has selected as favorites.
- * @author Timz3rr, patrickmcdan
+ * @property searchQuery the text typed in the search field, exactly as the user entered it.
+ * @author Timz3rr, patrickmcdan, Kaio R. Freitas Pereira Nascimento (krfpn)
  */
 data class ArtistPreferencesUiState(
     val popularArtists: List<Artist> = emptyList(),
     val selectedArtists: Set<ArtistId> = emptySet(),
-)
+    val searchQuery: String = "",
+) {
+  /**
+   * The popular artists whose name matches [searchQuery], in display order.
+   *
+   * Derived rather than stored, so it stays correct when the artists finish loading after the user
+   * has started typing.
+   */
+  val displayedArtists: List<Artist>
+    get() {
+      // Trimmed so stray spaces do not hide every artist; an empty query matches all of them.
+      val query = searchQuery.trim()
+      return popularArtists.filter { it.name.contains(query, ignoreCase = true) }
+    }
+}
 
 /**
  * Holds the popular artists and the selection made by the user on the artist preferences screen.
@@ -71,6 +86,16 @@ class ArtistPreferencesViewModel(
           else state.selectedArtists + artistId
       state.copy(selectedArtists = selectedArtists)
     }
+  }
+
+  /**
+   * Updates the search query, which filters the artists displayed by the screen.
+   *
+   * @param query the text currently typed in the search field.
+   * @author Kaio R. Freitas Pereira Nascimento (krfpn)
+   */
+  fun onSearchQueryChange(query: String) {
+    _uiState.update { it.copy(searchQuery = query) }
   }
 
   companion object {
