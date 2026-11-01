@@ -54,91 +54,33 @@ class WikiDataRepositoryRemoteTest {
     }
   }
 
-  @Test
-  fun wikiDataConstants_haveExpectedFormatAndAreUnique() {
-    assertEquals("Q3305213", WikiDataItems.PAINTING_CLASS)
-    assertTrue(WikiDataItems.PAINTING_CLASS.matches(Regex("Q\\d+")))
-
-    val properties =
-        listOf(
-            WikiDataProperties.INSTANCE_OF,
-            WikiDataProperties.SUBCLASS_OF,
-            WikiDataProperties.TITLE,
-            WikiDataProperties.ARTIST,
-            WikiDataProperties.IMAGE,
-            WikiDataProperties.INCEPTION_DATE,
-            WikiDataProperties.COLLECTION,
-            WikiDataProperties.LOCATION,
-            WikiDataProperties.COORDINATES,
-            WikiDataProperties.WIDTH,
-            WikiDataProperties.HEIGHT,
-        )
-
-    properties.forEach { assertTrue("$it is not a property ID", it.matches(Regex("P\\d+"))) }
-    assertEquals("Property IDs must be unique", properties.size, properties.toSet().size)
-  }
-
-  @Test
-  fun buildRequest_escapesSearchTermAndUsesEnglishLabels() {
-    val repository = WikiDataRepositoryRemote()
-
-    val query = repository.buildRequest("Mona \"Lisa\"")
-
-    assertTrue(query.contains("wd:Q3305213"))
-    assertTrue(query.contains("FILTER(LANG(?itemLabel) = \"en\")"))
-    assertTrue(query.contains("mona \\\"lisa\\\""))
-  }
-
-  @Test
-  fun buildRequest_trimsSurroundingWhitespace() {
-    val repository = WikiDataRepositoryRemote()
-
-    val padded = repository.buildRequest("  \t Mona Lisa \n ")
-
-    assertEquals(repository.buildRequest("Mona Lisa"), padded)
-    assertTrue(padded.contains("\"mona lisa\""))
-  }
-
-  @Test
-  fun buildRequest_escapesBackslashBeforeQuote() {
-    val repository = WikiDataRepositoryRemote()
-
-    // Input is: a\b"c
-    val query = repository.buildRequest("a\\b\"c")
-
-    // Expected literal is: "a\\b\"c"
-    assertTrue(query.contains("""FILTER(CONTAINS(LCASE(STR(?itemLabel)), "a\\b\"c"))"""))
-  }
-
-  @Test
-  fun buildRequest_keepsInjectionAttemptInsideStringLiteral() {
-    val repository = WikiDataRepositoryRemote()
-
-    val query = repository.buildRequest("x\" ) } UNION { ?s ?p ?o #")
-
-    // The quote is escaped, so everything stays inside the CONTAINS string literal.
-    assertTrue(
-        query.contains("""FILTER(CONTAINS(LCASE(STR(?itemLabel)), "x\" ) } union { ?s ?p ?o #"))""")
+    @Ignore(
+        "This test performs real network requests to the Wikidata SPARQL endpoint. It is intended to verify the correctness of the SPARQL query and the ability to fetch data from the remote API."
     )
-  }
+    @Test
+    fun runRealRequestForLocation() = runTest {
+        val repository = WikiDataRepositoryRemote()
+        val area = SearchArea(latitude = 46.5, longitude = 6.6, radiusKm = 12.0)
+
+        try {
+            println(repository.getArtworksNearLocation(area))
+        } catch (e: NotImplementedError) {
+            // Handle NotImplementedError if needed
+        } catch (e: Exception) {
+            println(e)
+        }
+    }
 
   @Test
-  fun buildRequest_hasExpectedStructure() {
-    val repository = WikiDataRepositoryRemote()
+  fun wikidataEnums_haveValidUniqueIdentifiers() {
+    val itemIds = ArtworkType.entries.map { it.qid }
+    val propertyIds = WikiDataProperty.entries.map { it.id }
 
-    val query = repository.buildRequest("Mona Lisa")
-
-    assertTrue(query.startsWith("SELECT"))
-    assertEquals(query.trim(), query)
-    assertTrue(query.contains("SELECT DISTINCT ?item ?itemLabel"))
-    assertTrue(query.contains("LIMIT 50"))
-    assertTrue(query.contains("wd:Q3305213 ^wdt:P279*/^wdt:P31 ?item"))
-    assertTrue(query.contains("FILTER(CONTAINS(LCASE(STR(?itemLabel)), \"mona lisa\"))"))
-    assertEquals(
-        "Braces must be balanced",
-        query.count { it == '{' },
-        query.count { it == '}' },
-    )
+    itemIds.forEach { assertTrue("$it is not an item ID", it.matches(Regex("Q\\d+"))) }
+    propertyIds.forEach { assertTrue("$it is not a property ID", it.matches(Regex("P\\d+"))) }
+    assertEquals("Artwork type IDs must be unique", itemIds.size, itemIds.toSet().size)
+    assertEquals("Property IDs must be unique", propertyIds.size, propertyIds.toSet().size)
+    assertEquals("P31", WikiDataProperty.INSTANCE_OF.toString())
   }
 
   @Test
@@ -147,6 +89,8 @@ class WikiDataRepositoryRemoteTest {
     val repository = WikiDataRepositoryRemote(client)
 
     listOf(
+            "",
+            " ",
             "Q123\n",
             " Q123",
             "Q123 ",
@@ -156,17 +100,17 @@ class WikiDataRepositoryRemoteTest {
             "Q 1",
             "P31",
             "wd:Q123",
-            "Q\u0661\u0662\u0663", // Arabic-Indic digits must not count as \d
+            "Q\u0661\u0662\u0663",
         )
         .forEach { uid ->
           assertThrowsSuspend<AppException.InvalidInput> { repository.getArtwork(uid) }
         }
 
-    assertNull("no request should be registered", client.lastRequest)
+    assertNull("invalid IDs must not trigger a request", client.lastRequest)
   }
 
   @Test
-  fun getArtwork_sendsRequestForRequestedItemWithExpectedHeaders() = runTest {
+  fun getArtwork_sendsExpectedQueryAndHeaders() = runTest {
     val client = testClient()
     val repository = WikiDataRepositoryRemote(client)
 
@@ -179,8 +123,9 @@ class WikiDataRepositoryRemoteTest {
     assertEquals("application/sparql-results+json", request.header("Accept"))
     assertTrue(request.header("User-Agent")!!.startsWith("Artista/1.0"))
     assertTrue(sparql.contains("VALUES ?item { wd:Q12418 }"))
-    assertTrue(sparql.contains("LANG(?itemLabel) = \"en\" || LANG(?itemLabel) = \"\""))
-    assertFalse("getArtwork must not use the search subquery", sparql.contains("LIMIT"))
+    assertTrue(sparql.contains("FILTER(LANG(?itemLabel) = \"en\")"))
+    assertTrue(sparql.contains("BIND(COALESCE(?ownCoordinates, ?locationSideCoordinates)"))
+    assertFalse("getArtwork must not use a result limit", sparql.contains("LIMIT"))
   }
 
   @Test
@@ -191,12 +136,68 @@ class WikiDataRepositoryRemoteTest {
   }
 
   @Test
-  fun getArtwork_whenUidIsBlankOrMalformed_throwsInvalidInput() = runTest {
-    val repository = WikiDataRepositoryRemote()
+  fun getArtworksNearLocation_buildsQueryForAreaAndTypes() = runTest {
+    val client = testClient()
+    val repository = WikiDataRepositoryRemote(client)
 
-    listOf("", " ", "abc", "mona lisa", "Q", "Q12a", "Q123 } UNION { ?s ?p ?o", "q123").forEach {
-        uid ->
-      assertThrowsSuspend<AppException.InvalidInput> { repository.getArtwork(uid) }
+    assertTrue(
+        repository
+            .getArtworksNearLocation(
+                searchArea = SearchArea(latitude = 46.5, longitude = 6.6, radiusKm = 12.0),
+                typeValues = listOf(ArtworkType.PAINTING, ArtworkType.DRAWING),
+                limit = 20,
+            )
+            .isEmpty()
+    )
+
+    val query = requireNotNull(client.lastRequest).url.queryParameter("query")
+    assertTrue(query!!.contains("Point(6.6 46.5)"))
+    assertTrue(query.contains("wikibase:radius \"12.0\""))
+    assertTrue(query.contains("VALUES ?type { wd:Q3305213 wd:Q93184 }"))
+    assertTrue(query.contains("UNION"))
+    assertTrue(query.contains("LIMIT 20"))
+  }
+
+  @Test
+  fun getArtworksNearLocation_rejectsEmptyOrDuplicateTypesAndInvalidLimitsWithoutRequest() =
+      runTest {
+        val client = testClient()
+        val repository = WikiDataRepositoryRemote(client)
+        val area = SearchArea(latitude = 46.5, longitude = 6.6)
+
+        assertThrowsSuspend<AppException.InvalidInput> {
+          repository.getArtworksNearLocation(area, emptyList(), 50)
+        }
+        assertThrowsSuspend<AppException.InvalidInput> {
+          repository.getArtworksNearLocation(
+              area,
+              listOf(ArtworkType.PAINTING, ArtworkType.PAINTING),
+              50,
+          )
+        }
+        listOf(0, -1, WikiDataRepositoryRemote.MAX_LIMIT + 1).forEach { limit ->
+          assertThrowsSuspend<AppException.InvalidInput> {
+            repository.getArtworksNearLocation(area, listOf(ArtworkType.PAINTING), limit)
+          }
+        }
+
+        assertNull("invalid inputs must not trigger a request", client.lastRequest)
+      }
+
+  @Test
+  fun searchArea_rejectsInvalidCoordinatesAndRadius() = runTest {
+    assertThrowsSuspend<IllegalArgumentException> { SearchArea(latitude = 91.0, longitude = 6.6) }
+    assertThrowsSuspend<IllegalArgumentException> {
+      SearchArea(latitude = 46.5, longitude = -181.0)
+    }
+    assertThrowsSuspend<IllegalArgumentException> {
+      SearchArea(latitude = 46.5, longitude = 6.6, radiusKm = -1.0)
+    }
+    assertThrowsSuspend<IllegalArgumentException> {
+      SearchArea(latitude = 46.5, longitude = 6.6, radiusKm = SearchArea.MAX_RADIUS_KM + 1.0)
+    }
+    assertThrowsSuspend<IllegalArgumentException> {
+      SearchArea(latitude = Double.NaN, longitude = 6.6)
     }
   }
 
@@ -205,32 +206,71 @@ class WikiDataRepositoryRemoteTest {
     val client = testClient()
     val repository = WikiDataRepositoryRemote(client)
 
-    assertTrue(repository.searchArtworks("   ").isEmpty())
-    assertEquals(null, client.lastRequest)
+    assertTrue(repository.searchArtworks("   ", listOf(ArtworkType.PAINTING), 50).isEmpty())
+    assertNull(client.lastRequest)
   }
 
   @Test
-  fun searchArtworks_sendsEncodedQueryAndExpectedHeaders() = runTest {
+  fun searchArtworks_buildsQueryWithRequestedTypesLimitAndEnglishLabels() = runTest {
     val client = testClient()
     val repository = WikiDataRepositoryRemote(client)
-    client.statusCode = 200
 
-    assertThrowsSuspend<AppException.NotFound> { repository.searchArtworks("Mona Lisa") }
+    assertTrue(
+        repository
+            .searchArtworks(
+                artworkTitle = "Mona Lisa",
+                typeValues = listOf(ArtworkType.PAINTING, ArtworkType.SCULPTURE),
+                limit = 25,
+            )
+            .isEmpty()
+    )
 
     val request = requireNotNull(client.lastRequest)
+    val sparql = requireNotNull(request.url.queryParameter("query"))
     assertEquals("GET", request.method)
     assertEquals("json", request.url.queryParameter("format"))
-    assertEquals(repository.buildRequest("Mona Lisa"), request.url.queryParameter("query"))
     assertEquals("application/sparql-results+json", request.header("Accept"))
     assertTrue(request.header("User-Agent")!!.startsWith("Artista/1.0"))
+    assertTrue(
+        sparql.contains("mwapi:gsrsearch \"haswbstatement:P31=Q3305213|P31=Q860861 Mona Lisa\"")
+    )
+    assertTrue(sparql.contains("FILTER(LANG(?itemLabel) = \"en\")"))
+    assertTrue(sparql.contains("LIMIT 25"))
   }
 
   @Test
-  fun searchArtworks_whenServerReturnsError_throwsNetwork() = runTest {
-    val client = testClient(statusCode = 500)
+  fun searchArtworks_escapesQuotesAndBackslashesInSearchText() = runTest {
+    val client = testClient()
     val repository = WikiDataRepositoryRemote(client)
 
-    assertThrowsSuspend<AppException.Network> { repository.searchArtworks("Mona Lisa") }
+    repository.searchArtworks("a\\b\"c", listOf(ArtworkType.PAINTING), 10)
+
+    val sparql = requireNotNull(client.lastRequest).url.queryParameter("query")
+    assertTrue(sparql!!.contains("mwapi:gsrsearch \"haswbstatement:P31=Q3305213 a\\\\b\\\"c\""))
+  }
+
+  @Test
+  fun searchArtworks_rejectsEmptyOrDuplicateTypesAndInvalidLimitsWithoutRequest() = runTest {
+    val client = testClient()
+    val repository = WikiDataRepositoryRemote(client)
+
+    assertThrowsSuspend<AppException.InvalidInput> {
+      repository.searchArtworks("Mona Lisa", emptyList(), 50)
+    }
+    assertThrowsSuspend<AppException.InvalidInput> {
+      repository.searchArtworks(
+          "Mona Lisa",
+          listOf(ArtworkType.PAINTING, ArtworkType.PAINTING),
+          50,
+      )
+    }
+    listOf(0, -1, WikiDataRepositoryRemote.MAX_LIMIT + 1).forEach { limit ->
+      assertThrowsSuspend<AppException.InvalidInput> {
+        repository.searchArtworks("Mona Lisa", listOf(ArtworkType.PAINTING), limit)
+      }
+    }
+
+    assertNull("invalid inputs must not trigger a request", client.lastRequest)
   }
 
   @Test
@@ -240,7 +280,7 @@ class WikiDataRepositoryRemoteTest {
     val repository = WikiDataRepositoryRemote(client)
 
     try {
-      repository.searchArtworks("Mona Lisa")
+      repository.searchArtworks("Mona Lisa", listOf(ArtworkType.PAINTING), 50)
       throw AssertionError("Expected AppException.Network")
     } catch (exception: AppException.Network) {
       assertTrue(exception.cause != null)
@@ -250,10 +290,7 @@ class WikiDataRepositoryRemoteTest {
   private fun testClient(
       statusCode: Int = 200,
       responseBody: String = """{"results":{"bindings":[]}}""",
-  ): RecordingHttpClient {
-    val client = RecordingHttpClient(statusCode, responseBody)
-    return client
-  }
+  ): RecordingHttpClient = RecordingHttpClient(statusCode, responseBody)
 
   private class RecordingHttpClient(
       var statusCode: Int,

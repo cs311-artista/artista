@@ -132,19 +132,31 @@ class WikiDataRepositoryRemote(
     const val MAX_LIMIT = 200
 
     const val SELECT_LINE =
-        "SELECT ?item ?itemLabel ?artistLabel ?image ?inception ?collectionLabel ?locationLabel ?locationCoordinates ?width ?height ?description"
+        "SELECT ?item ?itemLabel ?artistLabel ?image ?inception ?collectionLabel ?locationLabel ?width ?height ?description ?locationCoordinates ?coordinateSource ?pinOwner ?pinOwnerLabel"
 
     val DETAILS =
         """
+      OPTIONAL { ?item wdt:${WikiDataProperty.COORDINATES} ?ownCoordinates . }
+      OPTIONAL {
+        ?item wdt:${WikiDataProperty.LOCATION} ?location .
+        OPTIONAL { ?location rdfs:label ?locationLabel . FILTER(LANG(?locationLabel) = "en") }
+        OPTIONAL { ?location wdt:${WikiDataProperty.COORDINATES} ?locationSideCoordinates . }
+      }
+      BIND(COALESCE(?ownCoordinates, ?locationSideCoordinates) AS ?locationCoordinates)
+      BIND(IF(BOUND(?ownCoordinates), ?item,
+           IF(BOUND(?locationSideCoordinates), ?location, ?unbound)) AS ?coordinateSource)
+      BIND(IF(BOUND(?ownCoordinates), ?item,
+           IF(BOUND(?locationSideCoordinates), ?location, ?unbound)) AS ?pinOwner)
+
+      OPTIONAL { ?item rdfs:label ?itemLabel . FILTER(LANG(?itemLabel) = "en") }
       OPTIONAL { ?item wdt:${WikiDataProperty.ARTIST} ?artist . ?artist rdfs:label ?artistLabel . FILTER(LANG(?artistLabel) = "en") }
       OPTIONAL { ?item wdt:${WikiDataProperty.IMAGE} ?image . }
       OPTIONAL { ?item wdt:${WikiDataProperty.INCEPTION_DATE} ?inception . }
       OPTIONAL { ?item wdt:${WikiDataProperty.COLLECTION} ?collection . ?collection rdfs:label ?collectionLabel . FILTER(LANG(?collectionLabel) = "en") }
-      OPTIONAL { ?item wdt:${WikiDataProperty.LOCATION} ?location . ?location rdfs:label ?locationLabel . FILTER(LANG(?locationLabel) = "en") }
-      OPTIONAL { ?item wdt:${WikiDataProperty.LOCATION} ?locationCoordinates . }
       OPTIONAL { ?item wdt:${WikiDataProperty.WIDTH} ?width . }
       OPTIONAL { ?item wdt:${WikiDataProperty.HEIGHT} ?height . }
       OPTIONAL { ?item schema:description ?description . FILTER(LANG(?description) = "en") }
+      OPTIONAL { ?pinOwner rdfs:label ?pinOwnerLabel . FILTER(LANG(?pinOwnerLabel) = "en") }
       """
             .trimIndent()
   }
@@ -170,23 +182,34 @@ class WikiDataRepositoryRemote(
   private fun List<ArtworkType>.toSparqlValueList(): String =
       joinToString(separator = " ") { "wd:${it.qid}" }
 
+  private fun aroundBranch(searchArea: SearchArea, place: String, join: String): String =
+      """
+    {
+      SERVICE wikibase:around {
+        $place wdt:${WikiDataProperty.COORDINATES} ?aroundCoordinates .
+        bd:serviceParam wikibase:center "Point(${searchArea.longitude} ${searchArea.latitude})"^^geo:wktLiteral .
+        bd:serviceParam wikibase:radius "${searchArea.radiusKm}" .
+      }
+      $join
+    }
+    """
+
   private fun buildArtworkNearLocationQuery(
       searchArea: SearchArea,
       typeValues: List<ArtworkType>,
       limit: Int,
   ): String {
+    val own = aroundBranch(searchArea, "?item", "")
+    val viaLocation =
+        aroundBranch(searchArea, "?place", "?item wdt:${WikiDataProperty.LOCATION} ?place .")
+
     return """
       $SELECT_LINE
       WHERE {
         {
           SELECT DISTINCT ?item
           WHERE {
-            SERVICE wikibase:around {
-              ?location wdt:${WikiDataProperty.COORDINATES} ?locationCoordinates .
-              bd:serviceParam wikibase:center "Point(${searchArea.longitude} ${searchArea.latitude})"^^geo:wktLiteral .
-              bd:serviceParam wikibase:radius "${searchArea.radiusKm}" .
-            }
-            ?item wdt:${WikiDataProperty.LOCATION} ?location .
+            $own UNION $viaLocation
             VALUES ?type { ${typeValues.toSparqlValueList()} }
             ?item wdt:${WikiDataProperty.INSTANCE_OF} ?type .
           }
@@ -200,12 +223,12 @@ class WikiDataRepositoryRemote(
 
   private fun buildArtworkByIdQuery(uid: ArtworkId): String =
       """
-      $SELECT_LINE
-      WHERE {
-        VALUES ?item { wd:$uid }
-        $DETAILS
-      }
-      """
+    $SELECT_LINE
+    WHERE {
+      VALUES ?item { wd:$uid }
+      $DETAILS
+    }
+    """
           .trimIndent()
 
   private fun buildArtworkSearchQuery(
