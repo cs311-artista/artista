@@ -22,15 +22,22 @@ import org.junit.Test
  * @author IJJA3141
  */
 class WikiDataRepositoryRemoteTest {
+  class fakeParser : JsonResponseParser() {
+    override fun parseArtworkResults(responseBody: String): List<Artwork> {
+      println("Response body: $responseBody")
+      return listOf()
+    }
+  }
+
   @Ignore(
       "This test performs real network requests to the Wikidata SPARQL endpoint. It is intended to verify the correctness of the SPARQL query and the ability to fetch data from the remote API."
   )
   @Test
   fun runRealRequestForArtwork() = runTest {
-    val repository = WikiDataRepositoryRemote()
+    val repository = WikiDataRepositoryRemote(jsonResponseParser = fakeParser())
 
     try {
-      println(repository.getArtwork("Q12418")) // Mona Lisa
+      repository.getArtwork("Q12418") // Mona Lisa
     } catch (e: NotImplementedError) {
       // Handle NotImplementedError if needed
     } catch (e: Exception) {
@@ -43,10 +50,10 @@ class WikiDataRepositoryRemoteTest {
   )
   @Test
   fun runRealRequestForQuery() = runTest {
-    val repository = WikiDataRepositoryRemote()
+    val repository = WikiDataRepositoryRemote(jsonResponseParser = fakeParser())
 
     try {
-      println(repository.searchArtworks("Lise Sewing"))
+      repository.searchArtworks("lise sew")
     } catch (e: NotImplementedError) {
       // Handle NotImplementedError if needed
     } catch (e: Exception) {
@@ -54,22 +61,22 @@ class WikiDataRepositoryRemoteTest {
     }
   }
 
-    @Ignore(
-        "This test performs real network requests to the Wikidata SPARQL endpoint. It is intended to verify the correctness of the SPARQL query and the ability to fetch data from the remote API."
-    )
-    @Test
-    fun runRealRequestForLocation() = runTest {
-        val repository = WikiDataRepositoryRemote()
-        val area = SearchArea(latitude = 46.5, longitude = 6.6, radiusKm = 12.0)
+  @Ignore(
+      "This test performs real network requests to the Wikidata SPARQL endpoint. It is intended to verify the correctness of the SPARQL query and the ability to fetch data from the remote API."
+  )
+  @Test
+  fun runRealRequestForLocation() = runTest {
+    val repository = WikiDataRepositoryRemote(jsonResponseParser = fakeParser())
+    val area = SearchArea(latitude = 46.5, longitude = 6.6, radiusKm = 12.0)
 
-        try {
-            println(repository.getArtworksNearLocation(area))
-        } catch (e: NotImplementedError) {
-            // Handle NotImplementedError if needed
-        } catch (e: Exception) {
-            println(e)
-        }
+    try {
+      repository.getArtworksNearLocation(area)
+    } catch (e: NotImplementedError) {
+      // Handle NotImplementedError if needed
+    } catch (e: Exception) {
+      println(e)
     }
+  }
 
   @Test
   fun wikidataEnums_haveValidUniqueIdentifiers() {

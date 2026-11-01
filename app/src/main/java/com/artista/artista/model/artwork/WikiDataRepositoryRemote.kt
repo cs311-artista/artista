@@ -99,6 +99,7 @@ class WikiDataRepositoryRemote(
     validateLimit(limit)
 
     val query = buildArtworkNearLocationQuery(searchArea, typeValues, limit)
+    println(query)
     return jsonResponseParser.parseArtworkResults(executeSparqlRequest(query))
   }
 
@@ -182,41 +183,30 @@ class WikiDataRepositoryRemote(
   private fun List<ArtworkType>.toSparqlValueList(): String =
       joinToString(separator = " ") { "wd:${it.qid}" }
 
-  private fun aroundBranch(searchArea: SearchArea, place: String, join: String): String =
-      """
-    {
-      SERVICE wikibase:around {
-        $place wdt:${WikiDataProperty.COORDINATES} ?aroundCoordinates .
-        bd:serviceParam wikibase:center "Point(${searchArea.longitude} ${searchArea.latitude})"^^geo:wktLiteral .
-        bd:serviceParam wikibase:radius "${searchArea.radiusKm}" .
-      }
-      $join
-    }
-    """
-
   private fun buildArtworkNearLocationQuery(
       searchArea: SearchArea,
       typeValues: List<ArtworkType>,
       limit: Int,
   ): String {
-    val own = aroundBranch(searchArea, "?item", "")
-    val viaLocation =
-        aroundBranch(searchArea, "?place", "?item wdt:${WikiDataProperty.LOCATION} ?place .")
-
     return """
-      $SELECT_LINE
-      WHERE {
-        {
-          SELECT DISTINCT ?item
-          WHERE {
-            $own UNION $viaLocation
+        $SELECT_LINE
+        WHERE {
+            {
+            SELECT DISTINCT ?item
+            WHERE {
+                SERVICE wikibase:around {
+                    ?location wdt:P625 ?locationCoordinates .
+                    bd:serviceParam wikibase:center "Point(${searchArea.longitude} ${searchArea.latitude})"^^geo:wktLiteral .
+                    bd:serviceParam wikibase:radius "${searchArea.radiusKm}" .
+            }
+            ?item wdt:${WikiDataProperty.LOCATION} ?location . 
             VALUES ?type { ${typeValues.toSparqlValueList()} }
-            ?item wdt:${WikiDataProperty.INSTANCE_OF} ?type .
-          }
-          LIMIT $limit
+            ?item wdt:${WikiDataProperty.INSTANCE_OF} ?type . 
         }
-        $DETAILS
-      }
+        LIMIT $limit
+    }
+    $DETAILS
+  }
     """
         .trimIndent()
   }
@@ -250,7 +240,7 @@ class WikiDataRepositoryRemote(
               bd:serviceParam wikibase:endpoint "www.wikidata.org" ;
                               wikibase:api "Generator" ;
                               mwapi:generator "search" ;
-                              mwapi:gsrsearch "haswbstatement:$wikidataTypeFilter $safeTitle" ;
+                              mwapi:gsrsearch "haswbstatement:$wikidataTypeFilter $safeTitle*" ;
                               mwapi:gsrlimit "$limit" .
               ?item wikibase:apiOutputItem mwapi:title .
             }
