@@ -6,8 +6,9 @@ import androidx.compose.ui.text.TextRange
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkId
+import com.artista.artista.model.artwork.ArtworkType
+import com.artista.artista.model.artwork.SearchArea
 import com.artista.artista.model.artwork.WikiDataRepository
-import com.artista.artista.ui.map.UserLocation
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -101,8 +102,13 @@ class SearchScreenViewModelTest {
     val results = CompletableDeferred<List<Artwork>>()
     val wikiRepository =
         object : WikiDataRepository {
-          override suspend fun getArtworksNearLocation(location: UserLocation?): List<Artwork> {
-            throw NotImplementedError("Not yet implemented")
+
+          override suspend fun getArtworksNearLocation(
+              searchArea: SearchArea,
+              typeValues: List<ArtworkType>,
+              limit: Int,
+          ): List<Artwork> {
+            throw NotImplementedError("Should not be used in this test")
           }
 
           override suspend fun getPopularArtists(): List<Artist> {
@@ -112,7 +118,11 @@ class SearchScreenViewModelTest {
           override suspend fun getArtwork(uid: ArtworkId): Artwork =
               throw NoSuchElementException("No artwork matching uid $uid was found")
 
-          override suspend fun searchArtworks(query: String): List<Artwork> = results.await()
+          override suspend fun searchArtworks(
+              artworkTitle: String,
+              typeValues: List<ArtworkType>,
+              limit: Int,
+          ): List<Artwork> = results.await()
         }
     val viewModel = SearchScreenViewModel(SearchTestData.savedArtworksRepository(), wikiRepository)
 
@@ -133,8 +143,12 @@ class SearchScreenViewModelTest {
     val vanGoghResults = CompletableDeferred<List<Artwork>>()
     val wikiRepository =
         object : WikiDataRepository {
-          override suspend fun getArtworksNearLocation(location: UserLocation?): List<Artwork> {
-            throw NotImplementedError("Not yet implemented")
+          override suspend fun getArtworksNearLocation(
+              searchArea: SearchArea,
+              typeValues: List<ArtworkType>,
+              limit: Int,
+          ): List<Artwork> {
+            throw NotImplementedError("Should not be used in this test")
           }
 
           override suspend fun getPopularArtists(): List<Artist> {
@@ -144,8 +158,12 @@ class SearchScreenViewModelTest {
           override suspend fun getArtwork(uid: ArtworkId): Artwork =
               throw NoSuchElementException("No artwork matching uid $uid was found")
 
-          override suspend fun searchArtworks(query: String): List<Artwork> =
-              when (query) {
+          override suspend fun searchArtworks(
+              artworkTitle: String,
+              typeValues: List<ArtworkType>,
+              limit: Int,
+          ): List<Artwork> =
+              when (artworkTitle) {
                 "monet" -> monetResults.await()
                 "van Gogh" -> vanGoghResults.await()
                 else -> emptyList()

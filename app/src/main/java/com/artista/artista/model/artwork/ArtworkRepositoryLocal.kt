@@ -3,7 +3,6 @@ package com.artista.artista.model.artwork
 
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.error.AppException
-import com.artista.artista.ui.map.UserLocation
 
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 /**
@@ -23,8 +22,11 @@ class ArtworkRepositoryLocal : SavedArtworksRepository, WikiDataRepository {
   private val artworksSaved: HashMap<ArtworkId, Artwork> = hashMapOf()
 
   /** Returns the artworks populated in the local repository. */
-  override suspend fun getArtworksNearLocation(location: UserLocation?): List<Artwork> =
-      artworks.values.toList()
+  override suspend fun getArtworksNearLocation(
+      searchArea: SearchArea,
+      typeValues: List<ArtworkType>,
+      limit: Int,
+  ): List<Artwork> = artworks.values.toList()
 
   /** Returns the locally defined popular artists. */
   override suspend fun getPopularArtists(): List<Artist> = mockPopularArtists
@@ -34,10 +36,14 @@ class ArtworkRepositoryLocal : SavedArtworksRepository, WikiDataRepository {
     return artworks[uid] ?: throw AppException.NotFound("No Artwork match uid: $uid was found")
   }
 
-  override suspend fun searchArtworks(query: String): List<Artwork> {
-    if (query.isBlank()) return emptyList()
+  override suspend fun searchArtworks(
+      artworkTitle: String,
+      typeValues: List<ArtworkType>,
+      limit: Int,
+  ): List<Artwork> {
+    if (artworkTitle.isBlank()) return emptyList()
     // Artworks without a name can never match a name search.
-    return artworks.values.filter { it.name?.contains(query, ignoreCase = true) == true }
+    return artworks.values.filter { it.name?.contains(artworkTitle, ignoreCase = true) == true }
   }
 
   override suspend fun isArtworkSaved(uid: ArtworkId): Boolean {
