@@ -1,8 +1,10 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.map
 
 import android.location.Location
 import com.artista.artista.R
+import com.artista.artista.model.map.UserLocation
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.tasks.Tasks
 import java.lang.reflect.Proxy

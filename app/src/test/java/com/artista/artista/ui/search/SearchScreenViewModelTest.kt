@@ -7,7 +7,7 @@ import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.WikiDataRepository
-import com.artista.artista.ui.map.UserLocation
+import com.artista.artista.model.map.UserLocation
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
