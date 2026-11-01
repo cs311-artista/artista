@@ -53,10 +53,8 @@
     <string name="saved_artworks_title">Saved Artworks</string>
     <string name="saved_artworks_empty">You have no saved artworks yet.</string>
     <string name="saved_artworks_loading">Loading saved artworks...</string>
-    <string name="saved_artworks_load_error">Couldn\'t load your saved artworks. Check your connection and try again.</string>
     <string name="saved_artworks_load_error_state">Your saved artworks couldn\'t be loaded.</string>
     <string name="saved_artworks_try_again">Try again</string>
-    <string name="saved_artworks_unsave_error">Couldn\'t remove this artwork. Please try again.</string>
 
     <!-- Authentication screen -->
     <string name="sign_in_with_google">Sign in with Google</string>
