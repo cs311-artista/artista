@@ -29,7 +29,9 @@ class ArtworkRepositoryLocal : SavedArtworksRepository, WikiDataRepository {
   ): List<Artwork> = artworks.values.toList()
 
   /** Returns the locally defined popular artists. */
-  @Deprecated("This function will be moved outside of WikiDataRepository since the popularity isn't a Wikidata metric.")
+  @Deprecated(
+      "This function will be moved outside of WikiDataRepository since the popularity isn't a Wikidata metric."
+  )
   override suspend fun getPopularArtists(): List<Artist> = mockPopularArtists
 
   override suspend fun getArtwork(uid: ArtworkId): Artwork {

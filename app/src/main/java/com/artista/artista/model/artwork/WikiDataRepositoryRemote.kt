@@ -54,7 +54,9 @@ class WikiDataRepositoryRemote(
     private val jsonResponseParser: JsonResponseParser = JsonResponseParser(),
 ) : WikiDataRepository {
 
-  @Deprecated("This function will be moved outside of WikiDataRepository since the popularity isn't a Wikidata metric.")
+  @Deprecated(
+      "This function will be moved outside of WikiDataRepository since the popularity isn't a Wikidata metric."
+  )
   override suspend fun getPopularArtists(): List<Artist> {
     throw NotImplementedError("Not yet implemented")
   }

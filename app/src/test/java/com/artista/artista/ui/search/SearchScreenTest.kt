@@ -25,7 +25,6 @@ import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.ArtworkType
 import com.artista.artista.model.artwork.SearchArea
 import com.artista.artista.model.artwork.WikiDataRepository
-import com.artista.artista.model.map.UserLocation
 import com.artista.artista.ui.artwork.ArtworkCardTestTag
 import kotlin.NotImplementedError
 import kotlinx.coroutines.CompletableDeferred

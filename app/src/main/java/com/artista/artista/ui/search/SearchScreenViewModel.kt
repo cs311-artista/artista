@@ -7,7 +7,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.artista.artista.model.artwork.Artwork
-import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.artwork.SavedArtworksRepository
 import com.artista.artista.model.artwork.WikiDataRepository
 import kotlinx.coroutines.CancellationException
@@ -45,10 +44,8 @@ data class SearchScreenUiState(
  * @author IJJA3141
  */
 class SearchScreenViewModel(
-    private val savedArtworksRepository: SavedArtworksRepository =
-        ArtworkRepositoryProvider.repository,
-    private val wikiDataRepository: WikiDataRepository =
-        ArtworkRepositoryProvider.wikiDataRepository,
+    private val savedArtworksRepository: SavedArtworksRepository,
+    private val wikiDataRepository: WikiDataRepository,
 ) : ViewModel() {
   private val _uiState = MutableStateFlow(SearchScreenUiState())
 
