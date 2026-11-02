@@ -81,6 +81,7 @@ interface WikiDataRepository {
    * @return popular artists in display order
    * @author patrickmcdan
    */
+  @Deprecated("This function will be moved outside of WikiDataRepository since the popularity isn't a Wikidata metric.")
   suspend fun getPopularArtists(): List<Artist>
 
   /**
