@@ -134,6 +134,13 @@ class ArtworkScreenTest {
     }
   }
 
+  @Test
+  fun testArtworkPreview() {
+      composeTestRule.setContent {
+          ArtworkPreview()
+      }
+  }
+
   /** In-memory test double implementing [SavedArtworksRepository]. */
   private class FakeArtworkRepository : SavedArtworksRepository {
     private val savedArtworks = mutableListOf<Artwork>()

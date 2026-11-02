@@ -335,7 +335,7 @@ fun MapTile(
 @Preview
 @ExcludeFromJacocoGeneratedReport
 @Composable
-private fun ArtworkPreview() {
+fun ArtworkPreview() {
   val sampleArtwork = mockArtworks.first()
 
   ArtistaTheme {
