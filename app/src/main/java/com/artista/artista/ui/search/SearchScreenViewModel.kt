@@ -47,7 +47,8 @@ data class SearchScreenUiState(
 class SearchScreenViewModel(
     private val savedArtworksRepository: SavedArtworksRepository =
         ArtworkRepositoryProvider.repository,
-    private val wikiDataRepository: WikiDataRepository = ArtworkRepositoryProvider.repository,
+    private val wikiDataRepository: WikiDataRepository =
+        ArtworkRepositoryProvider.wikiDataRepository,
 ) : ViewModel() {
   private val _uiState = MutableStateFlow(SearchScreenUiState())
 

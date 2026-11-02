@@ -86,7 +86,7 @@ fun SearchScreen(
             factory =
                 SearchScreenViewModel.provideFactory(
                     savedArtworksRepository = ArtworkRepositoryProvider.repository,
-                    wikiDataRepository = ArtworkRepositoryProvider.repository,
+                    wikiDataRepository = ArtworkRepositoryProvider.wikiDataRepository,
                 )
         ),
     onTabSelected: (Tab) -> Unit,

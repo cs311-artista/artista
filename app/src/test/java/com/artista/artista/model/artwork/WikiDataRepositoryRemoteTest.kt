@@ -147,21 +147,19 @@ class WikiDataRepositoryRemoteTest {
     val client = testClient()
     val repository = WikiDataRepositoryRemote(client)
 
-    assertTrue(
-        repository
-            .getArtworksNearLocation(
-                searchArea = SearchArea(latitude = 46.5, longitude = 6.6, radiusKm = 12.0),
-                typeValues = listOf(ArtworkType.PAINTING, ArtworkType.DRAWING),
-                limit = 20,
-            )
-            .isEmpty()
-    )
+    assertThrowsSuspend<AppException.NotFound> {
+      repository.getArtworksNearLocation(
+          searchArea = SearchArea(latitude = 46.5, longitude = 6.6, radiusKm = 12.0),
+          typeValues = listOf(ArtworkType.PAINTING, ArtworkType.DRAWING),
+          limit = 20,
+      )
+    }
 
     val query = requireNotNull(client.lastRequest).url.queryParameter("query")
     assertTrue(query!!.contains("Point(6.6 46.5)"))
     assertTrue(query.contains("wikibase:radius \"12.0\""))
     assertTrue(query.contains("VALUES ?type { wd:Q3305213 wd:Q93184 }"))
-    assertTrue(query.contains("UNION"))
+    assertTrue(query.contains("?item wdt:P276 ?location"))
     assertTrue(query.contains("LIMIT 20"))
   }
 
@@ -222,15 +220,13 @@ class WikiDataRepositoryRemoteTest {
     val client = testClient()
     val repository = WikiDataRepositoryRemote(client)
 
-    assertTrue(
-        repository
-            .searchArtworks(
-                artworkTitle = "Mona Lisa",
-                typeValues = listOf(ArtworkType.PAINTING, ArtworkType.SCULPTURE),
-                limit = 25,
-            )
-            .isEmpty()
-    )
+    assertThrowsSuspend<AppException.NotFound> {
+      repository.searchArtworks(
+          artworkTitle = "Mona Lisa",
+          typeValues = listOf(ArtworkType.PAINTING, ArtworkType.SCULPTURE),
+          limit = 25,
+      )
+    }
 
     val request = requireNotNull(client.lastRequest)
     val sparql = requireNotNull(request.url.queryParameter("query"))
@@ -239,7 +235,7 @@ class WikiDataRepositoryRemoteTest {
     assertEquals("application/sparql-results+json", request.header("Accept"))
     assertTrue(request.header("User-Agent")!!.startsWith("Artista/1.0"))
     assertTrue(
-        sparql.contains("mwapi:gsrsearch \"haswbstatement:P31=Q3305213|P31=Q860861 Mona Lisa\"")
+        sparql.contains("mwapi:gsrsearch \"haswbstatement:P31=Q3305213|P31=Q860861 Mona Lisa*\"")
     )
     assertTrue(sparql.contains("FILTER(LANG(?itemLabel) = \"en\")"))
     assertTrue(sparql.contains("LIMIT 25"))
@@ -250,10 +246,12 @@ class WikiDataRepositoryRemoteTest {
     val client = testClient()
     val repository = WikiDataRepositoryRemote(client)
 
-    repository.searchArtworks("a\\b\"c", listOf(ArtworkType.PAINTING), 10)
+    assertThrowsSuspend<AppException.NotFound> {
+      repository.searchArtworks("a\\b\"c", listOf(ArtworkType.PAINTING), 10)
+    }
 
     val sparql = requireNotNull(client.lastRequest).url.queryParameter("query")
-    assertTrue(sparql!!.contains("mwapi:gsrsearch \"haswbstatement:P31=Q3305213 a\\\\b\\\"c\""))
+    assertTrue(sparql!!.contains("mwapi:gsrsearch \"haswbstatement:P31=Q3305213 a\\\\b\\\"c*\""))
   }
 
   @Test
