@@ -33,7 +33,7 @@ import org.junit.runner.RunWith
 /**
  * Verifies the user-visible behavior of the artist preferences screen.
  *
- * @author Timz3rr, patrickmcdan, Kaio R. Freitas Pereira Nascimento (krfpn)
+ * @author Timz3rr, patrickmcdan, krfpn
  */
 @RunWith(AndroidJUnit4::class)
 class ArtistPreferencesScreenTest {

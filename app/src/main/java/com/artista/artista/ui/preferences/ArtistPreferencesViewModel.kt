@@ -23,7 +23,7 @@ import kotlinx.coroutines.flow.update
  * @property popularArtists the artists suggested to the user, in display order.
  * @property selectedArtists identifiers of the artists the user has selected as favorites.
  * @property searchQuery the text typed in the search field, exactly as the user entered it.
- * @author Timz3rr, patrickmcdan, Kaio R. Freitas Pereira Nascimento (krfpn)
+ * @author Timz3rr, patrickmcdan, krfpn
  */
 data class ArtistPreferencesUiState(
     val popularArtists: List<Artist> = emptyList(),
@@ -92,7 +92,7 @@ class ArtistPreferencesViewModel(
    * Updates the search query, which filters the artists displayed by the screen.
    *
    * @param query the text currently typed in the search field.
-   * @author Kaio R. Freitas Pereira Nascimento (krfpn)
+   * @author krfpn
    */
   fun onSearchQueryChange(query: String) {
     _uiState.update { it.copy(searchQuery = query) }

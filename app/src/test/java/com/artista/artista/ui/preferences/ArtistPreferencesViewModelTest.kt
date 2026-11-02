@@ -18,7 +18,7 @@ import org.junit.Test
 /**
  * Tests the state exposed by [ArtistPreferencesViewModel].
  *
- * @author Timz3rr, patrickmcdan, Kaio R. Freitas Pereira Nascimento (krfpn)
+ * @author Timz3rr, patrickmcdan, krfpn
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ArtistPreferencesViewModelTest {
