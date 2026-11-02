@@ -142,18 +142,18 @@ class ArtistPreferencesViewModelTest {
         }
 
     // The user opens the screen: loading starts, then stays stuck waiting for the artists.
-    val viewModel = ArtistPreferencesViewModel(repository)
+    val slowLoadingViewModel = ArtistPreferencesViewModel(repository)
     advanceUntilIdle()
 
     // The user types while the artists are still loading.
-    viewModel.onSearchQueryChange("mon")
+    slowLoadingViewModel.onSearchQueryChange("mon")
 
     // The network answers, and the ViewModel receives the artists.
     artists.complete(ALL_ARTISTS)
     advanceUntilIdle()
 
     // The earlier query must apply to the artists that arrived after it.
-    assertEquals(listOf(MONET), viewModel.uiState.value.displayedArtists)
+    assertEquals(listOf(MONET), slowLoadingViewModel.uiState.value.displayedArtists)
   }
 
   /** Verifies that an empty or blank query does not hide any artist. */
