@@ -136,9 +136,7 @@ class ArtworkScreenTest {
 
   @Test
   fun testArtworkPreview() {
-      composeTestRule.setContent {
-          ArtworkPreview()
-      }
+    composeTestRule.setContent { ArtworkPreview() }
   }
 
   /** In-memory test double implementing [SavedArtworksRepository]. */
