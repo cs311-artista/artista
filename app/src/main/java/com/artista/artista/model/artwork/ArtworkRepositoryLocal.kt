@@ -1,10 +1,10 @@
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
+// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 package com.artista.artista.model.artwork
 
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.error.AppException
 
-// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 /**
  * In-memory repository for artwork data used during local app development and testing.
  *
@@ -29,6 +29,7 @@ class ArtworkRepositoryLocal : SavedArtworksRepository, WikiDataRepository {
   ): List<Artwork> = artworks.values.toList()
 
   /** Returns the locally defined popular artists. */
+  @Deprecated("This function will be moved outside of WikiDataRepository since the popularity isn't a Wikidata metric.")
   override suspend fun getPopularArtists(): List<Artist> = mockPopularArtists
 
   override suspend fun getArtwork(uid: ArtworkId): Artwork {

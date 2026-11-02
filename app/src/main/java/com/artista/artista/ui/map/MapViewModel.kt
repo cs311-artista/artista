@@ -1,4 +1,5 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.map
 
 import android.location.Location
@@ -6,6 +7,7 @@ import androidx.annotation.StringRes
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import com.artista.artista.R
+import com.artista.artista.model.map.UserLocation
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
@@ -115,15 +117,3 @@ class MapViewModel(
     val DIRECT_EXECUTOR = Executor { command -> command.run() }
   }
 }
-
-/**
- * Geographic coordinates used by the map screen.
- *
- * @property latitude Latitude in degrees.
- * @property longitude Longitude in degrees.
- * @author Felix Burchardt
- */
-data class UserLocation(
-    val latitude: Double,
-    val longitude: Double,
-)
