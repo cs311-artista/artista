@@ -39,6 +39,7 @@ internal object Dimensions {
   val authenticationButtonVerticalPadding = 0.dp
   val authenticationButtonCornerRadiusPercent = 50
   val authenticationButtonIconLabelSpacing = 10.dp
+  val authenticationErrorMessageTopSpacing = 12.dp
   val authenticationScreenBottomSpacing = 24.dp
 
   // Artwork cards and artwork details.

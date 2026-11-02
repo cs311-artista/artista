@@ -12,7 +12,7 @@ object C {
     const val auth_hero_image = "auth_hero_image"
     const val auth_google_sign_in_button = "auth_google_sign_in_button"
     const val auth_loading_indicator = "auth_loading_indicator"
-    const val auth_error_snackbar = "auth_error_snackbar"
+    const val auth_error_message = "auth_error_message"
   }
 
   object Constants {

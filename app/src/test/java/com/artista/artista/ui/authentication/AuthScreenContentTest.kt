@@ -2,10 +2,8 @@
 package com.artista.artista.ui.authentication
 
 import android.content.Context
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
@@ -25,11 +23,13 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 // Co-authored-by: DeepSeek Flash
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 /**
  * Local (Robolectric) Compose UI tests for [AuthScreenContent].
  *
- * Drives the stateless content with an [AuthUiState] snapshot and lambdas, so no ViewModel and no
- * Credential Manager are involved. Elements are located exclusively by test tag.
+ * Drives the stateless content with an [AuthUiState] snapshot, a credential outcome and lambdas, so
+ * no ViewModel and no Credential Manager are involved. Elements are located exclusively by test
+ * tag.
  *
  * @author timo-by
  */
@@ -68,6 +68,53 @@ class AuthScreenContentTest {
 
     composeTestRule.onNodeWithTag(C.Tag.auth_loading_indicator).assertIsDisplayed()
     composeTestRule.onNodeWithTag(C.Tag.auth_google_sign_in_button).assertIsNotEnabled()
+  }
+
+  /** Verifies that a repository failure renders its message under the sign-in button. */
+  @Test
+  fun repositoryErrorStateShowsTheMessage() {
+    setContent(state = { AuthUiState(repositoryErrorMessageRes = R.string.error_network) })
+
+    composeTestRule
+        .onNodeWithTag(C.Tag.auth_error_message)
+        .assertIsDisplayed()
+        .assertTextEquals(networkErrorMessage)
+  }
+
+  /** Verifies that the outcome of a failed credential interaction is rendered in the same slot. */
+  @Test
+  fun credentialErrorStateShowsTheMessage() {
+    setContent(state = { AuthUiState() }, credentialErrorMessageRes = R.string.sign_in_failed)
+
+    composeTestRule
+        .onNodeWithTag(C.Tag.auth_error_message)
+        .assertIsDisplayed()
+        .assertTextEquals(signInFailedMessage)
+  }
+
+  /** Verifies that a state without any failure renders no message at all. */
+  @Test
+  fun noErrorHidesTheMessage() {
+    setContent(state = { AuthUiState() })
+
+    composeTestRule.onNodeWithTag(C.Tag.auth_error_message).assertDoesNotExist()
+  }
+
+  /**
+   * Verifies that a repository failure is preferred when both slots are set: only one message can
+   * be shown, and the attempt that reached the backend is the one that just ended.
+   */
+  @Test
+  fun repositoryErrorIsPreferredOverTheCredentialOutcome() {
+    setContent(
+        state = { AuthUiState(repositoryErrorMessageRes = R.string.error_network) },
+        credentialErrorMessageRes = R.string.sign_in_failed,
+    )
+
+    composeTestRule
+        .onNodeWithTag(C.Tag.auth_error_message)
+        .assertIsDisplayed()
+        .assertTextEquals(networkErrorMessage)
   }
 
   /** Verifies that tapping the button while signed out invokes the click callback exactly once. */
@@ -124,15 +171,24 @@ class AuthScreenContentTest {
     get() =
         ApplicationProvider.getApplicationContext<Context>().getString(R.string.sign_in_with_google)
 
+  /** The message of a repository failure, read from the shared string resource. */
+  private val networkErrorMessage: String
+    get() = ApplicationProvider.getApplicationContext<Context>().getString(R.string.error_network)
+
+  /** The message of a failed credential interaction, read from the shared string resource. */
+  private val signInFailedMessage: String
+    get() = ApplicationProvider.getApplicationContext<Context>().getString(R.string.sign_in_failed)
+
   private fun setContent(
       state: () -> AuthUiState,
+      credentialErrorMessageRes: Int? = null,
       onSignInClick: () -> Unit = {},
       onSignedIn: () -> Unit = {},
   ) {
     composeTestRule.setContent {
       AuthScreenContent(
           state = state(),
-          snackbarHostState = remember { SnackbarHostState() },
+          credentialErrorMessageRes = credentialErrorMessageRes,
           onSignInClick = onSignInClick,
           onSignedIn = onSignedIn,
       )

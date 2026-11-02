@@ -6,7 +6,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -103,7 +102,9 @@ fun ArtistaApp(
     composable(Screen.Auth.route) {
       AuthScreenContent(
           state = AuthUiState(),
-          snackbarHostState = remember { SnackbarHostState() },
+          // This placeholder renders nothing from the credential seam, so it has no outcome to
+          // show.
+          credentialErrorMessageRes = null,
           onSignInClick = {
             navController.navigate(Screen.Overview.route) {
               popUpTo(Screen.Auth.route) { inclusive = true }
