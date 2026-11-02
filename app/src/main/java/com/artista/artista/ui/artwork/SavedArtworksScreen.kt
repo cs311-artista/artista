@@ -44,6 +44,7 @@ import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaTheme
 import com.artista.artista.ui.theme.Dimensions
+import com.artista.artista.ui.theme.ExcludeFromJacocoGeneratedReport
 
 /**
  * Displays the artworks saved by the current user.
@@ -359,6 +360,7 @@ private fun SavedArtworksList(
  * @author Kaio R. Freitas Pereira Nascimento (krfpn)
  */
 @Preview(showBackground = true)
+@ExcludeFromJacocoGeneratedReport
 @Composable
 fun SavedArtworksScreenPreview() {
   // Picked by uid to show edge cases: no artist, a non-Latin title and a long punctuated title.

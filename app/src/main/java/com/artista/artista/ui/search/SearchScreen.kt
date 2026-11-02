@@ -52,6 +52,7 @@ import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaTheme
 import com.artista.artista.ui.theme.Dimensions
+import com.artista.artista.ui.theme.ExcludeFromJacocoGeneratedReport
 
 /** Stable semantics tags used by SearchScreen UI tests. */
 object SearchScreenTestTags {
@@ -261,6 +262,7 @@ private fun ArtworkResults(
 
 /** Previews the complete search screen in Android Studio. */
 @Preview(showBackground = true)
+@ExcludeFromJacocoGeneratedReport
 @Composable
 private fun SearchScreenPreview() {
   ArtistaTheme { SearchScreen(onTabSelected = {}) }

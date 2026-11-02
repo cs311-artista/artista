@@ -38,6 +38,7 @@ import com.artista.artista.model.artwork.Dimension
 import com.artista.artista.model.map.Location
 import com.artista.artista.ui.theme.ArtistaTheme
 import com.artista.artista.ui.theme.Dimensions
+import com.artista.artista.ui.theme.ExcludeFromJacocoGeneratedReport
 import java.util.Date
 
 /** Stable semantics tags for the artwork card UI tests. */
@@ -177,6 +178,7 @@ fun ArtworkCard(
 
 /** Previews [ArtworkCard] with representative artwork details. */
 @Preview(showBackground = true)
+@ExcludeFromJacocoGeneratedReport
 @Composable
 private fun ArtworkCardPreview() {
   val artwork =

@@ -50,6 +50,7 @@ import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaTheme
 import com.artista.artista.ui.theme.Dimensions
+import com.artista.artista.ui.theme.ExcludeFromJacocoGeneratedReport
 
 private val FieldShape = RoundedCornerShape(percent = 50)
 
@@ -352,6 +353,7 @@ private fun EditUsernameDialog(
 
 /** Previews the user profile screen with a sample user in Android Studio. */
 @Preview(showBackground = true)
+@ExcludeFromJacocoGeneratedReport
 @Composable
 private fun UserProfileScreenPreview() {
   val viewModel = remember {
@@ -364,6 +366,7 @@ private fun UserProfileScreenPreview() {
 
 /** Previews the username edit dialog in Android Studio. */
 @Preview(showBackground = true)
+@ExcludeFromJacocoGeneratedReport
 @Composable
 private fun EditUsernameDialogPreview() {
   ArtistaTheme { EditUsernameDialog(initialUsername = "Artista Fan", onSave = {}, onDismiss = {}) }
