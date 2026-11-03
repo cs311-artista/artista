@@ -116,6 +116,7 @@ class WikiDataRepositoryRemote(
    *
    * @param artworkTitle text to search for in the artwork title
    * @return the artworks whose English title contains the search term
+   * @throws AppException.InvalidInput if the title is blank or contains no supported characters
    * @author IJJA3141
    */
   override suspend fun searchArtworks(
@@ -124,6 +125,7 @@ class WikiDataRepositoryRemote(
       limit: Int,
   ): List<Artwork> {
     val sanitizedTitle = sanitizeSearchText(artworkTitle)
+
     validateTypeValues(typeValues)
     validateLimit(limit)
 
@@ -134,6 +136,7 @@ class WikiDataRepositoryRemote(
   companion object {
     val ITEM_ID_REGEX = Regex("Q\\d+")
     val COMBINING_MARKS = Regex("\\p{M}+")
+    private val UNSUPPORTED_SEARCH_CHARACTERS = Regex("[^\\p{L}\\p{M}\\p{N}\\s]+")
 
     const val MAX_LIMIT = 200
 
@@ -182,11 +185,16 @@ class WikiDataRepositoryRemote(
     }
   }
 
-  // removes SPARQL invalid characters and appends * after each word.
+  // Removes unsupported characters and appends * after each word.
   private fun sanitizeSearchText(searchTerm: String): String {
+    val sanitizedSearchTerm = UNSUPPORTED_SEARCH_CHARACTERS.replace(searchTerm, "")
+    if (sanitizedSearchTerm.isBlank()) {
+      throw AppException.InvalidInput("artworkTitle is blank or contains no supported characters")
+    }
+
     // \p{L} matches any Unicode letter, in any script. That includes é, ñ, ß, ж and 日
     // \p{N} matches any Unicode number character, such as 0-9 and also digits from other scripts.
-    val words = searchTerm.split(Regex("[^\\p{L}\\p{N}]+")).filter { it.isNotEmpty() }
+    val words = sanitizedSearchTerm.split(Regex("[^\\p{L}\\p{N}]+")).filter { it.isNotEmpty() }
     return words
         .mapIndexedNotNull { index, word ->
           // A single trailing letter can't be a wildcard, so ignore it (the user is still typing).
@@ -245,11 +253,10 @@ class WikiDataRepositoryRemote(
           .trimIndent()
 
   private fun buildArtworkSearchQuery(
-      artworkTitle: String,
+      sanitizedTitle: String,
       typeValues: List<ArtworkType>,
       limit: Int,
   ): String {
-    val safeTitle = sanitizeSearchText(artworkTitle)
     val wikidataTypeFilter =
         typeValues.joinToString(separator = "|") { "${WikiDataProperty.INSTANCE_OF}=${it.qid}" }
 
@@ -263,7 +270,7 @@ class WikiDataRepositoryRemote(
               bd:serviceParam wikibase:endpoint "www.wikidata.org" ;
                               wikibase:api "Generator" ;
                               mwapi:generator "search" ;
-                              mwapi:gsrsearch "haswbstatement:$wikidataTypeFilter $safeTitle*" ;
+              mwapi:gsrsearch "haswbstatement:$wikidataTypeFilter $sanitizedTitle" ;
                               mwapi:gsrlimit "$limit" .
               ?item wikibase:apiOutputItem mwapi:title .
             }

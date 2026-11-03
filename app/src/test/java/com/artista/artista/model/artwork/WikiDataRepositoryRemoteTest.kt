@@ -207,11 +207,13 @@ class WikiDataRepositoryRemoteTest {
   }
 
   @Test
-  fun searchArtworks_whenQueryIsBlank_returnsEmptyListWithoutRequest() = runTest {
+  fun searchArtworks_whenQueryIsBlank_throwsInvalidInputWithoutRequest() = runTest {
     val client = testClient()
     val repository = WikiDataRepositoryRemote(client)
 
-    assertTrue(repository.searchArtworks("   ", listOf(ArtworkType.PAINTING), 50).isEmpty())
+    assertThrowsSuspend<AppException.InvalidInput> {
+      repository.searchArtworks("   ", listOf(ArtworkType.PAINTING), 50)
+    }
     assertNull(client.lastRequest)
   }
 
@@ -235,14 +237,14 @@ class WikiDataRepositoryRemoteTest {
     assertEquals("application/sparql-results+json", request.header("Accept"))
     assertTrue(request.header("User-Agent")!!.startsWith("Artista/1.0"))
     assertTrue(
-        sparql.contains("mwapi:gsrsearch \"haswbstatement:P31=Q3305213|P31=Q860861 Mona Lisa*\"")
+        sparql.contains("mwapi:gsrsearch \"haswbstatement:P31=Q3305213|P31=Q860861 mona* lisa*\"")
     )
     assertTrue(sparql.contains("FILTER(LANG(?itemLabel) = \"en\")"))
     assertTrue(sparql.contains("LIMIT 25"))
   }
 
   @Test
-  fun searchArtworks_escapesQuotesAndBackslashesInSearchText() = runTest {
+  fun searchArtworks_removesUnsupportedCharactersBeforeBuildingQuery() = runTest {
     val client = testClient()
     val repository = WikiDataRepositoryRemote(client)
 
@@ -250,9 +252,22 @@ class WikiDataRepositoryRemoteTest {
       repository.searchArtworks("a\\b\"c", listOf(ArtworkType.PAINTING), 10)
     }
 
-    val sparql = requireNotNull(client.lastRequest).url.queryParameter("query")
-    assertTrue(sparql!!.contains("mwapi:gsrsearch \"haswbstatement:P31=Q3305213 a\\\\b\\\"c*\""))
+    val query = requireNotNull(client.lastRequest).url.queryParameter("query")
+    assertTrue(query!!.contains("mwapi:gsrsearch \"haswbstatement:P31=Q3305213 abc*\""))
+    assertFalse(query.contains("a\\b"))
   }
+
+  @Test
+  fun searchArtworks_whenInputContainsOnlyUnsupportedCharacters_throwsInvalidInputWithoutRequest() =
+      runTest {
+        val client = testClient()
+        val repository = WikiDataRepositoryRemote(client)
+
+        assertThrowsSuspend<AppException.InvalidInput> {
+          repository.searchArtworks("!@#$", listOf(ArtworkType.PAINTING), 50)
+        }
+        assertNull(client.lastRequest)
+      }
 
   @Test
   fun searchArtworks_rejectsEmptyOrDuplicateTypesAndInvalidLimitsWithoutRequest() = runTest {
