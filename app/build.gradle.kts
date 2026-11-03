@@ -160,6 +160,7 @@ fun DependencyHandlerScope.globalTestImplementation(dep: Any) {
 }
 
 dependencies {
+  implementation(libs.androidx.compose.ui.text)
   // Core AndroidX and Material
   implementation(libs.androidx.core.ktx)
   implementation(libs.androidx.appcompat)

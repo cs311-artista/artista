@@ -4,6 +4,8 @@ package com.artista.artista.model.artwork
 
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.error.AppException
+import java.text.Normalizer
+import java.util.Locale
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -103,7 +105,6 @@ class WikiDataRepositoryRemote(
     validateLimit(limit)
 
     val query = buildArtworkNearLocationQuery(searchArea, typeValues, limit)
-    println(query)
     return jsonResponseParser.parseArtworkResults(executeSparqlRequest(query))
   }
 
@@ -122,9 +123,7 @@ class WikiDataRepositoryRemote(
       typeValues: List<ArtworkType>,
       limit: Int,
   ): List<Artwork> {
-    val sanitizedTitle = artworkTitle.trim()
-    if (sanitizedTitle.isEmpty()) return emptyList()
-
+    val sanitizedTitle = sanitizeSearchText(artworkTitle)
     validateTypeValues(typeValues)
     validateLimit(limit)
 
@@ -134,6 +133,8 @@ class WikiDataRepositoryRemote(
 
   companion object {
     val ITEM_ID_REGEX = Regex("Q\\d+")
+    val COMBINING_MARKS = Regex("\\p{M}+")
+
     const val MAX_LIMIT = 200
 
     const val SELECT_LINE =
@@ -148,8 +149,8 @@ class WikiDataRepositoryRemote(
         OPTIONAL { ?location wdt:${WikiDataProperty.COORDINATES} ?locationSideCoordinates . }
       }
       BIND(COALESCE(?ownCoordinates, ?locationSideCoordinates) AS ?locationCoordinates)
-      BIND(IF(BOUND(?ownCoordinates), ?item,
-           IF(BOUND(?locationSideCoordinates), ?location, ?unbound)) AS ?coordinateSource)
+      BIND(IF(BOUND(?ownCoordinates), "item",
+           IF(BOUND(?locationSideCoordinates), "location", ?unbound)) AS ?coordinateSource)
       BIND(IF(BOUND(?ownCoordinates), ?item,
            IF(BOUND(?locationSideCoordinates), ?location, ?unbound)) AS ?pinOwner)
 
@@ -181,8 +182,26 @@ class WikiDataRepositoryRemote(
     }
   }
 
-  private fun sanitizeSearchText(value: String): String =
-      value.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", " ").replace("\r", " ").trim()
+  // removes SPARQL invalid characters and appends * after each word.
+  private fun sanitizeSearchText(searchTerm: String): String {
+    // \p{L} matches any Unicode letter, in any script. That includes é, ñ, ß, ж and 日
+    // \p{N} matches any Unicode number character, such as 0-9 and also digits from other scripts.
+    val words = searchTerm.split(Regex("[^\\p{L}\\p{N}]+")).filter { it.isNotEmpty() }
+    return words
+        .mapIndexedNotNull { index, word ->
+          // A single trailing letter can't be a wildcard, so ignore it (the user is still typing).
+          if (word.length < 2 && index == words.lastIndex && words.size > 1) null
+          else prefixTerm(word)
+        }
+        .joinToString(" ")
+  }
+
+  private fun prefixTerm(word: String): String {
+    val lower = word.lowercase(Locale.ROOT)
+    val folded = Normalizer.normalize(lower, Normalizer.Form.NFD).replace(COMBINING_MARKS, "")
+    fun wild(w: String) = if (w.length >= 2) "$w*" else w
+    return if (folded == lower) wild(lower) else "(${wild(folded)} OR ${wild(lower)})"
+  }
 
   private fun List<ArtworkType>.toSparqlValueList(): String =
       joinToString(separator = " ") { "wd:${it.qid}" }
@@ -199,7 +218,7 @@ class WikiDataRepositoryRemote(
             SELECT DISTINCT ?item
             WHERE {
                 SERVICE wikibase:around {
-                    ?location wdt:P625 ?locationCoordinates .
+                    ?location wdt:${WikiDataProperty.COORDINATES} ?locationCoordinates .
                     bd:serviceParam wikibase:center "Point(${searchArea.longitude} ${searchArea.latitude})"^^geo:wktLiteral .
                     bd:serviceParam wikibase:radius "${searchArea.radiusKm}" .
             }
