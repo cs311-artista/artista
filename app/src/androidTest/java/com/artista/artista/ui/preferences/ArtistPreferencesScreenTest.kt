@@ -95,9 +95,12 @@ class ArtistPreferencesScreenTest {
 
     composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SEARCH_BAR).performTextInput("mon")
 
+    val monetCardTag = ArtistPreferencesTestTags.getArtistCardTestTag(monet.uid)
+    // The grid is lazy, so cards below the fold only exist once scrolled into view.
     composeTestRule
-        .onNodeWithTag(ArtistPreferencesTestTags.getArtistCardTestTag(monet.uid))
-        .assertIsDisplayed()
+        .onNodeWithTag(ArtistPreferencesTestTags.ARTISTS_GRID)
+        .performScrollToNode(hasTestTag(monetCardTag))
+    composeTestRule.onNodeWithTag(monetCardTag).assertIsDisplayed()
     composeTestRule
         .onNodeWithTag(ArtistPreferencesTestTags.getArtistCardTestTag(picasso.uid))
         .assertDoesNotExist()
@@ -129,9 +132,12 @@ class ArtistPreferencesScreenTest {
     composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SEARCH_BAR).performTextClearance()
 
     testArtists.forEach { artist ->
+      val cardTag = ArtistPreferencesTestTags.getArtistCardTestTag(artist.uid)
+      // The grid is lazy, so cards below the fold only exist once scrolled into view.
       composeTestRule
-          .onNodeWithTag(ArtistPreferencesTestTags.getArtistCardTestTag(artist.uid))
-          .assertIsDisplayed()
+          .onNodeWithTag(ArtistPreferencesTestTags.ARTISTS_GRID)
+          .performScrollToNode(hasTestTag(cardTag))
+      composeTestRule.onNodeWithTag(cardTag).assertIsDisplayed()
     }
   }
 
@@ -145,9 +151,12 @@ class ArtistPreferencesScreenTest {
         .performClick()
 
     composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SEARCH_BAR).performTextInput("pablo")
+    val picassoCardTag = ArtistPreferencesTestTags.getArtistCardTestTag(picasso.uid)
+    // The grid is lazy, so cards below the fold only exist once scrolled into view.
     composeTestRule
-        .onNodeWithTag(ArtistPreferencesTestTags.getArtistCardTestTag(picasso.uid))
-        .assertIsDisplayed()
+        .onNodeWithTag(ArtistPreferencesTestTags.ARTISTS_GRID)
+        .performScrollToNode(hasTestTag(picassoCardTag))
+    composeTestRule.onNodeWithTag(picassoCardTag).assertIsDisplayed()
     composeTestRule
         .onNodeWithTag(ArtistPreferencesTestTags.getArtistCardTestTag(monet.uid))
         .assertDoesNotExist()
