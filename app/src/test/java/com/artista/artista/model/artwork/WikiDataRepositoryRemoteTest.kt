@@ -45,15 +45,12 @@ class WikiDataRepositoryRemoteTest {
     }
   }
 
-  @Ignore(
-      "This test performs real network requests to the Wikidata SPARQL endpoint. It is intended to verify the correctness of the SPARQL query and the ability to fetch data from the remote API."
-  )
   @Test
   fun runRealRequestForQuery() = runTest {
     val repository = WikiDataRepositoryRemote(jsonResponseParser = fakeParser())
 
     try {
-      repository.searchArtworks("Lise SEw")
+      repository.searchArtworks("Mona Lisa")
     } catch (e: NotImplementedError) {
       // Handle NotImplementedError if needed
     } catch (e: Exception) {
@@ -132,7 +129,13 @@ class WikiDataRepositoryRemoteTest {
     assertTrue(sparql.contains("VALUES ?item { wd:Q12418 }"))
     assertTrue(sparql.contains("FILTER(LANG(?itemLabel) = \"en\")"))
     assertTrue(sparql.contains("BIND(COALESCE(?ownCoordinates, ?locationSideCoordinates)"))
-    assertFalse("getArtwork must not use a result limit", sparql.contains("LIMIT"))
+    val normalizedSparql = sparql.replace(Regex("\\s+"), " ")
+    assertTrue(
+        normalizedSparql.contains(
+            "BIND(IF(BOUND(?ownCoordinates), ?itemLabel, IF(BOUND(?locationSideCoordinates), ?locationLabel, ?unbound)) AS ?pinOwnerLabel)"
+        )
+    )
+    assertTrue("getArtwork should limit duplicate rows", sparql.trimEnd().endsWith("LIMIT 1"))
   }
 
   @Test
@@ -161,6 +164,7 @@ class WikiDataRepositoryRemoteTest {
     assertTrue(query.contains("VALUES ?type { wd:Q3305213 wd:Q93184 }"))
     assertTrue(query.contains("?item wdt:P276 ?location"))
     assertTrue(query.contains("LIMIT 20"))
+    assertTrue("the outer query should also be limited", query.trimEnd().endsWith("LIMIT 20"))
   }
 
   @Test
@@ -240,7 +244,7 @@ class WikiDataRepositoryRemoteTest {
         sparql.contains("mwapi:gsrsearch \"haswbstatement:P31=Q3305213|P31=Q860861 mona lisa*\"")
     )
     assertTrue(sparql.contains("FILTER(LANG(?itemLabel) = \"en\")"))
-    assertTrue(sparql.contains("LIMIT 25"))
+    assertTrue(sparql.trimEnd().endsWith("LIMIT 25"))
   }
 
   @Test

@@ -130,6 +130,7 @@ class WikiDataRepositoryRemote(
     validateLimit(limit)
 
     val query = buildArtworkSearchQuery(sanitizedTitle, typeValues, limit)
+    println(query)
     return jsonResponseParser.parseArtworkResults(executeSparqlRequest(query))
   }
 
@@ -151,12 +152,6 @@ class WikiDataRepositoryRemote(
         OPTIONAL { ?location rdfs:label ?locationLabel . FILTER(LANG(?locationLabel) = "en") }
         OPTIONAL { ?location wdt:${WikiDataProperty.COORDINATES} ?locationSideCoordinates . }
       }
-      BIND(COALESCE(?ownCoordinates, ?locationSideCoordinates) AS ?locationCoordinates)
-      BIND(IF(BOUND(?ownCoordinates), "item",
-           IF(BOUND(?locationSideCoordinates), "location", ?unbound)) AS ?coordinateSource)
-      BIND(IF(BOUND(?ownCoordinates), ?item,
-           IF(BOUND(?locationSideCoordinates), ?location, ?unbound)) AS ?pinOwner)
-
       OPTIONAL { ?item rdfs:label ?itemLabel . FILTER(LANG(?itemLabel) = "en") }
       OPTIONAL { ?item wdt:${WikiDataProperty.ARTIST} ?artist . ?artist rdfs:label ?artistLabel . FILTER(LANG(?artistLabel) = "en") }
       OPTIONAL { ?item wdt:${WikiDataProperty.IMAGE} ?image . }
@@ -165,7 +160,13 @@ class WikiDataRepositoryRemote(
       OPTIONAL { ?item wdt:${WikiDataProperty.WIDTH} ?width . }
       OPTIONAL { ?item wdt:${WikiDataProperty.HEIGHT} ?height . }
       OPTIONAL { ?item schema:description ?description . FILTER(LANG(?description) = "en") }
-      OPTIONAL { ?pinOwner rdfs:label ?pinOwnerLabel . FILTER(LANG(?pinOwnerLabel) = "en") }
+      BIND(COALESCE(?ownCoordinates, ?locationSideCoordinates) AS ?locationCoordinates)
+      BIND(IF(BOUND(?ownCoordinates), "item",
+           IF(BOUND(?locationSideCoordinates), "location", ?unbound)) AS ?coordinateSource)
+      BIND(IF(BOUND(?ownCoordinates), ?item,
+           IF(BOUND(?locationSideCoordinates), ?location, ?unbound)) AS ?pinOwner)
+      BIND(IF(BOUND(?ownCoordinates), ?itemLabel,
+           IF(BOUND(?locationSideCoordinates), ?locationLabel, ?unbound)) AS ?pinOwnerLabel)
       """
             .trimIndent()
   }
@@ -233,6 +234,7 @@ class WikiDataRepositoryRemote(
     }
     $DETAILS
   }
+  LIMIT $limit
     """
         .trimIndent()
   }
@@ -244,6 +246,7 @@ class WikiDataRepositoryRemote(
       VALUES ?item { wd:$uid }
       $DETAILS
     }
+    LIMIT 1
     """
           .trimIndent()
 
@@ -276,6 +279,7 @@ class WikiDataRepositoryRemote(
         }
         $DETAILS
       }
+      LIMIT $limit
     """
         .trimIndent()
   }
