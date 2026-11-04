@@ -185,29 +185,24 @@ class WikiDataRepositoryRemote(
     }
   }
 
-  // Removes unsupported characters and appends * after each word.
+  // Removes unsupported characters and appends * to the complete search query.
   private fun sanitizeSearchText(searchTerm: String): String {
+    // Keep Unicode letters, combining marks, numbers, and whitespace; remove other characters.
     val sanitizedSearchTerm = UNSUPPORTED_SEARCH_CHARACTERS.replace(searchTerm, "")
     if (sanitizedSearchTerm.isBlank()) {
       throw AppException.InvalidInput("artworkTitle is blank or contains no supported characters")
     }
 
-    // \p{L} matches any Unicode letter, in any script. That includes é, ñ, ß, ж and 日
-    // \p{N} matches any Unicode number character, such as 0-9 and also digits from other scripts.
-    val words = sanitizedSearchTerm.split(Regex("[^\\p{L}\\p{N}]+")).filter { it.isNotEmpty() }
-    return words
-        .mapIndexedNotNull { index, word ->
-          // A single trailing letter can't be a wildcard, so ignore it (the user is still typing).
-          if (word.length < 2 && index == words.lastIndex && words.size > 1) null
-          else prefixTerm(word)
-        }
-        .joinToString(" ")
+    // Split on whitespace and rejoin with single spaces to normalize the query.
+    val normalizedSearchTerm =
+        sanitizedSearchTerm.split(Regex("\\s+")).filter { it.isNotEmpty() }.joinToString(" ")
+    return prefixTerm(normalizedSearchTerm)
   }
 
-  private fun prefixTerm(word: String): String {
-    val lower = word.lowercase(Locale.ROOT)
+  private fun prefixTerm(query: String): String {
+    val lower = query.lowercase(Locale.ROOT)
     val folded = Normalizer.normalize(lower, Normalizer.Form.NFD).replace(COMBINING_MARKS, "")
-    fun wild(w: String) = if (w.length >= 2) "$w*" else w
+    fun wild(value: String) = if (value.length >= 2) "$value*" else value
     return if (folded == lower) wild(lower) else "(${wild(folded)} OR ${wild(lower)})"
   }
 

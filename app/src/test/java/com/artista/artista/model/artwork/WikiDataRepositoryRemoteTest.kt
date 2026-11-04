@@ -53,7 +53,7 @@ class WikiDataRepositoryRemoteTest {
     val repository = WikiDataRepositoryRemote(jsonResponseParser = fakeParser())
 
     try {
-      repository.searchArtworks("lise sew")
+      repository.searchArtworks("Lise sEw")
     } catch (e: NotImplementedError) {
       // Handle NotImplementedError if needed
     } catch (e: Exception) {
@@ -237,7 +237,7 @@ class WikiDataRepositoryRemoteTest {
     assertEquals("application/sparql-results+json", request.header("Accept"))
     assertTrue(request.header("User-Agent")!!.startsWith("Artista/1.0"))
     assertTrue(
-        sparql.contains("mwapi:gsrsearch \"haswbstatement:P31=Q3305213|P31=Q860861 mona* lisa*\"")
+        sparql.contains("mwapi:gsrsearch \"haswbstatement:P31=Q3305213|P31=Q860861 mona lisa*\"")
     )
     assertTrue(sparql.contains("FILTER(LANG(?itemLabel) = \"en\")"))
     assertTrue(sparql.contains("LIMIT 25"))
