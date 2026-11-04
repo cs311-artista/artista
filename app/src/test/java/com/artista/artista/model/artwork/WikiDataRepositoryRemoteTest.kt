@@ -29,6 +29,11 @@ class WikiDataRepositoryRemoteTest {
     }
   }
 
+  private class SuccessfulParser : JsonResponseParser() {
+    override fun parseArtworkResults(responseBody: String): List<Artwork> =
+        listOf(Artwork("Q1", "Artwork", null, null, null, null, null, null))
+  }
+
   @Ignore(
       "This test performs real network requests to the Wikidata SPARQL endpoint. It is intended to verify the correctness of the SPARQL query and the ability to fetch data from the remote API."
   )
@@ -142,6 +147,89 @@ class WikiDataRepositoryRemoteTest {
     val repository = WikiDataRepositoryRemote(testClient(statusCode = 500))
 
     assertThrowsSuspend<AppException.Network> { repository.getArtwork("Q12418") }
+  }
+
+  @Test
+  fun searchArtworks_reusesCachedResultsForTheSameQuery() = runTest {
+    val client = testClient()
+    val repository = WikiDataRepositoryRemote(client, jsonResponseParser = SuccessfulParser())
+
+    val first = repository.searchArtworks("Mona Lisa")
+    val second = repository.searchArtworks("Mona Lisa")
+
+    assertEquals(first, second)
+    assertEquals(1, client.requestCount)
+  }
+
+  @Test
+  fun getArtwork_returnsMatchingArtworkFromCachedSearchResults() = runTest {
+    val client = testClient()
+    val repository = WikiDataRepositoryRemote(client, jsonResponseParser = SuccessfulParser())
+
+    repository.searchArtworks("Artwork")
+    val artwork = repository.getArtwork("Q1")
+
+    assertEquals("Q1", artwork.uid)
+    assertEquals("Artwork", artwork.name)
+    assertEquals(1, client.requestCount)
+  }
+
+  @Test
+  fun searchArtworks_doesNotReuseResultsForDifferentQueries() = runTest {
+    val client = testClient()
+    val repository = WikiDataRepositoryRemote(client, jsonResponseParser = SuccessfulParser())
+
+    repository.searchArtworks("Mona Lisa")
+    repository.searchArtworks("The Starry Night")
+
+    assertEquals(2, client.requestCount)
+  }
+
+  @Test
+  fun searchArtworks_doesNotCacheFailedRequests() = runTest {
+    val client = testClient(statusCode = 500)
+    val repository = WikiDataRepositoryRemote(client)
+
+    repeat(2) {
+      assertThrowsSuspend<AppException.Network> { repository.searchArtworks("Mona Lisa") }
+    }
+
+    assertEquals(2, client.requestCount)
+  }
+
+  @Test
+  fun getArtwork_doesNotCacheMissingArtworks() = runTest {
+    val client = testClient()
+    val repository = WikiDataRepositoryRemote(client)
+
+    repeat(2) { assertThrowsSuspend<AppException.NotFound> { repository.getArtwork("Q12418") } }
+
+    assertEquals(2, client.requestCount)
+  }
+
+  @Test
+  fun artworkQueryCache_expiresEntriesAfterTheTtl() {
+    var nowNanos = 0L
+    val cache = ArtworkQueryCache(maxEntries = 2, ttlNanos = 10, clock = { nowNanos })
+    cache.put("query", emptyList())
+    assertEquals(emptyList<Artwork>(), cache.get("query"))
+
+    nowNanos = 10
+
+    assertNull(cache.get("query"))
+  }
+
+  @Test
+  fun artworkQueryCache_evictsLeastRecentlyUsedEntryWhenFull() {
+    val cache = ArtworkQueryCache(maxEntries = 2)
+    cache.put("first", emptyList())
+    cache.put("second", emptyList())
+    cache.get("first")
+    cache.put("third", emptyList())
+
+    assertNull(cache.get("second"))
+    assertEquals(emptyList<Artwork>(), cache.get("first"))
+    assertEquals(emptyList<Artwork>(), cache.get("third"))
   }
 
   @Test
@@ -322,10 +410,14 @@ class WikiDataRepositoryRemoteTest {
     var lastRequest: Request? = null
       private set
 
+    var requestCount: Int = 0
+      private set
+
     private val delegate =
         OkHttpClient.Builder()
             .addInterceptor { chain ->
               lastRequest = chain.request()
+              requestCount++
               Response.Builder()
                   .request(chain.request())
                   .protocol(Protocol.HTTP_1_1)
