@@ -34,6 +34,10 @@ class WikiDataRepositoryRemoteTest {
         listOf(Artwork("Q1", "Artwork", null, null, null, null, null, null))
   }
 
+  private class EmptyParser : JsonResponseParser() {
+    override fun parseArtworkResults(responseBody: String): List<Artwork> = emptyList()
+  }
+
   @Ignore(
       "This test performs real network requests to the Wikidata SPARQL endpoint. It is intended to verify the correctness of the SPARQL query and the ability to fetch data from the remote API."
   )
@@ -186,6 +190,17 @@ class WikiDataRepositoryRemoteTest {
   }
 
   @Test
+  fun searchArtworks_cachesEmptyResults() = runTest {
+    val client = testClient()
+    val repository = WikiDataRepositoryRemote(client, jsonResponseParser = EmptyParser())
+
+    assertTrue(repository.searchArtworks("No matching artwork").isEmpty())
+    assertTrue(repository.searchArtworks("No matching artwork").isEmpty())
+
+    assertEquals(1, client.requestCount)
+  }
+
+  @Test
   fun searchArtworks_doesNotCacheFailedRequests() = runTest {
     val client = testClient(statusCode = 500)
     val repository = WikiDataRepositoryRemote(client)
@@ -217,6 +232,36 @@ class WikiDataRepositoryRemoteTest {
     nowNanos = 10
 
     assertNull(cache.get("query"))
+  }
+
+  @Test
+  fun artworkQueryCache_doesNotReturnMissingOrExpiredArtworks() {
+    var nowNanos = 0L
+    val cache = ArtworkQueryCache(ttlNanos = 10, clock = { nowNanos })
+    val artwork = Artwork("Q1", "Artwork", null, null, null, null, null, null)
+    cache.put("query", listOf(artwork))
+
+    assertNull(cache.findArtwork("Q2"))
+
+    nowNanos = 10
+
+    assertNull(cache.findArtwork("Q1"))
+  }
+
+  @Test
+  fun artworkQueryCache_rejectsNonPositiveCapacityAndTtl() {
+    assertThrows<IllegalArgumentException> { ArtworkQueryCache(maxEntries = 0) }
+    assertThrows<IllegalArgumentException> { ArtworkQueryCache(ttlNanos = 0) }
+  }
+
+  @Test
+  fun artworkQueryCache_keepsItsOwnCopyOfArtworkLists() {
+    val cache = ArtworkQueryCache()
+    val source = mutableListOf(Artwork("Q1", "Artwork", null, null, null, null, null, null))
+    cache.put("query", source)
+    source.clear()
+
+    assertEquals(1, cache.get("query")?.size)
   }
 
   @Test
@@ -434,6 +479,19 @@ class WikiDataRepositoryRemoteTest {
   private suspend inline fun <reified T : Throwable> assertThrowsSuspend(
       crossinline block: suspend () -> Unit
   ) {
+    try {
+      block()
+    } catch (exception: Throwable) {
+      if (exception is T) return
+      throw AssertionError(
+          "Expected ${T::class.simpleName}, got ${exception::class.simpleName}",
+          exception,
+      )
+    }
+    throw AssertionError("Expected ${T::class.simpleName} to be thrown")
+  }
+
+  private inline fun <reified T : Throwable> assertThrows(block: () -> Unit) {
     try {
       block()
     } catch (exception: Throwable) {
