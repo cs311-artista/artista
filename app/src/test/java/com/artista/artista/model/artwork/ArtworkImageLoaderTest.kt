@@ -1,11 +1,10 @@
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
-package com.artista.artista.ui.artwork
+package com.artista.artista.model.artwork
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
-import com.artista.artista.model.artwork.WIKIMEDIA_USER_AGENT
 import kotlinx.coroutines.runBlocking
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient

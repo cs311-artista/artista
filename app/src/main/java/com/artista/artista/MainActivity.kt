@@ -22,12 +22,12 @@ import androidx.navigation.navArgument
 import androidx.navigation.navigation
 import coil3.compose.setSingletonImageLoaderFactory
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
+import com.artista.artista.model.artwork.createArtworkImageLoader
 import com.artista.artista.model.artwork.mockArtworks
 import com.artista.artista.resources.C
 import com.artista.artista.ui.artwork.ArtworkScreen
 import com.artista.artista.ui.artwork.ArtworkScreenViewModel
 import com.artista.artista.ui.artwork.SavedArtworksScreen
-import com.artista.artista.ui.artwork.createArtworkImageLoader
 import com.artista.artista.ui.authentication.AuthScreenContent
 import com.artista.artista.ui.authentication.AuthUiState
 import com.artista.artista.ui.map.MapScreen

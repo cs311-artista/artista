@@ -1,11 +1,10 @@
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
-package com.artista.artista.ui.artwork
+package com.artista.artista.model.artwork
 
 import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.request.crossfade
-import com.artista.artista.model.artwork.WIKIMEDIA_USER_AGENT
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.Response
