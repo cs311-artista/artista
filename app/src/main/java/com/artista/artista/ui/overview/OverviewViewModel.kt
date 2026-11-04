@@ -7,7 +7,9 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
+import com.artista.artista.model.artwork.SearchArea
 import com.artista.artista.model.artwork.ArtworkFilter
+import com.artista.artista.model.artwork.SearchArea
 import com.artista.artista.model.artwork.WikiDataRepository
 import com.artista.artista.model.artwork.applyFilter
 import com.artista.artista.model.artwork.artistOptions
@@ -67,7 +69,13 @@ class OverviewViewModel(
   fun refreshUiState() {
     viewModelScope.launch {
       try {
-        allArtworks = artworkRepository.getArtworksNearLocation()
+        val lausanneCenter =
+          SearchArea(
+            latitude = 46.5197,
+            longitude = 6.6323,
+            radiusKm = 5.0,
+          )
+        allArtworks = artworkRepository.getArtworksNearLocation(lausanneCenter)
         val activeFilter = _uiState.value.activeFilter
         _uiState.value =
             _uiState.value.copy(

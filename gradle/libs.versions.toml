@@ -42,6 +42,7 @@ coroutinesTest = "1.10.2"
 # Code quality and Firebase tooling
 sonar = "7.5.0.8588"
 gms = "4.5.0"
+uiText = "1.12.1"
 
 [libraries]
 # Core AndroidX and Material
@@ -95,6 +96,7 @@ play-services-location = { group = "com.google.android.gms", name = "play-servic
 
 # Additional test libraries
 junit = { group = "junit", name = "junit", version.ref = "junit" }
+androidx-compose-ui-text = { group = "androidx.compose.ui", name = "ui-text", version.ref = "uiText" }
 
 [plugins]
 # Android and Kotlin

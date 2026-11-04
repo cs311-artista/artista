@@ -1,3 +1,4 @@
+// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 import com.ncorti.ktfmt.gradle.tasks.KtfmtCheckTask
 import com.ncorti.ktfmt.gradle.tasks.KtfmtFormatTask
 import java.io.FileInputStream
@@ -160,6 +161,7 @@ fun DependencyHandlerScope.globalTestImplementation(dep: Any) {
 }
 
 dependencies {
+  implementation(libs.androidx.compose.ui.text)
   // Core AndroidX and Material
   implementation(libs.androidx.core.ktx)
   implementation(libs.androidx.appcompat)
@@ -219,6 +221,8 @@ dependencies {
 }
 
 tasks.withType<Test> {
+  systemProperty("robolectric.dependency.repo.url", "https://repo.maven.apache.org/maven2")
+
   // Configure Jacoco for each tests
   configure<JacocoTaskExtension> {
     isIncludeNoLocationClasses = true

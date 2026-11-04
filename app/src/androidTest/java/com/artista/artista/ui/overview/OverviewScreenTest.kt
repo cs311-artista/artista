@@ -21,6 +21,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
+import com.artista.artista.model.artwork.ArtworkType
+import com.artista.artista.model.artwork.SearchArea
 import com.artista.artista.model.artwork.WikiDataRepository
 import com.artista.artista.model.map.UserLocation
 import com.artista.artista.ui.artwork.ArtworkFilterTestTags
@@ -101,8 +103,11 @@ class OverviewScreenTest {
     var savedArtworksRequested = false
     val failing =
         object : WikiDataRepository by ArtworkRepositoryLocal() {
-          override suspend fun getArtworksNearLocation(location: UserLocation?): List<Artwork> =
-              error("Artwork provider failure")
+          override suspend fun getArtworksNearLocation(
+              searchArea: SearchArea,
+              typeValues: List<ArtworkType>,
+              limit: Int,
+          ): List<Artwork> = error("Artwork provider failure")
         }
     val viewModel = OverviewViewModel(failing)
 
