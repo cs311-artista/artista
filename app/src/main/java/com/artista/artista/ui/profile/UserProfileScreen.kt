@@ -2,6 +2,7 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 package com.artista.artista.ui.profile
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -28,6 +29,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,6 +38,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -44,12 +47,19 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.artista.artista.R
+import com.artista.artista.model.authentication.AuthRepository
+import com.artista.artista.model.authentication.AuthRepositoryProvider
+import com.artista.artista.model.authentication.AuthUser
 import com.artista.artista.model.user.User
 import com.artista.artista.model.user.UserPreference
+import com.artista.artista.model.user.UserRepositoryLocal
+import com.artista.artista.model.user.UserRepositoryProvider
 import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaTheme
 import com.artista.artista.ui.theme.Dimensions
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 
 private val FieldShape = RoundedCornerShape(percent = 50)
 
@@ -60,7 +70,8 @@ private val FieldShape = RoundedCornerShape(percent = 50)
  * compile instead of leaving a logout button that silently does nothing.
  *
  * @param onLogoutClick Callback invoked when the user asks to sign out.
- * @param userProfileViewModel ViewModel providing the profile state.
+ * @param userProfileViewModel ViewModel providing the profile state. The default one loads and
+ *   saves the profile of the signed-in user; its failures are shown in a toast.
  * @param onPreferencesClick Callback invoked when the user opens their artist preferences.
  * @param onSavedArtworkClick Callback invoked when the user opens their saved artworks.
  * @param onTabSelected Callback invoked with the destination selected in the bottom navigation.
@@ -69,12 +80,29 @@ private val FieldShape = RoundedCornerShape(percent = 50)
 @Composable
 fun UserProfileScreen(
     onLogoutClick: () -> Unit,
-    userProfileViewModel: UserProfileViewModel = viewModel(),
+    userProfileViewModel: UserProfileViewModel =
+        viewModel(
+            factory =
+                UserProfileViewModel.provideFactory(
+                    authRepository = AuthRepositoryProvider.repository,
+                    userRepository = UserRepositoryProvider.repository,
+                )
+        ),
     onPreferencesClick: () -> Unit = {},
     onSavedArtworkClick: () -> Unit = {},
     onTabSelected: (Tab) -> Unit = {},
 ) {
   val uiState by userProfileViewModel.uiState.collectAsStateWithLifecycle()
+  val context = LocalContext.current
+  val errorMessage = uiState.errorMessageResId?.let { stringResource(it) }
+
+  LaunchedEffect(errorMessage) {
+    errorMessage?.let {
+      Toast.makeText(context, it, Toast.LENGTH_LONG).show()
+      // Cleared once shown, so a recomposition or a return to the screen does not show it again.
+      userProfileViewModel.clearErrorMessage()
+    }
+  }
 
   Scaffold(
       modifier = Modifier.fillMaxSize().testTag(UserProfileTestTags.SCREEN),
@@ -355,11 +383,21 @@ private fun EditUsernameDialog(
 @Composable
 private fun UserProfileScreenPreview() {
   val viewModel = remember {
-    UserProfileViewModel().apply {
+    UserProfileViewModel(PreviewAuthRepository, UserRepositoryLocal()).apply {
       setUser(User(uid = "preview", userName = "Artista Fan", preference = UserPreference()))
     }
   }
   ArtistaTheme { UserProfileScreen(onLogoutClick = {}, userProfileViewModel = viewModel) }
+}
+
+/** Signed-out [AuthRepository] for the previews, which cannot reach Firebase. */
+private object PreviewAuthRepository : AuthRepository {
+  override val authState: Flow<AuthUser?> = flowOf(null)
+
+  override suspend fun signIn(idToken: String): Result<AuthUser> =
+      Result.failure(UnsupportedOperationException("Sign-in is not available in previews"))
+
+  override suspend fun signOut(): Result<Unit> = Result.success(Unit)
 }
 
 /** Previews the username edit dialog in Android Studio. */

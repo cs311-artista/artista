@@ -1,13 +1,26 @@
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.profile
 
+import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
+import com.artista.artista.model.authentication.AuthRepository
+import com.artista.artista.model.authentication.AuthUser
+import com.artista.artista.model.error.AppException
 import com.artista.artista.model.user.User
+import com.artista.artista.model.user.UserId
+import com.artista.artista.model.user.UserPreference
+import com.artista.artista.model.user.UserRepository
+import com.artista.artista.ui.error.launchCatching
+import com.artista.artista.ui.error.toMessageRes
 import java.text.Normalizer
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 
 /** Maximum number of characters of a username, counted after trimming. */
 const val MAX_USERNAME_LENGTH = 20
@@ -47,16 +60,27 @@ fun isValidUsername(name: String): Boolean {
  * UI state of the user profile screen.
  *
  * @property username the display name of the user, or null when the user has not chosen one.
+ * @property errorMessageResId string resource of the message shown when loading or saving the
+ *   profile fails, or null when there is nothing to show.
  * @author Timz3rr
  */
-data class UserProfileUiState(val username: String? = null)
+data class UserProfileUiState(
+    val username: String? = null,
+    @param:StringRes val errorMessageResId: Int? = null,
+)
 
 /**
- * Holds the state displayed by the user profile screen.
+ * Holds the state displayed by the user profile screen, and keeps the username of the signed-in
+ * user in sync with the user repository.
  *
+ * @param authRepository source of the signed-in user, whose profile is loaded and saved
+ * @param userRepository storage of the user profiles
  * @author Timz3rr
  */
-class UserProfileViewModel : ViewModel() {
+class UserProfileViewModel(
+    private val authRepository: AuthRepository,
+    private val userRepository: UserRepository,
+) : ViewModel() {
 
   private val _uiState = MutableStateFlow(UserProfileUiState())
 
@@ -66,6 +90,45 @@ class UserProfileViewModel : ViewModel() {
    * @author Timz3rr
    */
   val uiState: StateFlow<UserProfileUiState> = _uiState.asStateFlow()
+
+  /** Identifier of the signed-in user, or null when nobody is signed in. */
+  private var signedInUid: UserId? = null
+
+  // A slow load for a user who has since signed out could finish last and display their name for
+  // the next user, so only the load of the current user is kept running.
+  private var loadJob: Job? = null
+
+  init {
+    viewModelScope.launch { authRepository.authState.collect(::onAuthStateChanged) }
+  }
+
+  /**
+   * Loads the profile of the user who just signed in, or clears the one of the user who left.
+   *
+   * @param authUser the signed-in user, or null when nobody is signed in
+   */
+  private fun onAuthStateChanged(authUser: AuthUser?) {
+    loadJob?.cancel()
+    if (authUser == null) {
+      // Nobody signed in from the start (e.g. before Google sign-in is wired): a username already
+      // displayed belongs to no one who left, so it is kept.
+      if (signedInUid != null) _uiState.update { it.copy(username = null) }
+      signedInUid = null
+      return
+    }
+    signedInUid = authUser.uid
+    // Clears the previous user's name, so it is not displayed while the new profile loads.
+    _uiState.update { it.copy(username = null) }
+    loadJob =
+        viewModelScope.launchCatching(
+            tag = TAG,
+            onError = { error ->
+              _uiState.update { it.copy(errorMessageResId = error.toMessageRes()) }
+            },
+        ) {
+          findUser(authUser.uid)?.let(::setUser)
+        }
+  }
 
   /**
    * Displays the given user on the profile screen.
@@ -81,10 +144,11 @@ class UserProfileViewModel : ViewModel() {
   }
 
   /**
-   * Replaces the displayed username with the one entered by the user.
+   * Replaces the displayed username with the one entered by the user, and saves it for the
+   * signed-in user.
    *
-   * The username is only kept in memory: it is not persisted yet, so it is lost when the user signs
-   * out or the app is closed.
+   * The new name is displayed at once. If saving it fails, the previous name is displayed again and
+   * an error message is exposed. When nobody is signed in, the name is only kept in memory.
    *
    * @param newName the username as typed by the user; ignored if [isValidUsername] rejects it.
    * @author Timz3rr
@@ -93,6 +157,88 @@ class UserProfileViewModel : ViewModel() {
     // The dialog already disables saving an invalid name; checking again keeps the state valid
     // whatever the caller.
     if (!isValidUsername(newName)) return
-    _uiState.update { it.copy(username = normalizeUsername(newName)) }
+    val previousUsername = _uiState.value.username
+    val username = normalizeUsername(newName)
+    _uiState.update { it.copy(username = username) }
+
+    val uid = signedInUid ?: return
+    viewModelScope.launchCatching(
+        tag = TAG,
+        onError = { error ->
+          _uiState.update {
+            it.copy(username = previousUsername, errorMessageResId = error.toMessageRes())
+          }
+        },
+    ) {
+      saveUsername(uid, username)
+    }
+  }
+
+  /**
+   * Clears the error message after the screen has shown it.
+   *
+   * @author Timz3rr
+   */
+  fun clearErrorMessage() {
+    _uiState.update { it.copy(errorMessageResId = null) }
+  }
+
+  /**
+   * Saves the username of a user, creating their profile if they have none yet.
+   *
+   * @param uid identifier of the user
+   * @param username the normalized username to save
+   */
+  private suspend fun saveUsername(uid: UserId, username: String) {
+    // The stored profile is read first so that the fields saved by other screens, such as the
+    // preferences, are written back unchanged instead of being reset.
+    val storedUser = findUser(uid)
+    if (storedUser == null) {
+      userRepository.createUser(User(uid = uid, userName = username, preference = UserPreference()))
+    } else {
+      userRepository.updateUser(uid, storedUser.copy(userName = username))
+    }
+  }
+
+  /**
+   * Reads the profile of a user.
+   *
+   * @param uid identifier of the user
+   * @return the stored profile, or null when the user has none yet, as on their first sign-in
+   */
+  private suspend fun findUser(uid: UserId): User? =
+      try {
+        userRepository.getUser(uid)
+      } catch (exception: AppException.NotFound) {
+        // Caught here because launchCatching would report it as a failure, while it is expected.
+        null
+      }
+
+  /** Holds the log tag and the factory that creates [UserProfileViewModel]. */
+  companion object {
+    /** Log tag identifying messages emitted by [UserProfileViewModel]. */
+    private const val TAG = "UserProfileViewModel"
+
+    /**
+     * Creates a factory for a profile ViewModel with its repository dependencies.
+     *
+     * @param authRepository source of the signed-in user
+     * @param userRepository storage of the user profiles
+     * @return a factory that creates [UserProfileViewModel] instances
+     * @author Timz3rr
+     */
+    fun provideFactory(
+        authRepository: AuthRepository,
+        userRepository: UserRepository,
+    ): ViewModelProvider.Factory =
+        object : ViewModelProvider.Factory {
+          @Suppress("UNCHECKED_CAST")
+          override fun <T : ViewModel> create(modelClass: Class<T>): T {
+            if (modelClass.isAssignableFrom(UserProfileViewModel::class.java)) {
+              return UserProfileViewModel(authRepository, userRepository) as T
+            }
+            throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
+          }
+        }
   }
 }
