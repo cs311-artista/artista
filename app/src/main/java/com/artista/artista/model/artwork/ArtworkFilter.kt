@@ -1,8 +1,7 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 package com.artista.artista.model.artwork
 
-import java.util.Calendar
-import java.util.TimeZone
+import java.time.ZoneOffset
 
 /**
  * Describes optional criteria for selecting artworks. Empty sets and null bounds mean no filter.
@@ -108,8 +107,7 @@ fun suggestions(
 private fun matchesYear(artwork: Artwork, fromYear: Int?, toYear: Int?): Boolean {
   if (fromYear == null && toYear == null) return true
   val date = artwork.conceptionDate ?: return false
-  // WikiData uses UTC (at least in response JSON), so use UTC here
-  val year =
-      Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply { time = date }.get(Calendar.YEAR)
+  // Wikidata dates are UTC. java.time returns a signed year, so BCE dates compare correctly.
+  val year = date.toInstant().atZone(ZoneOffset.UTC).year
   return (fromYear == null || year >= fromYear) && (toYear == null || year <= toYear)
 }

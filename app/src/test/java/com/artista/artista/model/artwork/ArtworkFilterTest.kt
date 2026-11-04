@@ -3,7 +3,10 @@ package com.artista.artista.model.artwork
 
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.map.Location
+import java.time.LocalDate
+import java.time.ZoneOffset
 import java.util.Calendar
+import java.util.Date
 import java.util.TimeZone
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -49,6 +52,21 @@ class ArtworkFilterTest {
     val filter = ArtworkFilter(fromYear = 1665, toYear = 1889)
 
     assertEquals(artworks, artworks.applyFilter(filter))
+  }
+
+  /** Verifies that a BCE artwork is not matched by a CE range with the same absolute year. */
+  @Test
+  fun yearBounds_doNotMatchBceDatesAsCe() {
+    val bce =
+        artworks[0].copy(
+            conceptionDate =
+                Date.from(LocalDate.of(-499, 1, 1).atStartOfDay(ZoneOffset.UTC).toInstant())
+        )
+
+    assertEquals(
+        emptyList<Artwork>(),
+        listOf(bce).applyFilter(ArtworkFilter(fromYear = 400, toYear = 600)),
+    )
   }
 
   @Test
