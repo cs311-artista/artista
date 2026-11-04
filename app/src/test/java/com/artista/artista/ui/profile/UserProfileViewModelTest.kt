@@ -1,26 +1,203 @@
 package com.artista.artista.ui.profile
 
+import com.artista.artista.MainDispatcherRule
+import com.artista.artista.R
+import com.artista.artista.model.authentication.FakeAuthRepository
+import com.artista.artista.model.authentication.FakeAuthUser
+import com.artista.artista.model.error.AppException
+import com.artista.artista.model.user.FakeUserRepository
+import com.artista.artista.model.user.User
+import com.artista.artista.model.user.UserId
+import com.artista.artista.model.user.UserPreference
 import com.artista.artista.utils.userNamed
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 /**
- * Tests the state exposed by [UserProfileViewModel] and the username validation rule.
+ * Tests the state exposed by [UserProfileViewModel], the saving of the username for the signed-in
+ * user, and the username validation rule.
  *
  * @author Timz3rr
  */
 class UserProfileViewModelTest {
 
+  @get:Rule val mainDispatcherRule = MainDispatcherRule()
+
+  private val authRepository = FakeAuthRepository()
+  private val userRepository = FakeUserRepository()
   private lateinit var viewModel: UserProfileViewModel
+
+  private companion object {
+    /** Identifier of the users built by [userNamed]. */
+    const val UID = "uid-1"
+    const val OTHER_UID = "uid-2"
+  }
 
   @Before
   fun setUp() {
-    viewModel = UserProfileViewModel()
+    viewModel = UserProfileViewModel(authRepository, userRepository)
+  }
+
+  /** Checks that the username stored for the signed-in user is displayed once loaded. */
+  @Test
+  fun signIn_displaysStoredUsername() {
+    userRepository.store(userNamed("Alice"))
+
+    signIn()
+
+    assertEquals("Alice", viewModel.uiState.value.username)
+  }
+
+  /**
+   * Checks that a first sign-in, with no profile stored yet, shows the placeholder and no error.
+   */
+  @Test
+  fun signIn_withoutStoredUser_displaysNoUsernameAndNoError() {
+    signIn()
+
+    assertNull(viewModel.uiState.value.username)
+    assertNull(viewModel.uiState.value.errorMessageResId)
+  }
+
+  /** Checks that a failed load reports the message of its failure. */
+  @Test
+  fun signIn_whenLoadFails_showsErrorMessage() {
+    userRepository.readFailure = AppException.Network()
+
+    signIn()
+
+    assertEquals(R.string.error_network, viewModel.uiState.value.errorMessageResId)
+  }
+
+  /** Checks that signing in as another user replaces the username with theirs. */
+  @Test
+  fun signIn_asAnotherUser_displaysTheirUsername() {
+    userRepository.store(userNamed("Alice"))
+    userRepository.store(User(uid = OTHER_UID, userName = "Bob", preference = UserPreference()))
+
+    signIn()
+    signIn(OTHER_UID)
+
+    assertEquals("Bob", viewModel.uiState.value.username)
+  }
+
+  /** Checks that signing out clears the username of the user who left. */
+  @Test
+  fun signOut_clearsUsername() {
+    userRepository.store(userNamed("Alice"))
+    signIn()
+
+    authRepository.setAuthState(null)
+    runPendingCoroutines()
+
+    assertNull(viewModel.uiState.value.username)
+  }
+
+  /**
+   * Checks that being signed out from the start does not clear a username already displayed, since
+   * no user left.
+   */
+  @Test
+  fun signedOutFromStart_keepsDisplayedUsername() {
+    viewModel.setUser(userNamed("Alice"))
+
+    runPendingCoroutines()
+
+    assertEquals("Alice", viewModel.uiState.value.username)
+  }
+
+  /** Checks that a new username is saved for the signed-in user. */
+  @Test
+  fun updateUsername_whenSignedIn_savesUsername() {
+    userRepository.store(userNamed("Alice"))
+    signIn()
+
+    viewModel.updateUsername("Bob")
+    runPendingCoroutines()
+
+    assertEquals("Bob", userRepository.storedUser(UID)?.userName)
+  }
+
+  /** Checks that saving the username keeps the other stored fields, such as the preferences. */
+  @Test
+  fun updateUsername_keepsStoredPreferences() {
+    val preference = UserPreference(artists = listOf("VanGogh"))
+    userRepository.store(userNamed("Alice").copy(preference = preference))
+    signIn()
+
+    viewModel.updateUsername("Bob")
+    runPendingCoroutines()
+
+    assertEquals(preference, userRepository.storedUser(UID)?.preference)
+  }
+
+  /** Checks that the first username of a user with no stored profile creates that profile. */
+  @Test
+  fun updateUsername_withoutStoredUser_createsUser() {
+    signIn()
+
+    viewModel.updateUsername("Bob")
+    runPendingCoroutines()
+
+    assertEquals(
+        User(uid = UID, userName = "Bob", preference = UserPreference()),
+        userRepository.storedUser(UID),
+    )
+  }
+
+  /** Checks that without a signed-in user the username is displayed but not saved. */
+  @Test
+  fun updateUsername_whenSignedOut_displaysButDoesNotSave() {
+    runPendingCoroutines()
+
+    viewModel.updateUsername("Bob")
+    runPendingCoroutines()
+
+    assertEquals("Bob", viewModel.uiState.value.username)
+    assertEquals(0, userRepository.writeCount)
+  }
+
+  /** Checks that a failed save puts the previous username back and reports the failure. */
+  @Test
+  fun updateUsername_whenSaveFails_restoresPreviousUsernameAndShowsError() {
+    userRepository.store(userNamed("Alice"))
+    signIn()
+    userRepository.writeFailure = AppException.Network()
+
+    viewModel.updateUsername("Bob")
+    runPendingCoroutines()
+
+    assertEquals("Alice", viewModel.uiState.value.username)
+    assertEquals(R.string.error_network, viewModel.uiState.value.errorMessageResId)
+  }
+
+  /** Checks that an invalid username is not saved. */
+  @Test
+  fun updateUsername_withInvalidName_doesNotSave() {
+    userRepository.store(userNamed("Alice"))
+    signIn()
+
+    viewModel.updateUsername("Alice!")
+    runPendingCoroutines()
+
+    assertEquals(0, userRepository.writeCount)
+  }
+
+  /** Checks that the error message is removed once the screen has shown it. */
+  @Test
+  fun clearErrorMessage_removesErrorMessage() {
+    userRepository.readFailure = AppException.Network()
+    signIn()
+
+    viewModel.clearErrorMessage()
+
+    assertNull(viewModel.uiState.value.errorMessageResId)
   }
 
   /** Verifies that no username is displayed before a user is provided. */
@@ -181,5 +358,20 @@ class UserProfileViewModelTest {
   fun isValidUsername_rejectsTabsAndLineBreaks() {
     assertFalse(isValidUsername("John\tDoe"))
     assertFalse(isValidUsername("John\nDoe"))
+  }
+
+  /**
+   * Signs in as the user with the given identifier and lets the ViewModel load their profile.
+   *
+   * @param uid identifier of the user to sign in as
+   */
+  private fun signIn(uid: UserId = UID) {
+    authRepository.setAuthState(FakeAuthUser(uid))
+    runPendingCoroutines()
+  }
+
+  /** Runs the coroutines the ViewModel launched, such as loading or saving the profile. */
+  private fun runPendingCoroutines() {
+    mainDispatcherRule.testDispatcher.scheduler.advanceUntilIdle()
   }
 }

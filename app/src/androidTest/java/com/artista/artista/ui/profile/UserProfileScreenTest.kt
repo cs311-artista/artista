@@ -21,6 +21,8 @@ import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.text.AnnotatedString
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.artista.artista.R
+import com.artista.artista.model.authentication.FakeAuthRepository
+import com.artista.artista.model.user.UserRepositoryLocal
 import com.artista.artista.ui.navigation.NavigationTestTags
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.utils.userNamed
@@ -70,7 +72,7 @@ class UserProfileScreenTest {
   /** Verifies that a placeholder is displayed when the user has no username. */
   @Test
   fun userProfileScreen_showsPlaceholder_whenUserHasNoUsername() {
-    val viewModel = UserProfileViewModel().apply { setUser(userNamed(null)) }
+    val viewModel = signedOutViewModel().apply { setUser(userNamed(null)) }
     setProfileContent(viewModel = viewModel)
 
     composeTestRule
@@ -81,7 +83,7 @@ class UserProfileScreenTest {
   /** Verifies that the username of the user is displayed. */
   @Test
   fun userProfileScreen_showsUsername_whenUserHasUsername() {
-    val viewModel = UserProfileViewModel().apply { setUser(userNamed("Alice")) }
+    val viewModel = signedOutViewModel().apply { setUser(userNamed("Alice")) }
     setProfileContent(viewModel = viewModel)
 
     composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME).assertTextEquals("Alice")
@@ -90,7 +92,7 @@ class UserProfileScreenTest {
   /** Verifies that the displayed username follows the state of the ViewModel. */
   @Test
   fun userProfileScreen_updatesUsername_whenUserChanges() {
-    val viewModel = UserProfileViewModel()
+    val viewModel = signedOutViewModel()
     setProfileContent(viewModel = viewModel)
 
     composeTestRule.runOnIdle { viewModel.setUser(userNamed("Bob")) }
@@ -193,7 +195,7 @@ class UserProfileScreenTest {
   /** Verifies that the dialog starts from the current username, so a small change is quick. */
   @Test
   fun usernameDialog_prefillsCurrentUsername() {
-    val viewModel = UserProfileViewModel().apply { setUser(userNamed("Alice")) }
+    val viewModel = signedOutViewModel().apply { setUser(userNamed("Alice")) }
     setProfileContent(viewModel = viewModel)
 
     openUsernameDialog()
@@ -216,7 +218,7 @@ class UserProfileScreenTest {
   /** Verifies that saving closes the dialog and displays the entered username. */
   @Test
   fun usernameDialog_save_displaysNewUsername() {
-    val viewModel = UserProfileViewModel().apply { setUser(userNamed("Alice")) }
+    val viewModel = signedOutViewModel().apply { setUser(userNamed("Alice")) }
     setProfileContent(viewModel = viewModel)
 
     openUsernameDialog()
@@ -230,7 +232,7 @@ class UserProfileScreenTest {
   /** Verifies that cancelling closes the dialog and discards the entered username. */
   @Test
   fun usernameDialog_cancel_keepsPreviousUsername() {
-    val viewModel = UserProfileViewModel().apply { setUser(userNamed("Alice")) }
+    val viewModel = signedOutViewModel().apply { setUser(userNamed("Alice")) }
     setProfileContent(viewModel = viewModel)
 
     openUsernameDialog()
@@ -293,8 +295,15 @@ class UserProfileScreenTest {
     )
   }
 
+  /**
+   * Builds a ViewModel with nobody signed in, so these tests drive the displayed username through
+   * [UserProfileViewModel.setUser] and never reach Firebase.
+   */
+  private fun signedOutViewModel(): UserProfileViewModel =
+      UserProfileViewModel(FakeAuthRepository(), UserRepositoryLocal())
+
   private fun setProfileContent(
-      viewModel: UserProfileViewModel = UserProfileViewModel(),
+      viewModel: UserProfileViewModel = signedOutViewModel(),
       onLogoutClick: () -> Unit = {},
       onPreferencesClick: () -> Unit = {},
       onSavedArtworkClick: () -> Unit = {},

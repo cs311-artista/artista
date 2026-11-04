@@ -5,11 +5,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 // Co-authored-by: DeepSeek Flash
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 /**
- * In-memory [AuthRepository] for unit tests.
+ * In-memory [AuthRepository] for unit and instrumented tests.
  *
  * Lets tests drive the authentication state directly and simulate failures, with no Firebase
- * dependency.
+ * dependency. It lives in the shared test sources so that both suites use this single copy.
  *
  * @param initialUser the user the repository starts signed in as, or `null` for signed out
  * @author timo-by
