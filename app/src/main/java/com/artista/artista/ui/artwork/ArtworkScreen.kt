@@ -39,7 +39,6 @@ import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.map.Location
@@ -86,8 +85,8 @@ object ArtworkTestTags {
 fun ArtworkScreen(
     artwork: Artwork,
     modifier: Modifier = Modifier,
-    artworkScreenViewModel: ArtworkScreenViewModel = viewModel(),
-    onBackClick: () -> Unit = {},
+    artworkScreenViewModel: ArtworkScreenViewModel,
+    onBackClick: () -> Unit,
 ) {
   // uid or name would work the same here; uid is used only for consistency.
   LaunchedEffect(artwork.uid) { artworkScreenViewModel.setArtwork(artwork) }

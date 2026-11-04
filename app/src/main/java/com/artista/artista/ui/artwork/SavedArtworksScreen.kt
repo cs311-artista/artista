@@ -34,10 +34,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
-import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.artwork.mockArtworks
 import com.artista.artista.ui.navigation.BackButton
 import com.artista.artista.ui.navigation.BottomNavigationMenu
@@ -57,8 +55,7 @@ import com.artista.artista.ui.theme.Dimensions
  * @param onMapClick called when the user selects the map action for a saved artwork
  * @param onTabSelected called when the user selects a bottom-navigation destination
  * @param modifier modifier applied to the screen scaffold
- * @param viewModel ViewModel providing saved artworks state and actions. Defaults to a ViewModel
- *   backed by the shared [com.artista.artista.model.artwork.ArtworkRepositoryProvider.repository].
+ * @param viewModel ViewModel providing saved artworks state and actions.
  * @author Kaio R. Freitas Pereira Nascimento (krfpn)
  */
 @Composable
@@ -68,10 +65,7 @@ fun SavedArtworksScreen(
     onTabSelected: (Tab) -> Unit,
     onMapClick: (Artwork) -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: SavedArtworksViewModel =
-        viewModel(
-            factory = SavedArtworksViewModel.provideFactory(ArtworkRepositoryProvider.repository)
-        ),
+    viewModel: SavedArtworksViewModel,
 ) {
   val uiState by viewModel.uiState.collectAsState()
 

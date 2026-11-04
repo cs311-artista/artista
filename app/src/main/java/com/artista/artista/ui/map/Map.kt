@@ -26,8 +26,8 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.artista.artista.R
+import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.map.UserLocation
 import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
@@ -66,7 +66,7 @@ internal val REQUIRED_LOCATION_PERMISSIONS =
  */
 @Composable
 fun MapScreen(
-    mapViewModel: MapViewModel = viewModel(),
+    mapViewModel: MapViewModel,
     onNavigationBarTabSelected: (Tab) -> Unit = {},
 ) {
   val context = LocalContext.current
@@ -178,5 +178,13 @@ internal fun cameraPositionFor(userLocation: UserLocation?): CameraPosition {
 @Preview(widthDp = 1080, heightDp = 2424)
 @Composable
 fun MapScreenPreview() {
-  ArtistaTheme() { MapScreen() }
+  ArtistaTheme {
+    MapScreen(
+        mapViewModel =
+            MapViewModel(
+                ArtworkRepositoryProvider.wikiDataRepository,
+                ArtworkRepositoryProvider.savedArtworksRepository,
+            )
+    )
+  }
 }

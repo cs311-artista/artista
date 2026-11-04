@@ -47,7 +47,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.artista.artista.R
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
@@ -78,11 +77,7 @@ fun ArtistPreferencesScreen(
     onBackClick: () -> Unit,
     onSaveClick: () -> Unit,
     onTabSelected: (Tab) -> Unit,
-    artistPreferencesViewModel: ArtistPreferencesViewModel =
-        viewModel(
-            factory =
-                ArtistPreferencesViewModel.provideFactory(ArtworkRepositoryProvider.repository)
-        ),
+    artistPreferencesViewModel: ArtistPreferencesViewModel,
 ) {
   val uiState by artistPreferencesViewModel.uiState.collectAsStateWithLifecycle()
 
@@ -333,7 +328,7 @@ private fun SelectionIndicator(selected: Boolean, modifier: Modifier = Modifier)
 @Composable
 private fun ArtistPreferencesScreenPreview() {
   val viewModel = remember {
-    ArtistPreferencesViewModel(ArtworkRepositoryProvider.repository).apply {
+    ArtistPreferencesViewModel(ArtworkRepositoryProvider.wikiDataRepository).apply {
       toggleArtist("mock-artist-002")
       toggleArtist("mock-artist-004")
     }

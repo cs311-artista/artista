@@ -79,4 +79,10 @@ class ArtworkRepositoryLocal : SavedArtworksRepository, WikiDataRepository {
         throw IllegalArgumentException("uid $artwork.uid already in use!")
     artworks[artwork.uid] = artwork
   }
+
+  /** Clears all artwork data from this in-memory repository. */
+  fun clear() {
+    artworks.clear()
+    artworksSaved.clear()
+  }
 }
