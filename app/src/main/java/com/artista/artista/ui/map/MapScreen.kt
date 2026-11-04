@@ -28,6 +28,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.artista.artista.R
+import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.map.UserLocation
 import com.artista.artista.resources.C
 import com.artista.artista.ui.navigation.BottomNavigationMenu
@@ -65,7 +66,9 @@ internal val REQUIRED_LOCATION_PERMISSIONS =
 fun MapScreen(
     mapViewModel: MapViewModel = viewModel(),
     onNavigationBarTabSelected: (Tab) -> Unit = {},
+    onArtworkMarkerClick: (Artwork) -> Unit = {},
 ) {
+  val uiState = remember { mapViewModel.uiState }
   val context = LocalContext.current
   val locationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
   val permissions = REQUIRED_LOCATION_PERMISSIONS.toTypedArray()
@@ -82,7 +85,7 @@ fun MapScreen(
           mapViewModel.setLocationPermissionError()
         }
       }
-  val userLocation = mapViewModel.uiState.userLocation
+  val userLocation = uiState.userLocation
   val cameraPositionState = rememberCameraPositionState { position = cameraPositionFor(null) }
   val markerState = remember {
     MarkerState(position = LatLng(C.Constants.DEFAULT_MAP_LAT, C.Constants.DEFAULT_MAP_LONG))
@@ -140,6 +143,11 @@ fun MapScreen(
             state = markerState,
             title = stringResource(R.string.map_location_marker_text),
         )
+        uiState.savedArtworks.forEach { artwork -> DisplayArtworkMarker(artwork, onArtworkMarkerClick)
+
+        }
+        uiState.remoteArtworks.forEach { artwork -> DisplayArtworkMarker(artwork, onArtworkMarkerClick)
+        }
       }
     }
 
@@ -149,6 +157,20 @@ fun MapScreen(
         onTabSelected = { tab -> onNavigationBarTabSelected(tab) },
     )
   }
+}
+
+@Composable
+private fun DisplayArtworkMarker(artwork: Artwork, onArtworkMarkerClick: (Artwork) -> Unit) {
+  artwork.location?.let {
+            val artworkMarkerState = remember {
+              MarkerState(position = LatLng(artwork.location.latitude, artwork.location.longitude))
+            }
+            Marker(
+                state = artworkMarkerState,
+                title = artwork.name,
+                onInfoWindowClick = { onArtworkMarkerClick(artwork) },
+            )
+          }
 }
 
 private fun hasAllLocationPermissions(context: android.content.Context): Boolean =

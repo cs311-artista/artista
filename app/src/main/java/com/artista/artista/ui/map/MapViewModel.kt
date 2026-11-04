@@ -6,12 +6,17 @@ import android.location.Location
 import androidx.annotation.StringRes
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.artista.artista.R
+import com.artista.artista.model.artwork.Artwork
+import com.artista.artista.model.artwork.SavedArtworksRepository
+import com.artista.artista.model.artwork.WikiDataRepository
 import com.artista.artista.model.map.UserLocation
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
 import java.util.concurrent.Executor
+import kotlinx.coroutines.launch
 
 /** Provides the current device location to the map ViewModel. */
 fun interface LocationProvider {
@@ -33,6 +38,8 @@ fun interface LocationProvider {
  */
 data class MapViewUiState(
     val userLocation: UserLocation? = null,
+    val savedArtworks: List<Artwork> = listOf(),
+    val remoteArtworks: List<Artwork> = listOf(),
     @param:StringRes val errorMsg: Int? = null,
 )
 
@@ -42,6 +49,8 @@ data class MapViewUiState(
  * @author Felix Burchardt
  */
 class MapViewModel(
+    private val wikiDataRepository: WikiDataRepository,
+    private val savedArtworksRepository: SavedArtworksRepository,
     private val locationProvider: LocationProvider? = null,
 ) : ViewModel() {
 
@@ -49,6 +58,17 @@ class MapViewModel(
     get() = _uiState.value
 
   private val _uiState = mutableStateOf(MapViewUiState())
+
+  init {
+    viewModelScope.launch {
+      _uiState.value =
+          _uiState.value.copy(
+              savedArtworks = savedArtworksRepository.getSavedArtworks(),
+              // remoteArtworks = wikiDataRepository.getArtworksNearLocation(),
+              // todo get location-based artworks from the remote once correctly implemented
+          )
+    }
+  }
 
   /**
    * Updates the location shown on the map.
