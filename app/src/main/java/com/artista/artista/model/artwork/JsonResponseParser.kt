@@ -1,5 +1,6 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 // Co-authored-by: Qwen2.5-coder
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.model.artwork
 
 import com.artista.artista.model.artist.Artist
@@ -52,6 +53,7 @@ class JsonResponseParser {
       val width = binding.optJSONObject("width")
       val height = binding.optJSONObject("height")
       val description = binding.optJSONObject("description")
+      val image = binding.optJSONObject("image")
 
       val uid = item?.getString("value")?.substringAfterLast('/') ?: continue
       val name = itemLabel?.getString("value") ?: continue
@@ -77,6 +79,7 @@ class JsonResponseParser {
           } else {
             null
           }
+      val imageUrl = image?.optString("value")?.let(::parseImageUrl)
 
       artworks.add(
           Artwork(
@@ -88,6 +91,7 @@ class JsonResponseParser {
               museum = museum,
               location = location,
               dimension = dimension,
+              imageUrl = imageUrl,
           )
       )
     }
@@ -118,7 +122,30 @@ class JsonResponseParser {
     }
   }
 
+  /**
+   * Turns the Wikimedia Commons link of an artwork image into a link the app can load.
+   *
+   * Wikidata returns http links, which Android blocks by default, so the scheme is upgraded to
+   * https. Commons serves the full-resolution file unless asked otherwise, and some paintings weigh
+   * tens of megabytes, so a thumbnail width is requested instead.
+   *
+   * @param value raw image link from the Wikidata `image` binding
+   * @return the https thumbnail link, or null when [value] is blank
+   * @author Timz3rr
+   */
+  private fun parseImageUrl(value: String): String? {
+    if (value.isBlank()) return null
+    val httpsUrl = value.trim().replaceFirst(Regex("^http://"), "https://")
+    return "$httpsUrl?width=$THUMBNAIL_WIDTH_PX"
+  }
+
   private companion object {
+    /**
+     * Width of the requested thumbnails, in pixels. It covers a full-width card on common phone
+     * screens without downloading the original file.
+     */
+    const val THUMBNAIL_WIDTH_PX = 800
+
     val POINT_PATTERN = Regex("""Point\(\s*(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)\s*\)""")
   }
 }
