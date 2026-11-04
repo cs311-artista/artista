@@ -1,3 +1,4 @@
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista
 
 import android.os.Bundle
@@ -10,8 +11,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.testTag
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -22,7 +21,6 @@ import androidx.navigation.navArgument
 import androidx.navigation.navigation
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.artwork.mockArtworks
-import com.artista.artista.resources.C
 import com.artista.artista.ui.artwork.ArtworkScreen
 import com.artista.artista.ui.artwork.ArtworkScreenViewModel
 import com.artista.artista.ui.artwork.SavedArtworksScreen
@@ -63,7 +61,7 @@ class MainActivity : ComponentActivity() {
     setContent {
       ArtistaTheme {
         Surface(
-            modifier = Modifier.fillMaxSize().semantics { testTag = C.Tag.main_screen_container },
+            modifier = Modifier.fillMaxSize(),
             color = MaterialTheme.colorScheme.background,
         ) {
           ArtistaApp()
