@@ -38,6 +38,15 @@ class OverviewScreenTest {
 
   @get:Rule val composeTestRule = createAndroidComposeRule<ComponentActivity>()
 
+  /** Verifies that the overview preview renders its sample artwork list. */
+  @Test
+  fun overviewScreenPreview_displaysSampleArtworkList() {
+    composeTestRule.setContent { OverviewScreenPreview() }
+
+    composeTestRule.onNodeWithTag(OverviewTestTags.SCREEN).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(OverviewTestTags.ARTWORK_LIST).assertIsDisplayed()
+  }
+
   /**
    * Verifies that the screen and its artwork list are displayed.
    *
