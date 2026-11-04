@@ -16,6 +16,11 @@ object ArtworkRepositoryProvider {
 
   var repository = _repository
 
+  /** Firestore repository for saved artworks, created only when first used. */
+  val savedArtworksRepository: SavedArtworksRepository by lazy {
+    SavedArtworksRepositoryFirestore()
+  }
+
   /**
    * This function is meant to populate the API side of the faked ArtworkRepository in order to
    * facilitate test/demo setup
