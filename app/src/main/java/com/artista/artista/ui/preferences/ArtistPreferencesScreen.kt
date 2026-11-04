@@ -328,7 +328,7 @@ private fun SelectionIndicator(selected: Boolean, modifier: Modifier = Modifier)
 @Composable
 internal fun ArtistPreferencesScreenPreview() {
   val viewModel = remember {
-    ArtistPreferencesViewModel(ArtworkRepositoryProvider.wikiDataRepository).apply {
+    ArtistPreferencesViewModel(ArtworkRepositoryProvider.mockRepository).apply {
       toggleArtist("mock-artist-002")
       toggleArtist("mock-artist-004")
     }
