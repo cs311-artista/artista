@@ -91,6 +91,8 @@ fun ArtworkCard(
   fun testTag(tag: String): String =
       if (testTagSuffix.isNullOrBlank()) tag else "${tag}_$testTagSuffix"
 
+  // Computed once because both the title text and the image description use it, so they always
+  // name the artwork the same way, falling back to "Untitled" when Wikidata gives no name.
   val title = artwork.name ?: stringResource(R.string.artwork_unknown_title)
 
   Card(
@@ -115,6 +117,9 @@ fun ArtworkCard(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center,
         ) {
+          // Case 1: the artwork has an image link. Coil downloads it and reports each state change,
+          // so the fallback icon below can hide once the image is ready. Without a link, nothing
+          // is requested. Crop fills the whole area, since paintings come in many aspect ratios.
           if (artwork.imageUrl != null) {
             AsyncImage(
                 model = artwork.imageUrl,
@@ -126,8 +131,9 @@ fun ArtworkCard(
                 onState = { state -> isImageLoaded = state is AsyncImagePainter.State.Success },
             )
           }
-          // The icon covers loading, failed downloads and missing links alike: in every case the
-          // user has nothing to look at yet, and an empty grey box would look broken.
+          // Case 2: no image to show yet. The Box stacks this icon over the image area, and it
+          // covers loading, failed downloads and missing links alike: in every case the user has
+          // nothing to look at yet, and an empty grey box would look broken.
           if (!isImageLoaded) {
             Icon(
                 imageVector = Icons.Outlined.Image,

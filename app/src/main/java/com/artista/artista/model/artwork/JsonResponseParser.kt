@@ -53,6 +53,8 @@ class JsonResponseParser {
       val width = binding.optJSONObject("width")
       val height = binding.optJSONObject("height")
       val description = binding.optJSONObject("description")
+      // Many artworks have no image on Wikidata, and the binding is then missing, null or an
+      // empty string: optJSONObject returns null in all three cases instead of throwing.
       val image = binding.optJSONObject("image")
 
       val uid = item?.getString("value")?.substringAfterLast('/') ?: continue
@@ -79,6 +81,8 @@ class JsonResponseParser {
           } else {
             null
           }
+      // The raw Commons link cannot be loaded as is (http, full resolution), so it goes through
+      // parseImageUrl. A missing image stays null and the card shows its fallback icon.
       val imageUrl = image?.optString("value")?.let(::parseImageUrl)
 
       artworks.add(
@@ -129,8 +133,23 @@ class JsonResponseParser {
    * https. Commons serves the full-resolution file unless asked otherwise, and some paintings weigh
    * tens of megabytes, so a thumbnail width is requested instead.
    *
+   * A well-formed binding carries the image link in its `value` field:
+   * ```
+   * "image": { "type": "uri", "value": "http://commons.wikimedia.org/.../Mona%20Lisa.jpg" }
+   * ```
+   *
+   * A malformed binding has an empty `value`, or none at all, and [value] is then blank:
+   * ```
+   * "image": { "type": "uri", "value": "" }
+   * "image": { "type": "uri" }
+   * ```
+   *
+   * An artwork without an image normally has no `image` binding at all, so this function is not
+   * called for it.
+   *
    * @param value raw image link from the Wikidata `image` binding
-   * @return the https thumbnail link, or null when [value] is blank
+   * @return the https thumbnail link, or null when [value] is blank, which only happens with a
+   *   malformed binding
    * @author Timz3rr
    */
   private fun parseImageUrl(value: String): String? {
@@ -143,6 +162,9 @@ class JsonResponseParser {
     /**
      * Width of the requested thumbnails, in pixels. It covers a full-width card on common phone
      * screens without downloading the original file.
+     *
+     * It stays here rather than in `ui/theme/Dimensions.kt`: it is a pixel count sent to Commons in
+     * the image link, not a layout size in dp, and the model must not depend on the UI layer.
      */
     const val THUMBNAIL_WIDTH_PX = 800
 

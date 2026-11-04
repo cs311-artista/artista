@@ -192,7 +192,6 @@ class JsonResponseParserTest {
     assertNull(imageUrl)
   }
 
-  /** Checks that a full ISO-8601 timestamp is parsed as a date. */
   @Test
   fun testParseDate_withInstantParse() {
     val date = invokePrivateMethod<Date>(parser, "parseDate", "2023-01-01T00:00:00Z")
@@ -200,7 +199,6 @@ class JsonResponseParserTest {
     assertEquals(Date.from(Instant.parse("2023-01-01T00:00:00Z")), date)
   }
 
-  /** Checks that a date without time falls back to midnight UTC on that day. */
   @Test
   fun testParseDate_withLocalDateParse() {
     val date = invokePrivateMethod<Date>(parser, "parseDate", "2023-01-01")
@@ -211,7 +209,6 @@ class JsonResponseParserTest {
     )
   }
 
-  /** Checks that a WKT point is parsed into longitude, latitude and the location name. */
   @Test
   fun testParseLocation_withCoordinates() {
     val location =
@@ -222,7 +219,6 @@ class JsonResponseParserTest {
     assertEquals("Test Location", location.name)
   }
 
-  /** Checks that a location with a name but no coordinates keeps the name at (0, 0). */
   @Test
   fun testParseLocation_withLabelNoCoordinates() {
     val location = invokePrivateMethod<Location?>(parser, "parseLocation", null, "Test Location")
@@ -232,7 +228,6 @@ class JsonResponseParserTest {
     assertEquals("Test Location", location.name)
   }
 
-  /** Checks that a location with neither coordinates nor a name gives null. */
   @Test
   fun testParseLocation_noCoordinatesNoLabel() {
     val location = invokePrivateMethod<Location?>(parser, "parseLocation", null, null)

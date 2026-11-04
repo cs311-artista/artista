@@ -64,8 +64,8 @@ class MainActivity : ComponentActivity() {
     }
 
     setContent {
-      // Every AsyncImage in the app uses this loader, so artwork images reach Wikimedia with the
-      // user agent it requires.
+      // Makes our image loader the app-wide default, so every AsyncImage uses it without being
+      // given it. Its Artista user agent is what lets Wikimedia accept the image requests.
       setSingletonImageLoaderFactory { context -> createArtworkImageLoader(context) }
       ArtistaTheme {
         Surface(

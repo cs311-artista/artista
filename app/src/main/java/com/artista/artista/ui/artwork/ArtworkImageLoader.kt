@@ -13,6 +13,9 @@ import okhttp3.Response
 /**
  * Sets the `User-Agent` header of every request, replacing any value already present.
  *
+ * The `User-Agent` header tells the server which client sends the request, such as a browser or an
+ * app. OkHttp sends a generic `okhttp/<version>` by default, which says nothing about the app.
+ *
  * @param userAgent value sent in the `User-Agent` header
  * @author Timz3rr
  */
@@ -44,6 +47,11 @@ fun createArtworkHttpClient(): OkHttpClient =
 /**
  * Creates the image loader the app uses to display artwork images.
  *
+ * The loader does the work behind every `AsyncImage`: it checks its memory and disk caches, and
+ * otherwise downloads the image through [httpClient], so the request carries the Artista user
+ * agent. The image is then decoded, cached and faded in. Caching and decoding keep Coil's defaults;
+ * only the network client and the fade are configured here.
+ *
  * @param context context used by the loader for its caches
  * @param httpClient client used to download images; inject one in tests to intercept requests
  * @return an image loader that downloads through [httpClient]
@@ -54,6 +62,8 @@ fun createArtworkImageLoader(
     httpClient: OkHttpClient = createArtworkHttpClient(),
 ): ImageLoader =
     ImageLoader.Builder(context)
+        // The network fetcher downloads images with our client. Coil calls the lambda only on the
+        // first download, so building the loader does not slow down app start.
         .components { add(OkHttpNetworkFetcherFactory(callFactory = { httpClient })) }
         // Fades images in instead of popping them over the fallback icon.
         .crossfade(true)
