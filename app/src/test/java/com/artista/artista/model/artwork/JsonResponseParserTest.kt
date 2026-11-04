@@ -1,4 +1,5 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.model.artwork
 
 import com.artista.artista.model.map.Location
@@ -25,6 +26,14 @@ class JsonResponseParserTest {
 
   private val parser = JsonResponseParser()
 
+  private companion object {
+    const val MONA_LISA_IMAGE_URL =
+        "https://commons.wikimedia.org/wiki/Special:FilePath/" +
+            "Mona%20Lisa%2C%20by%20Leonardo%20da%20Vinci%2C%20from%20C2RMF%20retouched.jpg" +
+            "?width=800"
+  }
+
+  /** Checks that every field of a complete Wikidata row, image included, is parsed. */
   @Test
   fun parseArtworkResults_parsesCapturedWikidataResponse() {
     val resource =
@@ -47,8 +56,13 @@ class JsonResponseParserTest {
     assertEquals(0.0, artwork.location?.latitude ?: 0.0, 0.01)
     assertEquals(53.4, artwork.dimension?.width ?: 0.0, 0.01)
     assertEquals(79.4, artwork.dimension?.height ?: 0.0, 0.01)
+    assertEquals(MONA_LISA_IMAGE_URL, artwork.imageUrl)
   }
 
+  /**
+   * Checks that a response with several rows yields one artwork per row, each with its own image: a
+   * link for the artwork that has one, null for the one that has none.
+   */
   @Test
   fun parseArtworkResults_parsesMultipleCapturedWikidataResponses() {
     val resource =
@@ -74,6 +88,7 @@ class JsonResponseParserTest {
     assertEquals(0.0, artwork.location?.latitude ?: 0.0, 0.01)
     assertEquals(53.4, artwork.dimension?.width ?: 0.0, 0.01)
     assertEquals(79.4, artwork.dimension?.height ?: 0.0, 0.01)
+    assertEquals(MONA_LISA_IMAGE_URL, artwork.imageUrl)
 
     artwork = artworks[1]
     assertEquals("Q12419", artwork.uid)
@@ -85,8 +100,10 @@ class JsonResponseParserTest {
     assertNull(artwork.location)
     assertEquals(0.0, artwork.dimension?.width ?: 0.0, 0.01)
     assertEquals(0.0, artwork.dimension?.height ?: 0.0, 0.01)
+    assertNull(artwork.imageUrl)
   }
 
+  /** Checks that optional fields set to JSON null, image included, are parsed as null. */
   @Test
   fun parseArtworkResults_parsesCapturedWikidataResponseWithNullFields() {
     val resource =
@@ -107,8 +124,10 @@ class JsonResponseParserTest {
     assertEquals("Department of Sculptures of the Louvre", artwork.museum)
     assertNull(artwork.location)
     assertNull(artwork.dimension)
+    assertNull(artwork.imageUrl)
   }
 
+  /** Checks that optional fields set to an empty string, image included, are parsed as missing. */
   @Test
   fun parseArtworkResults_parsesCapturedWikidataResponseWithEmptyFields() {
     val resource =
@@ -130,8 +149,50 @@ class JsonResponseParserTest {
     assertNull(artwork.location)
     assertEquals(0.0, artwork.dimension?.width ?: 0.0, 0.01)
     assertEquals(0.0, artwork.dimension?.height ?: 0.0, 0.01)
+    assertNull(artwork.imageUrl)
   }
 
+  /**
+   * Checks that an http image link becomes https, because Android blocks cleartext traffic by
+   * default, and asks for a thumbnail instead of the full-resolution file.
+   */
+  @Test
+  fun testParseImageUrl_upgradesHttpToHttpsAndRequestsThumbnail() {
+    val imageUrl =
+        invokePrivateMethod<String?>(
+            parser,
+            "parseImageUrl",
+            "http://commons.wikimedia.org/wiki/Special:FilePath/Starry%20Night.jpg",
+        )
+    assertEquals(
+        "https://commons.wikimedia.org/wiki/Special:FilePath/Starry%20Night.jpg?width=800",
+        imageUrl,
+    )
+  }
+
+  /** Checks that an image link already in https keeps its scheme and still gets the thumbnail. */
+  @Test
+  fun testParseImageUrl_keepsHttpsScheme() {
+    val imageUrl =
+        invokePrivateMethod<String?>(
+            parser,
+            "parseImageUrl",
+            "https://commons.wikimedia.org/wiki/Special:FilePath/Starry%20Night.jpg",
+        )
+    assertEquals(
+        "https://commons.wikimedia.org/wiki/Special:FilePath/Starry%20Night.jpg?width=800",
+        imageUrl,
+    )
+  }
+
+  /** Checks that a blank image link gives null, so the card shows its fallback instead. */
+  @Test
+  fun testParseImageUrl_blankValueReturnsNull() {
+    val imageUrl = invokePrivateMethod<String?>(parser, "parseImageUrl", "  ")
+    assertNull(imageUrl)
+  }
+
+  /** Checks that a full ISO-8601 timestamp is parsed as a date. */
   @Test
   fun testParseDate_withInstantParse() {
     val date = invokePrivateMethod<Date>(parser, "parseDate", "2023-01-01T00:00:00Z")
@@ -139,6 +200,7 @@ class JsonResponseParserTest {
     assertEquals(Date.from(Instant.parse("2023-01-01T00:00:00Z")), date)
   }
 
+  /** Checks that a date without time falls back to midnight UTC on that day. */
   @Test
   fun testParseDate_withLocalDateParse() {
     val date = invokePrivateMethod<Date>(parser, "parseDate", "2023-01-01")
@@ -149,6 +211,7 @@ class JsonResponseParserTest {
     )
   }
 
+  /** Checks that a WKT point is parsed into longitude, latitude and the location name. */
   @Test
   fun testParseLocation_withCoordinates() {
     val location =
@@ -159,6 +222,7 @@ class JsonResponseParserTest {
     assertEquals("Test Location", location.name)
   }
 
+  /** Checks that a location with a name but no coordinates keeps the name at (0, 0). */
   @Test
   fun testParseLocation_withLabelNoCoordinates() {
     val location = invokePrivateMethod<Location?>(parser, "parseLocation", null, "Test Location")
@@ -168,6 +232,7 @@ class JsonResponseParserTest {
     assertEquals("Test Location", location.name)
   }
 
+  /** Checks that a location with neither coordinates nor a name gives null. */
   @Test
   fun testParseLocation_noCoordinatesNoLabel() {
     val location = invokePrivateMethod<Location?>(parser, "parseLocation", null, null)
