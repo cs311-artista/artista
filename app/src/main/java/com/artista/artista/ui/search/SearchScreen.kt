@@ -42,6 +42,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkId
@@ -258,9 +259,12 @@ private fun SearchScreenPreview() {
   ArtistaTheme {
     SearchScreen(
         viewModel =
-            SearchScreenViewModel(
-                ArtworkRepositoryProvider.savedArtworksRepository,
-                ArtworkRepositoryProvider.wikiDataRepository,
+            viewModel(
+                factory =
+                    SearchScreenViewModel.provideFactory(
+                        ArtworkRepositoryProvider.mockRepository,
+                        ArtworkRepositoryProvider.mockRepository,
+                    )
             ),
         onTabSelected = {},
     )
