@@ -1,4 +1,3 @@
-// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.resources
 
 import com.google.android.gms.maps.model.CameraPosition
@@ -7,9 +6,9 @@ import com.google.android.gms.maps.model.LatLng
 // Like R, but C
 object C {
   object Tag {
-    const val greeting_robo = "second_screen_greeting"
+    const val greeting = "main_screen_greeting"
 
-    const val second_screen_container = "second_screen_container"
+    const val main_screen_container = "main_screen_container"
 
     const val auth_screen_container = "auth_screen_container"
     const val auth_hero_image = "auth_hero_image"
