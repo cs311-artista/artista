@@ -70,6 +70,10 @@ class WikiDataRepositoryRemote(
    * are present. The first parsed row is used because the repository contract expects a single
    * artwork instance for a given identifier.
    *
+   * /!\ Current implementation of the parser needs to be updates
+   * not all information retrieved from Wikidata will be present
+   * in the artwork.
+   *
    * @param uid Wikidata item identifier for the artwork, such as Q12345
    * @return the artwork matching the identifier
    * @throws AppException.InvalidInput if the identifier is blank
@@ -89,6 +93,10 @@ class WikiDataRepositoryRemote(
 
   /**
    * Returns artworks around a geographic search area filtered by artwork type.
+   *
+   * /!\ Current implementation of the parser needs to be updates
+   * not all information retrieved from Wikidata will be present
+   * in the artwork.
    *
    * @param searchArea geographic bounds used to locate matching artworks
    * @param typeValues artwork classes to include in the query
@@ -110,6 +118,10 @@ class WikiDataRepositoryRemote(
 
   /**
    * Searches for artworks by label using the English-language Wikidata data set.
+   *
+   * /!\ Current implementation of the parser needs to be updates
+   * not all information retrieved from Wikidata will be present
+   * in the artwork.
    *
    * The search is intentionally limited to English strings to keep the user-facing result set
    * stable and avoid mixing localized labels from other languages.
