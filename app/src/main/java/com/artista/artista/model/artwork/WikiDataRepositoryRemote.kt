@@ -130,7 +130,6 @@ class WikiDataRepositoryRemote(
     validateLimit(limit)
 
     val query = buildArtworkSearchQuery(sanitizedTitle, typeValues, limit)
-    println(query)
     return jsonResponseParser.parseArtworkResults(executeSparqlRequest(query))
   }
 
@@ -246,7 +245,6 @@ class WikiDataRepositoryRemote(
       VALUES ?item { wd:$uid }
       $DETAILS
     }
-    LIMIT 1
     """
           .trimIndent()
 
