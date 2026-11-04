@@ -39,6 +39,16 @@ class ArtistPreferencesScreenTest {
 
   @get:Rule val composeTestRule = createAndroidComposeRule<ComponentActivity>()
 
+  /** Verifies that the preferences preview renders its screen and artist grid. */
+  @Test
+  fun artistPreferencesScreenPreview_displaysArtistGrid() {
+    composeTestRule.setContent { ArtistPreferencesScreenPreview() }
+    composeTestRule.waitForIdle()
+
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SCREEN).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.ARTISTS_GRID).assertIsDisplayed()
+  }
+
   /** Verifies that every element of the artist preferences screen is displayed. */
   @Test
   fun artistPreferencesScreen_displaysAllElements() {

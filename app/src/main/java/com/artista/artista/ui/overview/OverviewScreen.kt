@@ -48,7 +48,6 @@ import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaTheme
 import com.artista.artista.ui.theme.Dimensions
-import com.artista.artista.ui.theme.ExcludeFromJacocoGeneratedReport
 
 /**
  * Provides stable semantics tags for Overview screen UI tests.
@@ -215,9 +214,8 @@ private fun OverviewErrorContent(onSavedArtworksClick: () -> Unit) {
 
 /** Previews the overview screen with a sample set of artworks in Android Studio. */
 @Preview(showBackground = true)
-@ExcludeFromJacocoGeneratedReport
 @Composable
-private fun OverviewScreenPreview() {
+fun OverviewScreenPreview() {
   val viewModel = remember {
     val repository = ArtworkRepositoryLocal()
     mockArtworks.forEach { repository.putArtworkInRepositoryUnsavedSection(it) }

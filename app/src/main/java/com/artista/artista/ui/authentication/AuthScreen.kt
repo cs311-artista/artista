@@ -45,7 +45,6 @@ import com.artista.artista.R
 import com.artista.artista.resources.C
 import com.artista.artista.ui.theme.ArtistaTheme
 import com.artista.artista.ui.theme.Dimensions
-import com.artista.artista.ui.theme.ExcludeFromJacocoGeneratedReport
 import kotlinx.coroutines.launch
 
 // Co-authored-by: DeepSeek Flash
@@ -232,9 +231,8 @@ fun AuthScreen(
 
 /** Preview of the signed-out sign-in screen. */
 @Preview(showBackground = true)
-@ExcludeFromJacocoGeneratedReport
 @Composable
-private fun AuthScreenContentPreview() {
+fun AuthScreenContentPreview() {
   ArtistaTheme {
     AuthScreenContent(
         state = AuthUiState(),

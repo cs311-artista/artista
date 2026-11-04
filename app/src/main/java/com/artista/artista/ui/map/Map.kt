@@ -32,7 +32,6 @@ import com.artista.artista.model.map.UserLocation
 import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaTheme
-import com.artista.artista.ui.theme.ExcludeFromJacocoGeneratedReport
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
@@ -177,7 +176,6 @@ internal fun cameraPositionFor(userLocation: UserLocation?): CameraPosition {
  * @author Felix Burchardt
  */
 @Preview(widthDp = 1080, heightDp = 2424)
-@ExcludeFromJacocoGeneratedReport
 @Composable
 fun MapScreenPreview() {
   ArtistaTheme() { MapScreen() }

@@ -57,7 +57,6 @@ import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaColors
 import com.artista.artista.ui.theme.ArtistaTheme
 import com.artista.artista.ui.theme.Dimensions
-import com.artista.artista.ui.theme.ExcludeFromJacocoGeneratedReport
 
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
@@ -323,9 +322,8 @@ private fun SelectionIndicator(selected: Boolean, modifier: Modifier = Modifier)
 
 /** Previews the artist preferences screen with two selected artists in Android Studio. */
 @Preview(showBackground = true)
-@ExcludeFromJacocoGeneratedReport
 @Composable
-private fun ArtistPreferencesScreenPreview() {
+fun ArtistPreferencesScreenPreview() {
   val viewModel = remember {
     ArtistPreferencesViewModel(ArtworkRepositoryProvider.repository).apply {
       toggleArtist("mock-artist-002")

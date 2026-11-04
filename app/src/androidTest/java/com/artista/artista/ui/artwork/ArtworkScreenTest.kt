@@ -1,3 +1,4 @@
+// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 // Co-authored-by: Gemini <gemini@google.com>
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.artwork
@@ -137,6 +138,9 @@ class ArtworkScreenTest {
   @Test
   fun testArtworkPreview() {
     composeTestRule.setContent { ArtworkPreview() }
+
+    composeTestRule.onNodeWithTag(ArtworkTestTags.ARTWORK_SCREEN).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(ArtworkTestTags.ARTWORK_TITLE).assertIsDisplayed()
   }
 
   /** In-memory test double implementing [SavedArtworksRepository]. */

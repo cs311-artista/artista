@@ -50,7 +50,6 @@ import com.artista.artista.resources.C
 import com.artista.artista.ui.navigation.BackButton
 import com.artista.artista.ui.theme.ArtistaTheme
 import com.artista.artista.ui.theme.Dimensions
-import com.artista.artista.ui.theme.ExcludeFromJacocoGeneratedReport
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.CameraPositionState
@@ -333,7 +332,6 @@ fun MapTile(
 
 /** Previews [ArtworkScreen] with a representative artwork from [mockArtworks]. */
 @Preview
-@ExcludeFromJacocoGeneratedReport
 @Composable
 fun ArtworkPreview() {
   val sampleArtwork = mockArtworks.first()
