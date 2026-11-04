@@ -8,6 +8,7 @@ import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.map.UserLocation
 import com.artista.artista.ui.navigation.NavigationTestTags
 import com.artista.artista.ui.theme.ArtistaTheme
@@ -67,7 +68,12 @@ class MapScreenTest {
   /** Verifies that the map get the device's current location properly from the ViewModel. */
   @Test
   fun mapScreen_getsLocationProperlyFromViewModel() {
-    val mapViewModel = MapViewModel { callback -> callback(mockDeviceLocation()) }
+    val mapViewModel =
+        MapViewModel(
+            ArtworkRepositoryProvider.wikiDataRepository,
+            ArtworkRepositoryProvider.savedArtworksRepository,
+            locationProvider = LocationProvider { callback -> callback(mockDeviceLocation()) },
+        )
     composeTestRule.setContent { ArtistaTheme { MapScreen(mapViewModel = mapViewModel) } }
 
     composeTestRule.waitForIdle()
@@ -82,7 +88,12 @@ class MapScreenTest {
   /** Verifies that the marker is not positioned when the mocked device has no location. */
   @Test
   fun mapScreen_doesNotDisplayMarkerWhenDeviceLocationIsUnavailable() {
-    val mapViewModel = MapViewModel { callback -> callback(null) }
+    val mapViewModel =
+        MapViewModel(
+            ArtworkRepositoryProvider.wikiDataRepository,
+            ArtworkRepositoryProvider.savedArtworksRepository,
+            locationProvider = LocationProvider { callback -> callback(null) },
+        )
     composeTestRule.setContent { ArtistaTheme { MapScreen(mapViewModel = mapViewModel) } }
 
     composeTestRule.waitForIdle()
@@ -92,7 +103,17 @@ class MapScreenTest {
   }
 
   private fun setMapScreenContent() {
-    composeTestRule.setContent { ArtistaTheme { MapScreen() } }
+    composeTestRule.setContent {
+      ArtistaTheme {
+        MapScreen(
+            mapViewModel =
+                MapViewModel(
+                    ArtworkRepositoryProvider.wikiDataRepository,
+                    ArtworkRepositoryProvider.savedArtworksRepository,
+                )
+        )
+      }
+    }
   }
 
   private companion object {
