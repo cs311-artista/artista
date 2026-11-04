@@ -141,7 +141,7 @@ class WikiDataRepositoryRemote(
     const val MAX_LIMIT = 200
 
     const val SELECT_LINE =
-        "SELECT ?item ?itemLabel ?artistLabel ?image ?inception ?collectionLabel ?locationLabel ?width ?height ?description ?locationCoordinates ?coordinateSource ?pinOwner ?pinOwnerLabel"
+        "SELECT ?item ?itemLabel ?artistLabel ?image ?inception ?collectionLabel ?locationLabel ?width ?height ?description ?locationCoordinates ?coordinateSource"
 
     val DETAILS =
         """
@@ -162,10 +162,6 @@ class WikiDataRepositoryRemote(
       BIND(COALESCE(?ownCoordinates, ?locationSideCoordinates) AS ?locationCoordinates)
       BIND(IF(BOUND(?ownCoordinates), "item",
            IF(BOUND(?locationSideCoordinates), "location", ?unbound)) AS ?coordinateSource)
-      BIND(IF(BOUND(?ownCoordinates), ?item,
-           IF(BOUND(?locationSideCoordinates), ?location, ?unbound)) AS ?pinOwner)
-      BIND(IF(BOUND(?ownCoordinates), ?itemLabel,
-           IF(BOUND(?locationSideCoordinates), ?locationLabel, ?unbound)) AS ?pinOwnerLabel)
       """
             .trimIndent()
   }
@@ -245,6 +241,7 @@ class WikiDataRepositoryRemote(
       VALUES ?item { wd:$uid }
       $DETAILS
     }
+    LIMIT 1
     """
           .trimIndent()
 

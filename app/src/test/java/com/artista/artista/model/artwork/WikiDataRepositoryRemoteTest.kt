@@ -46,7 +46,7 @@ class WikiDataRepositoryRemoteTest {
   }
 
   @Ignore(
-    "This test performs real network requests to the Wikidata SPARQL endpoint. It is intended to verify the correctness of the SPARQL query and the ability to fetch data from the remote API."
+      "This test performs real network requests to the Wikidata SPARQL endpoint. It is intended to verify the correctness of the SPARQL query and the ability to fetch data from the remote API."
   )
   @Test
   fun runRealRequestForQuery() = runTest {
@@ -132,12 +132,8 @@ class WikiDataRepositoryRemoteTest {
     assertTrue(sparql.contains("VALUES ?item { wd:Q12418 }"))
     assertTrue(sparql.contains("FILTER(LANG(?itemLabel) = \"en\")"))
     assertTrue(sparql.contains("BIND(COALESCE(?ownCoordinates, ?locationSideCoordinates)"))
-    val normalizedSparql = sparql.replace(Regex("\\s+"), " ")
-    assertTrue(
-        normalizedSparql.contains(
-            "BIND(IF(BOUND(?ownCoordinates), ?itemLabel, IF(BOUND(?locationSideCoordinates), ?locationLabel, ?unbound)) AS ?pinOwnerLabel)"
-        )
-    )
+    assertFalse(sparql.contains("?pinOwner"))
+    assertFalse(sparql.contains("?pinOwnerLabel"))
     assertTrue("getArtwork should limit duplicate rows", sparql.trimEnd().endsWith("LIMIT 1"))
   }
 
