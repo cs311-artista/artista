@@ -34,7 +34,6 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -45,16 +44,13 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.artista.artista.R
 import com.artista.artista.model.artist.Artist
-import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.ui.navigation.BackButton
 import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaColors
-import com.artista.artista.ui.theme.ArtistaTheme
 import com.artista.artista.ui.theme.Dimensions
 
 private val PillShape = RoundedCornerShape(percent = 50)
@@ -320,25 +316,5 @@ private fun SelectionIndicator(selected: Boolean, modifier: Modifier = Modifier)
           tint = MaterialTheme.colorScheme.onPrimary,
       )
     }
-  }
-}
-
-/** Previews the artist preferences screen with two selected artists in Android Studio. */
-@Preview(showBackground = true)
-@Composable
-private fun ArtistPreferencesScreenPreview() {
-  val viewModel = remember {
-    ArtistPreferencesViewModel(ArtworkRepositoryProvider.wikiDataRepository).apply {
-      toggleArtist("mock-artist-002")
-      toggleArtist("mock-artist-004")
-    }
-  }
-  ArtistaTheme {
-    ArtistPreferencesScreen(
-        onBackClick = {},
-        onSaveClick = {},
-        onTabSelected = {},
-        artistPreferencesViewModel = viewModel,
-    )
   }
 }

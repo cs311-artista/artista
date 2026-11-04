@@ -40,10 +40,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.tooling.preview.Preview
 import com.artista.artista.R
 import com.artista.artista.resources.C
-import com.artista.artista.ui.theme.ArtistaTheme
 import com.artista.artista.ui.theme.Dimensions
 import kotlinx.coroutines.launch
 
@@ -227,18 +225,4 @@ fun AuthScreen(
       onSignedIn = onSignedIn,
       modifier = modifier,
   )
-}
-
-/** Preview of the signed-out sign-in screen. */
-@Preview(showBackground = true)
-@Composable
-private fun AuthScreenContentPreview() {
-  ArtistaTheme {
-    AuthScreenContent(
-        state = AuthUiState(),
-        snackbarHostState = remember { SnackbarHostState() },
-        onSignInClick = {},
-        onSignedIn = {},
-    )
-  }
 }

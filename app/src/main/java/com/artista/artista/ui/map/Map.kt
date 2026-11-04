@@ -22,18 +22,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.artista.artista.R
-import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.map.UserLocation
 import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
-import com.artista.artista.ui.theme.ArtistaTheme
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
@@ -170,26 +166,4 @@ internal fun cameraPositionFor(userLocation: UserLocation?): CameraPosition {
   val target = userLocation?.let { LatLng(it.latitude, it.longitude) } ?: defaultMapLocation
   val zoom = if (userLocation == null) DEFAULT_MAP_ZOOM else USER_LOCATION_ZOOM
   return CameraPosition.fromLatLngZoom(target, zoom)
-}
-
-/**
- * Previews the map screen layout.
- *
- * @author Felix Burchardt
- */
-@Preview(widthDp = 1080, heightDp = 2424)
-@Composable
-fun MapScreenPreview() {
-  ArtistaTheme {
-    MapScreen(
-        mapViewModel =
-            viewModel(
-                factory =
-                    MapViewModel.provideFactory(
-                        wikiDataRepository = ArtworkRepositoryProvider.mockRepository,
-                        savedArtworksRepository = ArtworkRepositoryProvider.mockRepository,
-                    )
-            )
-    )
-  }
 }

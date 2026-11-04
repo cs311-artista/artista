@@ -30,7 +30,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -40,14 +39,10 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.artista.artista.R
-import com.artista.artista.model.user.User
-import com.artista.artista.model.user.UserPreference
 import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
-import com.artista.artista.ui.theme.ArtistaTheme
 import com.artista.artista.ui.theme.Dimensions
 
 private val FieldShape = RoundedCornerShape(percent = 50)
@@ -298,7 +293,7 @@ private fun ProfileField(
  * @param onDismiss Callback invoked when the dialog is closed without saving.
  */
 @Composable
-private fun EditUsernameDialog(
+internal fun EditUsernameDialog(
     initialUsername: String,
     onSave: (String) -> Unit,
     onDismiss: () -> Unit,
@@ -347,23 +342,4 @@ private fun EditUsernameDialog(
         }
       },
   )
-}
-
-/** Previews the user profile screen with a sample user in Android Studio. */
-@Preview(showBackground = true)
-@Composable
-private fun UserProfileScreenPreview() {
-  val viewModel = remember {
-    UserProfileViewModel().apply {
-      setUser(User(uid = "preview", userName = "Artista Fan", preference = UserPreference()))
-    }
-  }
-  ArtistaTheme { UserProfileScreen(onLogoutClick = {}, userProfileViewModel = viewModel) }
-}
-
-/** Previews the username edit dialog in Android Studio. */
-@Preview(showBackground = true)
-@Composable
-private fun EditUsernameDialogPreview() {
-  ArtistaTheme { EditUsernameDialog(initialUsername = "Artista Fan", onSave = {}, onDismiss = {}) }
 }
