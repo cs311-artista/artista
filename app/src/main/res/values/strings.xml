@@ -1,7 +1,6 @@
 <!-- Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com> -->
 <resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name">Artista</string>
-    <string name="title_activity_main">MainActivity</string>
 
     <!-- Artwork Field Labels -->
     <string name="artwork_label_artist">Artist</string>
