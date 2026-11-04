@@ -110,8 +110,11 @@ class OverviewScreenViewModelTest {
     val second = artwork(name = "Girl with a Pearl Earring", artistName = "Johannes Vermeer")
     val repository =
         object : WikiDataRepository by ArtworkRepositoryLocal() {
-          override suspend fun getArtworksNearLocation(location: UserLocation?): List<Artwork> =
-              listOf(first, second)
+          override suspend fun getArtworksNearLocation(
+              searchArea: SearchArea,
+              typeValues: List<ArtworkType>,
+              limit: Int,
+          ): List<Artwork> = listOf(first, second)
         }
     val viewModel = OverviewViewModel(repository)
 
