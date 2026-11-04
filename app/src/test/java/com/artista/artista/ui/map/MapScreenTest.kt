@@ -14,7 +14,7 @@ import org.junit.Test
  *
  * @author Felix Burchardt
  */
-class MapTest {
+class MapScreenTest {
 
   private companion object {
     const val COORDINATE_TOLERANCE = 0.0001
