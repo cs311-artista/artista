@@ -27,7 +27,7 @@ import kotlinx.coroutines.flow.update
  * @property loadErrorMessageResId string resource of the message shown when loading artworks fails
  * @property unsaveErrorMessageResId string resource of the message shown when unsaving an artwork
  *   fails
- * @author Kaio R. Freitas Pereira Nascimento (krfpn)
+ * @author krfpn
  */
 data class SavedArtworksUIState(
     val artworks: List<Artwork> = emptyList(),
@@ -41,7 +41,7 @@ data class SavedArtworksUIState(
  * Provides saved artworks state and actions to [SavedArtworksScreen].
  *
  * @param savedArtworksRepository repository used to load and remove saved artworks
- * @author Kaio R. Freitas Pereira Nascimento (krfpn)
+ * @author krfpn
  */
 class SavedArtworksViewModel(
     private val savedArtworksRepository: SavedArtworksRepository,
@@ -61,7 +61,7 @@ class SavedArtworksViewModel(
    * The loading state is only shown when no artworks are displayed yet, so refreshing an existing
    * list keeps it visible until the new one arrives.
    *
-   * @author Kaio R. Freitas Pereira Nascimento (krfpn)
+   * @author krfpn
    */
   fun refreshSavedArtworks() {
     _uiState.update { it.copy(isLoading = it.artworks.isEmpty(), loadErrorMessageResId = null) }
@@ -102,7 +102,7 @@ class SavedArtworksViewModel(
    * position only if the repository fails to remove it.
    *
    * @param artwork artwork to remove from the saved list
-   * @author Kaio R. Freitas Pereira Nascimento (krfpn)
+   * @author krfpn
    */
   fun onArtworkUnsave(artwork: Artwork) {
     val previousIndex = _uiState.value.artworks.indexOfFirst { it.uid == artwork.uid }
@@ -146,7 +146,7 @@ class SavedArtworksViewModel(
   /**
    * Clears the loading error after the UI has displayed it.
    *
-   * @author Kaio R. Freitas Pereira Nascimento (krfpn)
+   * @author krfpn
    */
   fun clearLoadError() {
     _uiState.update { it.copy(loadErrorMessageResId = null) }
@@ -155,7 +155,7 @@ class SavedArtworksViewModel(
   /**
    * Clears the unsave error after the UI has displayed it.
    *
-   * @author Kaio R. Freitas Pereira Nascimento (krfpn)
+   * @author krfpn
    */
   fun clearUnsaveError() {
     _uiState.update { it.copy(unsaveErrorMessageResId = null) }
