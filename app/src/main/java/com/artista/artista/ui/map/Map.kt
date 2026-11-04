@@ -3,6 +3,7 @@
 package com.artista.artista.ui.map
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -26,6 +27,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.artista.artista.R
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.map.UserLocation
@@ -152,7 +154,7 @@ fun MapScreen(
   }
 }
 
-private fun hasAllLocationPermissions(context: android.content.Context): Boolean =
+private fun hasAllLocationPermissions(context: Context): Boolean =
     REQUIRED_LOCATION_PERMISSIONS.all {
       ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
     }
@@ -180,11 +182,11 @@ internal fun cameraPositionFor(userLocation: UserLocation?): CameraPosition {
 fun MapScreenPreview() {
   ArtistaTheme {
     MapScreen(
-        mapViewModel =
-            MapViewModel(
-                ArtworkRepositoryProvider.wikiDataRepository,
-                ArtworkRepositoryProvider.savedArtworksRepository,
-            )
+        mapViewModel = viewModel(factory = MapViewModel.provideFactory(
+          wikiDataRepository = ArtworkRepositoryProvider.mockRepository,
+          savedArtworksRepository = ArtworkRepositoryProvider.mockRepository
+        ))
+
     )
   }
 }
