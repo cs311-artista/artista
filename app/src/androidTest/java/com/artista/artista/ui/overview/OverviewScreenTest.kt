@@ -5,6 +5,8 @@ package com.artista.artista.ui.overview
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextContains
@@ -13,12 +15,15 @@ import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTextReplacement
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
 import com.artista.artista.model.artwork.WikiDataRepository
 import com.artista.artista.model.map.UserLocation
+import com.artista.artista.ui.artwork.ArtworkFilterTestTags
 import com.artista.artista.ui.navigation.NavigationTestTags
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaTheme
@@ -156,6 +161,109 @@ class OverviewScreenTest {
     composeTestRule.onNodeWithTag(OverviewTestTags.SEARCH_BAR).performClick()
 
     assertTrue(searchRequested)
+  }
+
+  /** Verifies that the filter dialog opens from the Overview action. */
+  @Test
+  fun overviewScreen_filterButton_opensFilterDialog() {
+    setOverviewContent(
+        listOf(artwork(name = "Girl with a Pearl Earring", artistName = "Johannes Vermeer"))
+    )
+
+    composeTestRule.onNodeWithTag(OverviewTestTags.FILTER_BUTTON).performClick()
+
+    composeTestRule.onNodeWithTag("${ArtworkFilterTestTags.ARTIST}-input").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("${ArtworkFilterTestTags.ARTIST}-input").performTextInput("ver")
+    composeTestRule
+        .onNodeWithTag("${ArtworkFilterTestTags.ARTIST}-option-Johannes Vermeer")
+        .assertIsDisplayed()
+    composeTestRule.onNodeWithTag(ArtworkFilterTestTags.APPLY_BUTTON).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(ArtworkFilterTestTags.CLEAR_BUTTON).assertIsDisplayed()
+  }
+
+  /** Verifies that applying a filter updates the displayed artwork cards. */
+  @Test
+  fun overviewScreen_applyingFilter_updatesArtworkList() {
+    setOverviewContent(
+        listOf(
+            artwork(name = "The Starry Night", artistName = "Vincent van Gogh"),
+            artwork(name = "Girl with a Pearl Earring", artistName = "Johannes Vermeer"),
+        )
+    )
+
+    composeTestRule.onNodeWithTag(OverviewTestTags.FILTER_BUTTON).performClick()
+    composeTestRule.onNodeWithTag("${ArtworkFilterTestTags.ARTIST}-input").performTextInput("ver")
+    composeTestRule
+        .onNodeWithTag("${ArtworkFilterTestTags.ARTIST}-option-Johannes Vermeer")
+        .performClick()
+    composeTestRule.onNodeWithTag(ArtworkFilterTestTags.APPLY_BUTTON).performClick()
+
+    composeTestRule.onAllNodesWithTag(OverviewTestTags.ARTWORK_ITEM).assertCountEquals(1)
+    composeTestRule.onNodeWithText("Girl with a Pearl Earring").assertIsDisplayed()
+    // assertExists() never passes without useUnmergedTree = true
+    composeTestRule
+        .onNodeWithTag(OverviewTestTags.FILTER_ACTIVE, useUnmergedTree = true)
+        .assertExists()
+  }
+
+  /** Verifies that clearing filters restores the complete artwork list. */
+  @Test
+  fun overviewScreen_clearingFilter_restoresArtworkList() {
+    setOverviewContent(
+        listOf(
+            artwork(name = "The Starry Night", artistName = "Vincent van Gogh"),
+            artwork(name = "Girl with a Pearl Earring", artistName = "Johannes Vermeer"),
+        )
+    )
+
+    composeTestRule.onNodeWithTag(OverviewTestTags.FILTER_BUTTON).performClick()
+    composeTestRule.onNodeWithTag("${ArtworkFilterTestTags.ARTIST}-input").performTextInput("vin")
+    composeTestRule
+        .onNodeWithTag("${ArtworkFilterTestTags.ARTIST}-option-Vincent van Gogh")
+        .performClick()
+    composeTestRule.onNodeWithTag(ArtworkFilterTestTags.APPLY_BUTTON).performClick()
+    composeTestRule.onNodeWithTag(OverviewTestTags.FILTER_BUTTON).performClick()
+    composeTestRule.onNodeWithTag(ArtworkFilterTestTags.CLEAR_BUTTON).performClick()
+
+    composeTestRule.onAllNodesWithTag(OverviewTestTags.ARTWORK_ITEM).assertCountEquals(2)
+    // assertDoesNotExist() always passes without useUnmergedTree = true
+    composeTestRule
+        .onNodeWithTag(OverviewTestTags.FILTER_ACTIVE, useUnmergedTree = true)
+        .assertDoesNotExist()
+  }
+
+  /** Verifies that no-match filtering displays a dedicated empty-result state. */
+  @Test
+  fun overviewScreen_filterWithNoMatches_showsEmptyResultState() {
+    setOverviewContent(listOf(artwork(name = "The Starry Night", artistName = "Vincent van Gogh")))
+
+    composeTestRule.onNodeWithTag(OverviewTestTags.FILTER_BUTTON).performClick()
+    composeTestRule.onNodeWithTag(ArtworkFilterTestTags.FROM_YEAR).performTextInput("3000")
+    composeTestRule.onNodeWithTag(ArtworkFilterTestTags.APPLY_BUTTON).performClick()
+
+    composeTestRule.onNodeWithTag(OverviewTestTags.EMPTY_FILTER_RESULTS).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(OverviewTestTags.ARTWORK_LIST).assertDoesNotExist()
+  }
+
+  /** Verifies that an inverted year range shows an error and blocks applying until it is fixed. */
+  @Test
+  fun filterDialog_invalidYearRange_showsErrorAndDisablesApply() {
+    setOverviewContent(
+        listOf(artwork(name = "Girl with a Pearl Earring", artistName = "Johannes Vermeer"))
+    )
+    composeTestRule.onNodeWithTag(OverviewTestTags.FILTER_BUTTON).performClick()
+    composeTestRule.onNodeWithTag(ArtworkFilterTestTags.YEAR_ERROR).assertDoesNotExist()
+
+    composeTestRule.onNodeWithTag(ArtworkFilterTestTags.FROM_YEAR).performTextInput("1900")
+    composeTestRule.onNodeWithTag(ArtworkFilterTestTags.TO_YEAR).performTextInput("1800")
+
+    composeTestRule.onNodeWithTag(ArtworkFilterTestTags.YEAR_ERROR).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(ArtworkFilterTestTags.APPLY_BUTTON).assertIsNotEnabled()
+
+    composeTestRule.onNodeWithTag(ArtworkFilterTestTags.TO_YEAR).performTextReplacement("1950")
+
+    composeTestRule.onNodeWithTag(ArtworkFilterTestTags.YEAR_ERROR).assertDoesNotExist()
+    composeTestRule.onNodeWithTag(ArtworkFilterTestTags.APPLY_BUTTON).assertIsEnabled()
   }
 
   private fun setOverviewContent(artworks: List<Artwork>) {
