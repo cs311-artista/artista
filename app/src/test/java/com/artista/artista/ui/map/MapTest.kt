@@ -4,6 +4,7 @@ package com.artista.artista.ui.map
 
 import android.Manifest
 import com.artista.artista.model.map.UserLocation
+import com.artista.artista.resources.C
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -28,9 +29,9 @@ class MapTest {
   fun cameraPositionFor_withoutUserLocation_usesDefaultCenter() {
     val camera = cameraPositionFor(null)
 
-    assertEquals(DEFAULT_MAP_LATITUDE, camera.target.latitude, COORDINATE_TOLERANCE)
-    assertEquals(DEFAULT_MAP_LONGITUDE, camera.target.longitude, COORDINATE_TOLERANCE)
-    assertEquals(DEFAULT_MAP_ZOOM, camera.zoom)
+    assertEquals(C.Constants.DEFAULT_MAP_LAT, camera.target.latitude, COORDINATE_TOLERANCE)
+    assertEquals(C.Constants.DEFAULT_MAP_LONG, camera.target.longitude, COORDINATE_TOLERANCE)
+    assertEquals(C.Constants.DEFAULT_MAP_ZOOM, camera.zoom)
   }
 
   /**

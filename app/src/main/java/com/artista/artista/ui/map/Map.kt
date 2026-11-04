@@ -29,6 +29,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.artista.artista.R
 import com.artista.artista.model.map.UserLocation
+import com.artista.artista.resources.C
 import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaTheme
@@ -50,10 +51,6 @@ object MapScreenTestTags {
   const val MAP = "map_surface"
 }
 
-private val defaultMapLocation = LatLng(DEFAULT_MAP_LATITUDE, DEFAULT_MAP_LONGITUDE)
-internal const val DEFAULT_MAP_LATITUDE = 46.5197
-internal const val DEFAULT_MAP_LONGITUDE = 6.6323
-internal const val DEFAULT_MAP_ZOOM = 12f
 internal const val USER_LOCATION_ZOOM = 15f
 internal val REQUIRED_LOCATION_PERMISSIONS =
     setOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
@@ -87,7 +84,9 @@ fun MapScreen(
       }
   val userLocation = mapViewModel.uiState.userLocation
   val cameraPositionState = rememberCameraPositionState { position = cameraPositionFor(null) }
-  val markerState = remember { MarkerState(position = defaultMapLocation) }
+  val markerState = remember {
+    MarkerState(position = LatLng(C.Constants.DEFAULT_MAP_LAT, C.Constants.DEFAULT_MAP_LONG))
+  }
 
   // Request location permission once when screen opens.
   LaunchedEffect(Unit) {
@@ -165,8 +164,10 @@ private fun hasAllLocationPermissions(context: android.content.Context): Boolean
  * @author Felix Burchardt
  */
 internal fun cameraPositionFor(userLocation: UserLocation?): CameraPosition {
-  val target = userLocation?.let { LatLng(it.latitude, it.longitude) } ?: defaultMapLocation
-  val zoom = if (userLocation == null) DEFAULT_MAP_ZOOM else USER_LOCATION_ZOOM
+  val target =
+      userLocation?.let { LatLng(it.latitude, it.longitude) }
+          ?: LatLng(C.Constants.DEFAULT_MAP_LAT, C.Constants.DEFAULT_MAP_LONG)
+  val zoom = if (userLocation == null) C.Constants.DEFAULT_MAP_ZOOM else USER_LOCATION_ZOOM
   return CameraPosition.fromLatLngZoom(target, zoom)
 }
 
