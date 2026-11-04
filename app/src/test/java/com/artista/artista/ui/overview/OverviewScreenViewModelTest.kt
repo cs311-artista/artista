@@ -8,8 +8,9 @@ import com.artista.artista.R
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
+import com.artista.artista.model.artwork.ArtworkType
+import com.artista.artista.model.artwork.SearchArea
 import com.artista.artista.model.artwork.WikiDataRepository
-import com.artista.artista.model.map.UserLocation
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -43,8 +44,11 @@ class OverviewScreenViewModelTest {
         )
     val repository =
         object : WikiDataRepository by ArtworkRepositoryLocal() {
-          override suspend fun getArtworksNearLocation(location: UserLocation?): List<Artwork> =
-              expectedArtworks
+          override suspend fun getArtworksNearLocation(
+              searchArea: SearchArea,
+              typeValues: List<ArtworkType>,
+              limit: Int,
+          ): List<Artwork> = expectedArtworks
         }
     val viewModel = OverviewViewModel(repository)
 
@@ -62,8 +66,11 @@ class OverviewScreenViewModelTest {
   fun overviewViewModel_whenLoadingFails_exposesLoadError() = runTest {
     val failing =
         object : WikiDataRepository by ArtworkRepositoryLocal() {
-          override suspend fun getArtworksNearLocation(location: UserLocation?): List<Artwork> =
-              error("Artwork provider failure")
+          override suspend fun getArtworksNearLocation(
+              searchArea: SearchArea,
+              typeValues: List<ArtworkType>,
+              limit: Int,
+          ): List<Artwork> = error("Artwork provider failure")
         }
     val viewModel = OverviewViewModel(failing)
 
@@ -82,8 +89,11 @@ class OverviewScreenViewModelTest {
   fun clearErrorMessage_removesTheCurrentError() = runTest {
     val failing =
         object : WikiDataRepository by ArtworkRepositoryLocal() {
-          override suspend fun getArtworksNearLocation(location: UserLocation?): List<Artwork> =
-              error("Artwork provider failure")
+          override suspend fun getArtworksNearLocation(
+              searchArea: SearchArea,
+              typeValues: List<ArtworkType>,
+              limit: Int,
+          ): List<Artwork> = error("Artwork provider failure")
         }
     val viewModel = OverviewViewModel(failing)
 

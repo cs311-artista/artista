@@ -24,6 +24,7 @@ object ArtworkRepositoryProvider {
   val wikiDataRepository: WikiDataRepository
     get() = _wikiDataRepository
 
+  /** A Mock repository, for use in testing and to inject in previews. */
   val mockRepository: ArtworkRepositoryLocal
     get() = _mockRepository
 

@@ -172,7 +172,7 @@ class ArtworkRepositoryLocalTest {
     val repository = ArtworkRepositoryLocal()
     mockArtworks.forEach { repository.putArtworkInRepositoryUnsavedSection(it) }
 
-    assertEquals(mockArtworks, repository.getArtworksNearLocation(null))
+    assertEquals(mockArtworks, repository.getArtworksNearLocation(SearchArea(0.0, 0.0, 1.0)))
   }
 
   private suspend inline fun <reified T : Throwable> assertThrowsSuspend(

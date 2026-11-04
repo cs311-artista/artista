@@ -212,7 +212,7 @@ private fun OverviewErrorContent(onSavedArtworksClick: () -> Unit) {
 /** Previews the overview screen with a sample set of artworks in Android Studio. */
 @Preview(showBackground = true)
 @Composable
-private fun OverviewScreenPreview() {
+internal fun OverviewScreenPreview() {
   val viewModel = remember {
     val repository = ArtworkRepositoryLocal()
     mockArtworks.forEach { repository.putArtworkInRepositoryUnsavedSection(it) }

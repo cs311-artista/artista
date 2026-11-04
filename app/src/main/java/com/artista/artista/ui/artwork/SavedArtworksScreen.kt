@@ -354,7 +354,7 @@ private fun SavedArtworksList(
  */
 @Preview(showBackground = true)
 @Composable
-fun SavedArtworksScreenPreview() {
+internal fun SavedArtworksScreenPreview() {
   // Picked by uid to show edge cases: no artist, a non-Latin title and a long punctuated title.
   val artworks = mockArtworks.filter {
     it.uid in setOf("mock-001", "mock-004", "mock-007", "mock-010")

@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
+import com.artista.artista.model.artwork.SearchArea
 import com.artista.artista.model.artwork.WikiDataRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -53,7 +54,14 @@ class OverviewViewModel(
   fun refreshUiState() {
     viewModelScope.launch {
       try {
-        _uiState.value = OverviewUiState(artworks = artworkRepository.getArtworksNearLocation())
+        val lausanneCenter =
+            SearchArea(
+                latitude = 46.5197,
+                longitude = 6.6323,
+                radiusKm = 5.0,
+            )
+        _uiState.value =
+            OverviewUiState(artworks = artworkRepository.getArtworksNearLocation(lausanneCenter))
       } catch (_: Exception) {
         // Error classification is not defined yet, so keep this failure handling generic.
         _uiState.value = _uiState.value.copy(errorMessageRes = R.string.overview_load_error)

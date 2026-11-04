@@ -2,22 +2,20 @@
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.artwork
 
-import android.util.Log
 import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.SavedArtworksRepository
 import com.artista.artista.model.error.AppException
-import kotlinx.coroutines.CancellationException
+import com.artista.artista.ui.error.launchCatching
+import com.artista.artista.ui.error.toMessageRes
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
 
 /**
  * Contains the state required to display the saved artworks screen.
@@ -29,7 +27,7 @@ import kotlinx.coroutines.launch
  * @property loadErrorMessageResId string resource of the message shown when loading artworks fails
  * @property unsaveErrorMessageResId string resource of the message shown when unsaving an artwork
  *   fails
- * @author Kaio R. Freitas Pereira Nascimento (krfpn)
+ * @author krfpn
  */
 data class SavedArtworksUIState(
     val artworks: List<Artwork> = emptyList(),
@@ -43,7 +41,7 @@ data class SavedArtworksUIState(
  * Provides saved artworks state and actions to [SavedArtworksScreen].
  *
  * @param savedArtworksRepository repository used to load and remove saved artworks
- * @author Kaio R. Freitas Pereira Nascimento (krfpn)
+ * @author krfpn
  */
 class SavedArtworksViewModel(
     private val savedArtworksRepository: SavedArtworksRepository,
@@ -63,42 +61,38 @@ class SavedArtworksViewModel(
    * The loading state is only shown when no artworks are displayed yet, so refreshing an existing
    * list keeps it visible until the new one arrives.
    *
-   * @author Kaio R. Freitas Pereira Nascimento (krfpn)
+   * @author krfpn
    */
   fun refreshSavedArtworks() {
     _uiState.update { it.copy(isLoading = it.artworks.isEmpty(), loadErrorMessageResId = null) }
     // A previous load may still be waiting for the repository. Its answer is older than the one
     // we are about to request, so stop it: otherwise, if it arrived last, it would replace the
     // newer list on screen (e.g. showing an artwork the user just unsaved). The stopped load ends
-    // silently; the CancellationException catch below makes sure it is not shown as an error.
+    // silently: launchCatching does not report a cancellation as an error.
     loadJob?.cancel()
-    loadJob = viewModelScope.launch {
-      try {
-        val artworks = savedArtworksRepository.getSavedArtworks()
-        _uiState.update {
-          it.copy(
-              artworks = artworks,
-              isLoading = false,
-              hasLoadFailed = false,
-              loadErrorMessageResId = null,
-          )
+    loadJob =
+        viewModelScope.launchCatching(
+            tag = TAG,
+            onError = { error ->
+              _uiState.update {
+                it.copy(
+                    isLoading = false,
+                    hasLoadFailed = true,
+                    loadErrorMessageResId = error.toMessageRes(),
+                )
+              }
+            },
+        ) {
+          val artworks = savedArtworksRepository.getSavedArtworks()
+          _uiState.update {
+            it.copy(
+                artworks = artworks,
+                isLoading = false,
+                hasLoadFailed = false,
+                loadErrorMessageResId = null,
+            )
+          }
         }
-      } catch (exception: CancellationException) {
-        // Leaving the screen cancels viewModelScope, and CancellationException extends Exception.
-        // Rethrowing it lets the coroutine stop instead of reporting the cancellation as a failed
-        // load, so it must stay before the generic catch below.
-        throw exception
-      } catch (exception: Exception) {
-        Log.e(TAG, "Failed to load saved artworks.", exception)
-        _uiState.update {
-          it.copy(
-              isLoading = false,
-              hasLoadFailed = true,
-              loadErrorMessageResId = R.string.saved_artworks_load_error,
-          )
-        }
-      }
-    }
   }
 
   /**
@@ -108,7 +102,7 @@ class SavedArtworksViewModel(
    * position only if the repository fails to remove it.
    *
    * @param artwork artwork to remove from the saved list
-   * @author Kaio R. Freitas Pereira Nascimento (krfpn)
+   * @author krfpn
    */
   fun onArtworkUnsave(artwork: Artwork) {
     val previousIndex = _uiState.value.artworks.indexOfFirst { it.uid == artwork.uid }
@@ -116,24 +110,22 @@ class SavedArtworksViewModel(
     _uiState.update { state ->
       state.copy(artworks = state.artworks.filterNot { it.uid == artwork.uid })
     }
-    viewModelScope.launch {
+    viewModelScope.launchCatching(
+        tag = TAG,
+        onError = { error ->
+          _uiState.update { state ->
+            state.copy(
+                artworks = state.artworks.restore(artwork, previousIndex),
+                unsaveErrorMessageResId = error.toMessageRes(),
+            )
+          }
+        },
+    ) {
       try {
         savedArtworksRepository.removeArtworkFromSaved(artwork.uid)
       } catch (exception: AppException.NotFound) {
         // The artwork is already absent from storage, which is the outcome the user asked for.
-      } catch (exception: CancellationException) {
-        // Leaving the screen cancels viewModelScope, and CancellationException extends Exception.
-        // Rethrowing it lets the coroutine stop instead of logging a failed unsave and restoring
-        // the artwork, so it must stay before the generic catch below.
-        throw exception
-      } catch (exception: Exception) {
-        Log.e(TAG, "Failed to unsave artwork ${artwork.uid} (${artwork.name}).", exception)
-        _uiState.update { state ->
-          state.copy(
-              artworks = state.artworks.restore(artwork, previousIndex),
-              unsaveErrorMessageResId = R.string.saved_artworks_unsave_error,
-          )
-        }
+        // Caught here because launchCatching would log it as a failure and call onError.
       }
     }
   }
@@ -154,7 +146,7 @@ class SavedArtworksViewModel(
   /**
    * Clears the loading error after the UI has displayed it.
    *
-   * @author Kaio R. Freitas Pereira Nascimento (krfpn)
+   * @author krfpn
    */
   fun clearLoadError() {
     _uiState.update { it.copy(loadErrorMessageResId = null) }
@@ -163,7 +155,7 @@ class SavedArtworksViewModel(
   /**
    * Clears the unsave error after the UI has displayed it.
    *
-   * @author Kaio R. Freitas Pereira Nascimento (krfpn)
+   * @author krfpn
    */
   fun clearUnsaveError() {
     _uiState.update { it.copy(unsaveErrorMessageResId = null) }

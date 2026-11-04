@@ -4,7 +4,47 @@ package com.artista.artista.model.artwork
 
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.error.AppException
-import com.artista.artista.model.map.UserLocation
+
+/**
+ * Wikidata artwork classes used when filtering search results.
+ *
+ * Each entry carries the Wikidata item identifier used in SPARQL queries.
+ *
+ * @property qid unique Wikidata QID for the artwork class
+ * @author IJJA3141
+ */
+enum class ArtworkType(val qid: String) {
+  PAINTING("Q3305213"),
+  DRAWING("Q93184"),
+  SCULPTURE("Q860861"),
+  PRINT("Q11060274"),
+  PHOTOGRAPH("Q125191"),
+  MURAL("Q219423"),
+  OIL_PAINTING("Q174705"),
+  WATERCOLOR_PAINTING("Q18761202"),
+  MOSAIC("Q133067");
+
+  override fun toString(): String = qid
+}
+
+/**
+ * Geographic search bounds used to query artworks near a point.
+ *
+ * @property latitude latitude in degrees, between -90 and 90
+ * @property longitude longitude in degrees, between -180 and 180
+ * @property radiusKm search radius in kilometres, between 0 and 50
+ * @author IJJA3141
+ */
+data class SearchArea(val latitude: Double, val longitude: Double, val radiusKm: Double = 5.0) {
+  init {
+    require(latitude in -90.0..90.0 && longitude in -180.0..180.0) { "invalid coordinates" }
+    require(radiusKm in 0.0..MAX_RADIUS_KM) { "radius must be within 0..$MAX_RADIUS_KM km" }
+  }
+
+  companion object {
+    const val MAX_RADIUS_KM = 50.0
+  }
+}
 
 /**
  * Repository for retrieving artwork metadata from Wikidata.
@@ -21,16 +61,19 @@ import com.artista.artista.model.map.UserLocation
 interface WikiDataRepository {
 
   /**
-   * Returns artworks available near the supplied location.
+   * Returns artworks around a specific geographic search area.
    *
-   * The local implementation currently returns all populated artworks because no distance filtering
-   * rule has been defined by the application.
-   *
-   * @param location reference location, or null when no location is available
-   * @return artworks available to display
-   * @author patrickmcdan
+   * @param searchArea geographic bounds used to locate matching artworks
+   * @param typeValues artwork classes to include in the query
+   * @param limit maximum number of artworks returned by the SPARQL query
+   * @return artworks matching the search area and type filters
+   * @author patrickmcdan, IJJA3141
    */
-  suspend fun getArtworksNearLocation(location: UserLocation? = null): List<Artwork>
+  suspend fun getArtworksNearLocation(
+      searchArea: SearchArea,
+      typeValues: List<ArtworkType> = ArtworkType.entries,
+      limit: Int = 50,
+  ): List<Artwork>
 
   /**
    * Returns the artists suggested by the application.
@@ -38,6 +81,9 @@ interface WikiDataRepository {
    * @return popular artists in display order
    * @author patrickmcdan
    */
+  @Deprecated(
+      "This function will be moved outside of WikiDataRepository since the popularity isn't a Wikidata metric."
+  )
   suspend fun getPopularArtists(): List<Artist>
 
   /**
@@ -61,9 +107,15 @@ interface WikiDataRepository {
    * Implementations may restrict matching to English labels to keep results stable across locales,
    * while still allowing additional filters to be added later.
    *
-   * @param query the user's search text before the repository turns it into a Wikidata query
+   * @param artworkTitle the title fragment to search for in Wikidata
+   * @param typeValues artwork classes to include in the search
+   * @param limit maximum number of matches returned
    * @return matching artworks mapped from valid Wikidata results
    * @author IJJA3141
    */
-  suspend fun searchArtworks(query: String): List<Artwork>
+  suspend fun searchArtworks(
+      artworkTitle: String,
+      typeValues: List<ArtworkType> = ArtworkType.entries,
+      limit: Int = 50,
+  ): List<Artwork>
 }

@@ -179,7 +179,7 @@ internal fun cameraPositionFor(userLocation: UserLocation?): CameraPosition {
  */
 @Preview(widthDp = 1080, heightDp = 2424)
 @Composable
-fun MapScreenPreview() {
+internal fun MapScreenPreview() {
   ArtistaTheme {
     MapScreen(
         mapViewModel =

@@ -1,3 +1,4 @@
+// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.map
 
@@ -63,6 +64,15 @@ class MapScreenTest {
   fun mapScreen_displaysBottomNavigationBar() {
     setMapScreenContent()
 
+    composeTestRule.onNodeWithTag(NavigationTestTags.BOTTOM_NAVIGATION_MENU).assertIsDisplayed()
+  }
+
+  /** Verifies that the map preview renders its map and navigation. */
+  @Test
+  fun mapScreenPreview_displaysMapAndNavigation() {
+    composeTestRule.setContent { MapScreenPreview() }
+
+    composeTestRule.onNodeWithTag(MapScreenTestTags.MAP).assertIsDisplayed()
     composeTestRule.onNodeWithTag(NavigationTestTags.BOTTOM_NAVIGATION_MENU).assertIsDisplayed()
   }
 

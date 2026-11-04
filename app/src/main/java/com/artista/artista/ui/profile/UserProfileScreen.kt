@@ -352,7 +352,7 @@ private fun EditUsernameDialog(
 /** Previews the user profile screen with a sample user in Android Studio. */
 @Preview(showBackground = true)
 @Composable
-private fun UserProfileScreenPreview() {
+internal fun UserProfileScreenPreview() {
   val viewModel = remember {
     UserProfileViewModel().apply {
       setUser(User(uid = "preview", userName = "Artista Fan", preference = UserPreference()))
@@ -364,6 +364,6 @@ private fun UserProfileScreenPreview() {
 /** Previews the username edit dialog in Android Studio. */
 @Preview(showBackground = true)
 @Composable
-private fun EditUsernameDialogPreview() {
+internal fun EditUsernameDialogPreview() {
   ArtistaTheme { EditUsernameDialog(initialUsername = "Artista Fan", onSave = {}, onDismiss = {}) }
 }
