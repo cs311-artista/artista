@@ -178,7 +178,7 @@ fun ArtworkCard(
 /** Previews [ArtworkCard] with representative artwork details. */
 @Preview(showBackground = true)
 @Composable
-fun ArtworkCardPreview() {
+internal fun ArtworkCardPreview() {
   val artwork =
       Artwork(
           uid = "monaLisa",

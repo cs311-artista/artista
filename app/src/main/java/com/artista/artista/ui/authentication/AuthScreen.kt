@@ -232,7 +232,7 @@ fun AuthScreen(
 /** Preview of the signed-out sign-in screen. */
 @Preview(showBackground = true)
 @Composable
-fun AuthScreenContentPreview() {
+internal fun AuthScreenContentPreview() {
   ArtistaTheme {
     AuthScreenContent(
         state = AuthUiState(),

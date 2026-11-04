@@ -333,7 +333,7 @@ fun MapTile(
 /** Previews [ArtworkScreen] with a representative artwork from [mockArtworks]. */
 @Preview
 @Composable
-fun ArtworkPreview() {
+internal fun ArtworkPreview() {
   val sampleArtwork = mockArtworks.first()
 
   ArtistaTheme {

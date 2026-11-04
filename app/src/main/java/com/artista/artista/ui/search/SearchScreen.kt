@@ -262,6 +262,6 @@ private fun ArtworkResults(
 /** Previews the complete search screen in Android Studio. */
 @Preview(showBackground = true)
 @Composable
-fun SearchScreenPreview() {
+internal fun SearchScreenPreview() {
   ArtistaTheme { SearchScreen(onTabSelected = {}) }
 }
