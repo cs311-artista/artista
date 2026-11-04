@@ -53,7 +53,7 @@ class WikiDataRepositoryRemoteTest {
     val repository = WikiDataRepositoryRemote(jsonResponseParser = fakeParser())
 
     try {
-      repository.searchArtworks("Lise sEw")
+      repository.searchArtworks("Lise SEw")
     } catch (e: NotImplementedError) {
       // Handle NotImplementedError if needed
     } catch (e: Exception) {
