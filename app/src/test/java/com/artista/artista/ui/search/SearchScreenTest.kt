@@ -1,4 +1,5 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.search
 
 import androidx.compose.material3.MaterialTheme
@@ -22,8 +23,8 @@ import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.WikiDataRepository
+import com.artista.artista.model.map.UserLocation
 import com.artista.artista.ui.artwork.ArtworkCardTestTag
-import com.artista.artista.ui.map.UserLocation
 import kotlin.NotImplementedError
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers

@@ -3,7 +3,6 @@ package com.artista.artista.ui.preferences
 import androidx.activity.ComponentActivity
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
@@ -15,6 +14,8 @@ import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.performTextClearance
+import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.artista.artista.R
 import com.artista.artista.model.artist.Artist
@@ -32,7 +33,7 @@ import org.junit.runner.RunWith
 /**
  * Verifies the user-visible behavior of the artist preferences screen.
  *
- * @author Timz3rr, patrickmcdan
+ * @author Timz3rr, patrickmcdan, krfpn
  */
 @RunWith(AndroidJUnit4::class)
 class ArtistPreferencesScreenTest {
@@ -76,16 +77,94 @@ class ArtistPreferencesScreenTest {
         .assertTextContains(stringOf(R.string.artist_preferences_save))
   }
 
-  /**
-   * Verifies that the search bar cannot be used yet, since searching is not implemented.
-   *
-   * TODO(#105): replace this test with tests of the search behavior once search is implemented.
-   */
+  /** Verifies that the search bar accepts input and displays the typed text. */
   @Test
-  fun searchBar_isNotEnabled() {
+  fun searchBar_typing_displaysQuery() {
     setPreferencesContent()
 
-    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SEARCH_BAR).assertIsNotEnabled()
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SEARCH_BAR).performTextInput("mon")
+
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SEARCH_BAR).assertTextContains("mon")
+  }
+
+  /** Verifies that typing a query leaves only the matching artists in the grid. */
+  @Test
+  fun searchBar_typing_showsOnlyMatchingArtists() {
+    setPreferencesContent()
+    val (picasso, vanGogh, monet) = testArtists
+
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SEARCH_BAR).performTextInput("mon")
+
+    val monetCardTag = ArtistPreferencesTestTags.getArtistCardTestTag(monet.uid)
+    // The grid is lazy, so cards below the fold only exist once scrolled into view.
+    composeTestRule
+        .onNodeWithTag(ArtistPreferencesTestTags.ARTISTS_GRID)
+        .performScrollToNode(hasTestTag(monetCardTag))
+    composeTestRule.onNodeWithTag(monetCardTag).assertIsDisplayed()
+    composeTestRule
+        .onNodeWithTag(ArtistPreferencesTestTags.getArtistCardTestTag(picasso.uid))
+        .assertDoesNotExist()
+    composeTestRule
+        .onNodeWithTag(ArtistPreferencesTestTags.getArtistCardTestTag(vanGogh.uid))
+        .assertDoesNotExist()
+  }
+
+  /** Verifies that a query matching no artist empties the grid. */
+  @Test
+  fun searchBar_noMatch_showsNoArtist() {
+    setPreferencesContent()
+
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SEARCH_BAR).performTextInput("xyz")
+
+    testArtists.forEach { artist ->
+      composeTestRule
+          .onNodeWithTag(ArtistPreferencesTestTags.getArtistCardTestTag(artist.uid))
+          .assertDoesNotExist()
+    }
+  }
+
+  /** Verifies that clearing the query brings every artist back. */
+  @Test
+  fun searchBar_clearing_showsAllArtistsAgain() {
+    setPreferencesContent()
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SEARCH_BAR).performTextInput("mon")
+
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SEARCH_BAR).performTextClearance()
+
+    testArtists.forEach { artist ->
+      val cardTag = ArtistPreferencesTestTags.getArtistCardTestTag(artist.uid)
+      // The grid is lazy, so cards below the fold only exist once scrolled into view.
+      composeTestRule
+          .onNodeWithTag(ArtistPreferencesTestTags.ARTISTS_GRID)
+          .performScrollToNode(hasTestTag(cardTag))
+      composeTestRule.onNodeWithTag(cardTag).assertIsDisplayed()
+    }
+  }
+
+  /** Verifies that an artist hidden by the search is still selected when it comes back. */
+  @Test
+  fun searchBar_hidingSelectedArtist_keepsSelection() {
+    setPreferencesContent()
+    val (picasso, _, monet) = testArtists
+    composeTestRule
+        .onNodeWithTag(ArtistPreferencesTestTags.getArtistCardTestTag(monet.uid))
+        .performClick()
+
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SEARCH_BAR).performTextInput("pablo")
+    val picassoCardTag = ArtistPreferencesTestTags.getArtistCardTestTag(picasso.uid)
+    // The grid is lazy, so cards below the fold only exist once scrolled into view.
+    composeTestRule
+        .onNodeWithTag(ArtistPreferencesTestTags.ARTISTS_GRID)
+        .performScrollToNode(hasTestTag(picassoCardTag))
+    composeTestRule.onNodeWithTag(picassoCardTag).assertIsDisplayed()
+    composeTestRule
+        .onNodeWithTag(ArtistPreferencesTestTags.getArtistCardTestTag(monet.uid))
+        .assertDoesNotExist()
+
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SEARCH_BAR).performTextClearance()
+    composeTestRule
+        .onNodeWithTag(ArtistPreferencesTestTags.getArtistCardTestTag(monet.uid))
+        .assertIsOn()
   }
 
   /** Verifies that every popular artist has a card displaying its name. */

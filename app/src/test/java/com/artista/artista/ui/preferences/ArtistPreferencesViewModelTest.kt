@@ -4,6 +4,7 @@ import com.artista.artista.MainDispatcherRule
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
 import com.artista.artista.model.artwork.WikiDataRepository
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -17,7 +18,7 @@ import org.junit.Test
 /**
  * Tests the state exposed by [ArtistPreferencesViewModel].
  *
- * @author Timz3rr, patrickmcdan
+ * @author Timz3rr, patrickmcdan, krfpn
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ArtistPreferencesViewModelTest {
@@ -110,6 +111,97 @@ class ArtistPreferencesViewModelTest {
     assertTrue(viewModel.uiState.value.popularArtists.isEmpty())
   }
 
+  /** Verifies that the query is kept as typed, so the field never rewrites the user's text. */
+  @Test
+  fun onSearchQueryChange_storesTextAsTyped() {
+    viewModel.onSearchQueryChange("  Mon ")
+
+    assertEquals("  Mon ", viewModel.uiState.value.searchQuery)
+  }
+
+  /** Verifies that searching does not change the artists the user has selected. */
+  @Test
+  fun onSearchQueryChange_keepsSelection() {
+    viewModel.toggleArtist(PICASSO.uid)
+
+    viewModel.onSearchQueryChange("monet")
+
+    assertEquals(setOf(PICASSO.uid), viewModel.uiState.value.selectedArtists)
+  }
+
+  /** Verifies that a query typed while the artists are loading applies once they arrive. */
+  @Test
+  fun onSearchQueryChange_beforeArtistsLoad_filtersOnceLoaded() = runTest {
+    // Empty until the test fills it, which simulates a slow network.
+    val artists = CompletableDeferred<List<Artist>>()
+
+    // Fake repository whose popular artists only arrive once the test provides them.
+    val repository =
+        object : WikiDataRepository by ArtworkRepositoryLocal() {
+          override suspend fun getPopularArtists(): List<Artist> = artists.await()
+        }
+
+    // The user opens the screen: loading starts, then stays stuck waiting for the artists.
+    val slowLoadingViewModel = ArtistPreferencesViewModel(repository)
+    advanceUntilIdle()
+
+    // The user types while the artists are still loading.
+    slowLoadingViewModel.onSearchQueryChange("mon")
+
+    // The network answers, and the ViewModel receives the artists.
+    artists.complete(ALL_ARTISTS)
+    advanceUntilIdle()
+
+    // The earlier query must apply to the artists that arrived after it.
+    assertEquals(listOf(MONET), slowLoadingViewModel.uiState.value.displayedArtists)
+  }
+
+  /** Verifies that an empty or blank query does not hide any artist. */
+  @Test
+  fun displayedArtists_blankQuery_returnsAllArtists() {
+    assertEquals(ALL_ARTISTS, displayedArtistsFor(""))
+    assertEquals(ALL_ARTISTS, displayedArtistsFor("   "))
+  }
+
+  /** Verifies that a query matching part of a name keeps only that artist. */
+  @Test
+  fun displayedArtists_partialQuery_keepsMatchingArtist() {
+    assertEquals(listOf(MONET), displayedArtistsFor("mon"))
+  }
+
+  /** Verifies that the case of the query does not affect the match. */
+  @Test
+  fun displayedArtists_ignoresCase() {
+    assertEquals(listOf(MONET), displayedArtistsFor("MONET"))
+  }
+
+  /** Verifies that spaces around the query do not prevent a match. */
+  @Test
+  fun displayedArtists_ignoresSurroundingSpaces() {
+    assertEquals(listOf(MONET), displayedArtistsFor("  monet "))
+  }
+
+  /** Verifies that several matching artists all stay, in their display order. */
+  @Test
+  fun displayedArtists_severalMatches_keepDisplayOrder() {
+    assertEquals(listOf(PICASSO, RENOIR), displayedArtistsFor("pi"))
+  }
+
+  /** Verifies that a query matching no name returns no artist. */
+  @Test
+  fun displayedArtists_noMatch_returnsNoArtist() {
+    assertTrue(displayedArtistsFor("xyz").isEmpty())
+  }
+
+  /**
+   * Computes the artists displayed for a query, among all the mock artists.
+   *
+   * @param query the text typed in the search field.
+   * @return the artists matching the query.
+   */
+  private fun displayedArtistsFor(query: String): List<Artist> =
+      ArtistPreferencesUiState(popularArtists = ALL_ARTISTS, searchQuery = query).displayedArtists
+
   private companion object {
     val PICASSO = Artist("mock-artist-001", "Pablo Picasso")
     val VAN_GOGH = Artist("mock-artist-002", "Vincent van Gogh")
@@ -117,5 +209,6 @@ class ArtistPreferencesViewModelTest {
     val MONET = Artist("mock-artist-004", "Claude Monet")
     val KLIMT = Artist("mock-artist-005", "Gustav Klimt")
     val MATISSE = Artist("mock-artist-006", "Henri Matisse")
+    val ALL_ARTISTS = listOf(PICASSO, VAN_GOGH, RENOIR, MONET, KLIMT, MATISSE)
   }
 }
