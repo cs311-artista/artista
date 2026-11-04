@@ -192,6 +192,31 @@ class JsonResponseParserTest {
     assertNull(imageUrl)
   }
 
+  /** Checks that a value that is not an http(s) link gives null instead of a broken link. */
+  @Test
+  fun testParseImageUrl_invalidUrlReturnsNull() {
+    val imageUrl = invokePrivateMethod<String?>(parser, "parseImageUrl", "not a url")
+    assertNull(imageUrl)
+  }
+
+  /**
+   * Checks that the width is merged with the query the link already has, and replaces a width
+   * already present instead of sending it twice.
+   */
+  @Test
+  fun testParseImageUrl_mergesWidthWithExistingQuery() {
+    val imageUrl =
+        invokePrivateMethod<String?>(
+            parser,
+            "parseImageUrl",
+            "http://commons.wikimedia.org/wiki/Special:FilePath/Starry%20Night.jpg?lang=en&width=300",
+        )
+    assertEquals(
+        "https://commons.wikimedia.org/wiki/Special:FilePath/Starry%20Night.jpg?lang=en&width=800",
+        imageUrl,
+    )
+  }
+
   @Test
   fun testParseDate_withInstantParse() {
     val date = invokePrivateMethod<Date>(parser, "parseDate", "2023-01-01T00:00:00Z")

@@ -10,6 +10,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
 import java.util.Date
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.json.JSONException
 import org.json.JSONObject
 
@@ -138,25 +139,33 @@ class JsonResponseParser {
    * "image": { "type": "uri", "value": "http://commons.wikimedia.org/.../Mona%20Lisa.jpg" }
    * ```
    *
-   * A malformed binding has an empty `value`, or none at all, and [value] is then blank:
+   * A malformed binding has an empty `value`, none at all, or one that is not an http(s) link:
    * ```
    * "image": { "type": "uri", "value": "" }
    * "image": { "type": "uri" }
+   * "image": { "type": "uri", "value": "not a url" }
    * ```
    *
    * An artwork without an image normally has no `image` binding at all, so this function is not
    * called for it.
    *
    * @param value raw image link from the Wikidata `image` binding
-   * @return the https thumbnail link, or null when [value] is blank, which only happens with a
-   *   malformed binding
+   * @return the https thumbnail link, or null when [value] is not a valid http(s) link, which only
+   *   happens with a malformed binding
    * @author Timz3rr
    */
-  private fun parseImageUrl(value: String): String? {
-    if (value.isBlank()) return null
-    val httpsUrl = value.trim().replaceFirst(Regex("^http://"), "https://")
-    return "$httpsUrl?width=$THUMBNAIL_WIDTH_PX"
-  }
+  private fun parseImageUrl(value: String): String? =
+      // HttpUrl parses the link instead of editing it as text: an invalid link gives null, and the
+      // width is merged with any query the link already has. setQueryParameter, unlike
+      // addQueryParameter, replaces a width already present instead of sending it twice.
+      value
+          .trim()
+          .toHttpUrlOrNull()
+          ?.newBuilder()
+          ?.scheme("https")
+          ?.setQueryParameter("width", THUMBNAIL_WIDTH_PX.toString())
+          ?.build()
+          ?.toString()
 
   private companion object {
     /**
