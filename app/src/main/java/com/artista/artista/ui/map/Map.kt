@@ -182,11 +182,14 @@ internal fun cameraPositionFor(userLocation: UserLocation?): CameraPosition {
 fun MapScreenPreview() {
   ArtistaTheme {
     MapScreen(
-        mapViewModel = viewModel(factory = MapViewModel.provideFactory(
-          wikiDataRepository = ArtworkRepositoryProvider.mockRepository,
-          savedArtworksRepository = ArtworkRepositoryProvider.mockRepository
-        ))
-
+        mapViewModel =
+            viewModel(
+                factory =
+                    MapViewModel.provideFactory(
+                        wikiDataRepository = ArtworkRepositoryProvider.mockRepository,
+                        savedArtworksRepository = ArtworkRepositoryProvider.mockRepository,
+                    )
+            )
     )
   }
 }
