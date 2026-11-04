@@ -4,6 +4,7 @@ package com.artista.artista.model.artwork
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.map.Location
 import java.util.Calendar
+import java.util.TimeZone
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -115,7 +116,7 @@ class ArtworkFilterTest {
             artist = Artist(uid = artist, name = artist),
             description = null,
             conceptionDate =
-                Calendar.getInstance()
+                Calendar.getInstance(TimeZone.getTimeZone("UTC"))
                     .apply {
                       clear()
                       set(Calendar.YEAR, year)
