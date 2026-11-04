@@ -5,9 +5,10 @@ package com.artista.artista.ui.search
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkId
+import com.artista.artista.model.artwork.ArtworkType
 import com.artista.artista.model.artwork.SavedArtworksRepository
+import com.artista.artista.model.artwork.SearchArea
 import com.artista.artista.model.artwork.WikiDataRepository
-import com.artista.artista.model.map.UserLocation
 
 /** Shared artwork samples and repository fakes for Search tests. */
 internal object SearchTestData {
@@ -104,8 +105,12 @@ internal class FakeWikiDataRepository(
 ) : WikiDataRepository {
   val searchedQueries = mutableListOf<String>()
 
-  override suspend fun getArtworksNearLocation(location: UserLocation?): List<Artwork> {
-    throw NotImplementedError("Not yet implemented")
+  override suspend fun getArtworksNearLocation(
+      searchArea: SearchArea,
+      typeValues: List<ArtworkType>,
+      limit: Int,
+  ): List<Artwork> {
+    throw NotImplementedError("Should not be used in this tests")
   }
 
   override suspend fun getPopularArtists(): List<Artist> {
@@ -116,11 +121,15 @@ internal class FakeWikiDataRepository(
       artworks.firstOrNull { it.uid == uid }
           ?: throw NoSuchElementException("No artwork matching uid $uid was found")
 
-  override suspend fun searchArtworks(query: String): List<Artwork> {
-    searchedQueries.add(query)
+  override suspend fun searchArtworks(
+      artworkTitle: String,
+      typeValues: List<ArtworkType>,
+      limit: Int,
+  ): List<Artwork> {
+    searchedQueries.add(artworkTitle)
     return artworks.filter {
-      it.name?.contains(query, ignoreCase = true) == true ||
-          it.artist?.name?.contains(query, ignoreCase = true) == true
+      it.name?.contains(artworkTitle, ignoreCase = true) == true ||
+          it.artist?.name?.contains(artworkTitle, ignoreCase = true) == true
     }
   }
 }

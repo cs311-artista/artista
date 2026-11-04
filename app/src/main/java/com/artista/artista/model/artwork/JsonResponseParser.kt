@@ -17,7 +17,7 @@ import org.json.JSONObject
  *
  * @author 5kyPhy
  */
-class JsonResponseParser {
+open class JsonResponseParser {
 
   /**
    * Parses a SPARQL JSON response into a list of Artwork objects.
@@ -26,7 +26,7 @@ class JsonResponseParser {
    * @return the artworks encoded in the response
    * @author 5kyPhy
    */
-  fun parseArtworkResults(responseBody: String): List<Artwork> {
+  open fun parseArtworkResults(responseBody: String): List<Artwork> {
     val json = JSONObject(responseBody)
     val results =
         try {

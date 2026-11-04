@@ -16,6 +16,9 @@ object ArtworkRepositoryProvider {
 
   var repository = _repository
 
+  /** Remote Wikidata source used for artwork discovery and search. */
+  val wikiDataRepository: WikiDataRepository = WikiDataRepositoryRemote()
+
   /**
    * This function is meant to populate the API side of the faked ArtworkRepository in order to
    * facilitate test/demo setup
