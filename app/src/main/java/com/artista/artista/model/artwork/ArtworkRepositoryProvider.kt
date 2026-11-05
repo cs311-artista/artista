@@ -6,15 +6,33 @@ import com.artista.artista.model.map.Location
 import java.util.Date
 
 /**
- * An intermediary to provide a populated instance of an [ArtworkRepositoryLocal] for demos and
- * testing
+ * A provider for instances of [SavedArtworksRepository] and [WikiDataRepository] for running the
+ * app. Provides a single source of truth for the repositories used in the app, and allows for easy
+ * swapping of implementations for testing or demo purposes.
  *
  * @author 5kyPhy
  */
 object ArtworkRepositoryProvider {
-  private val _repository = ArtworkRepositoryLocal()
+  private val _savedArtworkRepository: SavedArtworksRepository by lazy {
+    SavedArtworksRepositoryFirestore()
+  }
+  private val _wikiDataRepository: WikiDataRepository by lazy { WikiDataRepositoryRemote() }
+  private val _mockRepository: ArtworkRepositoryLocal by lazy { ArtworkRepositoryLocal() }
 
-  var repository = _repository
+  /** implements [SavedArtworksRepository]: The repository taking care of saved [Artwork]s */
+  val savedArtworksRepository: SavedArtworksRepository
+    get() = _savedArtworkRepository
+
+  /** implements [WikiDataRepository]: The repository taking care of fetched/remote [Artwork]s */
+  val wikiDataRepository: WikiDataRepository
+    get() = _wikiDataRepository
+
+  /**
+   * implements [WikiDataRepository] & [SavedArtworksRepository]: A Mock repository, for use in
+   * testing and to inject in previews.
+   */
+  val mockRepository: ArtworkRepositoryLocal
+    get() = _mockRepository
 
   /**
    * This function is meant to populate the API side of the faked ArtworkRepository in order to
@@ -25,7 +43,7 @@ object ArtworkRepositoryProvider {
    * @author 5kyPhy
    */
   fun populateAPI(mocks: List<Artwork> = mockArtworks) {
-    mocks.forEach { artwork -> repository.putArtworkInRepositoryUnsavedSection(artwork) }
+    mocks.forEach { artwork -> _mockRepository.putArtworkInRepositoryUnsavedSection(artwork) }
   }
 
   /**
@@ -37,7 +55,7 @@ object ArtworkRepositoryProvider {
    * @author 5kyPhy
    */
   suspend fun populateSaved(mocks: List<Artwork> = mockArtworks.subList(0, 3)) {
-    mocks.forEach { artwork -> repository.saveArtwork(artwork) }
+    mocks.forEach { artwork -> _mockRepository.saveArtwork(artwork) }
   }
 }
 

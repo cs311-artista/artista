@@ -1,11 +1,10 @@
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
+// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 package com.artista.artista.model.artwork
 
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.error.AppException
-import com.artista.artista.model.map.UserLocation
 
-// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 /**
  * In-memory repository for artwork data used during local app development and testing.
  *
@@ -23,10 +22,16 @@ class ArtworkRepositoryLocal : SavedArtworksRepository, WikiDataRepository {
   private val artworksSaved: HashMap<ArtworkId, Artwork> = hashMapOf()
 
   /** Returns the artworks populated in the local repository. */
-  override suspend fun getArtworksNearLocation(location: UserLocation?): List<Artwork> =
-      artworks.values.toList()
+  override suspend fun getArtworksNearLocation(
+      searchArea: SearchArea,
+      typeValues: List<ArtworkType>,
+      limit: Int,
+  ): List<Artwork> = artworks.values.toList()
 
   /** Returns the locally defined popular artists. */
+  @Deprecated(
+      "This function will be moved outside of WikiDataRepository since the popularity isn't a Wikidata metric."
+  )
   override suspend fun getPopularArtists(): List<Artist> = mockPopularArtists
 
   override suspend fun getArtwork(uid: ArtworkId): Artwork {
@@ -34,10 +39,14 @@ class ArtworkRepositoryLocal : SavedArtworksRepository, WikiDataRepository {
     return artworks[uid] ?: throw AppException.NotFound("No Artwork match uid: $uid was found")
   }
 
-  override suspend fun searchArtworks(query: String): List<Artwork> {
-    if (query.isBlank()) return emptyList()
+  override suspend fun searchArtworks(
+      artworkTitle: String,
+      typeValues: List<ArtworkType>,
+      limit: Int,
+  ): List<Artwork> {
+    if (artworkTitle.isBlank()) return emptyList()
     // Artworks without a name can never match a name search.
-    return artworks.values.filter { it.name?.contains(query, ignoreCase = true) == true }
+    return artworks.values.filter { it.name?.contains(artworkTitle, ignoreCase = true) == true }
   }
 
   override suspend fun isArtworkSaved(uid: ArtworkId): Boolean {
@@ -78,5 +87,11 @@ class ArtworkRepositoryLocal : SavedArtworksRepository, WikiDataRepository {
     if (artworks.keys.contains(artwork.uid))
         throw IllegalArgumentException("uid $artwork.uid already in use!")
     artworks[artwork.uid] = artwork
+  }
+
+  /** Clears all artwork data from this in-memory repository. */
+  fun clear() {
+    artworks.clear()
+    artworksSaved.clear()
   }
 }

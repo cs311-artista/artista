@@ -1,3 +1,4 @@
+// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 import com.ncorti.ktfmt.gradle.tasks.KtfmtCheckTask
 import com.ncorti.ktfmt.gradle.tasks.KtfmtFormatTask
 import java.io.FileInputStream
@@ -26,6 +27,7 @@ android {
 
   // Load Google Maps API key
   val mapsApiKey: String = localProperties.getProperty("MAPS_API_KEY") ?: ""
+  val orsApiKey: String = localProperties.getProperty("ORS_API_KEY") ?: ""
 
   defaultConfig {
     applicationId = "com.artista.artista"
@@ -39,6 +41,7 @@ android {
 
     // Placeholder GoogleMaps API key for Manifest merger
     manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
+    buildConfigField("String", "ORS_API_KEY", "\"$orsApiKey\"")
   }
 
   buildTypes {
@@ -59,7 +62,10 @@ android {
 
   testCoverage { jacocoVersion = "0.8.11" }
 
-  buildFeatures { compose = true }
+  buildFeatures {
+    compose = true
+    buildConfig = true
+  }
 
   compileOptions {
     sourceCompatibility = JavaVersion.VERSION_17
@@ -160,6 +166,7 @@ fun DependencyHandlerScope.globalTestImplementation(dep: Any) {
 }
 
 dependencies {
+  implementation(libs.androidx.compose.ui.text)
   // Core AndroidX and Material
   implementation(libs.androidx.core.ktx)
   implementation(libs.androidx.appcompat)
@@ -219,6 +226,8 @@ dependencies {
 }
 
 tasks.withType<Test> {
+  systemProperty("robolectric.dependency.repo.url", "https://repo.maven.apache.org/maven2")
+
   // Configure Jacoco for each tests
   configure<JacocoTaskExtension> {
     isIncludeNoLocationClasses = true

@@ -42,7 +42,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.artista.artista.R
 import com.artista.artista.model.user.User
 import com.artista.artista.model.user.UserPreference
@@ -69,7 +68,7 @@ private val FieldShape = RoundedCornerShape(percent = 50)
 @Composable
 fun UserProfileScreen(
     onLogoutClick: () -> Unit,
-    userProfileViewModel: UserProfileViewModel = viewModel(),
+    userProfileViewModel: UserProfileViewModel,
     onPreferencesClick: () -> Unit = {},
     onSavedArtworkClick: () -> Unit = {},
     onTabSelected: (Tab) -> Unit = {},
@@ -353,7 +352,7 @@ private fun EditUsernameDialog(
 /** Previews the user profile screen with a sample user in Android Studio. */
 @Preview(showBackground = true)
 @Composable
-private fun UserProfileScreenPreview() {
+internal fun UserProfileScreenPreview() {
   val viewModel = remember {
     UserProfileViewModel().apply {
       setUser(User(uid = "preview", userName = "Artista Fan", preference = UserPreference()))
@@ -365,6 +364,6 @@ private fun UserProfileScreenPreview() {
 /** Previews the username edit dialog in Android Studio. */
 @Preview(showBackground = true)
 @Composable
-private fun EditUsernameDialogPreview() {
+internal fun EditUsernameDialogPreview() {
   ArtistaTheme { EditUsernameDialog(initialUsername = "Artista Fan", onSave = {}, onDismiss = {}) }
 }

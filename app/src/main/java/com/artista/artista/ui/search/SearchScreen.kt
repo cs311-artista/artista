@@ -81,14 +81,7 @@ object SearchScreenTestTags {
  */
 @Composable
 fun SearchScreen(
-    viewModel: SearchScreenViewModel =
-        viewModel(
-            factory =
-                SearchScreenViewModel.provideFactory(
-                    savedArtworksRepository = ArtworkRepositoryProvider.repository,
-                    wikiDataRepository = ArtworkRepositoryProvider.repository,
-                )
-        ),
+    viewModel: SearchScreenViewModel,
     onTabSelected: (Tab) -> Unit,
     onArtworkClick: (Artwork) -> Unit = {},
     onMapClick: (Artwork) -> Unit = {},
@@ -262,6 +255,18 @@ private fun ArtworkResults(
 /** Previews the complete search screen in Android Studio. */
 @Preview(showBackground = true)
 @Composable
-private fun SearchScreenPreview() {
-  ArtistaTheme { SearchScreen(onTabSelected = {}) }
+internal fun SearchScreenPreview() {
+  ArtistaTheme {
+    SearchScreen(
+        viewModel =
+            viewModel(
+                factory =
+                    SearchScreenViewModel.provideFactory(
+                        ArtworkRepositoryProvider.mockRepository,
+                        ArtworkRepositoryProvider.mockRepository,
+                    )
+            ),
+        onTabSelected = {},
+    )
+  }
 }

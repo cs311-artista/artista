@@ -67,6 +67,15 @@ class SavedArtworksScreenTest {
     fakeRepository = FakeArtworkRepository()
   }
 
+  /** Verifies that the saved-artworks preview renders its sample list. */
+  @Test
+  fun savedArtworksScreenPreview_displaysSampleArtworkList() {
+    composeTestRule.setContent { SavedArtworksScreenPreview() }
+
+    composeTestRule.onNodeWithTag(SavedArtworksTestTags.SCREEN).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(SavedArtworksTestTags.LIST).assertIsDisplayed()
+  }
+
   /** Verifies that saved artworks are rendered with their tagged actions. */
   @Test
   fun savedArtworksScreen_displaysSavedArtworkList() {
