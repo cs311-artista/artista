@@ -1,5 +1,5 @@
-// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
+// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 package com.artista.artista.ui.map
 
 import android.location.Location
@@ -10,13 +10,19 @@ import androidx.lifecycle.viewModelScope
 import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.SavedArtworksRepository
+import com.artista.artista.model.artwork.SearchArea
 import com.artista.artista.model.artwork.WikiDataRepository
+import com.artista.artista.model.error.AppException
 import com.artista.artista.model.map.UserLocation
+import com.artista.artista.ui.error.launchCatching
+import com.artista.artista.ui.error.toMessageRes
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
 import java.util.concurrent.Executor
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -56,19 +62,24 @@ class MapViewModel(
     private val locationProvider: LocationProvider? = null,
 ) : ViewModel() {
 
+  private val _uiState = MutableStateFlow(MapViewUiState())
+
+  /** Exposes the latest map state for reactive UI rendering. */
+  val uiStateFlow: StateFlow<MapViewUiState> = _uiState.asStateFlow()
+
+  /** Returns the current map state for synchronous consumers such as tests. */
   val uiState: MapViewUiState
     get() = _uiState.value
 
-  private val _uiState = MutableStateFlow(MapViewUiState())
-
   init {
-    viewModelScope.launch {
+    viewModelScope.launchCatching(
+        tag = MapViewModel::class.java.simpleName,
+        onError = ::setSavedArtworksError,
+    ) {
       val savedArtworks = savedArtworksRepository.getSavedArtworks()
       _uiState.update { state ->
         state.copy(
             savedArtworks = savedArtworks,
-            // remoteArtworks = wikiDataRepository.getArtworksNearLocation(),
-            // todo get location-based artworks from the remote once correctly implemented
         )
       }
     }
@@ -82,6 +93,43 @@ class MapViewModel(
    */
   fun updateUserLocation(location: UserLocation) {
     _uiState.update { it.copy(userLocation = location, errorMsg = null) }
+    loadRemoteArtworks(location)
+  }
+
+  /**
+   * Loads artworks located near the user's current position.
+   *
+   * @param location center of the geographic artwork search
+   * @author Copilot
+   */
+  private fun loadRemoteArtworks(location: UserLocation) {
+    viewModelScope.launchCatching(
+        tag = MapViewModel::class.java.simpleName,
+        onError = ::setRepositoryError,
+    ) {
+      val artworks =
+          wikiDataRepository.getArtworksNearLocation(
+              searchArea =
+                  SearchArea(
+                      latitude = location.latitude,
+                      longitude = location.longitude,
+                      radiusKm = ARTWORK_SEARCH_RADIUS_KM,
+                  )
+          )
+      _uiState.update { it.copy(remoteArtworks = artworks) }
+    }
+  }
+
+  private fun setRepositoryError(error: AppException) {
+    _uiState.update { it.copy(errorMsg = error.toMessageRes()) }
+  }
+
+  private fun setSavedArtworksError(error: AppException) {
+    if (error is AppException.Unauthorized) {
+      _uiState.update { it.copy(savedArtworks = emptyList()) }
+    } else {
+      setRepositoryError(error)
+    }
   }
 
   /**
@@ -138,6 +186,8 @@ class MapViewModel(
   }
 
   companion object {
+    private const val ARTWORK_SEARCH_RADIUS_KM = 50.0
+
     /**
      * Creates a factory for a map ViewModel with its repository dependencies.
      *

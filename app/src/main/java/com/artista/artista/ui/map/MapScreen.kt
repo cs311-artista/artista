@@ -1,5 +1,5 @@
-// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
+// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 package com.artista.artista.ui.map
 
 import android.Manifest
@@ -33,6 +33,7 @@ import androidx.core.graphics.createBitmap
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
@@ -111,7 +112,7 @@ fun MapScreen(
     onNavigationBarTabSelected: (Tab) -> Unit = {},
     onArtworkMarkerClick: (Artwork) -> Unit = {},
 ) {
-  val uiState = remember { mapViewModel.uiState }
+  val uiState by mapViewModel.uiStateFlow.collectAsStateWithLifecycle()
   val context = LocalContext.current
   val locationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
   val permissions = REQUIRED_LOCATION_PERMISSIONS.toTypedArray()
@@ -129,6 +130,8 @@ fun MapScreen(
         }
       }
   val userLocation = uiState.userLocation
+  val savedArtworkIds =
+      remember(uiState.savedArtworks) { uiState.savedArtworks.map { it.uid }.toSet() }
   val cameraPositionState = rememberCameraPositionState { position = cameraPositionFor(null) }
   val markerState = remember {
     MarkerState(position = LatLng(C.Constants.DEFAULT_MAP_LAT, C.Constants.DEFAULT_MAP_LONG))
@@ -187,16 +190,16 @@ fun MapScreen(
             state = markerState,
             title = stringResource(R.string.map_location_marker_text),
         )
-        uiState.savedArtworks.forEach { artwork ->
-          DisplayArtworkMarker(artwork, onArtworkMarkerClick, MarkerType.SavedArtwork)
-        }
-        uiState.remoteArtworks.forEach { artwork ->
-          DisplayArtworkMarker(
-              artwork,
-              onArtworkMarkerClick,
-              MarkerType.RemoteArtwork,
-          )
-        }
+      }
+      uiState.savedArtworks.forEach { artwork ->
+        DisplayArtworkMarker(artwork, onArtworkMarkerClick, MarkerType.SavedArtwork)
+      }
+      uiState.remoteArtworks.filterNot { it.uid in savedArtworkIds }.forEach { artwork ->
+        DisplayArtworkMarker(
+            artwork,
+            onArtworkMarkerClick,
+            MarkerType.RemoteArtwork,
+        )
       }
     }
 
