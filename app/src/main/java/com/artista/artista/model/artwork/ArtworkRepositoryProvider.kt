@@ -16,6 +16,10 @@ object ArtworkRepositoryProvider {
 
   var repository = _repository
 
+  /** Firestore repository for saved artworks, created only when first used. */
+  val savedArtworksRepository: SavedArtworksRepository by lazy {
+    SavedArtworksRepositoryFirestore()
+  }
   /** Remote Wikidata source used for artwork discovery and search. */
   val wikiDataRepository: WikiDataRepository = WikiDataRepositoryRemote()
 
