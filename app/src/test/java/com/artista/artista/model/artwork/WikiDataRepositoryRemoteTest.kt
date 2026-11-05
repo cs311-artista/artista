@@ -267,13 +267,14 @@ class WikiDataRepositoryRemoteTest {
   @Test
   fun artworkQueryCache_evictsLeastRecentlyUsedEntryWhenFull() {
     val cache = ArtworkQueryCache(maxEntries = 2)
-    cache.put("first", emptyList())
+    val artwork = Artwork("Q1", "Artwork", null, null, null, null, null, null)
+    cache.put("first", listOf(artwork))
     cache.put("second", emptyList())
-    cache.get("first")
+    assertEquals(artwork, cache.findArtwork("Q1"))
     cache.put("third", emptyList())
 
     assertNull(cache.get("second"))
-    assertEquals(emptyList<Artwork>(), cache.get("first"))
+    assertEquals(listOf(artwork), cache.get("first"))
     assertEquals(emptyList<Artwork>(), cache.get("third"))
   }
 

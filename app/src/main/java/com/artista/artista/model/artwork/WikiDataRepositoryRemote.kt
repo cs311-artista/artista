@@ -56,20 +56,24 @@ internal class ArtworkQueryCache(
   @Synchronized
   fun findArtwork(uid: ArtworkId): Artwork? {
     val now = clock()
-    val iterator = entries.values.iterator()
+    val iterator = entries.entries.iterator()
+    var matchedQuery: String? = null
+    var matchedArtwork: Artwork? = null
     while (iterator.hasNext()) {
-      val entry = iterator.next()
+      val (query, entry) = iterator.next()
       if (now - entry.cachedAtNanos >= ttlNanos) {
         iterator.remove()
       } else {
         entry.artworks
             .firstOrNull { it.uid == uid }
             ?.let {
-              return it
+              matchedQuery = query
+              matchedArtwork = it
             }
       }
     }
-    return null
+    matchedQuery?.let { entries[it] }
+    return matchedArtwork
   }
 
   @Synchronized
@@ -158,15 +162,14 @@ class WikiDataRepositoryRemote(
       throw AppException.InvalidInput("uid is not a valid Wikidata item ID: $uid")
     }
 
-
-  // if artwork is cached return cached artwork (even if it was from another query)
-  artworkQueryCache.findArtwork(uid)?.let {
+    // if artwork is cached return cached artwork (even if it was from another query)
+    artworkQueryCache.findArtwork(uid)?.let {
       return it
-  }
+    }
 
     val query = buildArtworkByIdQuery(uid)
 
-    // call fetchArtworks might seam redundant but centralizes caching in one place
+    // Reuse the shared request, parsing, and caching path so later lookups can use this result.
     val artworks = fetchArtworks(query, cacheEmptyResults = false)
     return artworks.firstOrNull() ?: throw AppException.NotFound("No artwork found for uid $uid")
   }
