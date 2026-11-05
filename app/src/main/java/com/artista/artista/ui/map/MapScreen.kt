@@ -4,6 +4,10 @@ package com.artista.artista.ui.map
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.Path
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -18,6 +22,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -33,14 +38,17 @@ import com.artista.artista.model.map.UserLocation
 import com.artista.artista.resources.C
 import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
+import com.artista.artista.ui.theme.ArtistaColors
 import com.artista.artista.ui.theme.ArtistaTheme
 import com.google.android.gms.location.LocationServices
+import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.rememberCameraPositionState
+import androidx.core.graphics.createBitmap
 
 /**
  * Contains test tags used by the map screen.
@@ -52,6 +60,17 @@ object MapScreenTestTags {
   const val MAP = "map_surface"
 }
 
+/**
+ * Identifies the artwork source represented by a map marker.
+ *
+ * @property color ARGB color used to render the marker icon.
+ * @author 5kyPhy
+ */
+enum class MarkerType(val color: Int) {
+  SavedArtwork(ArtistaColors.SavedArtworkMarker.toArgb()),
+  RemoteArtwork(ArtistaColors.RemoteArtworkMarker.toArgb()),
+}
+
 internal const val USER_LOCATION_ZOOM = 15f
 internal val REQUIRED_LOCATION_PERMISSIONS =
     setOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
@@ -60,7 +79,7 @@ internal val REQUIRED_LOCATION_PERMISSIONS =
  * Displays a map centered on the user's current position.
  *
  * @param mapViewModel ViewModel containing the latest user location.
- * @author Felix Burchardt
+ * @author 5kyPhy
  */
 @Composable
 fun MapScreen(
@@ -143,10 +162,15 @@ fun MapScreen(
             state = markerState,
             title = stringResource(R.string.map_location_marker_text),
         )
-        uiState.savedArtworks.forEach { artwork -> DisplayArtworkMarker(artwork, onArtworkMarkerClick)
-
+        uiState.savedArtworks.forEach { artwork ->
+          DisplayArtworkMarker(artwork, onArtworkMarkerClick, MarkerType.SavedArtwork)
         }
-        uiState.remoteArtworks.forEach { artwork -> DisplayArtworkMarker(artwork, onArtworkMarkerClick)
+        uiState.remoteArtworks.forEach { artwork ->
+          DisplayArtworkMarker(
+              artwork,
+              onArtworkMarkerClick,
+              MarkerType.RemoteArtwork,
+          )
         }
       }
     }
@@ -160,18 +184,59 @@ fun MapScreen(
 }
 
 @Composable
-private fun DisplayArtworkMarker(artwork: Artwork, onArtworkMarkerClick: (Artwork) -> Unit) {
+private fun DisplayArtworkMarker(
+    artwork: Artwork,
+    onArtworkMarkerClick: (Artwork) -> Unit,
+    markerType: MarkerType,
+) {
   artwork.location?.let {
-            val artworkMarkerState = remember {
-              MarkerState(position = LatLng(artwork.location.latitude, artwork.location.longitude))
-            }
-            Marker(
-                state = artworkMarkerState,
-                title = artwork.name,
-                onInfoWindowClick = { onArtworkMarkerClick(artwork) },
+    val artworkMarkerState = remember {
+      MarkerState(position = LatLng(artwork.location.latitude, artwork.location.longitude))
+    }
+    Marker(
+        state = artworkMarkerState,
+        title = artwork.name,
+        onInfoWindowClick = { onArtworkMarkerClick(artwork) },
+        icon = artworkMarkerIcon(markerType.color),
+    )
+  }
+}
+
+/**
+ * Creates a map-compatible pin icon using the supplied centralized artwork color.
+ *
+ * Google Maps requires a [com.google.android.gms.maps.model.BitmapDescriptor] for marker icons,
+ * so the Compose color cannot be passed directly to [Marker].
+ *
+ * @param color ARGB color used for the pin body.
+ * @return bitmap descriptor containing a colored pin with a white center.
+ * @author 5kyPhy
+ */
+private fun artworkMarkerIcon(color: Int) =
+    BitmapDescriptorFactory.fromBitmap(
+        createBitmap(48, 64).also { bitmap ->
+          Canvas(bitmap).apply {
+            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color }
+            // Draw the pin manually so its color comes from the shared Compose palette.
+            val path =
+                Path().apply {
+                  moveTo(24f, 64f)
+                  cubicTo(20f, 56f, 4f, 42f, 4f, 24f)
+                  cubicTo(4f, 11f, 13f, 2f, 24f, 2f)
+                  cubicTo(35f, 2f, 44f, 11f, 44f, 24f)
+                  cubicTo(44f, 42f, 28f, 56f, 24f, 64f)
+                  close()
+                }
+            drawPath(path, paint)
+            drawCircle(
+                24f,
+                24f,
+                8f,
+                Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = android.graphics.Color.WHITE },
             )
           }
-}
+        }
+    )
 
 private fun hasAllLocationPermissions(context: android.content.Context): Boolean =
     REQUIRED_LOCATION_PERMISSIONS.all {
