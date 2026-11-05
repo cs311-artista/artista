@@ -1,6 +1,7 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 package com.artista.artista.e2e
 
+import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
@@ -15,7 +16,8 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.artista.artista.MainActivity
+import com.artista.artista.ArtistaApp
+import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.artwork.mockArtworks
 import com.artista.artista.resources.C
 import com.artista.artista.ui.artwork.ArtworkTestTags
@@ -26,6 +28,8 @@ import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.overview.OverviewTestTags
 import com.artista.artista.ui.preferences.ArtistPreferencesTestTags
 import com.artista.artista.ui.profile.UserProfileTestTags
+import kotlinx.coroutines.runBlocking
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -43,11 +47,26 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class CurrentAppUserJourneyTest {
 
-  @get:Rule val composeTestRule = createAndroidComposeRule<MainActivity>()
+  @get:Rule val composeTestRule = createAndroidComposeRule<ComponentActivity>()
 
   private val instrumentation = InstrumentationRegistry.getInstrumentation()
 
   private val timeoutMillis = 5_000L
+
+  @Before
+  fun setUp() {
+    val mockRepository = ArtworkRepositoryProvider.mockRepository
+    mockRepository.clear()
+    ArtworkRepositoryProvider.populateAPI()
+    runBlocking { ArtworkRepositoryProvider.populateSaved(mockArtworks.drop(2).take(3)) }
+
+    composeTestRule.setContent {
+      ArtistaApp(
+          wikiDataRepository = mockRepository,
+          savedArtworksRepository = mockRepository,
+      )
+    }
+  }
 
   /**
    * Verifies the currently executed user journey.

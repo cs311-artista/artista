@@ -2,6 +2,7 @@
 package com.artista.artista.ui.profile
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import com.artista.artista.model.user.User
 import java.text.Normalizer
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -94,5 +95,24 @@ class UserProfileViewModel : ViewModel() {
     // whatever the caller.
     if (!isValidUsername(newName)) return
     _uiState.update { it.copy(username = normalizeUsername(newName)) }
+  }
+
+  companion object {
+    /**
+     * Creates a factory for a user profile ViewModel.
+     *
+     * @return factory that creates [UserProfileViewModel] instances
+     * @author 5kyPhy
+     */
+    fun provideFactory(): ViewModelProvider.Factory =
+        object : ViewModelProvider.Factory {
+          @Suppress("UNCHECKED_CAST")
+          override fun <T : ViewModel> create(modelClass: Class<T>): T {
+            if (modelClass.isAssignableFrom(UserProfileViewModel::class.java)) {
+              return UserProfileViewModel() as T
+            }
+            throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
+          }
+        }
   }
 }

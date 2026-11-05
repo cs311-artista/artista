@@ -16,6 +16,12 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 
 /**
+ * User agent sent with every request to Wikimedia services (Wikidata and Commons). Wikimedia's
+ * user-agent policy rejects generic clients, so requests identify the app and link to its project.
+ */
+const val WIKIMEDIA_USER_AGENT = "Artista/1.0 (https://github.com/cs311-artista/artista)"
+
+/**
  * Thread-safe, bounded cache for parsed Wikidata query results.
  *
  * @param maxEntries maximum number of query results to retain
@@ -81,7 +87,7 @@ internal class ArtworkQueryCache(
 }
 
 /**
- * Wikidata property identifiers used by the repository queries.
+ * Constants for Wikidata item identifiers.
  *
  * Each value maps to a WikiData P-number used in SPARQL filters and OPTIONAL clauses.
  *
@@ -152,10 +158,11 @@ class WikiDataRepositoryRemote(
       throw AppException.InvalidInput("uid is not a valid Wikidata item ID: $uid")
     }
 
-    // if artwork is cached return cached artwork (even if it was from another query)
-    artworkQueryCache.findArtwork(uid)?.let {
+
+  // if artwork is cached return cached artwork (even if it was from another query)
+  artworkQueryCache.findArtwork(uid)?.let {
       return it
-    }
+  }
 
     val query = buildArtworkByIdQuery(uid)
 
@@ -389,7 +396,7 @@ class WikiDataRepositoryRemote(
             Request.Builder()
                 .url(url)
                 .header("Accept", "application/sparql-results+json")
-                .header("User-Agent", "Artista/1.0 (https://github.com/cs311-artista/artista)")
+                .header("User-Agent", WIKIMEDIA_USER_AGENT)
                 .get()
                 .build()
 

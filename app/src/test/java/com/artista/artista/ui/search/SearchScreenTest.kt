@@ -60,6 +60,16 @@ class SearchScreenTest {
     Dispatchers.resetMain()
   }
 
+  /** Verifies that the search preview renders its search input. */
+  @Test
+  fun searchScreenPreview_displaysSearchInput() = runTest {
+    composeTestRule.setContent { SearchScreenPreview() }
+    composeTestRule.waitForIdle()
+    advanceUntilIdle()
+
+    composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT).assertIsDisplayed()
+  }
+
   @Test
   fun searchBar_requestsFocusWhenScreenIsOpened() = runTest {
     val viewModel = createViewModel()

@@ -9,6 +9,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.artista.artista.ArtistaApp
+import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.ui.navigation.Screen
 import com.artista.artista.ui.profile.UserProfileTestTags
 import org.junit.Assert.assertEquals
@@ -40,6 +41,8 @@ class ArtistPreferencesNavigationTest {
       ArtistaApp(
           navController = navController,
           startDestination = PROFILE_GRAPH_ROUTE,
+          wikiDataRepository = ArtworkRepositoryProvider.mockRepository,
+          savedArtworksRepository = ArtworkRepositoryProvider.mockRepository,
       )
     }
 

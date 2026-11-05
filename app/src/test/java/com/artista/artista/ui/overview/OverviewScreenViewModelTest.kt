@@ -7,6 +7,7 @@ import com.artista.artista.MainDispatcherRule
 import com.artista.artista.R
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.Artwork
+import com.artista.artista.model.artwork.ArtworkFilter
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
 import com.artista.artista.model.artwork.ArtworkType
 import com.artista.artista.model.artwork.SearchArea
@@ -101,6 +102,34 @@ class OverviewScreenViewModelTest {
     viewModel.clearErrorMessage()
 
     assertEquals(null, viewModel.uiState.value.errorMessageRes)
+  }
+
+  @Test
+  fun applyFilter_updatesDisplayedArtworks_andClearRestoresAll() = runTest {
+    val first = artwork(name = "The Starry Night", artistName = "Vincent van Gogh")
+    val second = artwork(name = "Girl with a Pearl Earring", artistName = "Johannes Vermeer")
+    val repository =
+        object : WikiDataRepository by ArtworkRepositoryLocal() {
+          override suspend fun getArtworksNearLocation(
+              searchArea: SearchArea,
+              typeValues: List<ArtworkType>,
+              limit: Int,
+          ): List<Artwork> = listOf(first, second)
+        }
+    val viewModel = OverviewViewModel(repository)
+
+    advanceUntilIdle()
+    viewModel.applyFilter(ArtworkFilter(artists = setOf("Johannes Vermeer")))
+
+    assertEquals(listOf(second), viewModel.uiState.value.artworks)
+    assertEquals(
+        ArtworkFilter(artists = setOf("Johannes Vermeer")),
+        viewModel.uiState.value.activeFilter,
+    )
+
+    viewModel.applyFilter(ArtworkFilter())
+
+    assertEquals(listOf(first, second), viewModel.uiState.value.artworks)
   }
 
   /** Verifies that the factory refuses to create a ViewModel of another class. */
