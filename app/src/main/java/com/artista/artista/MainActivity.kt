@@ -8,6 +8,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.semantics
@@ -21,11 +22,11 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.navigation.navigation
 import coil3.compose.setSingletonImageLoaderFactory
+import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.artwork.SavedArtworksRepository
 import com.artista.artista.model.artwork.WikiDataRepository
 import com.artista.artista.model.artwork.createArtworkImageLoader
-import com.artista.artista.model.artwork.mockArtworks
 import com.artista.artista.resources.C
 import com.artista.artista.ui.artwork.ArtworkScreen
 import com.artista.artista.ui.artwork.ArtworkScreenViewModel
@@ -204,7 +205,9 @@ fun ArtistaApp(
           viewModel =
               viewModel(factory = SavedArtworksViewModel.provideFactory(savedArtworksRepository)),
           onBackClick = { navigationActions.goBack() },
-          onArtworkDetailsClick = {},
+          onArtworkDetailsClick = { artwork ->
+            navController.navigate(Screen.ArtworkDetails.createRoute(artwork.uid))
+          },
           onTabSelected = { tab -> navigationActions.navigateTo(tab.destination) },
           onMapClick = { /* TODO: Implement map click functionality */ },
       )
@@ -215,7 +218,20 @@ fun ArtistaApp(
         arguments = listOf(navArgument("artworkId") { type = NavType.StringType }),
     ) { backStackEntry ->
       val artworkId = backStackEntry.arguments?.getString("artworkId")
-      val artwork = mockArtworks.firstOrNull { it.uid == artworkId }
+      val artwork =
+          produceState<Artwork?>(
+                  initialValue = null,
+                  artworkId,
+                  savedArtworksRepository,
+                  wikiDataRepository,
+              ) {
+                value =
+                    artworkId?.let { id ->
+                      savedArtworksRepository.getSavedArtworks().firstOrNull { it.uid == id }
+                          ?: wikiDataRepository.getArtwork(id)
+                    }
+              }
+              .value
 
       if (artwork != null) {
         ArtworkScreen(
