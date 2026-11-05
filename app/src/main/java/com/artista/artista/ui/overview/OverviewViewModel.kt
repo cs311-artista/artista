@@ -13,6 +13,7 @@ import com.artista.artista.model.artwork.SearchArea
 import com.artista.artista.model.artwork.WikiDataRepository
 import com.artista.artista.ui.error.launchCatching
 import com.artista.artista.ui.error.toMessageRes
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -53,6 +54,8 @@ class OverviewViewModel(
   private val _uiState = MutableStateFlow(OverviewUiState())
 
   val uiState: StateFlow<OverviewUiState> = _uiState.asStateFlow()
+
+  private val pendingSavedArtworkIds = mutableSetOf<ArtworkId>()
 
   init {
     refreshUiState()
@@ -106,6 +109,9 @@ class OverviewViewModel(
    * @param artwork artwork whose saved status should be toggled
    */
   fun toggleSavedArtwork(artwork: Artwork) {
+    // Ignore repeated taps until the previous repository write for this artwork completes.
+    if (!pendingSavedArtworkIds.add(artwork.uid)) return
+
     val wasSaved = artwork.uid in _uiState.value.savedArtworkIds
 
     fun updateSavedState(isSaved: Boolean, errorMessageRes: Int? = null) {
@@ -121,18 +127,20 @@ class OverviewViewModel(
 
     updateSavedState(isSaved = !wasSaved)
 
-    viewModelScope.launchCatching(
-        tag = TAG,
-        onError = { error ->
-          updateSavedState(isSaved = wasSaved, errorMessageRes = error.toMessageRes())
-        },
-    ) {
-      if (wasSaved) {
-        savedArtworksRepository.removeArtworkFromSaved(artwork.uid)
-      } else {
-        savedArtworksRepository.saveArtwork(artwork)
-      }
-    }
+    val toggleJob: Job =
+        viewModelScope.launchCatching(
+            tag = TAG,
+            onError = { error ->
+              updateSavedState(isSaved = wasSaved, errorMessageRes = error.toMessageRes())
+            },
+        ) {
+          if (wasSaved) {
+            savedArtworksRepository.removeArtworkFromSaved(artwork.uid)
+          } else {
+            savedArtworksRepository.saveArtwork(artwork)
+          }
+        }
+    toggleJob.invokeOnCompletion { pendingSavedArtworkIds.remove(artwork.uid) }
   }
 
   /**

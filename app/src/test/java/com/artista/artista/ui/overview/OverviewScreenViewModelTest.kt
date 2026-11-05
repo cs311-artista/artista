@@ -104,6 +104,22 @@ class OverviewScreenViewModelTest {
     assertTrue(repository.getSavedArtworks().isEmpty())
   }
 
+  /** Verifies repeated taps do not queue conflicting writes for the same artwork. */
+  @Test
+  fun overviewViewModel_whenToggledAgainWhilePending_keepsFirstToggle() = runTest {
+    val artwork = artwork(name = "The Starry Night", artistName = "Vincent van Gogh")
+    val repository = ArtworkRepositoryLocal()
+    val viewModel = OverviewViewModel(repository, repository)
+
+    advanceUntilIdle()
+    viewModel.toggleSavedArtwork(artwork)
+    viewModel.toggleSavedArtwork(artwork)
+    advanceUntilIdle()
+
+    assertTrue(artwork.uid in viewModel.uiState.value.savedArtworkIds)
+    assertEquals(listOf(artwork), repository.getSavedArtworks())
+  }
+
   /** Verifies refreshing saved artworks picks up changes made outside Overview. */
   @Test
   fun overviewViewModel_refreshSavedArtworkIds_includesArtworkSavedElsewhere() = runTest {
