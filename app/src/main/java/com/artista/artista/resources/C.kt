@@ -8,10 +8,6 @@ import com.google.android.gms.maps.model.LatLng
 // Like R, but C
 object C {
   object Tag {
-    const val greeting = "main_screen_greeting"
-
-    const val main_screen_container = "main_screen_container"
-
     const val auth_screen_container = "auth_screen_container"
     const val auth_hero_image = "auth_hero_image"
     const val auth_google_sign_in_button = "auth_google_sign_in_button"
