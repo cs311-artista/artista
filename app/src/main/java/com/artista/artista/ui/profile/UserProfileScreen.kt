@@ -70,8 +70,10 @@ private val FieldShape = RoundedCornerShape(percent = 50)
  * compile instead of leaving a logout button that silently does nothing.
  *
  * @param onLogoutClick Callback invoked when the user asks to sign out.
- * @param userProfileViewModel ViewModel providing the profile state. The default one loads and
- *   saves the profile of the signed-in user; its failures are shown in a toast.
+ * @param userProfileViewModel ViewModel providing the profile state. The default one is built from
+ *   the shared [AuthRepositoryProvider.repository], to know who is signed in, and
+ *   [UserRepositoryProvider.repository], to read and save their username; its failures are shown in
+ *   a toast.
  * @param onPreferencesClick Callback invoked when the user opens their artist preferences.
  * @param onSavedArtworkClick Callback invoked when the user opens their saved artworks.
  * @param onTabSelected Callback invoked with the destination selected in the bottom navigation.
@@ -93,9 +95,15 @@ fun UserProfileScreen(
     onTabSelected: (Tab) -> Unit = {},
 ) {
   val uiState by userProfileViewModel.uiState.collectAsStateWithLifecycle()
+  // A toast needs an Android context to be displayed.
   val context = LocalContext.current
+  // The ViewModel only exposes a string resource id, so it stays free of Android resources; the
+  // text is resolved here, in the UI.
   val errorMessage = uiState.errorMessageResId?.let { stringResource(it) }
 
+  // Errors are shown in a toast: a short message that disappears by itself and does not block the
+  // screen. LaunchedEffect runs only when the message changes, not on every recomposition, so the
+  // toast is shown once per error.
   LaunchedEffect(errorMessage) {
     errorMessage?.let {
       Toast.makeText(context, it, Toast.LENGTH_LONG).show()
@@ -390,7 +398,14 @@ private fun UserProfileScreenPreview() {
   ArtistaTheme { UserProfileScreen(onLogoutClick = {}, userProfileViewModel = viewModel) }
 }
 
-/** Signed-out [AuthRepository] for the previews, which cannot reach Firebase. */
+/**
+ * Signed-out [AuthRepository] for the previews.
+ *
+ * [UserProfileViewModel] needs an [AuthRepository] to know who is signed in, but the previews
+ * cannot reach Firebase. This one stands in for it and always answers that nobody is signed in, so
+ * the ViewModel loads nothing and the preview shows the user given to
+ * [UserProfileViewModel.setUser].
+ */
 private object PreviewAuthRepository : AuthRepository {
   override val authState: Flow<AuthUser?> = flowOf(null)
 

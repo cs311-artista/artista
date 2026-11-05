@@ -99,6 +99,9 @@ class UserProfileViewModel(
   private var loadJob: Job? = null
 
   init {
+    // A plain launch is enough: collecting the auth state only listens to sign-ins and sign-outs
+    // and does not fail. The profile load, which can fail, is protected by launchCatching in
+    // onAuthStateChanged.
     viewModelScope.launch { authRepository.authState.collect(::onAuthStateChanged) }
   }
 
@@ -108,6 +111,8 @@ class UserProfileViewModel(
    * @param authUser the signed-in user, or null when nobody is signed in
    */
   private fun onAuthStateChanged(authUser: AuthUser?) {
+    // Stops the load of the previous user: if Alice signs out and Bob signs in while her slow load
+    // is still running, its late result would otherwise replace Bob's name with Alice's.
     loadJob?.cancel()
     if (authUser == null) {
       // Nobody signed in from the start (e.g. before Google sign-in is wired): a username already
@@ -161,10 +166,14 @@ class UserProfileViewModel(
     val username = normalizeUsername(newName)
     _uiState.update { it.copy(username = username) }
 
+    // Nobody signed in (as in the UI tests and the preview): there is no one to save the name for,
+    // so it is only kept in memory.
     val uid = signedInUid ?: return
     viewModelScope.launchCatching(
         tag = TAG,
         onError = { error ->
+          // The name was displayed before being saved, so a failed save puts the previous one back
+          // and the screen shows the error in a toast. A successful save needs nothing more.
           _uiState.update {
             it.copy(username = previousUsername, errorMessageResId = error.toMessageRes())
           }
@@ -186,8 +195,14 @@ class UserProfileViewModel(
   /**
    * Saves the username of a user, creating their profile if they have none yet.
    *
+   * Two cases:
+   * - the user has no stored profile yet, as after their first sign-in: a profile is created with
+   *   this username and empty preferences;
+   * - the user already has one: only its username is replaced, its other fields are kept.
+   *
    * @param uid identifier of the user
-   * @param username the normalized username to save
+   * @param username the username to save, already cleaned up by [normalizeUsername] (trimmed and in
+   *   NFC form), so the stored name is exactly the one displayed
    */
   private suspend fun saveUsername(uid: UserId, username: String) {
     // The stored profile is read first so that the fields saved by other screens, such as the

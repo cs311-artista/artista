@@ -87,6 +87,29 @@ class UserProfileViewModelTest {
     assertEquals("Bob", viewModel.uiState.value.username)
   }
 
+  /**
+   * Checks that a slow load of a user who signed out does not replace the username of the next user
+   * when it finishes last.
+   */
+  @Test
+  fun signIn_afterSlowLoadOfPreviousUser_keepsNewUsername() {
+    userRepository.store(userNamed("Alice"))
+    userRepository.store(User(uid = OTHER_UID, userName = "Bob", preference = UserPreference()))
+    userRepository.readDelays[UID] = 1_000
+    val scheduler = mainDispatcherRule.testDispatcher.scheduler
+
+    // runCurrent starts each load without letting time pass, so Alice's load is still waiting
+    // when she signs out and Bob signs in.
+    authRepository.setAuthState(FakeAuthUser(UID))
+    scheduler.runCurrent()
+    authRepository.setAuthState(null)
+    scheduler.runCurrent()
+    authRepository.setAuthState(FakeAuthUser(OTHER_UID))
+    runPendingCoroutines()
+
+    assertEquals("Bob", viewModel.uiState.value.username)
+  }
+
   /** Checks that signing out clears the username of the user who left. */
   @Test
   fun signOut_clearsUsername() {

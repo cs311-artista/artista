@@ -2,9 +2,11 @@
 package com.artista.artista.model.user
 
 import com.artista.artista.model.error.AppException
+import kotlinx.coroutines.delay
 
 /**
- * In-memory [UserRepository] for unit tests, which can also simulate backend failures.
+ * In-memory [UserRepository] for unit tests, which can also simulate backend failures and slow
+ * reads.
  *
  * [UserRepositoryLocal] stores users the same way but never fails, while the profile tests need to
  * check what the user sees when reading or saving their profile fails.
@@ -17,6 +19,12 @@ class FakeUserRepository : UserRepository {
 
   /** When set, [getUser] throws it instead of reading. */
   var readFailure: Throwable? = null
+
+  /**
+   * Delay in milliseconds before [getUser] returns, per user, to simulate a slow network for one
+   * user while the others load at once.
+   */
+  val readDelays = mutableMapOf<UserId, Long>()
 
   /** When set, [createUser] and [updateUser] throw it instead of writing. */
   var writeFailure: Throwable? = null
@@ -52,6 +60,7 @@ class FakeUserRepository : UserRepository {
   }
 
   override suspend fun getUser(userId: UserId): User {
+    readDelays[userId]?.let { delay(it) }
     readFailure?.let { throw it }
     return users[userId] ?: throw AppException.NotFound("No user with uid $userId")
   }
