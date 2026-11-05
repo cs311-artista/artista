@@ -52,9 +52,9 @@ sealed interface AuthSession {
  * is kept by the screen instead: it comes from a platform dialog the ViewModel cannot see, and it
  * must not outlive the composition, so the two are never merged into a single field.
  *
- * [repositoryErrorMessageRes] is only ever set while [session] is [AuthSession.SignedOut]: signing in
- * is the only operation whose failure is reported, and a failed sign-in leaves the session signed
- * out, so the sign-in screen is always composed when there is a message to show.
+ * [repositoryErrorMessageRes] is only ever set while [session] is [AuthSession.SignedOut]: signing
+ * in is the only operation whose failure is reported, and a failed sign-in leaves the session
+ * signed out, so the sign-in screen is always composed when there is a message to show.
  *
  * @property session what is known about the current session
  * @property isLoading whether an authentication operation is in progress
@@ -103,7 +103,9 @@ class AuthViewModel(private val repository: AuthRepository) : ViewModel() {
         // to know about, so it is reported like a failed operation.
         onError = ::reportStreamFailure,
     ) {
-      repository.authState.collect { user -> _uiState.update { it.copy(session = sessionFor(user)) } }
+      repository.authState.collect { user ->
+        _uiState.update { it.copy(session = sessionFor(user)) }
+      }
     }
   }
 
@@ -119,7 +121,7 @@ class AuthViewModel(private val repository: AuthRepository) : ViewModel() {
    * @author timo-by
    */
   fun signIn(idToken: String) {
-    if (_uiState.value.isLoading || _uiState.value.session is AuthSession.SignedIn) return
+    if (_uiState.value.isLoading || (_uiState.value.session is AuthSession.SignedIn)) return
     _uiState.update { it.copy(isLoading = true, repositoryErrorMessageRes = null) }
     viewModelScope.launchCatching(tag = TAG, onError = ::report) {
       try {
@@ -144,9 +146,16 @@ class AuthViewModel(private val repository: AuthRepository) : ViewModel() {
    * @author timo-by
    */
   fun signOut() {
-    if (_uiState.value.isLoading || _uiState.value.session !is AuthSession.SignedIn) return
+    if (_uiState.value.isLoading || (_uiState.value.session !is AuthSession.SignedIn)) return
     _uiState.update { it.copy(isLoading = true, repositoryErrorMessageRes = null) }
-    viewModelScope.launchCatching(tag = TAG, onError = ::report) {
+    viewModelScope.launchCatching(
+        tag = TAG,
+        // Deliberately not reported: a failed sign-out leaves the session signed in, so the state
+        // already says the sign-out did not happen. The message would have nowhere to appear
+        // either, since it is only shown on the sign-in screen - which is not composed while a
+        // user is signed in.
+        onError = {},
+    ) {
       try {
         repository.signOut().getOrThrow()
       } finally {
@@ -177,22 +186,22 @@ class AuthViewModel(private val repository: AuthRepository) : ViewModel() {
    * @author timo-by
    */
   private fun sessionFor(user: AuthUser?): AuthSession =
-      // TODO(session): map the reported user to the session.
-      AuthSession.Restoring
+      if (user == null) AuthSession.SignedOut else AuthSession.SignedIn(user)
 
   /**
    * Reports the failure of the authentication state stream.
    *
-   * A stream that fails means the session can no longer be tracked at all: nothing else will ever be
-   * emitted, so the session must not stay [AuthSession.Restoring] forever and a message has to say
-   * why.
+   * A stream that fails means the session can no longer be tracked at all: nothing else will ever
+   * be emitted, so the session must not stay [AuthSession.Restoring] forever and a message has to
+   * say why.
    *
    * @param error the failure reported by [launchCatching]
    * @author timo-by
    */
   private fun reportStreamFailure(error: AppException) {
-    // TODO(session): fail closed to [AuthSession.SignedOut] as well as reporting the message.
-    report(error)
+    _uiState.update {
+      it.copy(session = AuthSession.SignedOut, repositoryErrorMessageRes = error.toMessageRes())
+    }
   }
 
   /**

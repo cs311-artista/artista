@@ -22,9 +22,9 @@ import org.junit.Test
 /**
  * Unit tests for [AuthViewModel].
  *
- * Drives the ViewModel through a [FakeAuthRepository] injected at construction, covering the session
- * it derives from the repository - restoring, signed out and signed in - along with the loading
- * flag, error messages, re-entrancy guards and retries.
+ * Drives the ViewModel through a [FakeAuthRepository] injected at construction, covering the
+ * session it derives from the repository - restoring, signed out and signed in - along with the
+ * loading flag, error messages, re-entrancy guards and retries.
  *
  * @author timo-by
  */
