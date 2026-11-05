@@ -85,10 +85,9 @@ class MainActivity : ComponentActivity() {
 fun ArtistaApp(
     navController: NavHostController = rememberNavController(),
     startDestination: String = Screen.Auth.route,
-    wikiDataRepository: WikiDataRepository =
-        ArtworkRepositoryProvider.mockRepository, // todo replace with real repository
+    wikiDataRepository: WikiDataRepository = ArtworkRepositoryProvider.wikiDataRepository,
     savedArtworksRepository: SavedArtworksRepository =
-        ArtworkRepositoryProvider.mockRepository, // todo replace with real repository
+        ArtworkRepositoryProvider.savedArtworksRepository,
 ) {
   val navigationActions = remember { NavigationActions(navController) }
 

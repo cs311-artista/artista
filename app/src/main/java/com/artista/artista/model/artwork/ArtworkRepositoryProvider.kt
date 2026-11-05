@@ -13,18 +13,24 @@ import java.util.Date
  * @author 5kyPhy
  */
 object ArtworkRepositoryProvider {
-  // todo change to actual saved repo
-  private val _savedArtworkRepository: SavedArtworksRepository by lazy { ArtworkRepositoryLocal() }
+  private val _savedArtworkRepository: SavedArtworksRepository by lazy {
+    SavedArtworksRepositoryFirestore()
+  }
   private val _wikiDataRepository: WikiDataRepository by lazy { WikiDataRepositoryRemote() }
   private val _mockRepository: ArtworkRepositoryLocal by lazy { ArtworkRepositoryLocal() }
 
+  /** implements [SavedArtworksRepository]: The repository taking care of saved [Artwork]s */
   val savedArtworksRepository: SavedArtworksRepository
     get() = _savedArtworkRepository
 
+  /** implements [WikiDataRepository]: The repository taking care of fetched/remote [Artwork]s */
   val wikiDataRepository: WikiDataRepository
     get() = _wikiDataRepository
 
-  /** A Mock repository, for use in testing and to inject in previews. */
+  /**
+   * implements [WikiDataRepository] & [SavedArtworksRepository]: A Mock repository, for use in
+   * testing and to inject in previews.
+   */
   val mockRepository: ArtworkRepositoryLocal
     get() = _mockRepository
 
