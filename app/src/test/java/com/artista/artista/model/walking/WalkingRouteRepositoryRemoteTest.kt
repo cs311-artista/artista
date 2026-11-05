@@ -5,10 +5,16 @@ package com.artista.artista.model.walking
 import com.artista.artista.model.error.AppException
 import com.artista.artista.model.map.Coordinate
 import java.io.IOException
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration.Companion.seconds
-import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
+import okhttp3.Call
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
 import okhttp3.Request
@@ -16,9 +22,10 @@ import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
 import okio.Buffer
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
-import org.junit.Assert.fail
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -98,35 +105,64 @@ class WalkingRouteRepositoryRemoteTest {
   }
 
   @Test
-  fun getWalkingRoute_rejectedApiKeyThrowsUnknown() = runTest {
+  fun getWalkingRoute_internalOrsErrorThrowsUnknown() = runTest {
+    val repository =
+        repository(RecordingHttpClient(statusCode = 500, responseBody = errorJson(2099)))
+
+    assertThrowsSuspend<AppException.Unknown> { repository.getWalkingRoute(ORIGIN, DESTINATION) }
+  }
+
+  @Test
+  fun getWalkingRoute_serverUnavailableThrowsNetwork() = runTest {
+    val repository = repository(RecordingHttpClient(statusCode = 503))
+
+    assertThrowsSuspend<AppException.Network> { repository.getWalkingRoute(ORIGIN, DESTINATION) }
+  }
+
+  @Test
+  fun getWalkingRoute_perMinuteLimitThrowsTransientRateLimited() = runTest {
+    val repository = repository(RecordingHttpClient(statusCode = 429))
+
+    val exception =
+        assertThrowsSuspend<AppException.RateLimited> {
+          repository.getWalkingRoute(ORIGIN, DESTINATION)
+        }
+    assertTrue(exception.isTransient)
+  }
+
+  @Test
+  fun getWalkingRoute_dailyQuotaThrowsNonTransientRateLimited() = runTest {
+    // The ORS gateway answers a daily limit with this 403 body (seen on the ORS forum).
+    val body = """{"error":"Quota exceeded"}"""
+    val repository = repository(RecordingHttpClient(statusCode = 403, responseBody = body))
+
+    val exception =
+        assertThrowsSuspend<AppException.RateLimited> {
+          repository.getWalkingRoute(ORIGIN, DESTINATION)
+        }
+    assertFalse(exception.isTransient)
+  }
+
+  @Test
+  fun getWalkingRoute_rejectedApiKeyThrowsUnauthorized() = runTest {
     for (status in listOf(401, 403)) {
       val repository = repository(RecordingHttpClient(statusCode = status))
 
-      assertThrowsSuspend<AppException.Unknown> { repository.getWalkingRoute(ORIGIN, DESTINATION) }
+      assertThrowsSuspend<AppException.Unauthorized> {
+        repository.getWalkingRoute(ORIGIN, DESTINATION)
+      }
     }
   }
 
   @Test
-  fun getWalkingRoute_blankApiKeyThrowsUnknownWithoutRequest() = runTest {
+  fun getWalkingRoute_blankApiKeyThrowsUnauthorizedWithoutRequest() = runTest {
     val client = RecordingHttpClient()
     val repository = repository(client, apiKey = "")
 
-    assertThrowsSuspend<AppException.Unknown> { repository.getWalkingRoute(ORIGIN, DESTINATION) }
+    assertThrowsSuspend<AppException.Unauthorized> {
+      repository.getWalkingRoute(ORIGIN, DESTINATION)
+    }
     assertNull(client.lastRequest)
-  }
-
-  @Test
-  fun getWalkingRoute_rateLimitThrowsUnknown() = runTest {
-    val repository = repository(RecordingHttpClient(statusCode = 429))
-
-    assertThrowsSuspend<AppException.Unknown> { repository.getWalkingRoute(ORIGIN, DESTINATION) }
-  }
-
-  @Test
-  fun getWalkingRoute_serviceUnavailableThrowsNetwork() = runTest {
-    val repository = repository(RecordingHttpClient(statusCode = 503))
-
-    assertThrowsSuspend<AppException.Network> { repository.getWalkingRoute(ORIGIN, DESTINATION) }
   }
 
   @Test
@@ -187,17 +223,32 @@ class WalkingRouteRepositoryRemoteTest {
   }
 
   @Test
-  fun getWalkingRoute_cancellationPropagates() = runTest {
-    val cancellation = CancellationException("cancelled")
-    val client = OkHttpClient.Builder().addInterceptor { throw cancellation }.build()
+  fun getWalkingRoute_cancellingTheCoroutineCancelsTheHttpCall() = runTest {
+    val started = CountDownLatch(1)
+    val httpCall = AtomicReference<Call>()
+    val client =
+        OkHttpClient.Builder()
+            .addInterceptor { chain ->
+              httpCall.set(chain.call())
+              started.countDown()
+              // Simulates a slow server: wait (at most 5 s) until the call gets canceled.
+              val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
+              while (!chain.call().isCanceled() && System.nanoTime() < deadline) {
+                Thread.sleep(10)
+              }
+              throw IOException("no response")
+            }
+            .build()
     val repository = repository(client)
 
-    try {
-      repository.getWalkingRoute(ORIGIN, DESTINATION)
-      fail("Expected CancellationException")
-    } catch (exception: CancellationException) {
-      assertEquals(cancellation.message, exception.message)
-    }
+    val job =
+        launch(start = CoroutineStart.UNDISPATCHED) {
+          repository.getWalkingRoute(ORIGIN, DESTINATION)
+        }
+    assertTrue("the request was never sent", started.await(5, TimeUnit.SECONDS))
+    job.cancelAndJoin()
+
+    assertTrue(requireNotNull(httpCall.get()).isCanceled())
   }
 
   private fun repository(
@@ -226,6 +277,8 @@ class WalkingRouteRepositoryRemoteTest {
       private val statusCode: Int = 200,
       private val responseBody: String = "",
   ) : OkHttpClient() {
+    // Written on OkHttp's thread, read by the test thread.
+    @Volatile
     var lastRequest: Request? = null
       private set
 

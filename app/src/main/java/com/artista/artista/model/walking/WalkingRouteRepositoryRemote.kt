@@ -11,12 +11,16 @@ import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import okhttp3.Call
+import okhttp3.Callback
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.Response
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -25,14 +29,18 @@ import org.json.JSONObject
  *
  * Failures are classified as follows:
  * - an OpenRouteService "no route" error code is [AppException.NotFound];
- * - a transport failure or an HTTP 5xx is [AppException.Network];
+ * - HTTP 429 (per-minute limit) or a 403 naming the quota (daily limit) is
+ *   [AppException.RateLimited], transient only for the per-minute limit;
+ * - a blank API key, HTTP 401 or any other 403 is [AppException.Unauthorized];
+ * - a transport failure or an HTTP 502/503/504 is [AppException.Network];
  * - a successful response that cannot be read is [AppException.InvalidData];
- * - anything else (blank or rejected API key, quota exceeded, rejected request) is
- *   [AppException.Unknown].
+ * - anything else (e.g. an internal ORS error, HTTP 500) is [AppException.Unknown].
+ *
+ * Cancelling the calling coroutine cancels the HTTP call; see [execute].
  *
  * @param client HTTP client used for requests; inject a test client to intercept requests
  * @param apiKey OpenRouteService API key
- * @param ioDispatcher dispatcher used for blocking HTTP I/O
+ * @param ioDispatcher dispatcher the request is launched and its response parsed on
  * @author patrickmcdan
  */
 class WalkingRouteRepositoryRemote(
@@ -47,7 +55,7 @@ class WalkingRouteRepositoryRemote(
       withContext(ioDispatcher) {
         try {
           if (apiKey.isBlank()) {
-            throw AppException.Unknown(
+            throw AppException.Unauthorized(
                 "OpenRouteService API key is blank: set ORS_API_KEY in local.properties"
             )
           }
@@ -70,23 +78,67 @@ class WalkingRouteRepositoryRemote(
           .post(coordinatesBody(origin, destination).toRequestBody(JSON_MEDIA_TYPE))
           .build()
 
-  private fun execute(request: Request): String =
-      client.newCall(request).execute().use { response ->
-        val body = response.body?.string().orEmpty()
-        if (!response.isSuccessful) throw failureFor(response.code, body)
-        body
+  /**
+   * Sends [request] and returns the response body, or throws the matching [AppException].
+   *
+   * Uses OkHttp's asynchronous API so the HTTP call is tied to the calling coroutine: when that
+   * coroutine is canceled (e.g. the user leaves the screen and the ViewModel is cleared), the call
+   * is canceled too, the connection is dropped and the response is never read. A request that ORS
+   * has already received still counts against the quota, so cancelling does not refund it; avoiding
+   * wasted quota is up to the callers.
+   */
+  private suspend fun execute(request: Request): String =
+      suspendCancellableCoroutine { continuation ->
+        val httpCall = client.newCall(request)
+        continuation.invokeOnCancellation { httpCall.cancel() }
+        httpCall.enqueue(
+            object : Callback {
+              override fun onFailure(call: Call, e: IOException) {
+                continuation.resumeWith(Result.failure(e))
+              }
+
+              override fun onResponse(call: Call, response: Response) {
+                // Read the body here, on OkHttp's thread, so the caller never blocks on it.
+                continuation.resumeWith(
+                    runCatching {
+                      response.use {
+                        val body = it.body?.string().orEmpty()
+                        if (!it.isSuccessful) throw failureFor(it.code, body)
+                        body
+                      }
+                    }
+                )
+              }
+            }
+        )
       }
 
   /**
-   * Classifies a non-successful response. The OpenRouteService error code is checked first because
-   * "no route" is reported through it, not through a dedicated HTTP status.
+   * Classifies a non-successful response. The ORS error code is checked first because "no route" is
+   * only identifiable through it. Then come the gateway statuses: ORS documents 403 for the daily
+   * limit and 429 for the per-minute limit. A 403 is also returned for an unauthorized key, and
+   * only its body tells them apart: the gateway answers a daily limit with "Quota exceeded". Of the
+   * server errors, 503 is the only one ORS documents as "unavailable"; 500 is an internal error and
+   * 501 an unsupported feature, so they stay [AppException.Unknown].
    */
   private fun failureFor(status: Int, body: String): AppException {
     val errorCode = extractErrorCode(body)
     return when {
       errorCode in NO_ROUTE_CODES ->
           AppException.NotFound("OpenRouteService found no walking route (error code $errorCode)")
-      status >= 500 -> AppException.Network("OpenRouteService unavailable: HTTP $status")
+      status == 429 ->
+          AppException.RateLimited(
+              isTransient = true,
+              message = "OpenRouteService per-minute limit reached",
+          )
+      status == 403 && body.contains("quota", ignoreCase = true) ->
+          AppException.RateLimited(
+              isTransient = false,
+              message = "OpenRouteService daily quota exhausted",
+          )
+      status == 401 || status == 403 ->
+          AppException.Unauthorized("OpenRouteService rejected the API key: HTTP $status")
+      status == 503 -> AppException.Network("OpenRouteService unavailable: HTTP $status")
       else ->
           AppException.Unknown(
               "OpenRouteService request failed: HTTP $status, error code $errorCode"

@@ -18,9 +18,12 @@ interface WalkingRouteRepository {
    * @param destination route ending point
    * @return the walking route
    * @throws AppException.NotFound if no walking route exists between the points
+   * @throws AppException.RateLimited if a usage limit was reached; see
+   *   [AppException.RateLimited.isTransient] to tell a short wait from a limit that resets later
+   * @throws AppException.Unauthorized if the credentials are missing or rejected
    * @throws AppException.Network if the service cannot be reached or is unavailable
    * @throws AppException.InvalidData if the response is malformed or incomplete
-   * @throws AppException.Unknown for any other failure, including a missing or rejected API key
+   * @throws AppException.Unknown for any other failure
    * @author patrickmcdan
    */
   suspend fun getWalkingRoute(
