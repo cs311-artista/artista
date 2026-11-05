@@ -16,10 +16,14 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -28,7 +32,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -37,13 +43,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
+import com.artista.artista.model.artwork.ArtworkFilter
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
-import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.artwork.mockArtworks
 import com.artista.artista.ui.artwork.ArtworkCard
+import com.artista.artista.ui.artwork.ArtworkFilterDialog
 import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaTheme
@@ -61,6 +67,9 @@ object OverviewTestTags {
   const val ERROR_MESSAGE = "overview_error_message"
   const val SAVED_ARTWORKS_BUTTON = "overview_saved_artworks_button"
   const val SEARCH_BAR = "overview_search_bar"
+  const val FILTER_BUTTON = "overview_filter_button"
+  const val FILTER_ACTIVE = "overview_filter_active"
+  const val EMPTY_FILTER_RESULTS = "overview_empty_filter_results"
 }
 
 /**
@@ -75,14 +84,14 @@ object OverviewTestTags {
  */
 @Composable
 fun OverviewScreen(
-    viewModel: OverviewViewModel =
-        viewModel(factory = OverviewViewModel.provideFactory(ArtworkRepositoryProvider.repository)),
+    viewModel: OverviewViewModel,
     onTabSelected: (Tab) -> Unit = {},
     onArtworkClick: (Artwork) -> Unit = {},
     onSavedArtworksClick: () -> Unit = {},
     onSearchClick: () -> Unit = {},
 ) {
   val uiState by viewModel.uiState.collectAsState()
+  var filterDialogVisible by remember { mutableStateOf(false) }
   val context = LocalContext.current
   val errorMessage = uiState.errorMessageRes?.let { stringResource(it) }
 
@@ -92,17 +101,72 @@ fun OverviewScreen(
 
   Scaffold(
       modifier = Modifier.fillMaxSize().testTag(OverviewTestTags.SCREEN),
-      topBar = { OverviewSearchBar(onClick = onSearchClick) },
+      topBar = {
+        Row(
+            modifier = Modifier.fillMaxWidth().statusBarsPadding(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+          OverviewSearchBar(
+              onClick = onSearchClick,
+              modifier = Modifier.weight(1f),
+          )
+          IconButton(
+              onClick = { filterDialogVisible = true },
+              modifier = Modifier.testTag(OverviewTestTags.FILTER_BUTTON),
+          ) {
+            BadgedBox(
+                badge = {
+                  if (uiState.activeFilter.isActive()) {
+                    Badge(modifier = Modifier.testTag(OverviewTestTags.FILTER_ACTIVE))
+                  }
+                }
+            ) {
+              Icon(
+                  imageVector = Icons.Outlined.FilterList,
+                  contentDescription = stringResource(R.string.overview_filter_open),
+                  tint = MaterialTheme.colorScheme.onSurface,
+              )
+            }
+          }
+        }
+      },
       bottomBar = {
         BottomNavigationMenu(selectedTab = Tab.Overview, onTabSelected = onTabSelected)
       },
   ) { innerPadding ->
+    if (filterDialogVisible) {
+      ArtworkFilterDialog(
+          filter = uiState.activeFilter,
+          onApply = {
+            viewModel.applyFilter(it)
+            filterDialogVisible = false
+          },
+          onClear = {
+            viewModel.applyFilter(ArtworkFilter())
+            filterDialogVisible = false
+          },
+          onDismiss = { filterDialogVisible = false },
+          artistOptions = uiState.artistOptions,
+          museumOptions = uiState.museumOptions,
+          locationOptions = uiState.locationOptions,
+      )
+    }
     if (errorMessage != null) {
       Box(
           modifier = Modifier.fillMaxSize().padding(innerPadding),
           contentAlignment = Alignment.Center,
       ) {
         OverviewErrorContent(onSavedArtworksClick = onSavedArtworksClick)
+      }
+    } else if (uiState.artworks.isEmpty() && uiState.activeFilter.isActive()) {
+      Box(
+          modifier = Modifier.fillMaxSize().padding(innerPadding),
+          contentAlignment = Alignment.Center,
+      ) {
+        Text(
+            text = stringResource(R.string.overview_filter_empty_results),
+            modifier = Modifier.testTag(OverviewTestTags.EMPTY_FILTER_RESULTS),
+        )
       }
     } else {
       LazyColumn(
@@ -151,7 +215,6 @@ private fun OverviewSearchBar(
       modifier =
           modifier
               .fillMaxWidth()
-              .statusBarsPadding()
               .padding(
                   horizontal = Dimensions.overviewSearchBarHorizontalPadding,
                   vertical = Dimensions.overviewSearchBarVerticalPadding,
@@ -215,7 +278,7 @@ private fun OverviewErrorContent(onSavedArtworksClick: () -> Unit) {
 /** Previews the overview screen with a sample set of artworks in Android Studio. */
 @Preview(showBackground = true)
 @Composable
-private fun OverviewScreenPreview() {
+internal fun OverviewScreenPreview() {
   val viewModel = remember {
     val repository = ArtworkRepositoryLocal()
     mockArtworks.forEach { repository.putArtworkInRepositoryUnsavedSection(it) }

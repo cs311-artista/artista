@@ -15,13 +15,12 @@ import org.junit.Test
  * @author Copilot
  */
 class ArtworkRepositoryProviderTest {
+  private val repository: ArtworkRepositoryLocal
+    get() = ArtworkRepositoryProvider.mockRepository
 
-  @Before
-  fun setUp() {
-    ArtworkRepositoryProvider.repository = ArtworkRepositoryLocal()
-  }
+  @Before fun setUp() = repository.clear()
 
-  @After fun tearDown() {}
+  @After fun tearDown() = repository.clear()
 
   @Test
   fun populateAPI_withCustomArtworks_addsArtworksToRepository() = runTest {
@@ -31,7 +30,7 @@ class ArtworkRepositoryProviderTest {
 
     assertEquals(
         artworks,
-        artworks.map { artwork -> ArtworkRepositoryProvider.repository.getArtwork(artwork.uid) },
+        artworks.map { artwork -> repository.getArtwork(artwork.uid) },
     )
   }
 
@@ -41,9 +40,7 @@ class ArtworkRepositoryProviderTest {
 
     assertEquals(
         mockArtworks,
-        mockArtworks.map { artwork ->
-          ArtworkRepositoryProvider.repository.getArtwork(artwork.uid)
-        },
+        mockArtworks.map { artwork -> repository.getArtwork(artwork.uid) },
     )
   }
 
@@ -55,7 +52,7 @@ class ArtworkRepositoryProviderTest {
 
     assertEquals(
         artworks.toSet(),
-        ArtworkRepositoryProvider.repository.getSavedArtworks().toSet(),
+        repository.getSavedArtworks().toSet(),
     )
   }
 
@@ -65,7 +62,7 @@ class ArtworkRepositoryProviderTest {
 
     assertEquals(
         mockArtworks.take(3).toSet(),
-        ArtworkRepositoryProvider.repository.getSavedArtworks().toSet(),
+        repository.getSavedArtworks().toSet(),
     )
   }
 
@@ -74,10 +71,10 @@ class ArtworkRepositoryProviderTest {
     val artwork = mockArtworks.first()
 
     ArtworkRepositoryProvider.populateAPI(listOf(artwork))
-    assertFalse(ArtworkRepositoryProvider.repository.isArtworkSaved(artwork.uid))
+    assertFalse(repository.isArtworkSaved(artwork.uid))
 
     ArtworkRepositoryProvider.populateSaved(listOf(artwork))
-    assertTrue(ArtworkRepositoryProvider.repository.isArtworkSaved(artwork.uid))
-    assertEquals(artwork, ArtworkRepositoryProvider.repository.getArtwork(artwork.uid))
+    assertTrue(repository.isArtworkSaved(artwork.uid))
+    assertEquals(artwork, repository.getArtwork(artwork.uid))
   }
 }
