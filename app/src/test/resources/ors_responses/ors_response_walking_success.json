@@ -1,0 +1,601 @@
+{
+  "type": "FeatureCollection",
+  "bbox": [
+    6.627013,
+    46.506984,
+    6.629192,
+    46.51704
+  ],
+  "features": [
+    {
+      "bbox": [
+        6.627013,
+        46.506984,
+        6.629192,
+        46.51704
+      ],
+      "type": "Feature",
+      "properties": {
+        "segments": [
+          {
+            "distance": 1315.1,
+            "duration": 946.9,
+            "steps": [
+              {
+                "distance": 42.6,
+                "duration": 30.7,
+                "type": 11,
+                "instruction": "Head west",
+                "name": "-",
+                "way_points": [
+                  0,
+                  4
+                ]
+              },
+              {
+                "distance": 84.6,
+                "duration": 60.9,
+                "type": 0,
+                "instruction": "Turn left",
+                "name": "-",
+                "way_points": [
+                  4,
+                  10
+                ]
+              },
+              {
+                "distance": 15.7,
+                "duration": 11.3,
+                "type": 0,
+                "instruction": "Turn left",
+                "name": "-",
+                "way_points": [
+                  10,
+                  13
+                ]
+              },
+              {
+                "distance": 65.1,
+                "duration": 46.9,
+                "type": 0,
+                "instruction": "Turn left onto Rue du Simplon",
+                "name": "Rue du Simplon",
+                "way_points": [
+                  13,
+                  17
+                ]
+              },
+              {
+                "distance": 60.4,
+                "duration": 43.5,
+                "type": 1,
+                "instruction": "Turn right",
+                "name": "-",
+                "way_points": [
+                  17,
+                  19
+                ]
+              },
+              {
+                "distance": 6.1,
+                "duration": 4.4,
+                "type": 0,
+                "instruction": "Turn left",
+                "name": "-",
+                "way_points": [
+                  19,
+                  20
+                ]
+              },
+              {
+                "distance": 13.8,
+                "duration": 9.9,
+                "type": 1,
+                "instruction": "Turn right",
+                "name": "-",
+                "way_points": [
+                  20,
+                  22
+                ]
+              },
+              {
+                "distance": 11,
+                "duration": 7.9,
+                "type": 0,
+                "instruction": "Turn left",
+                "name": "-",
+                "way_points": [
+                  22,
+                  23
+                ]
+              },
+              {
+                "distance": 220,
+                "duration": 158.4,
+                "type": 1,
+                "instruction": "Turn right",
+                "name": "-",
+                "way_points": [
+                  23,
+                  32
+                ]
+              },
+              {
+                "distance": 173,
+                "duration": 124.6,
+                "type": 5,
+                "instruction": "Turn slight right onto Chemin des Délices",
+                "name": "Chemin des Délices",
+                "way_points": [
+                  32,
+                  36
+                ]
+              },
+              {
+                "distance": 4.6,
+                "duration": 3.3,
+                "type": 1,
+                "instruction": "Turn right",
+                "name": "-",
+                "way_points": [
+                  36,
+                  37
+                ]
+              },
+              {
+                "distance": 142.2,
+                "duration": 102.4,
+                "type": 0,
+                "instruction": "Turn left",
+                "name": "-",
+                "way_points": [
+                  37,
+                  44
+                ]
+              },
+              {
+                "distance": 64.8,
+                "duration": 46.6,
+                "type": 6,
+                "instruction": "Continue straight onto Promenade de la Ficelle",
+                "name": "Promenade de la Ficelle",
+                "way_points": [
+                  44,
+                  46
+                ]
+              },
+              {
+                "distance": 4.1,
+                "duration": 3,
+                "type": 0,
+                "instruction": "Turn left",
+                "name": "-",
+                "way_points": [
+                  46,
+                  47
+                ]
+              },
+              {
+                "distance": 29.4,
+                "duration": 21.2,
+                "type": 6,
+                "instruction": "Continue straight onto Rue des Fontenailles",
+                "name": "Rue des Fontenailles",
+                "way_points": [
+                  47,
+                  49
+                ]
+              },
+              {
+                "distance": 20.8,
+                "duration": 15,
+                "type": 5,
+                "instruction": "Turn slight right onto Rue des Fontenailles",
+                "name": "Rue des Fontenailles",
+                "way_points": [
+                  49,
+                  52
+                ]
+              },
+              {
+                "distance": 7.4,
+                "duration": 5.3,
+                "type": 0,
+                "instruction": "Turn left onto Rue des Fontenailles",
+                "name": "Rue des Fontenailles",
+                "way_points": [
+                  52,
+                  53
+                ]
+              },
+              {
+                "distance": 298,
+                "duration": 214.6,
+                "type": 3,
+                "instruction": "Turn sharp right",
+                "name": "-",
+                "way_points": [
+                  53,
+                  64
+                ]
+              },
+              {
+                "distance": 8,
+                "duration": 5.7,
+                "type": 0,
+                "instruction": "Turn left",
+                "name": "-",
+                "way_points": [
+                  64,
+                  66
+                ]
+              },
+              {
+                "distance": 11.3,
+                "duration": 8.1,
+                "type": 1,
+                "instruction": "Turn right onto Avenue d'Ouchy",
+                "name": "Avenue d'Ouchy",
+                "way_points": [
+                  66,
+                  68
+                ]
+              },
+              {
+                "distance": 32.3,
+                "duration": 23.3,
+                "type": 5,
+                "instruction": "Turn slight right onto Avenue d'Ouchy",
+                "name": "Avenue d'Ouchy",
+                "way_points": [
+                  68,
+                  70
+                ]
+              },
+              {
+                "distance": 0,
+                "duration": 0,
+                "type": 10,
+                "instruction": "Arrive at Avenue d'Ouchy, on the right",
+                "name": "-",
+                "way_points": [
+                  70,
+                  70
+                ]
+              }
+            ]
+          }
+        ],
+        "warnings": [
+          {
+            "code": 4,
+            "message": "Extra info requested but not available: roadaccessrestrictions"
+          }
+        ],
+        "way_points": [
+          0,
+          70
+        ],
+        "summary": {
+          "distance": 1315.1,
+          "duration": 946.9
+        }
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            6.628988,
+            46.516961
+          ],
+          [
+            6.628909,
+            46.516972
+          ],
+          [
+            6.628884,
+            46.516976
+          ],
+          [
+            6.628856,
+            46.516981
+          ],
+          [
+            6.628443,
+            46.51704
+          ],
+          [
+            6.62843,
+            46.516995
+          ],
+          [
+            6.628377,
+            46.516805
+          ],
+          [
+            6.628339,
+            46.516669
+          ],
+          [
+            6.628301,
+            46.516544
+          ],
+          [
+            6.628228,
+            46.516361
+          ],
+          [
+            6.628203,
+            46.516298
+          ],
+          [
+            6.628227,
+            46.516293
+          ],
+          [
+            6.628384,
+            46.51626
+          ],
+          [
+            6.62838,
+            46.516249
+          ],
+          [
+            6.628553,
+            46.516214
+          ],
+          [
+            6.628953,
+            46.516122
+          ],
+          [
+            6.629166,
+            46.516079
+          ],
+          [
+            6.629192,
+            46.516074
+          ],
+          [
+            6.62913,
+            46.515879
+          ],
+          [
+            6.629026,
+            46.515543
+          ],
+          [
+            6.6291,
+            46.515522
+          ],
+          [
+            6.62907,
+            46.515466
+          ],
+          [
+            6.629037,
+            46.515406
+          ],
+          [
+            6.629175,
+            46.515378
+          ],
+          [
+            6.629156,
+            46.515328
+          ],
+          [
+            6.628987,
+            46.514925
+          ],
+          [
+            6.628925,
+            46.514777
+          ],
+          [
+            6.628897,
+            46.514766
+          ],
+          [
+            6.628792,
+            46.514421
+          ],
+          [
+            6.628754,
+            46.514288
+          ],
+          [
+            6.628703,
+            46.514108
+          ],
+          [
+            6.628533,
+            46.513501
+          ],
+          [
+            6.628552,
+            46.513462
+          ],
+          [
+            6.628422,
+            46.513012
+          ],
+          [
+            6.628255,
+            46.512476
+          ],
+          [
+            6.62819,
+            46.51228
+          ],
+          [
+            6.628086,
+            46.51194
+          ],
+          [
+            6.628027,
+            46.511948
+          ],
+          [
+            6.628025,
+            46.51194
+          ],
+          [
+            6.628015,
+            46.511906
+          ],
+          [
+            6.62801,
+            46.511895
+          ],
+          [
+            6.628009,
+            46.511888
+          ],
+          [
+            6.627999,
+            46.511854
+          ],
+          [
+            6.627989,
+            46.511828
+          ],
+          [
+            6.627638,
+            46.510698
+          ],
+          [
+            6.627583,
+            46.510527
+          ],
+          [
+            6.627468,
+            46.510127
+          ],
+          [
+            6.627514,
+            46.510106
+          ],
+          [
+            6.627713,
+            46.510034
+          ],
+          [
+            6.627856,
+            46.509987
+          ],
+          [
+            6.627918,
+            46.509894
+          ],
+          [
+            6.627936,
+            46.509868
+          ],
+          [
+            6.627949,
+            46.509813
+          ],
+          [
+            6.628045,
+            46.509808
+          ],
+          [
+            6.627954,
+            46.509702
+          ],
+          [
+            6.627912,
+            46.509602
+          ],
+          [
+            6.627893,
+            46.509556
+          ],
+          [
+            6.62764,
+            46.508982
+          ],
+          [
+            6.627353,
+            46.508251
+          ],
+          [
+            6.627332,
+            46.508167
+          ],
+          [
+            6.627307,
+            46.508088
+          ],
+          [
+            6.627285,
+            46.508011
+          ],
+          [
+            6.627272,
+            46.507765
+          ],
+          [
+            6.627291,
+            46.507544
+          ],
+          [
+            6.627339,
+            46.507209
+          ],
+          [
+            6.627358,
+            46.507207
+          ],
+          [
+            6.627442,
+            46.507197
+          ],
+          [
+            6.627435,
+            46.507145
+          ],
+          [
+            6.627395,
+            46.507105
+          ],
+          [
+            6.627187,
+            46.507053
+          ],
+          [
+            6.627013,
+            46.506984
+          ]
+        ]
+      }
+    }
+  ],
+  "metadata": {
+    "attribution": "openrouteservice.org | OpenStreetMap contributors",
+    "service": "routing",
+    "timestamp": 1793802053303,
+    "query": {
+      "coordinates": [
+        [
+          6.629,
+          46.517
+        ],
+        [
+          6.627,
+          46.507
+        ]
+      ],
+      "profile": "foot-walking",
+      "profileName": "foot-walking",
+      "format": "geojson"
+    },
+    "engine": {
+      "version": "9.10.0",
+      "build_date": "2026-08-13T11:53:14Z",
+      "graph_date": "2026-09-20T06:31:34Z",
+      "osm_date": "2026-09-13T23:59:59Z"
+    }
+  }
+}

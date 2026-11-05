@@ -1,5 +1,5 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
-
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.preferences
 
 import androidx.compose.foundation.BorderStroke
@@ -58,8 +58,6 @@ import com.artista.artista.ui.theme.ArtistaColors
 import com.artista.artista.ui.theme.ArtistaTheme
 import com.artista.artista.ui.theme.Dimensions
 
-// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
-// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 private val PillShape = RoundedCornerShape(percent = 50)
 
 /**
@@ -106,7 +104,10 @@ fun ArtistPreferencesScreen(
         verticalArrangement = Arrangement.spacedBy(Dimensions.artistPreferencesSectionSpacing),
     ) {
       Header(onBackClick = onBackClick)
-      SearchField()
+      SearchField(
+          query = uiState.searchQuery,
+          onQueryChange = artistPreferencesViewModel::onSearchQueryChange,
+      )
       Text(
           text = stringResource(R.string.artist_preferences_popular_artists),
           modifier = Modifier.testTag(ArtistPreferencesTestTags.POPULAR_ARTISTS_TITLE),
@@ -124,7 +125,7 @@ fun ArtistPreferencesScreen(
           verticalArrangement =
               Arrangement.spacedBy(Dimensions.artistPreferencesGridVerticalSpacing),
       ) {
-        items(uiState.popularArtists, key = { it.uid }) { artist ->
+        items(uiState.displayedArtists, key = { it.uid }) { artist ->
           ArtistCard(
               artist = artist,
               selected = artist.uid in uiState.selectedArtists,
@@ -190,26 +191,33 @@ private fun Header(onBackClick: () -> Unit) {
   }
 }
 
-/** Search field for artists, disabled until searching is implemented. */
+/**
+ * Search field filtering the artists displayed by the grid.
+ *
+ * @param query Text currently displayed in the field.
+ * @param onQueryChange Callback invoked with the new text when the user types.
+ */
 @Composable
-private fun SearchField() {
+private fun SearchField(query: String, onQueryChange: (String) -> Unit) {
   TextField(
-      value = "",
-      onValueChange = {},
+      value = query,
+      onValueChange = onQueryChange,
       modifier = Modifier.fillMaxWidth().testTag(ArtistPreferencesTestTags.SEARCH_BAR),
-      enabled = false,
       placeholder = { Text(stringResource(R.string.artist_preferences_search_placeholder)) },
       leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
       singleLine = true,
       shape = PillShape,
-      // A disabled field is greyed out by default; the mockup shows it like an active one.
-      // It therefore looks usable although it is not, until searching is implemented.
+      // The mockup shows a pill without an underline, whether the field has focus.
       colors =
           TextFieldDefaults.colors(
-              disabledContainerColor = MaterialTheme.colorScheme.surface,
-              disabledPlaceholderColor = MaterialTheme.colorScheme.primary,
-              disabledLeadingIconColor = MaterialTheme.colorScheme.primary,
-              disabledIndicatorColor = ArtistaColors.Transparent,
+              focusedContainerColor = MaterialTheme.colorScheme.surface,
+              unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+              focusedPlaceholderColor = MaterialTheme.colorScheme.primary,
+              unfocusedPlaceholderColor = MaterialTheme.colorScheme.primary,
+              focusedLeadingIconColor = MaterialTheme.colorScheme.primary,
+              unfocusedLeadingIconColor = MaterialTheme.colorScheme.primary,
+              focusedIndicatorColor = ArtistaColors.Transparent,
+              unfocusedIndicatorColor = ArtistaColors.Transparent,
           ),
   )
 }
@@ -323,7 +331,7 @@ private fun SelectionIndicator(selected: Boolean, modifier: Modifier = Modifier)
 /** Previews the artist preferences screen with two selected artists in Android Studio. */
 @Preview(showBackground = true)
 @Composable
-private fun ArtistPreferencesScreenPreview() {
+internal fun ArtistPreferencesScreenPreview() {
   val viewModel = remember {
     ArtistPreferencesViewModel(ArtworkRepositoryProvider.repository).apply {
       toggleArtist("mock-artist-002")

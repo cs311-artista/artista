@@ -22,8 +22,9 @@ import androidx.compose.ui.text.TextRange
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkId
+import com.artista.artista.model.artwork.ArtworkType
+import com.artista.artista.model.artwork.SearchArea
 import com.artista.artista.model.artwork.WikiDataRepository
-import com.artista.artista.model.map.UserLocation
 import com.artista.artista.ui.artwork.ArtworkCardTestTag
 import kotlin.NotImplementedError
 import kotlinx.coroutines.CompletableDeferred
@@ -57,6 +58,16 @@ class SearchScreenTest {
   @After
   fun tearDown() {
     Dispatchers.resetMain()
+  }
+
+  /** Verifies that the search preview renders its search input. */
+  @Test
+  fun searchScreenPreview_displaysSearchInput() = runTest {
+    composeTestRule.setContent { SearchScreenPreview() }
+    composeTestRule.waitForIdle()
+    advanceUntilIdle()
+
+    composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT).assertIsDisplayed()
   }
 
   @Test
@@ -183,13 +194,21 @@ class SearchScreenTest {
         object : WikiDataRepository {
           override suspend fun getArtwork(uid: ArtworkId) = wikiRepository.getArtwork(uid)
 
-          override suspend fun searchArtworks(query: String): List<Artwork> {
+          override suspend fun searchArtworks(
+              artworkTitle: String,
+              typeValues: List<ArtworkType>,
+              limit: Int,
+          ): List<Artwork> {
             resultsGate.await()
-            return wikiRepository.searchArtworks(query)
+            return wikiRepository.searchArtworks(artworkTitle)
           }
 
-          override suspend fun getArtworksNearLocation(location: UserLocation?): List<Artwork> {
-            throw NotImplementedError()
+          override suspend fun getArtworksNearLocation(
+              searchArea: SearchArea,
+              typeValues: List<ArtworkType>,
+              limit: Int,
+          ): List<Artwork> {
+            throw NotImplementedError("should not be used in this test")
           }
 
           override suspend fun getPopularArtists(): List<Artist> {

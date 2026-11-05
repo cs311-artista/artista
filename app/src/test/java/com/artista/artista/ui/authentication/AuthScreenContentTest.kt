@@ -1,3 +1,4 @@
+// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 package com.artista.artista.ui.authentication
 
 import android.content.Context
@@ -36,6 +37,14 @@ import org.junit.runner.RunWith
 class AuthScreenContentTest {
 
   @get:Rule val composeTestRule = createComposeRule()
+
+  /** Verifies that the sign-in preview renders its primary action. */
+  @Test
+  fun authScreenPreview_displaysSignInAction() {
+    composeTestRule.setContent { AuthScreenContentPreview() }
+
+    composeTestRule.onNodeWithTag(C.Tag.auth_google_sign_in_button).assertIsDisplayed()
+  }
 
   /**
    * Verifies that a signed-out state renders an enabled sign-in button and no progress indicator.
