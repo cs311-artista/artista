@@ -131,7 +131,7 @@ fun AuthScreen(
  * @param credentialErrorMessageRes message of the failed credential interaction, or `null` when the
  *   user dismissed the chooser, the attempt failed for another reason, or it did not fail at all
  * @param onSignInClick invoked when the user asks to sign in
- * @param onSignedIn invoked once when [state] transitions to a signed-in user
+ * @param onSignedIn invoked once when [state] transitions to a signed-in session
  * @param modifier the modifier applied to the root container
  * @author timo-by
  */
@@ -143,9 +143,9 @@ fun AuthScreenContent(
     onSignedIn: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-  // Keyed on the user so the callback fires exactly once per sign-in transition, and not again when
-  // unrelated parts of the state (e.g. isLoading) change.
-  LaunchedEffect(state.user) { if (state.user != null) onSignedIn() }
+  // Keyed on the session so the callback fires exactly once per sign-in transition, and not again
+  // when unrelated parts of the state (e.g. isLoading) change.
+  LaunchedEffect(state.session) { if (state.session is AuthSession.SignedIn) onSignedIn() }
 
   // One message at a time, and a repository failure wins: it means the attempt reached the backend,
   // so it is the more specific of the two. The callers clear both slots when an attempt starts, so
@@ -264,7 +264,7 @@ fun AuthScreenContent(
 internal fun AuthScreenContentPreview() {
   ArtistaTheme {
     AuthScreenContent(
-        state = AuthUiState(),
+        state = AuthUiState(session = AuthSession.SignedOut),
         credentialErrorMessageRes = null,
         onSignInClick = {},
         onSignedIn = {},

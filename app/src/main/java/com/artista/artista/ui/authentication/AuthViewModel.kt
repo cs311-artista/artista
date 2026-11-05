@@ -16,6 +16,32 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
 /**
+ * What the application knows about the authentication session.
+ *
+ * A sealed interface rather than a nullable user, because the three situations are mutually
+ * exclusive and two of them must never be confused: before the repository has restored the
+ * persisted session, nobody is signed out *or* signed in - the answer is simply not known yet, and
+ * drawing the sign-in screen would offer to sign in a user who already is.
+ *
+ * @author timo-by
+ */
+sealed interface AuthSession {
+
+  /** The repository has not reported a session yet, so nothing can be decided from it. */
+  data object Restoring : AuthSession
+
+  /** The repository reported that nobody is signed in. */
+  data object SignedOut : AuthSession
+
+  /**
+   * A user is signed in.
+   *
+   * @property user the signed-in user
+   */
+  data class SignedIn(val user: AuthUser) : AuthSession
+}
+
+/**
  * Immutable UI state of the authentication flow.
  *
  * The failure of the last repository operation is part of the state rather than a one-shot event,
@@ -26,14 +52,18 @@ import kotlinx.coroutines.flow.update
  * is kept by the screen instead: it comes from a platform dialog the ViewModel cannot see, and it
  * must not outlive the composition, so the two are never merged into a single field.
  *
- * @property user the signed-in user, or `null` when signed out
+ * [repositoryErrorMessageRes] is only ever set while [session] is [AuthSession.SignedOut]: signing in
+ * is the only operation whose failure is reported, and a failed sign-in leaves the session signed
+ * out, so the sign-in screen is always composed when there is a message to show.
+ *
+ * @property session what is known about the current session
  * @property isLoading whether an authentication operation is in progress
  * @property repositoryErrorMessageRes localized message of the last failed repository operation, or
  *   `null` when there is nothing to report
  * @author timo-by
  */
 data class AuthUiState(
-    val user: AuthUser? = null,
+    val session: AuthSession = AuthSession.Restoring,
     val isLoading: Boolean = false,
     @param:StringRes val repositoryErrorMessageRes: Int? = null,
 )
@@ -59,8 +89,8 @@ class AuthViewModel(private val repository: AuthRepository) : ViewModel() {
   /**
    * The UI state observed by the sign-in screen.
    *
-   * Backed by [_uiState]; the signed-in user is kept in sync with [AuthRepository.authState] so the
-   * single source of truth is the repository, not the ViewModel.
+   * Backed by [_uiState]; the session is kept in sync with [AuthRepository.authState] so the single
+   * source of truth is the repository, not the ViewModel.
    *
    * @author timo-by
    */
@@ -71,9 +101,9 @@ class AuthViewModel(private val repository: AuthRepository) : ViewModel() {
         tag = TAG,
         // A stream that fails means the session can no longer be tracked at all, which the user has
         // to know about, so it is reported like a failed operation.
-        onError = ::report,
+        onError = ::reportStreamFailure,
     ) {
-      repository.authState.collect { user -> _uiState.update { it.copy(user = user) } }
+      repository.authState.collect { user -> _uiState.update { it.copy(session = sessionFor(user)) } }
     }
   }
 
@@ -89,7 +119,7 @@ class AuthViewModel(private val repository: AuthRepository) : ViewModel() {
    * @author timo-by
    */
   fun signIn(idToken: String) {
-    if (_uiState.value.isLoading || (_uiState.value.user != null)) return
+    if (_uiState.value.isLoading || _uiState.value.session is AuthSession.SignedIn) return
     _uiState.update { it.copy(isLoading = true, repositoryErrorMessageRes = null) }
     viewModelScope.launchCatching(tag = TAG, onError = ::report) {
       try {
@@ -108,13 +138,13 @@ class AuthViewModel(private val repository: AuthRepository) : ViewModel() {
    * Signs the current user out.
    *
    * Like [signIn], sets [AuthUiState.isLoading] to `true` synchronously so a re-entrant call is
-   * ignored, is a no-op while no user is signed in, and dismisses the message of the previous
+   * ignored, is a no-op while nobody is signed in, and dismisses the message of the previous
    * attempt.
    *
    * @author timo-by
    */
   fun signOut() {
-    if (_uiState.value.isLoading || (_uiState.value.user == null)) return
+    if (_uiState.value.isLoading || _uiState.value.session !is AuthSession.SignedIn) return
     _uiState.update { it.copy(isLoading = true, repositoryErrorMessageRes = null) }
     viewModelScope.launchCatching(tag = TAG, onError = ::report) {
       try {
@@ -137,6 +167,32 @@ class AuthViewModel(private val repository: AuthRepository) : ViewModel() {
    */
   fun clearRepositoryError() {
     _uiState.update { it.copy(repositoryErrorMessageRes = null) }
+  }
+
+  /**
+   * Returns the session the repository reported.
+   *
+   * @param user the user reported by [AuthRepository.authState], or `null` when nobody is signed in
+   * @return the session matching [user]
+   * @author timo-by
+   */
+  private fun sessionFor(user: AuthUser?): AuthSession =
+      // TODO(session): map the reported user to the session.
+      AuthSession.Restoring
+
+  /**
+   * Reports the failure of the authentication state stream.
+   *
+   * A stream that fails means the session can no longer be tracked at all: nothing else will ever be
+   * emitted, so the session must not stay [AuthSession.Restoring] forever and a message has to say
+   * why.
+   *
+   * @param error the failure reported by [launchCatching]
+   * @author timo-by
+   */
+  private fun reportStreamFailure(error: AppException) {
+    // TODO(session): fail closed to [AuthSession.SignedOut] as well as reporting the message.
+    report(error)
   }
 
   /**

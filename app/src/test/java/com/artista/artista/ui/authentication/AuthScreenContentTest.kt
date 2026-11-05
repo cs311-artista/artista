@@ -51,7 +51,7 @@ class AuthScreenContentTest {
    */
   @Test
   fun signedOutShowsEnabledSignInButton() {
-    setContent(state = { AuthUiState(isLoading = false) })
+    setContent(state = { AuthUiState(session = AuthSession.SignedOut, isLoading = false) })
 
     composeTestRule
         .onNodeWithTag(C.Tag.auth_google_sign_in_button)
@@ -64,7 +64,7 @@ class AuthScreenContentTest {
   /** Verifies that a loading state shows the progress indicator and disables the button. */
   @Test
   fun loadingShowsIndicatorAndDisablesButton() {
-    setContent(state = { AuthUiState(isLoading = true) })
+    setContent(state = { AuthUiState(session = AuthSession.SignedOut, isLoading = true) })
 
     composeTestRule.onNodeWithTag(C.Tag.auth_loading_indicator).assertIsDisplayed()
     composeTestRule.onNodeWithTag(C.Tag.auth_google_sign_in_button).assertIsNotEnabled()
@@ -73,7 +73,14 @@ class AuthScreenContentTest {
   /** Verifies that a repository failure renders its message under the sign-in button. */
   @Test
   fun repositoryErrorStateShowsTheMessage() {
-    setContent(state = { AuthUiState(repositoryErrorMessageRes = R.string.error_network) })
+    setContent(
+        state = {
+          AuthUiState(
+              session = AuthSession.SignedOut,
+              repositoryErrorMessageRes = R.string.error_network,
+          )
+        }
+    )
 
     composeTestRule
         .onNodeWithTag(C.Tag.auth_error_message)
@@ -84,7 +91,10 @@ class AuthScreenContentTest {
   /** Verifies that the outcome of a failed credential interaction is rendered in the same slot. */
   @Test
   fun credentialErrorStateShowsTheMessage() {
-    setContent(state = { AuthUiState() }, credentialErrorMessageRes = R.string.sign_in_failed)
+    setContent(
+        state = { AuthUiState(session = AuthSession.SignedOut) },
+        credentialErrorMessageRes = R.string.sign_in_failed,
+    )
 
     composeTestRule
         .onNodeWithTag(C.Tag.auth_error_message)
@@ -95,7 +105,7 @@ class AuthScreenContentTest {
   /** Verifies that a state without any failure renders no message at all. */
   @Test
   fun noErrorHidesTheMessage() {
-    setContent(state = { AuthUiState() })
+    setContent(state = { AuthUiState(session = AuthSession.SignedOut) })
 
     composeTestRule.onNodeWithTag(C.Tag.auth_error_message).assertDoesNotExist()
   }
@@ -148,20 +158,22 @@ class AuthScreenContentTest {
   @Test
   fun signedInInvokesOnSignedInOnce() {
     var signedInCount = 0
-    var uiState by mutableStateOf(AuthUiState(user = null))
+    var uiState by mutableStateOf(AuthUiState(session = AuthSession.SignedOut))
     setContent(state = { uiState }, onSignedIn = { signedInCount++ })
 
     composeTestRule.waitForIdle()
     assertEquals(0, signedInCount)
 
-    uiState = AuthUiState(user = FakeAuthUser(uid = USER_ID))
+    uiState = AuthUiState(session = AuthSession.SignedIn(FakeAuthUser(uid = USER_ID)))
     composeTestRule.waitForIdle()
     assertEquals(1, signedInCount)
 
     // Recomposition driven by an unrelated field must not invoke the callback a second time.
-    uiState = AuthUiState(user = FakeAuthUser(uid = USER_ID), isLoading = true)
+    uiState =
+        AuthUiState(session = AuthSession.SignedIn(FakeAuthUser(uid = USER_ID)), isLoading = true)
     composeTestRule.waitForIdle()
-    uiState = AuthUiState(user = FakeAuthUser(uid = USER_ID), isLoading = false)
+    uiState =
+        AuthUiState(session = AuthSession.SignedIn(FakeAuthUser(uid = USER_ID)), isLoading = false)
     composeTestRule.waitForIdle()
     assertEquals(1, signedInCount)
   }
