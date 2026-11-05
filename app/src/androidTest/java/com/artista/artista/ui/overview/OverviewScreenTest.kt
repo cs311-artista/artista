@@ -17,17 +17,21 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
+import androidx.lifecycle.Lifecycle
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.artista.artista.R
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
 import com.artista.artista.model.artwork.ArtworkType
 import com.artista.artista.model.artwork.SearchArea
 import com.artista.artista.model.artwork.WikiDataRepository
+import com.artista.artista.ui.artwork.ArtworkCardTestTag
 import com.artista.artista.ui.artwork.ArtworkFilterTestTags
 import com.artista.artista.ui.navigation.NavigationTestTags
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaTheme
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -42,6 +46,10 @@ import org.junit.runner.RunWith
 class OverviewScreenTest {
 
   @get:Rule val composeTestRule = createAndroidComposeRule<ComponentActivity>()
+
+  private companion object {
+    const val SAVE_OPERATION_TIMEOUT_MILLIS = 5_000L
+  }
 
   /** Verifies that the overview preview renders its sample artwork list. */
   @Test
@@ -117,22 +125,36 @@ class OverviewScreenTest {
               limit: Int,
           ): List<Artwork> = error("Artwork provider failure")
         }
-    val viewModel = OverviewViewModel(failing)
+    val viewModel = OverviewViewModel(failing, ArtworkRepositoryLocal())
 
-    composeTestRule.setContent {
-      ArtistaTheme {
-        OverviewScreen(
-            viewModel = viewModel,
-            onSavedArtworksClick = { savedArtworksRequested = true },
-        )
-      }
-    }
+    setOverviewContent(viewModel, onSavedArtworksClick = { savedArtworksRequested = true })
 
     composeTestRule.onNodeWithTag(OverviewTestTags.ERROR_MESSAGE).assertIsDisplayed()
     composeTestRule.onNodeWithText("Unable to load nearby artworks.").assertIsDisplayed()
     composeTestRule.onNodeWithTag(OverviewTestTags.SAVED_ARTWORKS_BUTTON).performClick()
 
     assertTrue(savedArtworksRequested)
+  }
+
+  /** Verifies the save-error effect clears errors after displaying their message. */
+  @Test
+  fun overviewScreen_whenSavingArtworkFails_clearsSaveErrorAndRestoresCard() {
+    val artwork = artwork(name = "The Starry Night", artistName = "Vincent van Gogh").copy(uid = "")
+    val repository = ArtworkRepositoryLocal()
+    repository.putArtworkInRepositoryUnsavedSection(artwork)
+    val viewModel = OverviewViewModel(repository, repository)
+
+    setOverviewContent(viewModel)
+
+    composeTestRule
+        .onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD_SAVE_BUTTON)
+        .assertTextContains(composeTestRule.activity.getString(R.string.artwork_card_save))
+        .performClick()
+    composeTestRule.waitForIdle()
+    assertTrue(viewModel.uiState.value.saveErrorMessageRes == null)
+    composeTestRule
+        .onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD_SAVE_BUTTON)
+        .assertTextContains(composeTestRule.activity.getString(R.string.artwork_card_save))
   }
 
   /**
@@ -159,21 +181,39 @@ class OverviewScreenTest {
   fun overviewScreen_searchBarClick_invokesSearchCallback() {
     var searchRequested = false
     val repository = ArtworkRepositoryLocal()
-    val viewModel = OverviewViewModel(repository)
+    val viewModel = OverviewViewModel(repository, repository)
 
-    composeTestRule.setContent {
-      ArtistaTheme {
-        OverviewScreen(
-            viewModel = viewModel,
-            onSearchClick = { searchRequested = true },
-            onTabSelected = {},
-        )
-      }
-    }
+    setOverviewContent(viewModel, onSearchClick = { searchRequested = true })
 
     composeTestRule.onNodeWithTag(OverviewTestTags.SEARCH_BAR).performClick()
 
     assertTrue(searchRequested)
+  }
+
+  /** Verifies an artwork saved while Overview is stopped appears saved after returning. */
+  @Test
+  fun overviewScreen_returningAfterArtworkWasSaved_refreshesBookmarkFromRepository() {
+    val artwork = artwork(name = "The Starry Night", artistName = "Vincent van Gogh")
+    val repository = ArtworkRepositoryLocal()
+    repository.putArtworkInRepositoryUnsavedSection(artwork)
+    val viewModel = OverviewViewModel(repository, repository)
+
+    setOverviewContent(viewModel)
+
+    composeTestRule
+        .onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD_SAVE_BUTTON)
+        .assertTextContains(composeTestRule.activity.getString(R.string.artwork_card_save))
+
+    composeTestRule.activityRule.scenario.moveToState(Lifecycle.State.CREATED)
+    runBlocking { repository.saveArtwork(artwork) }
+    composeTestRule.activityRule.scenario.moveToState(Lifecycle.State.RESUMED)
+
+    composeTestRule
+        .onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD_SAVE_BUTTON)
+        .assertTextContains(composeTestRule.activity.getString(R.string.artwork_card_saved))
+    composeTestRule.waitUntil(SAVE_OPERATION_TIMEOUT_MILLIS) {
+      runBlocking { artwork.uid in repository.getSavedArtworks().map { it.uid } }
+    }
   }
 
   /** Verifies that the filter dialog opens from the Overview action. */
@@ -282,12 +322,22 @@ class OverviewScreenTest {
   private fun setOverviewContent(artworks: List<Artwork>) {
     val repository = ArtworkRepositoryLocal()
     artworks.forEach { repository.putArtworkInRepositoryUnsavedSection(it) }
-    val viewModel = OverviewViewModel(repository)
+    val viewModel = OverviewViewModel(repository, repository)
 
+    setOverviewContent(viewModel)
+  }
+
+  private fun setOverviewContent(
+      viewModel: OverviewViewModel,
+      onSavedArtworksClick: () -> Unit = {},
+      onSearchClick: () -> Unit = {},
+  ) {
     composeTestRule.setContent {
       ArtistaTheme {
         OverviewScreen(
             viewModel = viewModel,
+            onSavedArtworksClick = onSavedArtworksClick,
+            onSearchClick = onSearchClick,
             onTabSelected = {},
         )
       }

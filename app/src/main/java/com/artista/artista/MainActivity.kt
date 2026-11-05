@@ -120,7 +120,14 @@ fun ArtistaApp(
     ) {
       composable(Screen.Overview.route) {
         OverviewScreen(
-            viewModel = viewModel(factory = OverviewViewModel.provideFactory(wikiDataRepository)),
+            viewModel =
+                viewModel(
+                    factory =
+                        OverviewViewModel.provideFactory(
+                            wikiDataRepository,
+                            savedArtworksRepository,
+                        )
+                ),
             onTabSelected = { tab -> navigationActions.navigateTo(tab.destination) },
             onArtworkClick = { artwork ->
               navController.navigate(Screen.ArtworkDetails.createRoute(artwork.uid))
@@ -211,7 +218,9 @@ fun ArtistaApp(
           viewModel =
               viewModel(factory = SavedArtworksViewModel.provideFactory(savedArtworksRepository)),
           onBackClick = { navigationActions.goBack() },
-          onArtworkDetailsClick = {},
+          onArtworkDetailsClick = { artwork ->
+            navController.navigate(Screen.ArtworkDetails.createRoute(artwork.uid))
+          },
           onTabSelected = { tab -> navigationActions.navigateTo(tab.destination) },
           onMapClick = { /* TODO: Implement map click functionality */ },
       )
