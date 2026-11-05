@@ -64,6 +64,18 @@
     <string name="overview_load_error">Unable to load nearby artworks.</string>
     <string name="overview_saved_artworks_action">Saved artworks</string>
     <string name="overview_search_placeholder">Search artworks or artists</string>
+    <string name="overview_filter_open">Filter artworks</string>
+    <string name="overview_filter_title">Filter artworks</string>
+    <string name="overview_filter_artist">Artist</string>
+    <string name="overview_filter_museum">Museum</string>
+    <string name="overview_filter_location">Location</string>
+    <string name="overview_filter_from_year">From year</string>
+    <string name="overview_filter_to_year">To year</string>
+    <string name="overview_filter_invalid_year_range">From year must not exceed to year.</string>
+    <string name="overview_filter_remove">Remove filter</string>
+    <string name="overview_filter_apply">Apply</string>
+    <string name="overview_filter_clear">Clear all</string>
+    <string name="overview_filter_empty_results">No artworks match the selected filters.</string>
     <string name="search_placeholder">Search artworks or artists</string>
     <string name="search_loading">Loading artworks</string>
 
