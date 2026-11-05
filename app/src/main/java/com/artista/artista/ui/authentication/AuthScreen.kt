@@ -1,4 +1,6 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+// Co-authored-by: DeepSeek Flash
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.authentication
 
 import androidx.annotation.StringRes
@@ -47,8 +49,72 @@ import com.artista.artista.ui.error.launchCatching
 import com.artista.artista.ui.theme.ArtistaTheme
 import com.artista.artista.ui.theme.Dimensions
 
-// Co-authored-by: DeepSeek Flash
-// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
+/**
+ * Authentication screen: wires [AuthViewModel] and [GoogleCredentialProvider] to the stateless
+ * [AuthScreenContent].
+ *
+ * Owns the credential interaction and drives the Credential Manager flow on a sign-in tap. Its
+ * outcome stays here rather than in the ViewModel: Credential Manager is a platform dialog the
+ * ViewModel cannot reach, the provider reports the interaction outcomes as their own types, and a
+ * message about an interaction must not outlive the composition.
+ *
+ * A dismissal shows nothing: the provider reports it as its own type precisely so the screen can
+ * stay quiet about a decision the user made on purpose. A missing Google account is the one
+ * interaction outcome with something to say, so it gets its own message. Every genuine failure goes
+ * to [launchCatching], which logs it and classifies it.
+ *
+ * @param viewModel the authentication ViewModel
+ * @param credentialProvider the seam used to obtain a Google ID token
+ * @param onSignedIn invoked once a user is signed in
+ * @param modifier the modifier applied to the root container
+ * @author timo-by
+ */
+@Composable
+fun AuthScreen(
+    viewModel: AuthViewModel,
+    credentialProvider: GoogleCredentialProvider,
+    onSignedIn: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+  val state by viewModel.uiState.collectAsState()
+  val scope = rememberCoroutineScope()
+  // A credential interaction is observed by the screen itself, so its outcome lives here rather
+  // than in the ViewModel, which cannot reach Credential Manager. Saved so that a message about the
+  // last attempt survives a rotation, while still dying with the composition.
+  var credentialErrorMessageRes by rememberSaveable { mutableStateOf<Int?>(null) }
+
+  AuthScreenContent(
+      state = state,
+      credentialErrorMessageRes = credentialErrorMessageRes,
+      onSignInClick = {
+        // A new attempt makes the outcome of the previous one irrelevant on both sides, so no
+        // message can describe an interaction that is not the one that just ended.
+        viewModel.clearRepositoryError()
+        credentialErrorMessageRes = null
+        scope.launchCatching(
+            tag = TAG,
+            // Only genuine failures reach this callback: the interaction outcomes are answered in
+            // the block below, so the message stays resolved in a single place.
+            onError = { credentialErrorMessageRes = it.toCredentialMessageRes() },
+        ) {
+          val result = credentialProvider.getIdToken()
+          when (val failure = result.exceptionOrNull()) {
+            null -> viewModel.signIn(result.getOrThrow())
+            // Dismissing the chooser is the user's decision, not a failure: the screen stays quiet,
+            // as the provider documents.
+            is SignInCancelledException -> Unit
+            // The one interaction outcome the user can act on, so it gets its own message.
+            is NoGoogleAccountException -> credentialErrorMessageRes = R.string.sign_in_no_account
+            // A genuine failure keeps going to launchCatching, which logs and classifies it.
+            else -> throw failure
+          }
+        }
+      },
+      onSignedIn = onSignedIn,
+      modifier = modifier,
+  )
+}
+
 /**
  * Stateless content of the authentication screen: renders the sign-in affordance and the error
  * message, and reports user intent through callbacks.
@@ -190,72 +256,6 @@ fun AuthScreenContent(
 
     Spacer(Modifier.height(Dimensions.authenticationScreenBottomSpacing))
   }
-}
-
-/**
- * Authentication screen: wires [AuthViewModel] and [GoogleCredentialProvider] to the stateless
- * [AuthScreenContent].
- *
- * Owns the credential interaction and drives the Credential Manager flow on a sign-in tap. Its
- * outcome stays here rather than in the ViewModel: Credential Manager is a platform dialog the
- * ViewModel cannot reach, the provider reports the interaction outcomes as their own types, and a
- * message about an interaction must not outlive the composition.
- *
- * A dismissal shows nothing: the provider reports it as its own type precisely so the screen can
- * stay quiet about a decision the user made on purpose. A missing Google account is the one
- * interaction outcome with something to say, so it gets its own message. Every genuine failure goes
- * to [launchCatching], which logs it and classifies it.
- *
- * @param viewModel the authentication ViewModel
- * @param credentialProvider the seam used to obtain a Google ID token
- * @param onSignedIn invoked once a user is signed in
- * @param modifier the modifier applied to the root container
- * @author timo-by
- */
-@Composable
-fun AuthScreen(
-    viewModel: AuthViewModel,
-    credentialProvider: GoogleCredentialProvider,
-    onSignedIn: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-  val state by viewModel.uiState.collectAsState()
-  val scope = rememberCoroutineScope()
-  // A credential interaction is observed by the screen itself, so its outcome lives here rather
-  // than in the ViewModel, which cannot reach Credential Manager. Saved so that a message about the
-  // last attempt survives a rotation, while still dying with the composition.
-  var credentialErrorMessageRes by rememberSaveable { mutableStateOf<Int?>(null) }
-
-  AuthScreenContent(
-      state = state,
-      credentialErrorMessageRes = credentialErrorMessageRes,
-      onSignInClick = {
-        // A new attempt makes the outcome of the previous one irrelevant on both sides, so no
-        // message can describe an interaction that is not the one that just ended.
-        viewModel.clearRepositoryError()
-        credentialErrorMessageRes = null
-        scope.launchCatching(
-            tag = TAG,
-            // Only genuine failures reach this callback: the interaction outcomes are answered in
-            // the block below, so the message stays resolved in a single place.
-            onError = { credentialErrorMessageRes = it.toCredentialMessageRes() },
-        ) {
-          val result = credentialProvider.getIdToken()
-          when (val failure = result.exceptionOrNull()) {
-            null -> viewModel.signIn(result.getOrThrow())
-            // Dismissing the chooser is the user's decision, not a failure: the screen stays quiet,
-            // as the provider documents.
-            is SignInCancelledException -> Unit
-            // The one interaction outcome the user can act on, so it gets its own message.
-            is NoGoogleAccountException -> credentialErrorMessageRes = R.string.sign_in_no_account
-            // A genuine failure keeps going to launchCatching, which logs and classifies it.
-            else -> throw failure
-          }
-        }
-      },
-      onSignedIn = onSignedIn,
-      modifier = modifier,
-  )
 }
 
 /** Preview of the signed-out sign-in screen. */

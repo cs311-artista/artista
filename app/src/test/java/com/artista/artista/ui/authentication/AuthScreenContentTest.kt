@@ -1,4 +1,6 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+// Co-authored-by: DeepSeek Flash
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.authentication
 
 import android.content.Context
@@ -22,8 +24,6 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
-// Co-authored-by: DeepSeek Flash
-// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 /**
  * Local (Robolectric) Compose UI tests for [AuthScreenContent].
  *

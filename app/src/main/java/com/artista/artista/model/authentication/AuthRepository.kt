@@ -30,6 +30,11 @@ interface AuthRepository {
    * Firebase. Only the repository can observe that. The ViewModel merely collects this flow and
    * mirrors it in its UI state.
    *
+   * Once collection has started, the production implementation does not fail: the Firebase listener
+   * delivers through `trySend`, which reports a closed channel as a value rather than throwing. A
+   * failure that reaches the collector is therefore a bug, not a condition to recover from, so a
+   * collector guards against it to avoid crashing rather than to resume the stream.
+   *
    * @author timo-by
    */
   val authState: Flow<AuthUser?>

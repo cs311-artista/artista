@@ -1,4 +1,5 @@
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
+// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 package com.artista.artista
 
 import android.os.Bundle
@@ -46,8 +47,6 @@ import com.artista.artista.ui.search.SearchScreen
 import com.artista.artista.ui.search.SearchScreenViewModel
 import com.artista.artista.ui.theme.ArtistaTheme
 
-// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
-// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 /**
  * Hosts the Artista app's root navigation graph.
  *

@@ -1,3 +1,5 @@
+// Co-authored-by: DeepSeek Flash
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.model.authentication
 
 import kotlinx.coroutines.flow.Flow
@@ -5,8 +7,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 
-// Co-authored-by: DeepSeek Flash
-// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 /**
  * In-memory [AuthRepository] for unit and instrumented tests.
  *
