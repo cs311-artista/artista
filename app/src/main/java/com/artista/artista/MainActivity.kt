@@ -25,6 +25,8 @@ import com.artista.artista.model.artwork.SavedArtworksRepository
 import com.artista.artista.model.artwork.WikiDataRepository
 import com.artista.artista.model.artwork.createArtworkImageLoader
 import com.artista.artista.model.artwork.mockArtworks
+import com.artista.artista.model.authentication.AuthRepositoryProvider
+import com.artista.artista.model.user.UserRepositoryProvider
 import com.artista.artista.ui.artwork.ArtworkScreen
 import com.artista.artista.ui.artwork.ArtworkScreenViewModel
 import com.artista.artista.ui.artwork.SavedArtworksScreen
@@ -172,7 +174,14 @@ fun ArtistaApp(
     ) {
       composable(Screen.Profile.route) {
         UserProfileScreen(
-            userProfileViewModel = viewModel(factory = UserProfileViewModel.provideFactory()),
+            userProfileViewModel =
+                viewModel(
+                    factory =
+                        UserProfileViewModel.provideFactory(
+                            authRepository = AuthRepositoryProvider.repository,
+                            userRepository = UserRepositoryProvider.repository,
+                        )
+                ),
             onLogoutClick = {
               navController.navigate(Screen.Auth.route) {
                 popUpTo(0) { inclusive = true }
