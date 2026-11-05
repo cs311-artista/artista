@@ -1,7 +1,7 @@
 package com.artista.artista.ui.map
 
-import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artist.Artist
+import com.artista.artista.model.artwork.Artwork
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

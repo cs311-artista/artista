@@ -5,23 +5,23 @@ package com.artista.artista.ui.map
 import android.location.Location
 import com.artista.artista.MainDispatcherRule
 import com.artista.artista.R
+import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkId
-import com.artista.artista.model.artwork.ArtworkType
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
+import com.artista.artista.model.artwork.ArtworkType
 import com.artista.artista.model.artwork.SavedArtworksRepository
 import com.artista.artista.model.artwork.SearchArea
 import com.artista.artista.model.artwork.WikiDataRepository
-import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.map.UserLocation
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.tasks.Tasks
 import java.lang.reflect.Proxy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
-import org.junit.Rule
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Rule
 import org.junit.Test
 
 /**
@@ -185,8 +185,11 @@ class MapViewModelTest {
 
   private open class EmptySavedArtworksRepository : SavedArtworksRepository {
     override suspend fun isArtworkSaved(uid: ArtworkId) = false
+
     override suspend fun saveArtwork(artwork: Artwork) = Unit
+
     override suspend fun removeArtworkFromSaved(uid: ArtworkId) = Unit
+
     override suspend fun getSavedArtworks() = emptyList<Artwork>()
   }
 
@@ -213,7 +216,9 @@ class MapViewModelTest {
 
     @Deprecated("Only required by the repository interface.")
     override suspend fun getPopularArtists(): List<Artist> = emptyList()
+
     override suspend fun getArtwork(uid: ArtworkId): Artwork = artworks.first { it.uid == uid }
+
     override suspend fun searchArtworks(
         artworkTitle: String,
         typeValues: List<ArtworkType>,
