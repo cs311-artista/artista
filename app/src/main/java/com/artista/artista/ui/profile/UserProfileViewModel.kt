@@ -162,6 +162,8 @@ class UserProfileViewModel(
     // The dialog already disables saving an invalid name; checking again keeps the state valid
     // whatever the caller.
     if (!isValidUsername(newName)) return
+    // A load still running would overwrite the new name with the stored one when it finishes.
+    loadJob?.cancel()
     val previousUsername = _uiState.value.username
     val username = normalizeUsername(newName)
     _uiState.update { it.copy(username = username) }

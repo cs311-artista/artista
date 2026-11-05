@@ -110,6 +110,26 @@ class UserProfileViewModelTest {
     assertEquals("Bob", viewModel.uiState.value.username)
   }
 
+  /**
+   * Checks that renaming while the profile is still loading keeps the new name, instead of the
+   * stored one the load brings back when it finishes.
+   */
+  @Test
+  fun updateUsername_whileProfileLoads_keepsNewUsername() {
+    userRepository.store(userNamed("Alice"))
+    userRepository.readDelays[UID] = 1_000
+
+    // runCurrent starts the load without letting time pass, so it is still waiting when the user
+    // renames.
+    authRepository.setAuthState(FakeAuthUser(UID))
+    mainDispatcherRule.testDispatcher.scheduler.runCurrent()
+    viewModel.updateUsername("Bob")
+    runPendingCoroutines()
+
+    assertEquals("Bob", viewModel.uiState.value.username)
+    assertEquals("Bob", userRepository.storedUser(UID)?.userName)
+  }
+
   /** Checks that signing out clears the username of the user who left. */
   @Test
   fun signOut_clearsUsername() {
