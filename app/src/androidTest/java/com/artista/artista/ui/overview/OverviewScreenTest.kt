@@ -41,6 +41,10 @@ class OverviewScreenTest {
 
   @get:Rule val composeTestRule = createAndroidComposeRule<ComponentActivity>()
 
+  private companion object {
+    const val SAVE_OPERATION_TIMEOUT_MILLIS = 5_000L
+  }
+
   /** Verifies that the overview preview renders its sample artwork list. */
   @Test
   fun overviewScreenPreview_displaysSampleArtworkList() {
@@ -223,7 +227,7 @@ class OverviewScreenTest {
     composeTestRule.activityRule.scenario.moveToState(Lifecycle.State.RESUMED)
 
     composeTestRule.onNodeWithTag(saveButtonTag).assertTextContains("Saved")
-    composeTestRule.waitUntil(5_000) {
+    composeTestRule.waitUntil(SAVE_OPERATION_TIMEOUT_MILLIS) {
       runBlocking { artwork.uid in repository.getSavedArtworks().map { it.uid } }
     }
   }
