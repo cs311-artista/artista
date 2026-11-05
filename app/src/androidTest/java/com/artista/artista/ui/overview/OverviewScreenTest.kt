@@ -18,6 +18,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
+import com.artista.artista.model.artwork.ArtworkType
+import com.artista.artista.model.artwork.SearchArea
 import com.artista.artista.model.artwork.WikiDataRepository
 import com.artista.artista.model.map.UserLocation
 import com.artista.artista.ui.artwork.ArtworkCardTestTag
@@ -39,6 +41,15 @@ import org.junit.runner.RunWith
 class OverviewScreenTest {
 
   @get:Rule val composeTestRule = createAndroidComposeRule<ComponentActivity>()
+
+  /** Verifies that the overview preview renders its sample artwork list. */
+  @Test
+  fun overviewScreenPreview_displaysSampleArtworkList() {
+    composeTestRule.setContent { OverviewScreenPreview() }
+
+    composeTestRule.onNodeWithTag(OverviewTestTags.SCREEN).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(OverviewTestTags.ARTWORK_LIST).assertIsDisplayed()
+  }
 
   /**
    * Verifies that the screen and its artwork list are displayed.
@@ -99,8 +110,11 @@ class OverviewScreenTest {
     var savedArtworksRequested = false
     val failing =
         object : WikiDataRepository by ArtworkRepositoryLocal() {
-          override suspend fun getArtworksNearLocation(location: UserLocation?): List<Artwork> =
-              error("Artwork provider failure")
+          override suspend fun getArtworksNearLocation(
+              searchArea: SearchArea,
+              typeValues: List<ArtworkType>,
+              limit: Int,
+          ): List<Artwork> = error("Artwork provider failure")
         }
     val viewModel = OverviewViewModel(failing, ArtworkRepositoryLocal())
 

@@ -331,7 +331,7 @@ private fun SelectionIndicator(selected: Boolean, modifier: Modifier = Modifier)
 /** Previews the artist preferences screen with two selected artists in Android Studio. */
 @Preview(showBackground = true)
 @Composable
-private fun ArtistPreferencesScreenPreview() {
+internal fun ArtistPreferencesScreenPreview() {
   val viewModel = remember {
     ArtistPreferencesViewModel(ArtworkRepositoryProvider.repository).apply {
       toggleArtist("mock-artist-002")

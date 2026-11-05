@@ -9,6 +9,7 @@ import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.SavedArtworksRepository
+import com.artista.artista.model.artwork.SearchArea
 import com.artista.artista.model.artwork.WikiDataRepository
 import com.artista.artista.ui.error.launchCatching
 import com.artista.artista.ui.error.toMessageRes
@@ -66,7 +67,13 @@ class OverviewViewModel(
   fun refreshUiState() {
     viewModelScope.launch {
       try {
-        val artworks = artworkRepository.getArtworksNearLocation()
+        val lausanneCenter =
+            SearchArea(
+                latitude = 46.5197,
+                longitude = 6.6323,
+                radiusKm = 5.0,
+            )
+        val artworks = artworkRepository.getArtworksNearLocation(lausanneCenter))
         _uiState.update { it.copy(artworks = artworks, errorMessageRes = null) }
       } catch (_: Exception) {
         // Error classification is not defined yet, so keep this failure handling generic.
