@@ -6,6 +6,7 @@ import com.artista.artista.model.error.AppException
 import com.artista.artista.model.error.translateFirestoreErrors
 import com.artista.artista.model.map.Location
 import com.artista.artista.model.user.USER_COLLECTION_PATH
+import com.artista.artista.resources.C
 import com.google.firebase.Firebase
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
@@ -15,9 +16,6 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.firestore
 import java.util.Date
 import kotlinx.coroutines.tasks.await
-
-/** Firestore subcollection containing a user's saved artworks. */
-const val SAVED_ARTWORKS_COLLECTION_PATH = "saved_artworks"
 
 /**
  * Stores saved artworks in the current user's Firestore subcollection.
@@ -107,7 +105,7 @@ class SavedArtworksRepositoryFirestore(
   private fun savedArtworksCollection(userId: String) =
       db.collection(USER_COLLECTION_PATH)
           .document(userId)
-          .collection(SAVED_ARTWORKS_COLLECTION_PATH)
+          .collection(C.Constants.SAVED_ARTWORKS_COLLECTION_PATH)
 
   /** Returns a saved-artwork document for the specified user and artwork. */
   private fun savedArtworkDocument(userId: String, artworkId: ArtworkId) =

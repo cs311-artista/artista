@@ -6,6 +6,7 @@ import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.error.AppException
 import com.artista.artista.model.map.Location
 import com.artista.artista.model.user.USER_COLLECTION_PATH
+import com.artista.artista.resources.C
 import com.artista.artista.utils.FirebaseEmulator
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
@@ -219,7 +220,7 @@ class SavedArtworksRepositoryFirestoreTest {
       firestore
           .collection(USER_COLLECTION_PATH)
           .document(id)
-          .collection(SAVED_ARTWORKS_COLLECTION_PATH)
+          .collection(C.Constants.SAVED_ARTWORKS_COLLECTION_PATH)
 
   private fun completeArtwork() =
       Artwork(
