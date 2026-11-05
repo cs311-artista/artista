@@ -5,6 +5,7 @@ package com.artista.artista.model.artwork
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.error.AppException
 import java.text.Normalizer
+import java.util.LinkedHashMap
 import java.util.Locale
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -19,6 +20,75 @@ import okhttp3.Request
  * user-agent policy rejects generic clients, so requests identify the app and link to its project.
  */
 const val WIKIMEDIA_USER_AGENT = "Artista/1.0 (https://github.com/cs311-artista/artista)"
+
+/**
+ * Thread-safe, bounded cache for parsed Wikidata query results.
+ *
+ * @param maxEntries maximum number of query results to retain
+ * @param ttlNanos duration for which a result remains valid
+ * @param clock monotonic time source used to determine result age
+ * @author IJJA3141
+ */
+internal class ArtworkQueryCache(
+    private val maxEntries: Int = DEFAULT_MAX_ENTRIES,
+    private val ttlNanos: Long = DEFAULT_TTL_NANOS,
+    private val clock: () -> Long = System::nanoTime,
+) {
+  private data class Entry(val artworks: List<Artwork>, val cachedAtNanos: Long)
+
+  private val entries = LinkedHashMap<String, Entry>(16, 0.75f, true)
+
+  init {
+    require(maxEntries > 0) { "maxEntries must be positive" }
+    require(ttlNanos > 0) { "ttlNanos must be positive" }
+  }
+
+  @Synchronized
+  fun get(query: String): List<Artwork>? {
+    val entry = entries[query] ?: return null
+    if (clock() - entry.cachedAtNanos >= ttlNanos) {
+      entries.remove(query)
+      return null
+    }
+    return entry.artworks.toList()
+  }
+
+  @Synchronized
+  fun findArtwork(uid: ArtworkId): Artwork? {
+    val now = clock()
+    val iterator = entries.entries.iterator()
+    var matchedQuery: String? = null
+    var matchedArtwork: Artwork? = null
+    while (iterator.hasNext()) {
+      val (query, entry) = iterator.next()
+      if (now - entry.cachedAtNanos >= ttlNanos) {
+        iterator.remove()
+      } else {
+        entry.artworks
+            .firstOrNull { it.uid == uid }
+            ?.let {
+              matchedQuery = query
+              matchedArtwork = it
+            }
+      }
+    }
+    matchedQuery?.let { entries[it] }
+    return matchedArtwork
+  }
+
+  @Synchronized
+  fun put(query: String, artworks: List<Artwork>) {
+    entries[query] = Entry(artworks.toList(), clock())
+    while (entries.size > maxEntries) {
+      entries.remove(entries.keys.first())
+    }
+  }
+
+  private companion object {
+    const val DEFAULT_MAX_ENTRIES = 100
+    const val DEFAULT_TTL_NANOS = 5 * 60 * 1_000_000_000L
+  }
+}
 
 /**
  * Constants for Wikidata item identifiers.
@@ -61,6 +131,7 @@ class WikiDataRepositoryRemote(
     private val endpoint: HttpUrl = "https://query.wikidata.org/sparql".toHttpUrl(),
     private val jsonResponseParser: JsonResponseParser = JsonResponseParser(),
 ) : WikiDataRepository {
+  private val artworkQueryCache = ArtworkQueryCache()
 
   @Deprecated(
       "This function will be moved outside of WikiDataRepository since the popularity isn't a Wikidata metric."
@@ -91,8 +162,15 @@ class WikiDataRepositoryRemote(
       throw AppException.InvalidInput("uid is not a valid Wikidata item ID: $uid")
     }
 
+    // if artwork is cached return cached artwork (even if it was from another query)
+    artworkQueryCache.findArtwork(uid)?.let {
+      return it
+    }
+
     val query = buildArtworkByIdQuery(uid)
-    val artworks = jsonResponseParser.parseArtworkResults(executeSparqlRequest(query))
+
+    // Reuse the shared request, parsing, and caching path so later lookups can use this result.
+    val artworks = fetchArtworks(query, cacheEmptyResults = false)
     return artworks.firstOrNull() ?: throw AppException.NotFound("No artwork found for uid $uid")
   }
 
@@ -117,7 +195,7 @@ class WikiDataRepositoryRemote(
     validateLimit(limit)
 
     val query = buildArtworkNearLocationQuery(searchArea, typeValues, limit)
-    return jsonResponseParser.parseArtworkResults(executeSparqlRequest(query))
+    return fetchArtworks(query)
   }
 
   /**
@@ -145,7 +223,7 @@ class WikiDataRepositoryRemote(
     validateLimit(limit)
 
     val query = buildArtworkSearchQuery(sanitizedTitle, typeValues, limit)
-    return jsonResponseParser.parseArtworkResults(executeSparqlRequest(query))
+    return fetchArtworks(query)
   }
 
   companion object {
@@ -185,6 +263,21 @@ class WikiDataRepositoryRemote(
     if (limit !in 1..MAX_LIMIT) {
       throw AppException.InvalidInput("limit must be between 1 and $MAX_LIMIT")
     }
+  }
+
+  private suspend fun fetchArtworks(
+      query: String,
+      cacheEmptyResults: Boolean = true,
+  ): List<Artwork> {
+    artworkQueryCache.get(query)?.let {
+      return it
+    }
+
+    val artworks = jsonResponseParser.parseArtworkResults(executeSparqlRequest(query))
+    if (cacheEmptyResults || artworks.isNotEmpty()) {
+      artworkQueryCache.put(query, artworks)
+    }
+    return artworks
   }
 
   private fun validateTypeValues(typeValues: List<ArtworkType>) {
