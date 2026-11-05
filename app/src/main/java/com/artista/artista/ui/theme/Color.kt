@@ -46,6 +46,8 @@ internal object ArtistaColors {
   val Outline = Color(0xFF79747E)
   val OutlineVariant = Color(0xFFCAC4D0)
   val Scrim = Color(0x52000000)
+  val SavedArtworkMarker = Color(0xFF2196F3)
+  val RemoteArtworkMarker = Color(0xFFF44336)
 
   val PrimaryDark = Color(0xFFD0BCFF)
   val OnPrimaryDark = Color(0xFF381E72)
