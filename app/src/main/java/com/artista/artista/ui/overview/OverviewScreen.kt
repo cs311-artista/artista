@@ -43,12 +43,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkFilter
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
-import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.artwork.mockArtworks
 import com.artista.artista.ui.artwork.ArtworkCard
 import com.artista.artista.ui.artwork.ArtworkFilterDialog
@@ -86,8 +84,7 @@ object OverviewTestTags {
  */
 @Composable
 fun OverviewScreen(
-    viewModel: OverviewViewModel =
-        viewModel(factory = OverviewViewModel.provideFactory(ArtworkRepositoryProvider.repository)),
+    viewModel: OverviewViewModel,
     onTabSelected: (Tab) -> Unit = {},
     onArtworkClick: (Artwork) -> Unit = {},
     onSavedArtworksClick: () -> Unit = {},

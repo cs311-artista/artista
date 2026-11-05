@@ -81,14 +81,7 @@ object SearchScreenTestTags {
  */
 @Composable
 fun SearchScreen(
-    viewModel: SearchScreenViewModel =
-        viewModel(
-            factory =
-                SearchScreenViewModel.provideFactory(
-                    savedArtworksRepository = ArtworkRepositoryProvider.repository,
-                    wikiDataRepository = ArtworkRepositoryProvider.wikiDataRepository,
-                )
-        ),
+    viewModel: SearchScreenViewModel,
     onTabSelected: (Tab) -> Unit,
     onArtworkClick: (Artwork) -> Unit = {},
     onMapClick: (Artwork) -> Unit = {},
@@ -263,5 +256,17 @@ private fun ArtworkResults(
 @Preview(showBackground = true)
 @Composable
 internal fun SearchScreenPreview() {
-  ArtistaTheme { SearchScreen(onTabSelected = {}) }
+  ArtistaTheme {
+    SearchScreen(
+        viewModel =
+            viewModel(
+                factory =
+                    SearchScreenViewModel.provideFactory(
+                        ArtworkRepositoryProvider.mockRepository,
+                        ArtworkRepositoryProvider.mockRepository,
+                    )
+            ),
+        onTabSelected = {},
+    )
+  }
 }

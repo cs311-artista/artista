@@ -4,6 +4,7 @@ package com.artista.artista.ui.map
 
 import android.location.Location
 import com.artista.artista.R
+import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.map.UserLocation
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.tasks.Tasks
@@ -26,7 +27,7 @@ class MapViewModelTest {
    */
   @Test
   fun updateUserLocation_storesLocationAndClearsError() {
-    val viewModel = MapViewModel()
+    val viewModel = createViewModel()
     viewModel.setLocationError(R.string.map_location_acquisition_error)
 
     val location = UserLocation(latitude = 46.5201, longitude = 6.6332)
@@ -43,7 +44,7 @@ class MapViewModelTest {
    */
   @Test
   fun setLocationError_storesMessageAndPreservesLocation() {
-    val viewModel = MapViewModel()
+    val viewModel = createViewModel()
     val location = UserLocation(latitude = 46.5201, longitude = 6.6332)
     viewModel.updateUserLocation(location)
 
@@ -56,7 +57,7 @@ class MapViewModelTest {
   /** Verifies that a successful location request stores the acquired coordinates. */
   @Test
   fun acquireLocation_withPermission_storesAcquiredLocation() {
-    val viewModel = MapViewModel()
+    val viewModel = createViewModel()
     val locationClient = fakeLocationClient(LOCATION)
 
     viewModel.acquireLocation(locationClient)
@@ -71,7 +72,7 @@ class MapViewModelTest {
   /** Verifies that a null location exposes the unavailable-location error. */
   @Test
   fun acquireLocation_withNoLocation_exposesUnavailableError() {
-    val viewModel = MapViewModel()
+    val viewModel = createViewModel()
     val locationClient = fakeLocationClient(null)
 
     viewModel.acquireLocation(locationClient)
@@ -82,13 +83,19 @@ class MapViewModelTest {
   /** Verifies that a failed location request exposes the acquisition error. */
   @Test
   fun acquireLocation_whenRequestFails_exposesAcquisitionError() {
-    val viewModel = MapViewModel()
+    val viewModel = createViewModel()
     val locationClient = fakeLocationClientFailure()
 
     viewModel.acquireLocation(locationClient)
 
     assertEquals(R.string.map_location_acquisition_error, viewModel.uiState.errorMsg)
   }
+
+  private fun createViewModel(): MapViewModel =
+      MapViewModel(
+          ArtworkRepositoryProvider.mockRepository,
+          ArtworkRepositoryProvider.mockRepository,
+      )
 
   private fun fakeLocationClient(location: Location?): FusedLocationProviderClient =
       Proxy.newProxyInstance(
