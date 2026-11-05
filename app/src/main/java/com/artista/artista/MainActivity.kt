@@ -180,7 +180,9 @@ fun ArtistaApp(
     composable(Screen.SavedArtworks.route) {
       SavedArtworksScreen(
           onBackClick = { navigationActions.goBack() },
-          onArtworkDetailsClick = {},
+          onArtworkDetailsClick = { artwork ->
+            navController.navigate(Screen.ArtworkDetails.createRoute(artwork.uid))
+          },
           onTabSelected = { tab -> navigationActions.navigateTo(tab.destination) },
           onMapClick = { /* TODO: Implement map click functionality */ },
       )
