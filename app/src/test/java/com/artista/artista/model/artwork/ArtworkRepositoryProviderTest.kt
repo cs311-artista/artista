@@ -15,20 +15,18 @@ import org.junit.Test
  * @author Copilot
  */
 class ArtworkRepositoryProviderTest {
-  private lateinit var repository: ArtworkRepositoryLocal
+  private val repository: ArtworkRepositoryLocal
+    get() = ArtworkRepositoryProvider.mockRepository
 
-  @Before
-  fun setUp() {
-    repository = ArtworkRepositoryLocal()
-  }
+  @Before fun setUp() = repository.clear()
 
-  @After fun tearDown() {}
+  @After fun tearDown() = repository.clear()
 
   @Test
   fun populateAPI_withCustomArtworks_addsArtworksToRepository() = runTest {
     val artworks = listOf(mockArtworks[0], mockArtworks[1])
 
-    artworks.forEach(repository::putArtworkInRepositoryUnsavedSection)
+    ArtworkRepositoryProvider.populateAPI(artworks)
 
     assertEquals(
         artworks,
@@ -38,7 +36,7 @@ class ArtworkRepositoryProviderTest {
 
   @Test
   fun populateAPI_withoutArguments_addsAllDefaultArtworks() = runTest {
-    mockArtworks.forEach(repository::putArtworkInRepositoryUnsavedSection)
+    ArtworkRepositoryProvider.populateAPI()
 
     assertEquals(
         mockArtworks,
@@ -50,7 +48,7 @@ class ArtworkRepositoryProviderTest {
   fun populateSaved_withCustomArtworks_savesOnlyThoseArtworks() = runTest {
     val artworks = listOf(mockArtworks[1], mockArtworks[3])
 
-    artworks.forEach { repository.saveArtwork(it) }
+    ArtworkRepositoryProvider.populateSaved(artworks)
 
     assertEquals(
         artworks.toSet(),
@@ -60,7 +58,7 @@ class ArtworkRepositoryProviderTest {
 
   @Test
   fun populateSaved_withoutArguments_savesFirstThreeDefaultArtworks() = runTest {
-    mockArtworks.take(3).forEach { repository.saveArtwork(it) }
+    ArtworkRepositoryProvider.populateSaved()
 
     assertEquals(
         mockArtworks.take(3).toSet(),
@@ -72,10 +70,10 @@ class ArtworkRepositoryProviderTest {
   fun populateAPI_doesNotSaveArtworks_andPopulateSavedDoesNotAddAPIArtworks() = runTest {
     val artwork = mockArtworks.first()
 
-    repository.putArtworkInRepositoryUnsavedSection(artwork)
+    ArtworkRepositoryProvider.populateAPI(listOf(artwork))
     assertFalse(repository.isArtworkSaved(artwork.uid))
 
-    repository.saveArtwork(artwork)
+    ArtworkRepositoryProvider.populateSaved(listOf(artwork))
     assertTrue(repository.isArtworkSaved(artwork.uid))
     assertEquals(artwork, repository.getArtwork(artwork.uid))
   }
