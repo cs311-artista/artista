@@ -4,7 +4,7 @@ package com.artista.artista.model.artwork
 
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.error.AppException
-import com.artista.artista.model.map.UserLocation
+import java.text.Normalizer
 import java.util.Locale
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -23,33 +23,25 @@ const val WIKIMEDIA_USER_AGENT = "Artista/1.0 (https://github.com/cs311-artista/
 /**
  * Constants for Wikidata item identifiers.
  *
- * Comments represent WikiData nomenclature for the corresponding item.
+ * Each value maps to a WikiData P-number used in SPARQL filters and OPTIONAL clauses.
  *
+ * @property id unique Wikidata property identifier
  * @author IJJA3141
  */
-object WikiDataItems {
-  const val PAINTING_CLASS = "Q3305213" // painting
-}
+enum class WikiDataProperty(val id: String) {
+  INSTANCE_OF("P31"),
+  SUBCLASS_OF("P279"),
+  TITLE("P1476"),
+  ARTIST("P170"),
+  IMAGE("P18"),
+  INCEPTION_DATE("P571"),
+  COLLECTION("P195"),
+  LOCATION("P276"),
+  COORDINATES("P625"),
+  WIDTH("P2049"),
+  HEIGHT("P2048");
 
-/**
- * Constants for Wikidata property identifiers.
- *
- * Comments represent WikiData nomenclature for the corresponding property.
- *
- * @author IJJA3141
- */
-object WikiDataProperties {
-  const val INSTANCE_OF = "P31"
-  const val SUBCLASS_OF = "P279"
-  const val TITLE = "P1476"
-  const val ARTIST = "P170" // creator
-  const val IMAGE = "P18"
-  const val INCEPTION_DATE = "P571" // date of foundation or creation
-  const val COLLECTION = "P195"
-  const val LOCATION = "P276" // located in
-  const val COORDINATES = "P625"
-  const val WIDTH = "P2049"
-  const val HEIGHT = "P2048"
+  override fun toString(): String = id
 }
 
 /**
@@ -61,25 +53,20 @@ object WikiDataProperties {
  *
  * @param client HTTP client used to execute requests; inject a test client to intercept requests
  * @param endpoint Wikidata SPARQL endpoint URL
+ * @param jsonResponseParser JSON to artista.Artwork parser
  * @author IJJA3141
  */
 class WikiDataRepositoryRemote(
     private val client: OkHttpClient = OkHttpClient(),
     private val endpoint: HttpUrl = "https://query.wikidata.org/sparql".toHttpUrl(),
+    private val jsonResponseParser: JsonResponseParser = JsonResponseParser(),
 ) : WikiDataRepository {
-  override suspend fun getArtworksNearLocation(location: UserLocation?): List<Artwork> {
-    throw NotImplementedError("Not yet implemented")
-  }
 
+  @Deprecated(
+      "This function will be moved outside of WikiDataRepository since the popularity isn't a Wikidata metric."
+  )
   override suspend fun getPopularArtists(): List<Artist> {
     throw NotImplementedError("Not yet implemented")
-  }
-
-  private val jsonResponseParser = JsonResponseParser()
-
-  private companion object {
-    /** Wikidata item IDs are "Q" followed by one or more digits, e.g. Q12345. */
-    val ITEM_ID_REGEX = Regex("Q\\d+")
   }
 
   /**
@@ -88,6 +75,9 @@ class WikiDataRepositoryRemote(
    * WikiData can return duplicate rows for the same artwork when multiple labels or measurements
    * are present. The first parsed row is used because the repository contract expects a single
    * artwork instance for a given identifier.
+   *
+   * /!\ Current implementation of the parser needs to be updates not all information retrieved from
+   * Wikidata will be present in the artwork.
    *
    * @param uid Wikidata item identifier for the artwork, such as Q12345
    * @return the artwork matching the identifier
@@ -101,87 +91,206 @@ class WikiDataRepositoryRemote(
       throw AppException.InvalidInput("uid is not a valid Wikidata item ID: $uid")
     }
 
-    val query =
-        """
-        SELECT ?item ?itemLabel ?artistLabel ?image ?inception ?collectionLabel ?locationLabel ?locationCoordinates ?width ?height ?description
-        WHERE {
-          VALUES ?item { wd:$uid }
-          OPTIONAL { ?item rdfs:label ?itemLabel . FILTER(LANG(?itemLabel) = "en" || LANG(?itemLabel) = "") }
-          OPTIONAL { ?item wdt:${WikiDataProperties.ARTIST} ?artist . ?artist rdfs:label ?artistLabel . FILTER(LANG(?artistLabel) = "en") }
-          OPTIONAL { ?item wdt:${WikiDataProperties.IMAGE} ?image . }
-          OPTIONAL { ?item wdt:${WikiDataProperties.INCEPTION_DATE} ?inception . }
-          OPTIONAL { ?item wdt:${WikiDataProperties.COLLECTION} ?collection . ?collection rdfs:label ?collectionLabel . FILTER(LANG(?collectionLabel) = "en") }
-          OPTIONAL { ?item wdt:${WikiDataProperties.LOCATION} ?location . ?location rdfs:label ?locationLabel . FILTER(LANG(?locationLabel) = "en") }
-          OPTIONAL { ?item wdt:${WikiDataProperties.LOCATION} ?locationCoordinates . }
-          OPTIONAL { ?item wdt:${WikiDataProperties.WIDTH} ?width . }
-          OPTIONAL { ?item wdt:${WikiDataProperties.HEIGHT} ?height . }
-          OPTIONAL { ?item schema:description ?description . FILTER(LANG(?description) = "en") }
-        }
-        """
-            .trimIndent()
-
-    val response = executeSparqlRequest(query)
-    val artworks = jsonResponseParser.parseArtworkResults(response)
-
+    val query = buildArtworkByIdQuery(uid)
+    val artworks = jsonResponseParser.parseArtworkResults(executeSparqlRequest(query))
     return artworks.firstOrNull() ?: throw AppException.NotFound("No artwork found for uid $uid")
+  }
+
+  /**
+   * Returns artworks around a geographic search area filtered by artwork type.
+   *
+   * /!\ Current implementation of the parser needs to be updates not all information retrieved from
+   * Wikidata will be present in the artwork.
+   *
+   * @param searchArea geographic bounds used to locate matching artworks
+   * @param typeValues artwork classes to include in the query
+   * @param limit maximum number of results returned by the query
+   * @return matching artworks mapped from valid Wikidata results
+   * @author IJJA3141
+   */
+  override suspend fun getArtworksNearLocation(
+      searchArea: SearchArea,
+      typeValues: List<ArtworkType>,
+      limit: Int,
+  ): List<Artwork> {
+    validateTypeValues(typeValues)
+    validateLimit(limit)
+
+    val query = buildArtworkNearLocationQuery(searchArea, typeValues, limit)
+    return jsonResponseParser.parseArtworkResults(executeSparqlRequest(query))
   }
 
   /**
    * Searches for artworks by label using the English-language Wikidata data set.
    *
+   * /!\ Current implementation of the parser needs to be updates not all information retrieved from
+   * Wikidata will be present in the artwork.
+   *
    * The search is intentionally limited to English strings to keep the user-facing result set
    * stable and avoid mixing localized labels from other languages.
    *
-   * @param query text to search for in the artwork title
+   * @param artworkTitle text to search for in the artwork title
    * @return the artworks whose English title contains the search term
+   * @throws AppException.InvalidInput if the title is blank or contains no supported characters
    * @author IJJA3141
    */
-  override suspend fun searchArtworks(query: String): List<Artwork> {
-    if (query.isBlank()) return emptyList()
-    val request = buildRequest(query)
-    val response = executeSparqlRequest(request)
-    return jsonResponseParser.parseArtworkResults(response)
+  override suspend fun searchArtworks(
+      artworkTitle: String,
+      typeValues: List<ArtworkType>,
+      limit: Int,
+  ): List<Artwork> {
+    val sanitizedTitle = sanitizeSearchText(artworkTitle)
+
+    validateTypeValues(typeValues)
+    validateLimit(limit)
+
+    val query = buildArtworkSearchQuery(sanitizedTitle, typeValues, limit)
+    return jsonResponseParser.parseArtworkResults(executeSparqlRequest(query))
   }
 
-  /**
-   * Builds a SPARQL query for label-based artwork search.
-   *
-   * Only English labels are considered for now because the app currently presents artwork titles in
-   * a single language; this keeps the query predictable while leaving room to extend the filters
-   * later. Only paintings are used for now.
-   *
-   * @param searchTerm user-entered text used to match artwork titles
-   * @return SPARQL query string for the Wikidata endpoint
-   * @author IJJA3141
-   */
-  internal fun buildRequest(searchTerm: String): String {
-    val normalized = searchTerm.trim()
-    val escapedTerm = normalized.lowercase(Locale.ROOT).replace("\\", "\\\\").replace("\"", "\\\"")
+  companion object {
+    val ITEM_ID_REGEX = Regex("Q\\d+")
+    val COMBINING_MARKS = Regex("\\p{M}+")
+    private val UNSUPPORTED_SEARCH_CHARACTERS = Regex("[^\\p{L}\\p{M}\\p{N}\\s]+")
+
+    const val MAX_LIMIT = 200
+
+    const val SELECT_LINE =
+        "SELECT ?item ?itemLabel ?artistLabel ?image ?inception ?collectionLabel ?locationLabel ?width ?height ?description ?locationCoordinates ?coordinateSource"
+
+    val DETAILS =
+        """
+      OPTIONAL { ?item wdt:${WikiDataProperty.COORDINATES} ?ownCoordinates . }
+      OPTIONAL {
+        ?item wdt:${WikiDataProperty.LOCATION} ?location .
+        OPTIONAL { ?location rdfs:label ?locationLabel . FILTER(LANG(?locationLabel) = "en") }
+        OPTIONAL { ?location wdt:${WikiDataProperty.COORDINATES} ?locationSideCoordinates . }
+      }
+      OPTIONAL { ?item rdfs:label ?itemLabel . FILTER(LANG(?itemLabel) = "en") }
+      OPTIONAL { ?item wdt:${WikiDataProperty.ARTIST} ?artist . ?artist rdfs:label ?artistLabel . FILTER(LANG(?artistLabel) = "en") }
+      OPTIONAL { ?item wdt:${WikiDataProperty.IMAGE} ?image . }
+      OPTIONAL { ?item wdt:${WikiDataProperty.INCEPTION_DATE} ?inception . }
+      OPTIONAL { ?item wdt:${WikiDataProperty.COLLECTION} ?collection . ?collection rdfs:label ?collectionLabel . FILTER(LANG(?collectionLabel) = "en") }
+      OPTIONAL { ?item wdt:${WikiDataProperty.WIDTH} ?width . }
+      OPTIONAL { ?item wdt:${WikiDataProperty.HEIGHT} ?height . }
+      OPTIONAL { ?item schema:description ?description . FILTER(LANG(?description) = "en") }
+      BIND(COALESCE(?ownCoordinates, ?locationSideCoordinates) AS ?locationCoordinates)
+      BIND(IF(BOUND(?ownCoordinates), "item",
+           IF(BOUND(?locationSideCoordinates), "location", ?unbound)) AS ?coordinateSource)
+      """
+            .trimIndent()
+  }
+
+  private fun validateLimit(limit: Int) {
+    if (limit !in 1..MAX_LIMIT) {
+      throw AppException.InvalidInput("limit must be between 1 and $MAX_LIMIT")
+    }
+  }
+
+  private fun validateTypeValues(typeValues: List<ArtworkType>) {
+    if (typeValues.isEmpty()) {
+      throw AppException.InvalidInput("typeValues cannot be empty")
+    }
+    if (typeValues.distinct().size != typeValues.size) {
+      throw AppException.InvalidInput("typeValues contains duplicates")
+    }
+  }
+
+  // Removes unsupported characters and appends * to the complete search query.
+  private fun sanitizeSearchText(searchTerm: String): String {
+    // Keep Unicode letters, combining marks, numbers, and whitespace; remove other characters.
+    val sanitizedSearchTerm = UNSUPPORTED_SEARCH_CHARACTERS.replace(searchTerm, "")
+    if (sanitizedSearchTerm.isBlank()) {
+      throw AppException.InvalidInput("artworkTitle is blank or contains no supported characters")
+    }
+
+    // Split on whitespace and rejoin with single spaces to normalize the query.
+    val normalizedSearchTerm =
+        sanitizedSearchTerm.split(Regex("\\s+")).filter { it.isNotEmpty() }.joinToString(" ")
+    return prefixTerm(normalizedSearchTerm)
+  }
+
+  private fun prefixTerm(query: String): String {
+    val lower = query.lowercase(Locale.ROOT)
+    val folded = Normalizer.normalize(lower, Normalizer.Form.NFD).replace(COMBINING_MARKS, "")
+    fun wild(value: String) = if (value.length >= 2) "$value*" else value
+    return if (folded == lower) wild(lower) else "(${wild(folded)} OR ${wild(lower)})"
+  }
+
+  private fun List<ArtworkType>.toSparqlValueList(): String =
+      joinToString(separator = " ") { "wd:${it.qid}" }
+
+  private fun buildArtworkNearLocationQuery(
+      searchArea: SearchArea,
+      typeValues: List<ArtworkType>,
+      limit: Int,
+  ): String {
+    return """
+        $SELECT_LINE
+        WHERE {
+            {
+            SELECT DISTINCT ?item
+            WHERE {
+                SERVICE wikibase:around {
+                    ?location wdt:${WikiDataProperty.COORDINATES} ?locationCoordinates .
+                    bd:serviceParam wikibase:center "Point(${searchArea.longitude} ${searchArea.latitude})"^^geo:wktLiteral .
+                    bd:serviceParam wikibase:radius "${searchArea.radiusKm}" .
+            }
+            ?item wdt:${WikiDataProperty.LOCATION} ?location . 
+            VALUES ?type { ${typeValues.toSparqlValueList()} }
+            ?item wdt:${WikiDataProperty.INSTANCE_OF} ?type . 
+        }
+        LIMIT $limit
+    }
+    $DETAILS
+  }
+  LIMIT $limit
+    """
+        .trimIndent()
+  }
+
+  private fun buildArtworkByIdQuery(uid: ArtworkId): String =
+      """
+    $SELECT_LINE
+    WHERE {
+      VALUES ?item { wd:$uid }
+      $DETAILS
+    }
+    LIMIT 1
+    """
+          .trimIndent()
+
+  private fun buildArtworkSearchQuery(
+      sanitizedTitle: String,
+      typeValues: List<ArtworkType>,
+      limit: Int,
+  ): String {
+    val wikidataTypeFilter =
+        typeValues.joinToString(separator = "|") { "${WikiDataProperty.INSTANCE_OF}=${it.qid}" }
 
     return """
-      SELECT ?item ?itemLabel ?artistLabel ?image ?inception ?collectionLabel ?locationLabel ?locationCoordinates ?width ?height ?description
+      $SELECT_LINE
       WHERE {
         {
           SELECT DISTINCT ?item ?itemLabel
           WHERE {
-            wd:${WikiDataItems.PAINTING_CLASS} ^wdt:${WikiDataProperties.SUBCLASS_OF}*/^wdt:${WikiDataProperties.INSTANCE_OF} ?item .
+            SERVICE wikibase:mwapi {
+              bd:serviceParam wikibase:endpoint "www.wikidata.org" ;
+                              wikibase:api "Generator" ;
+                              mwapi:generator "search" ;
+              mwapi:gsrsearch "haswbstatement:$wikidataTypeFilter $sanitizedTitle" ;
+                              mwapi:gsrlimit "$limit" .
+              ?item wikibase:apiOutputItem mwapi:title .
+            }
             ?item rdfs:label ?itemLabel .
             FILTER(LANG(?itemLabel) = "en")
-            FILTER(CONTAINS(LCASE(STR(?itemLabel)), "$escapedTerm"))
           }
-          LIMIT 50
+          LIMIT $limit
         }
-        OPTIONAL { ?item wdt:${WikiDataProperties.ARTIST} ?artist . ?artist rdfs:label ?artistLabel . FILTER(LANG(?artistLabel) = "en") }
-        OPTIONAL { ?item wdt:${WikiDataProperties.IMAGE} ?image . }
-        OPTIONAL { ?item wdt:${WikiDataProperties.INCEPTION_DATE} ?inception . }
-        OPTIONAL { ?item wdt:${WikiDataProperties.COLLECTION} ?collection . ?collection rdfs:label ?collectionLabel . FILTER(LANG(?collectionLabel) = "en") }
-        OPTIONAL { ?item wdt:${WikiDataProperties.LOCATION} ?location . ?location rdfs:label ?locationLabel . FILTER(LANG(?locationLabel) = "en") }
-        OPTIONAL { ?item wdt:${WikiDataProperties.LOCATION} ?locationCoordinates . }
-        OPTIONAL { ?item wdt:${WikiDataProperties.WIDTH} ?width . }
-        OPTIONAL { ?item wdt:${WikiDataProperties.HEIGHT} ?height . }
-        OPTIONAL { ?item schema:description ?description . FILTER(LANG(?description) = "en") }
+        $DETAILS
       }
-      """
+      LIMIT $limit
+    """
         .trimIndent()
   }
 

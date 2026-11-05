@@ -61,6 +61,14 @@ class ArtworkCardTest {
   }
 
   /** Checks that the card shows the artwork details and calls the right callback on each action. */
+  /** Verifies that the artwork-card preview renders its sample card. */
+  @Test
+  fun artworkCardPreview_displaysSampleArtwork() {
+    composeTestRule.setContent { ArtworkCardPreview() }
+
+    composeTestRule.onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD).assertIsDisplayed()
+  }
+
   @Test
   fun artworkCard_displaysArtworkMetadataAndActions() {
     var selectedArtwork: Artwork? = null
