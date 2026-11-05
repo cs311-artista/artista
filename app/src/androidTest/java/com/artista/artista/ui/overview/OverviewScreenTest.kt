@@ -122,14 +122,7 @@ class OverviewScreenTest {
         }
     val viewModel = OverviewViewModel(failing, ArtworkRepositoryLocal())
 
-    composeTestRule.setContent {
-      ArtistaTheme {
-        OverviewScreen(
-            viewModel = viewModel,
-            onSavedArtworksClick = { savedArtworksRequested = true },
-        )
-      }
-    }
+    setOverviewContent(viewModel, onSavedArtworksClick = { savedArtworksRequested = true })
 
     composeTestRule.onNodeWithTag(OverviewTestTags.ERROR_MESSAGE).assertIsDisplayed()
     composeTestRule.onNodeWithText("Unable to load nearby artworks.").assertIsDisplayed()
@@ -146,14 +139,7 @@ class OverviewScreenTest {
     repository.putArtworkInRepositoryUnsavedSection(artwork)
     val viewModel = OverviewViewModel(repository, repository)
 
-    composeTestRule.setContent {
-      ArtistaTheme {
-        OverviewScreen(
-            viewModel = viewModel,
-            onTabSelected = {},
-        )
-      }
-    }
+    setOverviewContent(viewModel)
 
     composeTestRule
         .onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD_SAVE_BUTTON)
@@ -192,15 +178,7 @@ class OverviewScreenTest {
     val repository = ArtworkRepositoryLocal()
     val viewModel = OverviewViewModel(repository, repository)
 
-    composeTestRule.setContent {
-      ArtistaTheme {
-        OverviewScreen(
-            viewModel = viewModel,
-            onSearchClick = { searchRequested = true },
-            onTabSelected = {},
-        )
-      }
-    }
+    setOverviewContent(viewModel, onSearchClick = { searchRequested = true })
 
     composeTestRule.onNodeWithTag(OverviewTestTags.SEARCH_BAR).performClick()
 
@@ -215,14 +193,7 @@ class OverviewScreenTest {
     repository.putArtworkInRepositoryUnsavedSection(artwork)
     val viewModel = OverviewViewModel(repository, repository)
 
-    composeTestRule.setContent {
-      ArtistaTheme {
-        OverviewScreen(
-            viewModel = viewModel,
-            onTabSelected = {},
-        )
-      }
-    }
+    setOverviewContent(viewModel)
 
     composeTestRule
         .onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD_SAVE_BUTTON)
@@ -245,10 +216,20 @@ class OverviewScreenTest {
     artworks.forEach { repository.putArtworkInRepositoryUnsavedSection(it) }
     val viewModel = OverviewViewModel(repository, repository)
 
+    setOverviewContent(viewModel)
+  }
+
+  private fun setOverviewContent(
+      viewModel: OverviewViewModel,
+      onSavedArtworksClick: () -> Unit = {},
+      onSearchClick: () -> Unit = {},
+  ) {
     composeTestRule.setContent {
       ArtistaTheme {
         OverviewScreen(
             viewModel = viewModel,
+            onSavedArtworksClick = onSavedArtworksClick,
+            onSearchClick = onSearchClick,
             onTabSelected = {},
         )
       }
