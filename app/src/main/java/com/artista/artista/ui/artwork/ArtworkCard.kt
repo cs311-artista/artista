@@ -163,6 +163,9 @@ fun ArtworkCard(
           Icon(
               imageVector = if (isSaved) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
               contentDescription = null,
+              tint =
+                  if (isSaved) MaterialTheme.colorScheme.primary
+                  else MaterialTheme.colorScheme.onSurface,
           )
           Text(
               stringResource(

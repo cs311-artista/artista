@@ -25,6 +25,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -37,6 +38,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
@@ -76,18 +80,45 @@ object OverviewTestTags {
 @Composable
 fun OverviewScreen(
     viewModel: OverviewViewModel =
-        viewModel(factory = OverviewViewModel.provideFactory(ArtworkRepositoryProvider.repository)),
+        viewModel(
+            factory =
+                OverviewViewModel.provideFactory(
+                    repository = ArtworkRepositoryProvider.repository,
+                    savedArtworksRepository = ArtworkRepositoryProvider.repository,
+                )
+        ),
     onTabSelected: (Tab) -> Unit = {},
     onArtworkClick: (Artwork) -> Unit = {},
     onSavedArtworksClick: () -> Unit = {},
     onSearchClick: () -> Unit = {},
 ) {
   val uiState by viewModel.uiState.collectAsState()
+  val lifecycleOwner = LocalLifecycleOwner.current
   val context = LocalContext.current
   val errorMessage = uiState.errorMessageRes?.let { stringResource(it) }
+  val saveErrorMessage = uiState.saveErrorMessageRes?.let { stringResource(it) }
+
+  // Overview may stay in memory while the artwork screen changes saved-artwork storage. Reload
+  // saved IDs whenever Overview resumes so its bookmark icons reflect those external changes.
+  DisposableEffect(lifecycleOwner, viewModel) {
+    val observer = LifecycleEventObserver { _, event ->
+      if (event == Lifecycle.Event.ON_RESUME) {
+        viewModel.refreshSavedArtworkIds()
+      }
+    }
+    lifecycleOwner.lifecycle.addObserver(observer)
+    onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+  }
 
   LaunchedEffect(errorMessage) {
     errorMessage?.let { Toast.makeText(context, it, Toast.LENGTH_LONG).show() }
+  }
+
+  LaunchedEffect(saveErrorMessage) {
+    saveErrorMessage?.let {
+      Toast.makeText(context, it, Toast.LENGTH_LONG).show()
+      viewModel.clearSaveErrorMessage()
+    }
   }
 
   Scaffold(
@@ -115,18 +146,16 @@ fun OverviewScreen(
               ),
           verticalArrangement = Arrangement.spacedBy(Dimensions.overviewListItemSpacing),
       ) {
-        items(uiState.artworks) { artwork ->
+        items(uiState.artworks, key = { it.uid }) { artwork ->
           ArtworkCard(
               artwork = artwork,
-              isSaved = false,
+              isSaved = artwork.uid in uiState.savedArtworkIds,
               onArtworkClick = onArtworkClick,
               onMapClick = {
                 // TODO Implement navigate to map with artwork location
                 onTabSelected(Tab.Map)
               },
-              onSaveClick = {
-                // TODO Implement save artwork functionality
-              },
+              onSaveClick = viewModel::toggleSavedArtwork,
               modifier = Modifier.testTag(OverviewTestTags.ARTWORK_ITEM),
           )
         }
@@ -219,7 +248,7 @@ private fun OverviewScreenPreview() {
   val viewModel = remember {
     val repository = ArtworkRepositoryLocal()
     mockArtworks.forEach { repository.putArtworkInRepositoryUnsavedSection(it) }
-    OverviewViewModel(repository)
+    OverviewViewModel(repository, repository)
   }
   ArtistaTheme { OverviewScreen(viewModel = viewModel) }
 }

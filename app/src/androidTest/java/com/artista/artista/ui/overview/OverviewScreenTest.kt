@@ -13,15 +13,18 @@ import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.lifecycle.Lifecycle
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
 import com.artista.artista.model.artwork.WikiDataRepository
 import com.artista.artista.model.map.UserLocation
+import com.artista.artista.ui.artwork.ArtworkCardTestTag
 import com.artista.artista.ui.navigation.NavigationTestTags
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaTheme
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -99,7 +102,7 @@ class OverviewScreenTest {
           override suspend fun getArtworksNearLocation(location: UserLocation?): List<Artwork> =
               error("Artwork provider failure")
         }
-    val viewModel = OverviewViewModel(failing)
+    val viewModel = OverviewViewModel(failing, ArtworkRepositoryLocal())
 
     composeTestRule.setContent {
       ArtistaTheme {
@@ -141,7 +144,7 @@ class OverviewScreenTest {
   fun overviewScreen_searchBarClick_invokesSearchCallback() {
     var searchRequested = false
     val repository = ArtworkRepositoryLocal()
-    val viewModel = OverviewViewModel(repository)
+    val viewModel = OverviewViewModel(repository, repository)
 
     composeTestRule.setContent {
       ArtistaTheme {
@@ -158,10 +161,40 @@ class OverviewScreenTest {
     assertTrue(searchRequested)
   }
 
+  /** Verifies an artwork saved while Overview is stopped appears saved after returning. */
+  @Test
+  fun overviewScreen_returningAfterArtworkWasSaved_refreshesBookmarkFromRepository() {
+    val artwork = artwork(name = "The Starry Night", artistName = "Vincent van Gogh")
+    val repository = ArtworkRepositoryLocal()
+    repository.putArtworkInRepositoryUnsavedSection(artwork)
+    val viewModel = OverviewViewModel(repository, repository)
+
+    composeTestRule.setContent {
+      ArtistaTheme {
+        OverviewScreen(
+            viewModel = viewModel,
+            onTabSelected = {},
+        )
+      }
+    }
+
+    val saveButtonTag = ArtworkCardTestTag.ARTWORK_CARD_SAVE_BUTTON
+    composeTestRule.onNodeWithTag(saveButtonTag).assertTextContains("Save")
+
+    composeTestRule.activityRule.scenario.moveToState(Lifecycle.State.CREATED)
+    runBlocking { repository.saveArtwork(artwork) }
+    composeTestRule.activityRule.scenario.moveToState(Lifecycle.State.RESUMED)
+
+    composeTestRule.onNodeWithTag(saveButtonTag).assertTextContains("Saved")
+    composeTestRule.waitUntil(5_000) {
+      runBlocking { artwork.uid in repository.getSavedArtworks().map { it.uid } }
+    }
+  }
+
   private fun setOverviewContent(artworks: List<Artwork>) {
     val repository = ArtworkRepositoryLocal()
     artworks.forEach { repository.putArtworkInRepositoryUnsavedSection(it) }
-    val viewModel = OverviewViewModel(repository)
+    val viewModel = OverviewViewModel(repository, repository)
 
     composeTestRule.setContent {
       ArtistaTheme {

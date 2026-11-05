@@ -46,7 +46,7 @@ class OverviewScreenViewModelTest {
           override suspend fun getArtworksNearLocation(location: UserLocation?): List<Artwork> =
               expectedArtworks
         }
-    val viewModel = OverviewViewModel(repository)
+    val viewModel = OverviewViewModel(repository, ArtworkRepositoryLocal())
 
     advanceUntilIdle()
 
@@ -65,12 +65,49 @@ class OverviewScreenViewModelTest {
           override suspend fun getArtworksNearLocation(location: UserLocation?): List<Artwork> =
               error("Artwork provider failure")
         }
-    val viewModel = OverviewViewModel(failing)
+    val viewModel = OverviewViewModel(failing, ArtworkRepositoryLocal())
 
     advanceUntilIdle()
 
     assertEquals(R.string.overview_load_error, viewModel.uiState.value.errorMessageRes)
     assertTrue(viewModel.uiState.value.artworks.isEmpty())
+  }
+
+  /** Verifies toggling an artwork saves and removes it while updating bookmark state. */
+  @Test
+  fun overviewViewModel_toggleSavedArtwork_persistsArtworkAndUpdatesState() = runTest {
+    val artwork = artwork(name = "The Starry Night", artistName = "Vincent van Gogh")
+    val repository = ArtworkRepositoryLocal()
+    repository.putArtworkInRepositoryUnsavedSection(artwork)
+    val viewModel = OverviewViewModel(repository, repository)
+
+    advanceUntilIdle()
+    viewModel.toggleSavedArtwork(artwork)
+    advanceUntilIdle()
+
+    assertTrue(artwork.uid in viewModel.uiState.value.savedArtworkIds)
+    assertEquals(listOf(artwork), repository.getSavedArtworks())
+
+    viewModel.toggleSavedArtwork(artwork)
+    advanceUntilIdle()
+
+    assertTrue(artwork.uid !in viewModel.uiState.value.savedArtworkIds)
+    assertTrue(repository.getSavedArtworks().isEmpty())
+  }
+
+  /** Verifies refreshing saved artworks picks up changes made outside Overview. */
+  @Test
+  fun overviewViewModel_refreshSavedArtworkIds_includesArtworkSavedElsewhere() = runTest {
+    val artwork = artwork(name = "The Starry Night", artistName = "Vincent van Gogh")
+    val repository = ArtworkRepositoryLocal()
+    val viewModel = OverviewViewModel(repository, repository)
+
+    advanceUntilIdle()
+    repository.saveArtwork(artwork)
+    viewModel.refreshSavedArtworkIds()
+    advanceUntilIdle()
+
+    assertTrue(artwork.uid in viewModel.uiState.value.savedArtworkIds)
   }
 
   /**
@@ -85,7 +122,7 @@ class OverviewScreenViewModelTest {
           override suspend fun getArtworksNearLocation(location: UserLocation?): List<Artwork> =
               error("Artwork provider failure")
         }
-    val viewModel = OverviewViewModel(failing)
+    val viewModel = OverviewViewModel(failing, ArtworkRepositoryLocal())
 
     advanceUntilIdle()
     viewModel.clearErrorMessage()
@@ -96,7 +133,8 @@ class OverviewScreenViewModelTest {
   /** Verifies that the factory refuses to create a ViewModel of another class. */
   @Test
   fun provideFactory_forUnknownViewModelClass_throws() {
-    val factory = OverviewViewModel.provideFactory(ArtworkRepositoryLocal())
+    val repository = ArtworkRepositoryLocal()
+    val factory = OverviewViewModel.provideFactory(repository, repository)
 
     assertThrows(IllegalArgumentException::class.java) {
       factory.create(OtherViewModel::class.java)
