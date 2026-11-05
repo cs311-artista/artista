@@ -9,8 +9,10 @@ import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
 import com.artista.artista.model.artwork.ArtworkType
+import com.artista.artista.model.artwork.SavedArtworksRepository
 import com.artista.artista.model.artwork.SearchArea
 import com.artista.artista.model.artwork.WikiDataRepository
+import com.artista.artista.model.error.AppException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -115,6 +117,61 @@ class OverviewScreenViewModelTest {
     advanceUntilIdle()
 
     assertTrue(artwork.uid in viewModel.uiState.value.savedArtworkIds)
+  }
+
+  /** Verifies repository failures while refreshing saved IDs are exposed and can be cleared. */
+  @Test
+  fun overviewViewModel_whenSavedArtworkRefreshFails_exposesAndClearsError() = runTest {
+    val savedRepository =
+        object : SavedArtworksRepository by ArtworkRepositoryLocal() {
+          override suspend fun getSavedArtworks(): List<Artwork> = throw AppException.Network()
+        }
+    val viewModel = OverviewViewModel(ArtworkRepositoryLocal(), savedRepository)
+
+    advanceUntilIdle()
+
+    assertEquals(R.string.error_network, viewModel.uiState.value.saveErrorMessageRes)
+
+    viewModel.clearSaveErrorMessage()
+
+    assertEquals(null, viewModel.uiState.value.saveErrorMessageRes)
+  }
+
+  /** Verifies the local repository's invalid-ID error rolls back a failed save. */
+  @Test
+  fun overviewViewModel_whenSavingArtworkWithInvalidId_rollsBackAndExposesError() = runTest {
+    val artwork = artwork(name = "The Starry Night", artistName = "Vincent van Gogh").copy(uid = "")
+    val repository = ArtworkRepositoryLocal()
+    repository.putArtworkInRepositoryUnsavedSection(artwork)
+    val viewModel = OverviewViewModel(repository, repository)
+
+    advanceUntilIdle()
+    viewModel.toggleSavedArtwork(artwork)
+    advanceUntilIdle()
+
+    assertTrue(artwork.uid !in viewModel.uiState.value.savedArtworkIds)
+    assertEquals(R.string.error_invalid_input, viewModel.uiState.value.saveErrorMessageRes)
+
+    viewModel.clearSaveErrorMessage()
+
+    assertEquals(null, viewModel.uiState.value.saveErrorMessageRes)
+  }
+
+  /** Verifies the local repository's not-found error rolls back a failed removal. */
+  @Test
+  fun overviewViewModel_whenRemovingMissingArtwork_rollsBackAndExposesError() = runTest {
+    val artwork = artwork(name = "The Starry Night", artistName = "Vincent van Gogh")
+    val repository = ArtworkRepositoryLocal()
+    repository.saveArtwork(artwork)
+    val viewModel = OverviewViewModel(repository, repository)
+
+    advanceUntilIdle()
+    repository.removeArtworkFromSaved(artwork.uid)
+    viewModel.toggleSavedArtwork(artwork)
+    advanceUntilIdle()
+
+    assertTrue(artwork.uid in viewModel.uiState.value.savedArtworkIds)
+    assertEquals(R.string.error_not_found, viewModel.uiState.value.saveErrorMessageRes)
   }
 
   /**

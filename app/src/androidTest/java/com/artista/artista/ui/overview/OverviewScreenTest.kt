@@ -133,6 +133,30 @@ class OverviewScreenTest {
     assertTrue(savedArtworksRequested)
   }
 
+  /** Verifies the save-error effect clears errors after displaying their message. */
+  @Test
+  fun overviewScreen_whenSavingArtworkFails_clearsSaveErrorAndRestoresCard() {
+    val artwork = artwork(name = "The Starry Night", artistName = "Vincent van Gogh").copy(uid = "")
+    val repository = ArtworkRepositoryLocal()
+    repository.putArtworkInRepositoryUnsavedSection(artwork)
+    val viewModel = OverviewViewModel(repository, repository)
+
+    composeTestRule.setContent {
+      ArtistaTheme {
+        OverviewScreen(
+            viewModel = viewModel,
+            onTabSelected = {},
+        )
+      }
+    }
+
+    val saveButtonTag = ArtworkCardTestTag.ARTWORK_CARD_SAVE_BUTTON
+    composeTestRule.onNodeWithTag(saveButtonTag).assertTextContains("Save").performClick()
+    composeTestRule.waitForIdle()
+    assertTrue(viewModel.uiState.value.saveErrorMessageRes == null)
+    composeTestRule.onNodeWithTag(saveButtonTag).assertTextContains("Save")
+  }
+
   /**
    * Verifies that the Overview screen displays a search-shaped navigation control.
    *
