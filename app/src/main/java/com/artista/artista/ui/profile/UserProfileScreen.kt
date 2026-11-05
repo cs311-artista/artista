@@ -47,12 +47,10 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.artista.artista.R
 import com.artista.artista.model.authentication.AuthRepository
-import com.artista.artista.model.authentication.AuthRepositoryProvider
 import com.artista.artista.model.authentication.AuthUser
 import com.artista.artista.model.user.User
 import com.artista.artista.model.user.UserPreference
 import com.artista.artista.model.user.UserRepositoryLocal
-import com.artista.artista.model.user.UserRepositoryProvider
 import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaTheme
@@ -69,10 +67,10 @@ private val FieldShape = RoundedCornerShape(percent = 50)
  * compile instead of leaving a logout button that silently does nothing.
  *
  * @param onLogoutClick Callback invoked when the user asks to sign out.
- * @param userProfileViewModel ViewModel providing the profile state. The default one is built from
- *   the shared [AuthRepositoryProvider.repository], to know who is signed in, and
- *   [UserRepositoryProvider.repository], to read and save their username; its failures are shown in
- *   a toast.
+ * @param userProfileViewModel ViewModel providing the profile state. It is built with an auth
+ *   repository, to know who is signed in, and a user repository, to read and save their username;
+ *   its failures are shown in a toast. The app builds it from the shared providers, in
+ *   [com.artista.artista.ArtistaApp].
  * @param onPreferencesClick Callback invoked when the user opens their artist preferences.
  * @param onSavedArtworkClick Callback invoked when the user opens their saved artworks.
  * @param onTabSelected Callback invoked with the destination selected in the bottom navigation.
@@ -81,14 +79,7 @@ private val FieldShape = RoundedCornerShape(percent = 50)
 @Composable
 fun UserProfileScreen(
     onLogoutClick: () -> Unit,
-    userProfileViewModel: UserProfileViewModel =
-        viewModel(
-            factory =
-                UserProfileViewModel.provideFactory(
-                    authRepository = AuthRepositoryProvider.repository,
-                    userRepository = UserRepositoryProvider.repository,
-                )
-        ),
+    userProfileViewModel: UserProfileViewModel,
     onPreferencesClick: () -> Unit = {},
     onSavedArtworkClick: () -> Unit = {},
     onTabSelected: (Tab) -> Unit = {},
