@@ -7,18 +7,18 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
+import com.artista.artista.model.artwork.ArtworkFilter
 import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.SavedArtworksRepository
-import com.artista.artista.ui.error.launchCatching
-import com.artista.artista.ui.error.toMessageRes
-import kotlinx.coroutines.Job
-import com.artista.artista.model.artwork.ArtworkFilter
 import com.artista.artista.model.artwork.SearchArea
 import com.artista.artista.model.artwork.WikiDataRepository
 import com.artista.artista.model.artwork.applyFilter
 import com.artista.artista.model.artwork.artistOptions
 import com.artista.artista.model.artwork.locationOptions
 import com.artista.artista.model.artwork.museumOptions
+import com.artista.artista.ui.error.launchCatching
+import com.artista.artista.ui.error.toMessageRes
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -91,16 +91,16 @@ class OverviewViewModel(
                 radiusKm = 5.0,
             )
         allArtworks = artworkRepository.getArtworksNearLocation(lausanneCenter)
-    _uiState.update { current ->
-      val activeFilter = current.activeFilter
-      current.copy(
-          artworks = allArtworks.applyFilter(activeFilter),
-          artistOptions = artistOptions(allArtworks),
-          museumOptions = museumOptions(allArtworks),
-          locationOptions = locationOptions(allArtworks),
-          errorMessageRes = null,
-      )
-    }
+        _uiState.update { current ->
+          val activeFilter = current.activeFilter
+          current.copy(
+              artworks = allArtworks.applyFilter(activeFilter),
+              artistOptions = artistOptions(allArtworks),
+              museumOptions = museumOptions(allArtworks),
+              locationOptions = locationOptions(allArtworks),
+              errorMessageRes = null,
+          )
+        }
       } catch (_: Exception) {
         // Error classification is not defined yet, so keep this failure handling generic.
         _uiState.update { it.copy(errorMessageRes = R.string.overview_load_error) }
@@ -178,6 +178,8 @@ class OverviewViewModel(
   /** Clears the current saved-artwork error message. */
   fun clearSaveErrorMessage() {
     _uiState.update { it.copy(saveErrorMessageRes = null) }
+  }
+
   /**
    * Applies criteria to the artworks currently loaded by the Overview screen.
    *

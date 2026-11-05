@@ -226,7 +226,7 @@ class OverviewScreenViewModelTest {
               limit: Int,
           ): List<Artwork> = listOf(first, second)
         }
-    val viewModel = OverviewViewModel(repository)
+    val viewModel = OverviewViewModel(repository, ArtworkRepositoryLocal())
 
     advanceUntilIdle()
     viewModel.applyFilter(ArtworkFilter(artists = setOf("Johannes Vermeer")))

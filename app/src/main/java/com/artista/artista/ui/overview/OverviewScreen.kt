@@ -52,6 +52,7 @@ import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkFilter
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
+import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.artwork.mockArtworks
 import com.artista.artista.ui.artwork.ArtworkCard
 import com.artista.artista.ui.artwork.ArtworkFilterDialog
@@ -93,8 +94,8 @@ fun OverviewScreen(
         viewModel(
             factory =
                 OverviewViewModel.provideFactory(
-                    repository = ArtworkRepositoryProvider.repository,
-                    savedArtworksRepository = ArtworkRepositoryProvider.repository,
+                    repository = ArtworkRepositoryProvider.wikiDataRepository,
+                    savedArtworksRepository = ArtworkRepositoryProvider.savedArtworksRepository,
                 )
         ),
     onTabSelected: (Tab) -> Unit = {},

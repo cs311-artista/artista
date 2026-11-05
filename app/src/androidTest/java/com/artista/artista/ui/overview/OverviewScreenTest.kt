@@ -15,9 +15,9 @@ import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.lifecycle.Lifecycle
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
+import androidx.lifecycle.Lifecycle
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.artista.artista.R
 import com.artista.artista.model.artist.Artist
@@ -214,6 +214,8 @@ class OverviewScreenTest {
     composeTestRule.waitUntil(SAVE_OPERATION_TIMEOUT_MILLIS) {
       runBlocking { artwork.uid in repository.getSavedArtworks().map { it.uid } }
     }
+  }
+
   /** Verifies that the filter dialog opens from the Overview action. */
   @Test
   fun overviewScreen_filterButton_opensFilterDialog() {

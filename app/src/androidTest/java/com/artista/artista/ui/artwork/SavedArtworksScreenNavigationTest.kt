@@ -13,12 +13,10 @@ import androidx.navigation.compose.rememberNavController
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.artista.artista.ArtistaApp
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
-import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.artwork.mockArtworks
 import com.artista.artista.ui.navigation.Screen
 import com.artista.artista.ui.profile.UserProfileTestTags
 import kotlinx.coroutines.runBlocking
-import org.junit.After
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -41,21 +39,15 @@ class SavedArtworksScreenNavigationTest {
     const val PROFILE_GRAPH_ROUTE = "profile_graph"
   }
 
-  private lateinit var originalRepository: ArtworkRepositoryLocal
+  private lateinit var repository: ArtworkRepositoryLocal
 
   @Before
   fun setUp() {
-    originalRepository = ArtworkRepositoryProvider.repository
-    ArtworkRepositoryProvider.repository =
-        ArtworkRepositoryLocal().also { repository ->
-          mockArtworks.forEach(repository::putArtworkInRepositoryUnsavedSection)
-          runBlocking { repository.saveArtwork(mockArtworks.first()) }
+    repository =
+        ArtworkRepositoryLocal().also { localRepository ->
+          mockArtworks.forEach(localRepository::putArtworkInRepositoryUnsavedSection)
+          runBlocking { localRepository.saveArtwork(mockArtworks.first()) }
         }
-  }
-
-  @After
-  fun tearDown() {
-    ArtworkRepositoryProvider.repository = originalRepository
   }
 
   /**
@@ -71,6 +63,8 @@ class SavedArtworksScreenNavigationTest {
       ArtistaApp(
           navController = navController,
           startDestination = PROFILE_GRAPH_ROUTE,
+          wikiDataRepository = repository,
+          savedArtworksRepository = repository,
       )
     }
 
@@ -106,6 +100,8 @@ class SavedArtworksScreenNavigationTest {
       ArtistaApp(
           navController = navController,
           startDestination = PROFILE_GRAPH_ROUTE,
+          wikiDataRepository = repository,
+          savedArtworksRepository = repository,
       )
     }
 
