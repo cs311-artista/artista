@@ -93,8 +93,8 @@ class MapViewModelTest {
 
   private fun createViewModel(): MapViewModel =
       MapViewModel(
-          ArtworkRepositoryProvider.wikiDataRepository,
-          ArtworkRepositoryProvider.savedArtworksRepository,
+          ArtworkRepositoryProvider.mockRepository,
+          ArtworkRepositoryProvider.mockRepository,
       )
 
   private fun fakeLocationClient(location: Location?): FusedLocationProviderClient =
