@@ -23,6 +23,7 @@
     <string name="artwork_card_map">Map</string>
     <string name="artwork_card_save">Save</string>
     <string name="artwork_card_saved">Saved</string>
+    <string name="artwork_card_image_description">Image of %1$s</string>
     <string name="back">Back</string>
     <!-- User profile screen -->
     <string name="profile_logout">Logout</string>

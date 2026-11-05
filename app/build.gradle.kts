@@ -216,6 +216,12 @@ dependencies {
   implementation(libs.maps.compose)
   implementation(libs.play.services.location)
 
+  // ---------------- Coil image loading ----------------
+  // Loads artwork images from Wikimedia Commons, reusing OkHttp for the network layer.
+  implementation(libs.coil.compose)
+  implementation(libs.coil.network.okhttp)
+  testImplementation(libs.coil.test)
+
   // --------- Kaspresso test framework ----------
   globalTestImplementation(libs.kaspresso)
   globalTestImplementation(libs.kaspresso.compose)

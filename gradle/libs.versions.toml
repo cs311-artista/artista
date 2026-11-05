@@ -20,6 +20,9 @@ lifecycleRuntimeKtx = "2.11.0"
 mapsCompose = "9.0.0"
 playServicesLocation = "21.3.0"
 
+# Image loading
+coil = "3.6.3"
+
 # Firebase
 # Every com.google.firebase artifact is versioned by this BOM. KTX artifacts were removed
 # from the BOM in 34.0.0 - their APIs now live in the main artifacts.
@@ -93,6 +96,11 @@ androidx-espresso-intents = { group = "androidx.test.espresso", name = "espresso
 # Google Maps
 maps-compose = { group = "com.google.maps.android", name = "maps-compose", version.ref = "mapsCompose" }
 play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playServicesLocation" }
+
+# Image loading
+coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }
+coil-network-okhttp = { group = "io.coil-kt.coil3", name = "coil-network-okhttp", version.ref = "coil" }
+coil-test = { group = "io.coil-kt.coil3", name = "coil-test", version.ref = "coil" }
 
 # Additional test libraries
 junit = { group = "junit", name = "junit", version.ref = "junit" }

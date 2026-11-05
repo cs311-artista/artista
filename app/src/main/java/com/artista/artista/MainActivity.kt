@@ -20,9 +20,11 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.navigation.navigation
+import coil3.compose.setSingletonImageLoaderFactory
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.artwork.SavedArtworksRepository
 import com.artista.artista.model.artwork.WikiDataRepository
+import com.artista.artista.model.artwork.createArtworkImageLoader
 import com.artista.artista.model.artwork.mockArtworks
 import com.artista.artista.resources.C
 import com.artista.artista.ui.artwork.ArtworkScreen
@@ -46,6 +48,7 @@ import com.artista.artista.ui.search.SearchScreenViewModel
 import com.artista.artista.ui.theme.ArtistaTheme
 
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 /**
  * Hosts the Artista app's root navigation graph.
  *
@@ -62,6 +65,9 @@ class MainActivity : ComponentActivity() {
     super.onCreate(savedInstanceState)
 
     setContent {
+      // Makes our image loader the app-wide default, so every AsyncImage uses it without being
+      // given it. Its Artista user agent is what lets Wikimedia accept the image requests.
+      setSingletonImageLoaderFactory { context -> createArtworkImageLoader(context) }
       ArtistaTheme {
         Surface(
             modifier = Modifier.fillMaxSize().semantics { testTag = C.Tag.main_screen_container },
