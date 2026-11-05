@@ -15,7 +15,13 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 
 /**
- * Wikidata property identifiers used by the repository queries.
+ * User agent sent with every request to Wikimedia services (Wikidata and Commons). Wikimedia's
+ * user-agent policy rejects generic clients, so requests identify the app and link to its project.
+ */
+const val WIKIMEDIA_USER_AGENT = "Artista/1.0 (https://github.com/cs311-artista/artista)"
+
+/**
+ * Constants for Wikidata item identifiers.
  *
  * Each value maps to a WikiData P-number used in SPARQL filters and OPTIONAL clauses.
  *
@@ -300,7 +306,7 @@ class WikiDataRepositoryRemote(
             Request.Builder()
                 .url(url)
                 .header("Accept", "application/sparql-results+json")
-                .header("User-Agent", "Artista/1.0 (https://github.com/cs311-artista/artista)")
+                .header("User-Agent", WIKIMEDIA_USER_AGENT)
                 .get()
                 .build()
 

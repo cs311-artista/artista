@@ -10,10 +10,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.outlined.BookmarkBorder
+import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -23,14 +25,21 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import coil3.compose.AsyncImage
+import coil3.compose.AsyncImagePainter
 import com.artista.artista.R
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.Artwork
@@ -44,6 +53,7 @@ import java.util.Date
 object ArtworkCardTestTag {
   const val ARTWORK_CARD = "artwork_card"
   const val ARTWORK_CARD_THUMBNAIL = "artwork_card_thumbnail"
+  const val ARTWORK_CARD_IMAGE_FALLBACK = "artwork_card_image_fallback"
   const val ARTWORK_CARD_TITLE = "artwork_card_title"
   const val ARTWORK_CARD_ARTIST = "artwork_card_artist"
   const val ARTWORK_CARD_MAP_BUTTON = "artwork_card_map_button"
@@ -53,6 +63,9 @@ object ArtworkCardTestTag {
 /**
  * Displays an artwork thumbnail, its name and creator, and actions for navigation and saving.
  *
+ * The thumbnail is downloaded from [Artwork.imageUrl]. A fallback icon is shown while it loads, if
+ * the download fails, or if the artwork has no image.
+ *
  * @param artwork artwork whose details should be displayed
  * @param isSaved whether this artwork is currently saved (responsibility of the caller to ensure
  *   this reflects the current state)
@@ -61,7 +74,7 @@ object ArtworkCardTestTag {
  * @param onSaveClick called with the artwork when the save action is selected
  * @param modifier modifier applied to the card
  * @param testTagSuffix optional suffix for distinguishing repeated cards in a list
- * @author IJJA3141
+ * @author IJJA3141, Timz3rr
  */
 @Composable
 fun ArtworkCard(
@@ -78,6 +91,10 @@ fun ArtworkCard(
   fun testTag(tag: String): String =
       if (testTagSuffix.isNullOrBlank()) tag else "${tag}_$testTagSuffix"
 
+  // Computed once because both the title text and the image description use it, so they always
+  // name the artwork the same way, falling back to "Untitled" when Wikidata gives no name.
+  val title = artwork.name ?: stringResource(R.string.artwork_unknown_title)
+
   Card(
       onClick = { onArtworkClick(artwork) },
       modifier = modifier.fillMaxWidth().testTag(testTag(ArtworkCardTestTag.ARTWORK_CARD)),
@@ -93,18 +110,40 @@ fun ArtworkCard(
                   .clip(RoundedCornerShape(Dimensions.cornerRadiusSmall)),
           color = MaterialTheme.colorScheme.surfaceVariant,
       ) {
+        // Reset when the link changes, so a recycled card never keeps the previous artwork's state.
+        var isImageLoaded by remember(artwork.imageUrl) { mutableStateOf(false) }
+
         Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center,
         ) {
-          // Placeholder for artwork thumbnail or image
-          // TODO: Load and display the artwork image
-          Text(
-              text = "Picture/thumbnail Placeholder",
-              modifier = Modifier.testTag(testTag(ArtworkCardTestTag.ARTWORK_CARD_THUMBNAIL)),
-              style = MaterialTheme.typography.bodyMedium,
-              color = MaterialTheme.colorScheme.onSurfaceVariant,
-          )
+          // Case 1: the artwork has an image link. Coil downloads it and reports each state change,
+          // so the fallback icon below can hide once the image is ready. Without a link, nothing
+          // is requested. Crop fills the whole area, since paintings come in many aspect ratios.
+          if (artwork.imageUrl != null) {
+            AsyncImage(
+                model = artwork.imageUrl,
+                contentDescription = stringResource(R.string.artwork_card_image_description, title),
+                modifier =
+                    Modifier.fillMaxSize()
+                        .testTag(testTag(ArtworkCardTestTag.ARTWORK_CARD_THUMBNAIL)),
+                contentScale = ContentScale.Crop,
+                onState = { state -> isImageLoaded = state is AsyncImagePainter.State.Success },
+            )
+          }
+          // Case 2: no image to show yet. The Box stacks this icon over the image area, and it
+          // covers loading, failed downloads and missing links alike: in every case the user has
+          // nothing to look at yet, and an empty grey box would look broken.
+          if (!isImageLoaded) {
+            Icon(
+                imageVector = Icons.Outlined.Image,
+                contentDescription = null,
+                modifier =
+                    Modifier.size(Dimensions.artworkCardImageFallbackIconSize)
+                        .testTag(testTag(ArtworkCardTestTag.ARTWORK_CARD_IMAGE_FALLBACK)),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+          }
         }
       }
 
@@ -115,7 +154,7 @@ fun ArtworkCard(
           verticalArrangement = Arrangement.spacedBy(Dimensions.artworkCardTextSpacing),
       ) {
         Text(
-            text = artwork.name ?: stringResource(R.string.artwork_unknown_title),
+            text = title,
             modifier =
                 Modifier.fillMaxWidth().testTag(testTag(ArtworkCardTestTag.ARTWORK_CARD_TITLE)),
             style = MaterialTheme.typography.titleLarge,
@@ -178,7 +217,7 @@ fun ArtworkCard(
 /** Previews [ArtworkCard] with representative artwork details. */
 @Preview(showBackground = true)
 @Composable
-private fun ArtworkCardPreview() {
+internal fun ArtworkCardPreview() {
   val artwork =
       Artwork(
           uid = "monaLisa",

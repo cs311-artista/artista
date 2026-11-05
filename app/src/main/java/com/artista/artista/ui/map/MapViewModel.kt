@@ -6,7 +6,10 @@ import android.location.Location
 import androidx.annotation.StringRes
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import com.artista.artista.R
+import com.artista.artista.model.artwork.SavedArtworksRepository
+import com.artista.artista.model.artwork.WikiDataRepository
 import com.artista.artista.model.map.UserLocation
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.Priority
@@ -42,6 +45,8 @@ data class MapViewUiState(
  * @author Felix Burchardt
  */
 class MapViewModel(
+    private val wikiDataRepository: WikiDataRepository,
+    private val savedArtworksRepository: SavedArtworksRepository,
     private val locationProvider: LocationProvider? = null,
 ) : ViewModel() {
 
@@ -113,7 +118,29 @@ class MapViewModel(
     }
   }
 
-  private companion object {
+  companion object {
+    /**
+     * Creates a factory for a map ViewModel with its repository dependencies.
+     *
+     * @param wikiDataRepository repository used for artwork data
+     * @param savedArtworksRepository repository used for saved artworks
+     * @return factory that creates [MapViewModel] instances
+     * @author Felix Burchardt
+     */
+    fun provideFactory(
+        wikiDataRepository: WikiDataRepository,
+        savedArtworksRepository: SavedArtworksRepository,
+    ): ViewModelProvider.Factory =
+        object : ViewModelProvider.Factory {
+          @Suppress("UNCHECKED_CAST")
+          override fun <T : ViewModel> create(modelClass: Class<T>): T {
+            if (modelClass.isAssignableFrom(MapViewModel::class.java)) {
+              return MapViewModel(wikiDataRepository, savedArtworksRepository) as T
+            }
+            throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
+          }
+        }
+
     val DIRECT_EXECUTOR = Executor { command -> command.run() }
   }
 }

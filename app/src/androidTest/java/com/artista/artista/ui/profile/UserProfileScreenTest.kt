@@ -1,3 +1,4 @@
+// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 package com.artista.artista.ui.profile
 
 import androidx.activity.ComponentActivity
@@ -41,6 +42,23 @@ import org.junit.runner.RunWith
 class UserProfileScreenTest {
 
   @get:Rule val composeTestRule = createAndroidComposeRule<ComponentActivity>()
+
+  /** Verifies that the profile preview renders the profile and username. */
+  @Test
+  fun userProfileScreenPreview_displaysSampleProfile() {
+    composeTestRule.setContent { UserProfileScreenPreview() }
+
+    composeTestRule.onNodeWithTag(UserProfileTestTags.SCREEN).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME).assertIsDisplayed()
+  }
+
+  /** Verifies that the username-dialog preview renders its dialog. */
+  @Test
+  fun editUsernameDialogPreview_displaysDialog() {
+    composeTestRule.setContent { EditUsernameDialogPreview() }
+
+    composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME_DIALOG).assertIsDisplayed()
+  }
 
   /** Verifies that every element of the profile screen is displayed. */
   @Test

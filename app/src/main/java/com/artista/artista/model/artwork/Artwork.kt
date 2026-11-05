@@ -1,3 +1,4 @@
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.model.artwork
 
 import com.artista.artista.model.artist.Artist
@@ -18,7 +19,9 @@ import java.util.Date
  * @property museum The optional museum where the artwork is exhibited.
  * @property location The optional location associated with the artwork.
  * @property dimension The optional physical dimensions of the artwork.
- * @author 5kyPhy, patrickmcdan, krfpn
+ * @property imageUrl The optional https link to a thumbnail of the artwork. If *null*, the API
+ *   provided no image and the UI shows a fallback instead.
+ * @author 5kyPhy, patrickmcdan, krfpn, Timz3rr
  */
 data class Artwork(
     val uid: ArtworkId,
@@ -29,6 +32,8 @@ data class Artwork(
     val museum: String?,
     val location: Location?,
     val dimension: Dimension?,
+    // Defaults to null so that existing artworks and mocks without an image keep compiling.
+    val imageUrl: String? = null,
 )
 
 typealias ArtworkId = String

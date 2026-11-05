@@ -39,12 +39,15 @@ import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.ui.tooling.preview.Preview
 import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
+import com.artista.artista.model.artwork.ArtworkRepositoryProvider
+import com.artista.artista.model.artwork.mockArtworks
 import com.artista.artista.model.map.Location
 import com.artista.artista.resources.C
 import com.artista.artista.ui.navigation.BackButton
+import com.artista.artista.ui.theme.ArtistaTheme
 import com.artista.artista.ui.theme.Dimensions
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
@@ -86,8 +89,8 @@ object ArtworkTestTags {
 fun ArtworkScreen(
     artwork: Artwork,
     modifier: Modifier = Modifier,
-    artworkScreenViewModel: ArtworkScreenViewModel = viewModel(),
-    onBackClick: () -> Unit = {},
+    artworkScreenViewModel: ArtworkScreenViewModel,
+    onBackClick: () -> Unit,
 ) {
   // uid or name would work the same here; uid is used only for consistency.
   LaunchedEffect(artwork.uid) { artworkScreenViewModel.setArtwork(artwork) }
@@ -326,50 +329,19 @@ fun MapTile(
   }
 }
 
-/// **
-// * Compose preview displaying a sample Leonardo da Vinci artwork entry inside
-// [ArtworkScreen][cite:
-// * 1].
-// *
-// * @author hixeum
-// */
-// @SuppressLint("ViewModelConstructorInComposable")
-// @Preview
-// @Composable
-// fun ArtworkPreview() {
-//  val monaLisaDate: Date =
-//      Calendar.getInstance()
-//          .apply {
-//            clear()
-//            set(Calendar.YEAR, 1503)
-//          }
-//          .time
-//
-//  val sampleArtwork =
-//      Artwork(
-//          name = "Mona Lisa",
-//          artist = Artist(uid = "preview-da-vinci", name = "Leonardo da Vinci"),
-//          description = "A portrait of Lisa Gherardini, wife of Francesco del Giocondo.",
-//          conceptionDate = monaLisaDate,
-//          museum = "Musée du Louvre",
-//          location = null,
-//          dimension = null,
-//      )
-//
-//  // Stubbed implementation to satisfy ViewModel construction in Compose Preview
-//  val stubRepo =
-//      object : ArtworkRepository {
-//        override suspend fun isArtworkSaved(artworkName: String) = true
-//
-//        override suspend fun saveArtwork(artwork: Artwork) {}
-//
-//        override suspend fun removeArtwork(artworkName: String) {}
-//      }
-//
-//  ArtistaTheme {
-//    ArtworkScreen(
-//        artwork = sampleArtwork,
-//        artworkScreenViewModel = ArtworkScreenViewModel(stubRepo),
-//    )
-//  }
-// }
+/** Previews [ArtworkScreen] with a representative artwork from [mockArtworks]. */
+@Preview
+@Composable
+internal fun ArtworkPreview() {
+  val sampleArtwork = mockArtworks.first()
+
+  ArtistaTheme {
+    ArtworkScreen(
+        artwork = sampleArtwork,
+        artworkScreenViewModel =
+            remember { ArtworkScreenViewModel(ArtworkRepositoryProvider.mockRepository) },
+        modifier = Modifier,
+        onBackClick = {},
+    )
+  }
+}

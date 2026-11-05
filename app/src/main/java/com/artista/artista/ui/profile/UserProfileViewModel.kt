@@ -258,4 +258,23 @@ class UserProfileViewModel(
           }
         }
   }
+
+  companion object {
+    /**
+     * Creates a factory for a user profile ViewModel.
+     *
+     * @return factory that creates [UserProfileViewModel] instances
+     * @author 5kyPhy
+     */
+    fun provideFactory(): ViewModelProvider.Factory =
+        object : ViewModelProvider.Factory {
+          @Suppress("UNCHECKED_CAST")
+          override fun <T : ViewModel> create(modelClass: Class<T>): T {
+            if (modelClass.isAssignableFrom(UserProfileViewModel::class.java)) {
+              return UserProfileViewModel() as T
+            }
+            throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
+          }
+        }
+  }
 }

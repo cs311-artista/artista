@@ -1,5 +1,6 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 // Co-authored-by: Qwen2.5-coder
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.model.artwork
 
 import com.artista.artista.model.artist.Artist
@@ -9,6 +10,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
 import java.util.Date
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.json.JSONException
 import org.json.JSONObject
 
@@ -52,6 +54,9 @@ open class JsonResponseParser {
       val width = binding.optJSONObject("width")
       val height = binding.optJSONObject("height")
       val description = binding.optJSONObject("description")
+      // Many artworks have no image on Wikidata, and the binding is then missing, null or an
+      // empty string: optJSONObject returns null in all three cases instead of throwing.
+      val image = binding.optJSONObject("image")
 
       val uid = item?.getString("value")?.substringAfterLast('/') ?: continue
       val name = itemLabel?.getString("value") ?: continue
@@ -77,6 +82,9 @@ open class JsonResponseParser {
           } else {
             null
           }
+      // The raw Commons link cannot be loaded as is (http, full resolution), so it goes through
+      // parseImageUrl. A missing image stays null and the card shows its fallback icon.
+      val imageUrl = image?.optString("value")?.let(::parseImageUrl)
 
       artworks.add(
           Artwork(
@@ -88,6 +96,7 @@ open class JsonResponseParser {
               museum = museum,
               location = location,
               dimension = dimension,
+              imageUrl = imageUrl,
           )
       )
     }
@@ -118,7 +127,56 @@ open class JsonResponseParser {
     }
   }
 
+  /**
+   * Turns the Wikimedia Commons link of an artwork image into a link the app can load.
+   *
+   * Wikidata returns http links, which Android blocks by default, so the scheme is upgraded to
+   * https. Commons serves the full-resolution file unless asked otherwise, and some paintings weigh
+   * tens of megabytes, so a thumbnail width is requested instead.
+   *
+   * A well-formed binding carries the image link in its `value` field:
+   * ```
+   * "image": { "type": "uri", "value": "http://commons.wikimedia.org/.../Mona%20Lisa.jpg" }
+   * ```
+   *
+   * A malformed binding has an empty `value`, none at all, or one that is not an http(s) link:
+   * ```
+   * "image": { "type": "uri", "value": "" }
+   * "image": { "type": "uri" }
+   * "image": { "type": "uri", "value": "not a url" }
+   * ```
+   *
+   * An artwork without an image normally has no `image` binding at all, so this function is not
+   * called for it.
+   *
+   * @param value raw image link from the Wikidata `image` binding
+   * @return the https thumbnail link, or null when [value] is not a valid http(s) link, which only
+   *   happens with a malformed binding
+   * @author Timz3rr
+   */
+  private fun parseImageUrl(value: String): String? =
+      // HttpUrl parses the link instead of editing it as text: an invalid link gives null, and the
+      // width is merged with any query the link already has. setQueryParameter, unlike
+      // addQueryParameter, replaces a width already present instead of sending it twice.
+      value
+          .trim()
+          .toHttpUrlOrNull()
+          ?.newBuilder()
+          ?.scheme("https")
+          ?.setQueryParameter("width", THUMBNAIL_WIDTH_PX.toString())
+          ?.build()
+          ?.toString()
+
   private companion object {
+    /**
+     * Width of the requested thumbnails, in pixels. It covers a full-width card on common phone
+     * screens without downloading the original file.
+     *
+     * It stays here rather than in `ui/theme/Dimensions.kt`: it is a pixel count sent to Commons in
+     * the image link, not a layout size in dp, and the model must not depend on the UI layer.
+     */
+    const val THUMBNAIL_WIDTH_PX = 800
+
     val POINT_PATTERN = Regex("""Point\(\s*(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)\s*\)""")
   }
 }

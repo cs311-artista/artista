@@ -16,14 +16,12 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.artista.artista.ArtistaApp
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
-import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.artwork.mockArtworks
 import com.artista.artista.ui.artwork.ArtworkCardTestTag
 import com.artista.artista.ui.artwork.ArtworkTestTags
 import com.artista.artista.ui.map.MapScreenTestTags
 import com.artista.artista.ui.map.REQUIRED_LOCATION_PERMISSIONS
 import com.artista.artista.ui.navigation.Screen
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Rule
@@ -38,7 +36,7 @@ import org.junit.runner.RunWith
  */
 @RunWith(AndroidJUnit4::class)
 class OverviewScreenNavigationTest {
-  private lateinit var originalRepository: ArtworkRepositoryLocal
+  private lateinit var repository: ArtworkRepositoryLocal
 
   /**
    * Gives each test its own seeded repository, so results do not depend on test order or on state
@@ -48,21 +46,10 @@ class OverviewScreenNavigationTest {
    */
   @Before
   fun setUp() {
-    originalRepository = ArtworkRepositoryProvider.repository
-    ArtworkRepositoryProvider.repository =
-        ArtworkRepositoryLocal().also { repository ->
-          mockArtworks.forEach { repository.putArtworkInRepositoryUnsavedSection(it) }
+    repository =
+        ArtworkRepositoryLocal().also { localRepository ->
+          mockArtworks.forEach { localRepository.putArtworkInRepositoryUnsavedSection(it) }
         }
-  }
-
-  /**
-   * Restores the shared repository so other tests are not affected.
-   *
-   * @author patrickmcdan
-   */
-  @After
-  fun tearDown() {
-    ArtworkRepositoryProvider.repository = originalRepository
   }
 
   @get:Rule val composeTestRule = createAndroidComposeRule<ComponentActivity>()
@@ -80,6 +67,8 @@ class OverviewScreenNavigationTest {
       ArtistaApp(
           navController = navController,
           startDestination = OVERVIEW_GRAPH_ROUTE,
+          wikiDataRepository = repository,
+          savedArtworksRepository = repository,
       )
     }
 
@@ -114,6 +103,8 @@ class OverviewScreenNavigationTest {
         ArtistaApp(
             navController = navController,
             startDestination = OVERVIEW_GRAPH_ROUTE,
+            wikiDataRepository = repository,
+            savedArtworksRepository = repository,
         )
       }
 
@@ -146,6 +137,8 @@ class OverviewScreenNavigationTest {
       ArtistaApp(
           navController = navController,
           startDestination = OVERVIEW_GRAPH_ROUTE,
+          wikiDataRepository = repository,
+          savedArtworksRepository = repository,
       )
     }
 

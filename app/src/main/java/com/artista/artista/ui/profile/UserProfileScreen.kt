@@ -45,7 +45,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.artista.artista.R
 import com.artista.artista.model.authentication.AuthRepository
 import com.artista.artista.model.authentication.AuthRepositoryProvider
@@ -389,7 +388,7 @@ private fun EditUsernameDialog(
 /** Previews the user profile screen with a sample user in Android Studio. */
 @Preview(showBackground = true)
 @Composable
-private fun UserProfileScreenPreview() {
+internal fun UserProfileScreenPreview() {
   val viewModel = remember {
     UserProfileViewModel(PreviewAuthRepository, UserRepositoryLocal()).apply {
       setUser(User(uid = "preview", userName = "Artista Fan", preference = UserPreference()))
@@ -418,6 +417,6 @@ private object PreviewAuthRepository : AuthRepository {
 /** Previews the username edit dialog in Android Studio. */
 @Preview(showBackground = true)
 @Composable
-private fun EditUsernameDialogPreview() {
+internal fun EditUsernameDialogPreview() {
   ArtistaTheme { EditUsernameDialog(initialUsername = "Artista Fan", onSave = {}, onDismiss = {}) }
 }
