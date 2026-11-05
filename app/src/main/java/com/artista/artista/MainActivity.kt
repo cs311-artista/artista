@@ -22,9 +22,9 @@ import androidx.navigation.navArgument
 import androidx.navigation.navigation
 import coil3.compose.setSingletonImageLoaderFactory
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
-import com.artista.artista.model.artwork.createArtworkImageLoader
 import com.artista.artista.model.artwork.SavedArtworksRepository
 import com.artista.artista.model.artwork.WikiDataRepository
+import com.artista.artista.model.artwork.createArtworkImageLoader
 import com.artista.artista.model.artwork.mockArtworks
 import com.artista.artista.resources.C
 import com.artista.artista.ui.artwork.ArtworkScreen
