@@ -232,9 +232,10 @@ private fun DisplayArtworkMarker(
     markerType: MarkerType,
 ) {
   artwork.location?.let {
-    val artworkMarkerState = remember {
-      MarkerState(position = LatLng(artwork.location.latitude, artwork.location.longitude))
-    }
+    val artworkMarkerState =
+        remember(key1 = artwork.uid) {
+          MarkerState(position = LatLng(artwork.location.latitude, artwork.location.longitude))
+        }
     Marker(
         tag = markerTag(markerType),
         state = artworkMarkerState,
