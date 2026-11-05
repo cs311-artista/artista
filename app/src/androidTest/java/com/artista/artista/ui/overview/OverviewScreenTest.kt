@@ -15,6 +15,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.lifecycle.Lifecycle
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.artista.artista.R
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
@@ -154,11 +155,15 @@ class OverviewScreenTest {
       }
     }
 
-    val saveButtonTag = ArtworkCardTestTag.ARTWORK_CARD_SAVE_BUTTON
-    composeTestRule.onNodeWithTag(saveButtonTag).assertTextContains("Save").performClick()
+    composeTestRule
+        .onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD_SAVE_BUTTON)
+        .assertTextContains(composeTestRule.activity.getString(R.string.artwork_card_save))
+        .performClick()
     composeTestRule.waitForIdle()
     assertTrue(viewModel.uiState.value.saveErrorMessageRes == null)
-    composeTestRule.onNodeWithTag(saveButtonTag).assertTextContains("Save")
+    composeTestRule
+        .onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD_SAVE_BUTTON)
+        .assertTextContains(composeTestRule.activity.getString(R.string.artwork_card_save))
   }
 
   /**
@@ -219,14 +224,17 @@ class OverviewScreenTest {
       }
     }
 
-    val saveButtonTag = ArtworkCardTestTag.ARTWORK_CARD_SAVE_BUTTON
-    composeTestRule.onNodeWithTag(saveButtonTag).assertTextContains("Save")
+    composeTestRule
+        .onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD_SAVE_BUTTON)
+        .assertTextContains(composeTestRule.activity.getString(R.string.artwork_card_save))
 
     composeTestRule.activityRule.scenario.moveToState(Lifecycle.State.CREATED)
     runBlocking { repository.saveArtwork(artwork) }
     composeTestRule.activityRule.scenario.moveToState(Lifecycle.State.RESUMED)
 
-    composeTestRule.onNodeWithTag(saveButtonTag).assertTextContains("Saved")
+    composeTestRule
+        .onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD_SAVE_BUTTON)
+        .assertTextContains(composeTestRule.activity.getString(R.string.artwork_card_saved))
     composeTestRule.waitUntil(SAVE_OPERATION_TIMEOUT_MILLIS) {
       runBlocking { artwork.uid in repository.getSavedArtworks().map { it.uid } }
     }
