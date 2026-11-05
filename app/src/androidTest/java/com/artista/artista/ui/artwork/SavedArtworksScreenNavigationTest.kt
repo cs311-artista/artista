@@ -36,6 +36,11 @@ class SavedArtworksScreenNavigationTest {
 
   @get:Rule val composeTestRule = createAndroidComposeRule<ComponentActivity>()
 
+  private companion object {
+    const val NAVIGATION_TIMEOUT_MILLIS = 5_000L
+    const val PROFILE_GRAPH_ROUTE = "profile_graph"
+  }
+
   private lateinit var originalRepository: ArtworkRepositoryLocal
 
   @Before
@@ -75,7 +80,7 @@ class SavedArtworksScreenNavigationTest {
         .performScrollTo()
         .assertIsDisplayed()
         .performClick()
-    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+    composeTestRule.waitUntil(timeoutMillis = NAVIGATION_TIMEOUT_MILLIS) {
       composeTestRule.runOnUiThread { navController.currentDestination?.route } ==
           Screen.SavedArtworks.route
     }
@@ -85,7 +90,7 @@ class SavedArtworksScreenNavigationTest {
         .onNodeWithTag(SavedArtworksTestTags.BACK_BUTTON)
         .assertIsDisplayed()
         .performClick()
-    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+    composeTestRule.waitUntil(timeoutMillis = NAVIGATION_TIMEOUT_MILLIS) {
       composeTestRule.runOnUiThread { navController.currentDestination?.route } ==
           Screen.Profile.route
     }
@@ -108,12 +113,12 @@ class SavedArtworksScreenNavigationTest {
         .onNodeWithTag(UserProfileTestTags.SAVED_ARTWORK_BUTTON)
         .performScrollTo()
         .performClick()
-    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+    composeTestRule.waitUntil(timeoutMillis = NAVIGATION_TIMEOUT_MILLIS) {
       composeTestRule.runOnUiThread { navController.currentDestination?.route } ==
           Screen.SavedArtworks.route
     }
     val artworkCard = SavedArtworksTestTags.card(artwork)
-    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+    composeTestRule.waitUntil(timeoutMillis = NAVIGATION_TIMEOUT_MILLIS) {
       composeTestRule.onAllNodesWithTag(artworkCard).fetchSemanticsNodes().isNotEmpty()
     }
     composeTestRule.onNodeWithTag(artworkCard).performClick()
@@ -125,9 +130,5 @@ class SavedArtworksScreenNavigationTest {
     composeTestRule.runOnIdle {
       assertTrue(navController.currentDestination?.route == Screen.ArtworkDetails.route)
     }
-  }
-
-  private companion object {
-    const val PROFILE_GRAPH_ROUTE = "profile_graph"
   }
 }
