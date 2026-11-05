@@ -1,3 +1,4 @@
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista
 
 import android.os.Bundle
@@ -10,8 +11,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.testTag
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -20,24 +19,36 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.navigation.navigation
+import coil3.compose.setSingletonImageLoaderFactory
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
+import com.artista.artista.model.artwork.SavedArtworksRepository
+import com.artista.artista.model.artwork.WikiDataRepository
+import com.artista.artista.model.artwork.createArtworkImageLoader
 import com.artista.artista.model.artwork.mockArtworks
-import com.artista.artista.resources.C
+import com.artista.artista.model.authentication.AuthRepositoryProvider
+import com.artista.artista.model.user.UserRepositoryProvider
 import com.artista.artista.ui.artwork.ArtworkScreen
 import com.artista.artista.ui.artwork.ArtworkScreenViewModel
 import com.artista.artista.ui.artwork.SavedArtworksScreen
+import com.artista.artista.ui.artwork.SavedArtworksViewModel
 import com.artista.artista.ui.authentication.AuthScreenContent
 import com.artista.artista.ui.authentication.AuthUiState
 import com.artista.artista.ui.map.MapScreen
+import com.artista.artista.ui.map.MapViewModel
 import com.artista.artista.ui.navigation.NavigationActions
 import com.artista.artista.ui.navigation.Screen
 import com.artista.artista.ui.overview.OverviewScreen
+import com.artista.artista.ui.overview.OverviewViewModel
 import com.artista.artista.ui.preferences.ArtistPreferencesScreen
+import com.artista.artista.ui.preferences.ArtistPreferencesViewModel
 import com.artista.artista.ui.profile.UserProfileScreen
+import com.artista.artista.ui.profile.UserProfileViewModel
 import com.artista.artista.ui.search.SearchScreen
+import com.artista.artista.ui.search.SearchScreenViewModel
 import com.artista.artista.ui.theme.ArtistaTheme
 
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 /**
  * Hosts the Artista app's root navigation graph.
  *
@@ -53,28 +64,19 @@ class MainActivity : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
 
-    // Demo data: Overview reads from ArtworkRepositoryProvider, which starts empty.
-    // TODO: remove once a real WikiData repository replaces the local mock.
-    if (!isRepositorySeeded) {
-      ArtworkRepositoryProvider.populateAPI()
-      isRepositorySeeded = true
-    }
-
     setContent {
+      // Makes our image loader the app-wide default, so every AsyncImage uses it without being
+      // given it. Its Artista user agent is what lets Wikimedia accept the image requests.
+      setSingletonImageLoaderFactory { context -> createArtworkImageLoader(context) }
       ArtistaTheme {
         Surface(
-            modifier = Modifier.fillMaxSize().semantics { testTag = C.Tag.main_screen_container },
+            modifier = Modifier.fillMaxSize(),
             color = MaterialTheme.colorScheme.background,
         ) {
           ArtistaApp()
         }
       }
     }
-  }
-
-  private companion object {
-    /** Whether the repository was already seeded in this process; seeding twice throws. */
-    var isRepositorySeeded = false
   }
 }
 
@@ -89,6 +91,9 @@ class MainActivity : ComponentActivity() {
 fun ArtistaApp(
     navController: NavHostController = rememberNavController(),
     startDestination: String = Screen.Auth.route,
+    wikiDataRepository: WikiDataRepository = ArtworkRepositoryProvider.wikiDataRepository,
+    savedArtworksRepository: SavedArtworksRepository =
+        ArtworkRepositoryProvider.savedArtworksRepository,
 ) {
   val navigationActions = remember { NavigationActions(navController) }
 
@@ -115,6 +120,7 @@ fun ArtistaApp(
     ) {
       composable(Screen.Overview.route) {
         OverviewScreen(
+            viewModel = viewModel(factory = OverviewViewModel.provideFactory(wikiDataRepository)),
             onTabSelected = { tab -> navigationActions.navigateTo(tab.destination) },
             onArtworkClick = { artwork ->
               navController.navigate(Screen.ArtworkDetails.createRoute(artwork.uid))
@@ -125,6 +131,14 @@ fun ArtistaApp(
       }
       composable(Screen.Search.route) {
         SearchScreen(
+            viewModel =
+                viewModel(
+                    factory =
+                        SearchScreenViewModel.provideFactory(
+                            savedArtworksRepository,
+                            wikiDataRepository,
+                        )
+                ),
             onTabSelected = { tab -> navigationActions.navigateTo(tab.destination) },
             onArtworkClick = { artwork ->
               navController.navigate(Screen.ArtworkDetails.createRoute(artwork.uid))
@@ -143,7 +157,12 @@ fun ArtistaApp(
     ) {
       composable(Screen.Map.route) {
         MapScreen(
-            onNavigationBarTabSelected = { tab -> navigationActions.navigateTo(tab.destination) }
+            mapViewModel =
+                viewModel(
+                    factory =
+                        MapViewModel.provideFactory(wikiDataRepository, savedArtworksRepository)
+                ),
+            onNavigationBarTabSelected = { tab -> navigationActions.navigateTo(tab.destination) },
         )
       }
     }
@@ -155,6 +174,14 @@ fun ArtistaApp(
     ) {
       composable(Screen.Profile.route) {
         UserProfileScreen(
+            userProfileViewModel =
+                viewModel(
+                    factory =
+                        UserProfileViewModel.provideFactory(
+                            authRepository = AuthRepositoryProvider.repository,
+                            userRepository = UserRepositoryProvider.repository,
+                        )
+                ),
             onLogoutClick = {
               navController.navigate(Screen.Auth.route) {
                 popUpTo(0) { inclusive = true }
@@ -168,6 +195,8 @@ fun ArtistaApp(
       }
       composable(Screen.ArtistPreferences.route) {
         ArtistPreferencesScreen(
+            artistPreferencesViewModel =
+                viewModel(factory = ArtistPreferencesViewModel.provideFactory(wikiDataRepository)),
             onBackClick = { navigationActions.goBack() },
             // TODO: implement the logic for saving preferences (now it's just a placeholder)
             onSaveClick = { navigationActions.goBack() },
@@ -179,6 +208,8 @@ fun ArtistaApp(
     // Shared Screens
     composable(Screen.SavedArtworks.route) {
       SavedArtworksScreen(
+          viewModel =
+              viewModel(factory = SavedArtworksViewModel.provideFactory(savedArtworksRepository)),
           onBackClick = { navigationActions.goBack() },
           onArtworkDetailsClick = { artwork ->
             navController.navigate(Screen.ArtworkDetails.createRoute(artwork.uid))
@@ -199,12 +230,7 @@ fun ArtistaApp(
         ArtworkScreen(
             artwork = artwork,
             artworkScreenViewModel =
-                viewModel(
-                    factory =
-                        ArtworkScreenViewModel.provideFactory(
-                            repository = ArtworkRepositoryProvider.repository,
-                        )
-                ),
+                viewModel(factory = ArtworkScreenViewModel.provideFactory(savedArtworksRepository)),
             onBackClick = { navController.popBackStack() },
         )
       }

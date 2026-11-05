@@ -11,7 +11,7 @@ package com.artista.artista.model.error
  *
  * @param message details about the failure, meant for logs and never shown to the user, if any
  * @param cause the original failure, if any, kept so logs show where it came from
- * @author Timz3rr
+ * @author Timz3rr, patrickmcdan
  */
 sealed class AppException(message: String? = null, cause: Throwable? = null) :
     Exception(message, cause) {
@@ -73,6 +73,21 @@ sealed class AppException(message: String? = null, cause: Throwable? = null) :
    */
   class InvalidData(message: String? = null, cause: Throwable? = null) :
       AppException(message, cause)
+
+  /**
+   * The backend refused the request because a usage limit was reached.
+   *
+   * @param isTransient true if waiting a short while is enough (a per-minute limit), false if the
+   *   limit only resets later (a daily quota)
+   * @param message details about the failure, meant for logs, if any
+   * @param cause the original failure, if any
+   * @author patrickmcdan
+   */
+  class RateLimited(
+      val isTransient: Boolean,
+      message: String? = null,
+      cause: Throwable? = null,
+  ) : AppException(message, cause)
 
   /**
    * Any other failure, for which the user has nothing specific to fix.

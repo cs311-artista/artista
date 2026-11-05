@@ -27,6 +27,7 @@ android {
 
   // Load Google Maps API key
   val mapsApiKey: String = localProperties.getProperty("MAPS_API_KEY") ?: ""
+  val orsApiKey: String = localProperties.getProperty("ORS_API_KEY") ?: ""
 
   defaultConfig {
     applicationId = "com.artista.artista"
@@ -40,6 +41,7 @@ android {
 
     // Placeholder GoogleMaps API key for Manifest merger
     manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
+    buildConfigField("String", "ORS_API_KEY", "\"$orsApiKey\"")
   }
 
   buildTypes {
@@ -60,7 +62,10 @@ android {
 
   testCoverage { jacocoVersion = "0.8.11" }
 
-  buildFeatures { compose = true }
+  buildFeatures {
+    compose = true
+    buildConfig = true
+  }
 
   compileOptions {
     sourceCompatibility = JavaVersion.VERSION_17
@@ -210,6 +215,12 @@ dependencies {
   // Compose integration for the Google Maps SDK.
   implementation(libs.maps.compose)
   implementation(libs.play.services.location)
+
+  // ---------------- Coil image loading ----------------
+  // Loads artwork images from Wikimedia Commons, reusing OkHttp for the network layer.
+  implementation(libs.coil.compose)
+  implementation(libs.coil.network.okhttp)
+  testImplementation(libs.coil.test)
 
   // --------- Kaspresso test framework ----------
   globalTestImplementation(libs.kaspresso)

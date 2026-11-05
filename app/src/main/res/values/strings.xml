@@ -23,6 +23,7 @@
     <string name="artwork_card_map">Map</string>
     <string name="artwork_card_save">Save</string>
     <string name="artwork_card_saved">Saved</string>
+    <string name="artwork_card_image_description">Image of %1$s</string>
     <string name="back">Back</string>
     <!-- User profile screen -->
     <string name="profile_logout">Logout</string>
@@ -64,16 +65,30 @@
     <string name="overview_load_error">Unable to load nearby artworks.</string>
     <string name="overview_saved_artworks_action">Saved artworks</string>
     <string name="overview_search_placeholder">Search artworks or artists</string>
+    <string name="overview_filter_open">Filter artworks</string>
+    <string name="overview_filter_title">Filter artworks</string>
+    <string name="overview_filter_artist">Artist</string>
+    <string name="overview_filter_museum">Museum</string>
+    <string name="overview_filter_location">Location</string>
+    <string name="overview_filter_from_year">From year</string>
+    <string name="overview_filter_to_year">To year</string>
+    <string name="overview_filter_invalid_year_range">From year must not exceed to year.</string>
+    <string name="overview_filter_remove">Remove filter</string>
+    <string name="overview_filter_apply">Apply</string>
+    <string name="overview_filter_clear">Clear all</string>
+    <string name="overview_filter_empty_results">No artworks match the selected filters.</string>
     <string name="search_placeholder">Search artworks or artists</string>
     <string name="search_loading">Loading artworks</string>
 
-    <!-- Default error messages, one per AppException type -->
+    <!-- Default error messages, one per AppException type (RateLimit has 2 variants) -->
     <string name="error_not_found">This item no longer exists.</string>
     <string name="error_already_exists">This item already exists.</string>
     <string name="error_invalid_input">Some information is invalid. Please check it and try again.</string>
     <string name="error_network">Couldn\'t reach the server. Check your connection and try again.</string>
     <string name="error_unauthorized">Your session has expired. Please sign in again.</string>
     <string name="error_invalid_data">Received unexpected data. Please try again later.</string>
+    <string name="error_rate_limited_minute">You\'ve reached the usage limit. Please wait a moment and try again.</string>
+    <string name="error_rate_limited_daily">You\'ve reached the usage limit. Please try again tomorrow.</string>
     <string name="error_unknown">Something went wrong. Please try again.</string>
 
     <!-- Bottom navigation -->

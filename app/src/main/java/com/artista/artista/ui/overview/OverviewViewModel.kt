@@ -9,11 +9,16 @@ import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.SavedArtworksRepository
-import com.artista.artista.model.artwork.SearchArea
-import com.artista.artista.model.artwork.WikiDataRepository
 import com.artista.artista.ui.error.launchCatching
 import com.artista.artista.ui.error.toMessageRes
 import kotlinx.coroutines.Job
+import com.artista.artista.model.artwork.ArtworkFilter
+import com.artista.artista.model.artwork.SearchArea
+import com.artista.artista.model.artwork.WikiDataRepository
+import com.artista.artista.model.artwork.applyFilter
+import com.artista.artista.model.artwork.artistOptions
+import com.artista.artista.model.artwork.locationOptions
+import com.artista.artista.model.artwork.museumOptions
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -25,6 +30,10 @@ import kotlinx.coroutines.launch
  *
  * @property artworks artwork entries currently available to display
  * @property savedArtworkIds identifiers of artworks saved by the user
+ * @property activeFilter criteria currently applied to the artwork entries
+ * @property artistOptions distinct artists from the unfiltered list
+ * @property museumOptions distinct museums from the unfiltered list
+ * @property locationOptions distinct location names from the unfiltered list
  * @property errorMessageRes localized error resource, or null when there is no error
  * @property saveErrorMessageRes localized save-operation error resource, or null when there is no
  *   error
@@ -33,6 +42,10 @@ import kotlinx.coroutines.launch
 data class OverviewUiState(
     val artworks: List<Artwork> = emptyList(),
     val savedArtworkIds: Set<ArtworkId> = emptySet(),
+    val activeFilter: ArtworkFilter = ArtworkFilter(),
+    val artistOptions: List<String> = emptyList(),
+    val museumOptions: List<String> = emptyList(),
+    val locationOptions: List<String> = emptyList(),
     @param:StringRes val errorMessageRes: Int? = null,
     @param:StringRes val saveErrorMessageRes: Int? = null,
 )
@@ -52,6 +65,7 @@ class OverviewViewModel(
 ) : ViewModel() {
 
   private val _uiState = MutableStateFlow(OverviewUiState())
+  private var allArtworks: List<Artwork> = emptyList()
 
   val uiState: StateFlow<OverviewUiState> = _uiState.asStateFlow()
 
@@ -76,8 +90,17 @@ class OverviewViewModel(
                 longitude = 6.6323,
                 radiusKm = 5.0,
             )
-        val artworks = artworkRepository.getArtworksNearLocation(lausanneCenter)
-        _uiState.update { it.copy(artworks = artworks, errorMessageRes = null) }
+        allArtworks = artworkRepository.getArtworksNearLocation(lausanneCenter)
+    _uiState.update { current ->
+      val activeFilter = current.activeFilter
+      current.copy(
+          artworks = allArtworks.applyFilter(activeFilter),
+          artistOptions = artistOptions(allArtworks),
+          museumOptions = museumOptions(allArtworks),
+          locationOptions = locationOptions(allArtworks),
+          errorMessageRes = null,
+      )
+    }
       } catch (_: Exception) {
         // Error classification is not defined yet, so keep this failure handling generic.
         _uiState.update { it.copy(errorMessageRes = R.string.overview_load_error) }
@@ -155,6 +178,18 @@ class OverviewViewModel(
   /** Clears the current saved-artwork error message. */
   fun clearSaveErrorMessage() {
     _uiState.update { it.copy(saveErrorMessageRes = null) }
+  /**
+   * Applies criteria to the artworks currently loaded by the Overview screen.
+   *
+   * @param filter criteria to apply
+   * @author patrickmcdan
+   */
+  fun applyFilter(filter: ArtworkFilter) {
+    _uiState.value =
+        _uiState.value.copy(
+            activeFilter = filter,
+            artworks = allArtworks.applyFilter(filter),
+        )
   }
 
   companion object {
