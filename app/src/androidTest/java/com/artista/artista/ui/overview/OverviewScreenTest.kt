@@ -21,7 +21,6 @@ import com.artista.artista.model.artwork.ArtworkRepositoryLocal
 import com.artista.artista.model.artwork.ArtworkType
 import com.artista.artista.model.artwork.SearchArea
 import com.artista.artista.model.artwork.WikiDataRepository
-import com.artista.artista.model.map.UserLocation
 import com.artista.artista.ui.artwork.ArtworkCardTestTag
 import com.artista.artista.ui.navigation.NavigationTestTags
 import com.artista.artista.ui.navigation.Tab

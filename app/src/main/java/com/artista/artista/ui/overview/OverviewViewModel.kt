@@ -73,7 +73,7 @@ class OverviewViewModel(
                 longitude = 6.6323,
                 radiusKm = 5.0,
             )
-        val artworks = artworkRepository.getArtworksNearLocation(lausanneCenter))
+        val artworks = artworkRepository.getArtworksNearLocation(lausanneCenter)
         _uiState.update { it.copy(artworks = artworks, errorMessageRes = null) }
       } catch (_: Exception) {
         // Error classification is not defined yet, so keep this failure handling generic.
