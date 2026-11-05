@@ -81,8 +81,8 @@ class MapScreenTest {
   fun mapScreen_getsLocationProperlyFromViewModel() {
     val mapViewModel =
         MapViewModel(
-            ArtworkRepositoryProvider.wikiDataRepository,
-            ArtworkRepositoryProvider.savedArtworksRepository,
+            ArtworkRepositoryProvider.mockRepository,
+            ArtworkRepositoryProvider.mockRepository,
             locationProvider = LocationProvider { callback -> callback(mockDeviceLocation()) },
         )
     composeTestRule.setContent { ArtistaTheme { MapScreen(mapViewModel = mapViewModel) } }
@@ -101,8 +101,8 @@ class MapScreenTest {
   fun mapScreen_doesNotDisplayMarkerWhenDeviceLocationIsUnavailable() {
     val mapViewModel =
         MapViewModel(
-            ArtworkRepositoryProvider.wikiDataRepository,
-            ArtworkRepositoryProvider.savedArtworksRepository,
+            ArtworkRepositoryProvider.mockRepository,
+            ArtworkRepositoryProvider.mockRepository,
             locationProvider = LocationProvider { callback -> callback(null) },
         )
     composeTestRule.setContent { ArtistaTheme { MapScreen(mapViewModel = mapViewModel) } }

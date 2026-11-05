@@ -29,6 +29,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.createBitmap
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -50,7 +51,6 @@ import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.rememberCameraPositionState
-import androidx.core.graphics.createBitmap
 
 /**
  * Contains test tags used by the map screen.
@@ -60,6 +60,15 @@ import androidx.core.graphics.createBitmap
 object MapScreenTestTags {
   /** Tag identifying the Google Map surface. */
   const val MAP = "map_surface"
+
+  /** Tag identifying the marker for the user's current location. */
+  const val USER_LOCATION_MARKER = "map_user_location_marker"
+
+  /** Tag identifying markers for artworks loaded from the remote repository. */
+  const val REMOTE_ARTWORK_MARKER = "map_remote_artwork_marker"
+
+  /** Tag identifying markers for artworks saved locally by the user. */
+  const val SAVED_ARTWORK_MARKER = "map_saved_artwork_marker"
 }
 
 /**
@@ -72,6 +81,19 @@ enum class MarkerType(val color: Int) {
   SavedArtwork(ArtistaColors.SavedArtworkMarker.toArgb()),
   RemoteArtwork(ArtistaColors.RemoteArtworkMarker.toArgb()),
 }
+
+/**
+ * Returns the test tag associated with an artwork marker type.
+ *
+ * @param markerType source represented by the marker.
+ * @return stable marker tag used by map tests and Google Maps marker metadata.
+ * @author Copilot
+ */
+internal fun markerTag(markerType: MarkerType): String =
+    when (markerType) {
+      MarkerType.SavedArtwork -> MapScreenTestTags.SAVED_ARTWORK_MARKER
+      MarkerType.RemoteArtwork -> MapScreenTestTags.REMOTE_ARTWORK_MARKER
+    }
 
 internal const val USER_LOCATION_ZOOM = 15f
 internal val REQUIRED_LOCATION_PERMISSIONS =
@@ -161,6 +183,7 @@ fun MapScreen(
     ) {
       userLocation?.let {
         Marker(
+            tag = MapScreenTestTags.USER_LOCATION_MARKER,
             state = markerState,
             title = stringResource(R.string.map_location_marker_text),
         )
@@ -196,6 +219,7 @@ private fun DisplayArtworkMarker(
       MarkerState(position = LatLng(artwork.location.latitude, artwork.location.longitude))
     }
     Marker(
+        tag = markerTag(markerType),
         state = artworkMarkerState,
         title = artwork.name,
         onInfoWindowClick = { onArtworkMarkerClick(artwork) },
@@ -207,38 +231,46 @@ private fun DisplayArtworkMarker(
 /**
  * Creates a map-compatible pin icon using the supplied centralized artwork color.
  *
- * Google Maps requires a [com.google.android.gms.maps.model.BitmapDescriptor] for marker icons,
- * so the Compose color cannot be passed directly to [Marker].
+ * Google Maps requires a [com.google.android.gms.maps.model.BitmapDescriptor] for marker icons, so
+ * the Compose color cannot be passed directly to [Marker].
  *
  * @param color ARGB color used for the pin body.
  * @return bitmap descriptor containing a colored pin with a white center.
  * @author 5kyPhy
  */
 private fun artworkMarkerIcon(color: Int) =
-    BitmapDescriptorFactory.fromBitmap(
-        createBitmap(48, 64).also { bitmap ->
-          Canvas(bitmap).apply {
-            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color }
-            // Draw the pin manually so its color comes from the shared Compose palette.
-            val path =
-                Path().apply {
-                  moveTo(24f, 64f)
-                  cubicTo(20f, 56f, 4f, 42f, 4f, 24f)
-                  cubicTo(4f, 11f, 13f, 2f, 24f, 2f)
-                  cubicTo(35f, 2f, 44f, 11f, 44f, 24f)
-                  cubicTo(44f, 42f, 28f, 56f, 24f, 64f)
-                  close()
-                }
-            drawPath(path, paint)
-            drawCircle(
-                24f,
-                24f,
-                8f,
-                Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = android.graphics.Color.WHITE },
-            )
-          }
-        }
-    )
+    BitmapDescriptorFactory.fromBitmap(artworkMarkerBitmap(color))
+
+/**
+ * Renders the colored pin bitmap used by an artwork map marker.
+ *
+ * @param color ARGB color used for the pin body.
+ * @return bitmap containing a colored pin with a white center.
+ * @author Copilot
+ */
+private fun artworkMarkerBitmap(color: Int): Bitmap =
+    createBitmap(48, 64).also { bitmap ->
+      Canvas(bitmap).apply {
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color }
+        // Draw the pin manually so its color comes from the shared Compose palette.
+        val path =
+            Path().apply {
+              moveTo(24f, 64f)
+              cubicTo(20f, 56f, 4f, 42f, 4f, 24f)
+              cubicTo(4f, 11f, 13f, 2f, 24f, 2f)
+              cubicTo(35f, 2f, 44f, 11f, 44f, 24f)
+              cubicTo(44f, 42f, 28f, 56f, 24f, 64f)
+              close()
+            }
+        drawPath(path, paint)
+        drawCircle(
+            24f,
+            24f,
+            8f,
+            Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = android.graphics.Color.WHITE },
+        )
+      }
+    }
 
 private fun hasAllLocationPermissions(context: Context): Boolean =
     REQUIRED_LOCATION_PERMISSIONS.all {

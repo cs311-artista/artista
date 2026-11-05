@@ -4,13 +4,10 @@ package com.artista.artista.ui.map
 
 import android.location.Location
 import androidx.annotation.StringRes
-import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
 import com.artista.artista.R
-import com.artista.artista.model.artwork.SavedArtworksRepository
-import com.artista.artista.model.artwork.WikiDataRepository
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.SavedArtworksRepository
 import com.artista.artista.model.artwork.WikiDataRepository
@@ -19,6 +16,8 @@ import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
 import java.util.concurrent.Executor
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /** Provides the current device location to the map ViewModel. */
@@ -60,16 +59,18 @@ class MapViewModel(
   val uiState: MapViewUiState
     get() = _uiState.value
 
-  private val _uiState = mutableStateOf(MapViewUiState())
+  private val _uiState = MutableStateFlow(MapViewUiState())
 
   init {
     viewModelScope.launch {
-      _uiState.value =
-          _uiState.value.copy(
-              savedArtworks = savedArtworksRepository.getSavedArtworks(),
-              // remoteArtworks = wikiDataRepository.getArtworksNearLocation(),
-              // todo get location-based artworks from the remote once correctly implemented
-          )
+      val savedArtworks = savedArtworksRepository.getSavedArtworks()
+      _uiState.update { state ->
+        state.copy(
+            savedArtworks = savedArtworks,
+            // remoteArtworks = wikiDataRepository.getArtworksNearLocation(),
+            // todo get location-based artworks from the remote once correctly implemented
+        )
+      }
     }
   }
 
@@ -80,7 +81,7 @@ class MapViewModel(
    * @author Felix Burchardt
    */
   fun updateUserLocation(location: UserLocation) {
-    _uiState.value = uiState.copy(userLocation = location, errorMsg = null)
+    _uiState.update { it.copy(userLocation = location, errorMsg = null) }
   }
 
   /**
@@ -90,7 +91,7 @@ class MapViewModel(
    * @author Felix Burchardt
    */
   fun setLocationError(@StringRes messageResId: Int) {
-    _uiState.value = uiState.copy(errorMsg = messageResId)
+    _uiState.update { it.copy(errorMsg = messageResId) }
   }
 
   /**
