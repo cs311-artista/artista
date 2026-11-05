@@ -12,7 +12,7 @@ import com.artista.artista.model.error.AppException
  * which artwork could not be removed).
  *
  * @return the string resource of the default message
- * @author Timz3rr
+ * @author Timz3rr, patrickmcdan
  */
 @StringRes
 fun AppException.toMessageRes(): Int =
@@ -24,5 +24,11 @@ fun AppException.toMessageRes(): Int =
       is AppException.Network -> R.string.error_network
       is AppException.Unauthorized -> R.string.error_unauthorized
       is AppException.InvalidData -> R.string.error_invalid_data
+      is AppException.RateLimited ->
+          if (isTransient) {
+            R.string.error_rate_limited_minute
+          } else {
+            R.string.error_rate_limited_daily
+          }
       is AppException.Unknown -> R.string.error_unknown
     }
