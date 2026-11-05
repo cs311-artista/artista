@@ -96,6 +96,22 @@ internal fun markerTag(markerType: MarkerType): String =
       MarkerType.RemoteArtwork -> MapScreenTestTags.REMOTE_ARTWORK_MARKER
     }
 
+/**
+ * Removes remote artworks that are already represented by saved markers.
+ *
+ * @param savedArtworks artworks that must use the saved marker style
+ * @param remoteArtworks artworks returned by the remote repository
+ * @return remote artworks that do not have a saved counterpart
+ * @author Copilot
+ */
+internal fun remoteArtworksNotSaved(
+    savedArtworks: List<Artwork>,
+    remoteArtworks: List<Artwork>,
+): List<Artwork> {
+  val savedArtworkIds = savedArtworks.map { it.uid }.toSet()
+  return remoteArtworks.filterNot { it.uid in savedArtworkIds }
+}
+
 internal const val USER_LOCATION_ZOOM = 15f
 internal val REQUIRED_LOCATION_PERMISSIONS =
     setOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
@@ -130,8 +146,6 @@ fun MapScreen(
         }
       }
   val userLocation = uiState.userLocation
-  val savedArtworkIds =
-      remember(uiState.savedArtworks) { uiState.savedArtworks.map { it.uid }.toSet() }
   val cameraPositionState = rememberCameraPositionState { position = cameraPositionFor(null) }
   val markerState = remember {
     MarkerState(position = LatLng(C.Constants.DEFAULT_MAP_LAT, C.Constants.DEFAULT_MAP_LONG))
@@ -194,7 +208,7 @@ fun MapScreen(
       uiState.savedArtworks.forEach { artwork ->
         DisplayArtworkMarker(artwork, onArtworkMarkerClick, MarkerType.SavedArtwork)
       }
-      uiState.remoteArtworks.filterNot { it.uid in savedArtworkIds }.forEach { artwork ->
+      remoteArtworksNotSaved(uiState.savedArtworks, uiState.remoteArtworks).forEach { artwork ->
         DisplayArtworkMarker(
             artwork,
             onArtworkMarkerClick,
