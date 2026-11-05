@@ -59,6 +59,7 @@
     <string name="sign_in_with_google">Sign in with Google</string>
     <string name="auth_tagline">Discover art around you</string>
     <string name="sign_in_failed">Sign in failed</string>
+    <string name="sign_in_no_account">No Google account available</string>
 
     <!-- Overview screen -->
     <string name="overview_load_error">Unable to load nearby artworks.</string>

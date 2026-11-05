@@ -63,7 +63,7 @@ import com.artista.artista.ui.theme.Dimensions
  *
  * @param state the current authentication UI state, holding the repository failure if any
  * @param credentialErrorMessageRes message of the failed credential interaction, or `null` when the
- *   last attempt failed for another reason or did not fail at all
+ *   user dismissed the chooser, the attempt failed for another reason, or it did not fail at all
  * @param onSignInClick invoked when the user asks to sign in
  * @param onSignedIn invoked once when [state] transitions to a signed-in user
  * @param modifier the modifier applied to the root container
@@ -198,8 +198,13 @@ fun AuthScreenContent(
  *
  * Owns the credential interaction and drives the Credential Manager flow on a sign-in tap. Its
  * outcome stays here rather than in the ViewModel: Credential Manager is a platform dialog the
- * ViewModel cannot reach, classifying the outcome needs the raw cause, and a message about an
- * interaction must not outlive the composition.
+ * ViewModel cannot reach, the provider reports the interaction outcomes as their own types, and a
+ * message about an interaction must not outlive the composition.
+ *
+ * A dismissal shows nothing: the provider reports it as its own type precisely so the screen can
+ * stay quiet about a decision the user made on purpose. A missing Google account is the one
+ * interaction outcome with something to say, so it gets its own message. Every genuine failure goes
+ * to [launchCatching], which logs it and classifies it.
  *
  * @param viewModel the authentication ViewModel
  * @param credentialProvider the seam used to obtain a Google ID token
@@ -231,11 +236,21 @@ fun AuthScreen(
         credentialErrorMessageRes = null
         scope.launchCatching(
             tag = TAG,
-            // A failure the provider returns and one it throws both end up here, so the message is
-            // resolved in a single place instead of once per callback.
+            // Only genuine failures reach this callback: the interaction outcomes are answered in
+            // the block below, so the message stays resolved in a single place.
             onError = { credentialErrorMessageRes = it.toCredentialMessageRes() },
         ) {
-          viewModel.signIn(credentialProvider.getIdToken().getOrThrow())
+          val result = credentialProvider.getIdToken()
+          when (val failure = result.exceptionOrNull()) {
+            null -> viewModel.signIn(result.getOrThrow())
+            // Dismissing the chooser is the user's decision, not a failure: the screen stays quiet,
+            // as the provider documents.
+            is SignInCancelledException -> Unit
+            // The one interaction outcome the user can act on, so it gets its own message.
+            is NoGoogleAccountException -> credentialErrorMessageRes = R.string.sign_in_no_account
+            // A genuine failure keeps going to launchCatching, which logs and classifies it.
+            else -> throw failure
+          }
         }
       },
       onSignedIn = onSignedIn,

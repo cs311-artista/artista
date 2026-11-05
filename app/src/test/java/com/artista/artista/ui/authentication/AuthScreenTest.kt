@@ -136,6 +136,44 @@ class AuthScreenTest {
         .assertTextEquals(string(R.string.sign_in_failed))
   }
 
+  /**
+   * Verifies that dismissing the Google chooser reports nothing: the provider documents the
+   * dismissal as an outcome of the interaction rather than a failure, so the screen stays quiet and
+   * the repository is never reached.
+   */
+  @Test
+  fun dismissingTheChooserShowsNoMessage() {
+    credentialProvider.error = SignInCancelledException()
+    showScreen()
+    composeTestRule.waitForIdle()
+
+    composeTestRule.onNodeWithTag(C.Tag.auth_google_sign_in_button).performClick()
+    composeTestRule.waitForIdle()
+
+    assertEquals(0, repository.signInCallCount)
+    composeTestRule.onNodeWithTag(C.Tag.auth_error_message).assertDoesNotExist()
+  }
+
+  /**
+   * Verifies that a device with no usable Google account shows its own message instead of the
+   * generic sign-in failure, and never reaches the repository.
+   */
+  @Test
+  fun noGoogleAccountShowsItsOwnMessage() {
+    credentialProvider.error = NoGoogleAccountException()
+    showScreen()
+    composeTestRule.waitForIdle()
+
+    composeTestRule.onNodeWithTag(C.Tag.auth_google_sign_in_button).performClick()
+    composeTestRule.waitForIdle()
+
+    assertEquals(0, repository.signInCallCount)
+    composeTestRule
+        .onNodeWithTag(C.Tag.auth_error_message)
+        .assertIsDisplayed()
+        .assertTextEquals(string(R.string.sign_in_no_account))
+  }
+
   /** Verifies that a successful credential acquisition forwards the token to the ViewModel. */
   @Test
   fun credentialSuccessPassesTokenToSignIn() {

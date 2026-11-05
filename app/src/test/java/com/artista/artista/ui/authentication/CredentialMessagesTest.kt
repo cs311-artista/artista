@@ -7,8 +7,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /**
- * Unit tests for [toCredentialMessageRes], the message shown when the Credential Manager
- * interaction produces no token.
+ * Unit tests for [toCredentialMessageRes], the message shown when a Credential Manager failure
+ * produces no token.
  *
  * The mapping is tested here rather than through the screen because Credential Manager cannot be
  * driven without the platform dialog; isolating it in a plain function lets every outcome be
@@ -19,14 +19,14 @@ import org.junit.Test
 class CredentialMessagesTest {
 
   /**
-   * Verifies that an interaction outcome - the sheet dismissed, no credential available - reads as
-   * a failed sign-in instead of the generic unknown message.
+   * Verifies that a failure the provider could not classify reads as a failed sign-in instead of
+   * the generic unknown message.
    */
   @Test
   fun unclassifiedFailureBecomesSignInFailed() {
     assertEquals(
         R.string.sign_in_failed,
-        AppException.Unknown("The user cancelled the sign-in").toCredentialMessageRes(),
+        AppException.Unknown("something the provider could not name").toCredentialMessageRes(),
     )
   }
 

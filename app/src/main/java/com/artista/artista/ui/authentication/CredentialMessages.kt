@@ -7,12 +7,14 @@ import com.artista.artista.model.error.AppException
 import com.artista.artista.ui.error.toMessageRes
 
 /**
- * Returns the message shown when the Credential Manager interaction produces no token.
+ * Returns the message shown when a Credential Manager failure produces no token.
  *
- * The interaction outcomes - the user dismissed the Google sheet, no credential is available - are
- * not backend failures, so [com.artista.artista.ui.error.launchCatching] can only report them as
- * [Unknown], whose message says that something went wrong. The sign-in screen knows more about what
- * happened and says so instead, which is the exception documented on [toMessageRes].
+ * Only genuine failures reach this function: the sign-in screen answers the interaction outcomes -
+ * the user dismissed the Google sheet, no credential is available - before they get here, so a
+ * dismissal reports nothing and a missing account shows its own message. What is left is a real
+ * failure, which keeps the message its type documents on [toMessageRes]; an unclassified one reads
+ * as a failed sign-in instead of the generic unknown message, because "Sign in failed" says more
+ * about an attempt that never reached the backend than "something went wrong" does.
  *
  * Declared at file level rather than inline in the composable so it stays a plain function that can
  * be unit-tested without Compose.
@@ -23,8 +25,8 @@ import com.artista.artista.ui.error.toMessageRes
 @StringRes
 internal fun AppException.toCredentialMessageRes(): Int =
     when (this) {
-      // Nothing classified this failure: the provider reported an interaction outcome, not an
-      // error from a backend.
+      // Nothing classified this failure: the provider could not name what went wrong, so this
+      // stays specific to the sign-in attempt instead of the generic unknown one.
       is AppException.Unknown -> R.string.sign_in_failed
       // The provider already classified a genuine failure, such as a lost connection.
       else -> toMessageRes()
