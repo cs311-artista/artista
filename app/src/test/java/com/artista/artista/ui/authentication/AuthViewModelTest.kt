@@ -1,13 +1,13 @@
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.authentication
 
 import com.artista.artista.MainDispatcherRule
+import com.artista.artista.R
 import com.artista.artista.model.authentication.FakeAuthRepository
 import com.artista.artista.model.authentication.FakeAuthUser
+import com.artista.artista.model.error.AppException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.toList
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -22,7 +22,7 @@ import org.junit.Test
  * Unit tests for [AuthViewModel].
  *
  * Drives the ViewModel through a [FakeAuthRepository] injected at construction, covering both the
- * sign-in and sign-out flows: state, loading, error events, re-entrancy guards and retries.
+ * sign-in and sign-out flows: state, loading, error messages, re-entrancy guards and retries.
  *
  * @author timo-by
  */
@@ -68,15 +68,26 @@ class AuthViewModelTest {
   }
 
   @Test
-  fun signInOnSuccessSignsInForwardsTokenAndEmitsNoEvent() {
+  fun authStateFailureIsReportedInTheUiState() {
+    runTest {
+      repository = FakeAuthRepository().apply { authStateError = IllegalStateException("stream") }
+      viewModel = AuthViewModel(repository)
+      advanceUntilIdle()
+
+      // Reported even though no collector was listening: the message is state, not an event.
+      assertEquals(R.string.error_unknown, viewModel.uiState.value.repositoryErrorMessageRes)
+    }
+  }
+
+  @Test
+  fun signInOnSuccessSignsInForwardsTokenAndShowsNoError() {
     runTest {
       repository.user = FakeAuthUser(userId)
-      val events = collectEvents()
       viewModel.signIn(token1)
       advanceUntilIdle()
       assertEquals(userId, viewModel.uiState.value.user?.uid)
       assertEquals(token1, repository.lastIdToken)
-      assertTrue(events.isEmpty())
+      assertNull(viewModel.uiState.value.repositoryErrorMessageRes)
     }
   }
 
@@ -103,15 +114,23 @@ class AuthViewModelTest {
   }
 
   @Test
-  fun signInEmitsErrorEventWithMessageOnFailure() {
+  fun signInReportsAFailureThatIsNotAnAppExceptionAsUnknown() {
     runTest {
       repository.signInError = RuntimeException(signInErrorMessage)
-      val events = collectEvents()
       viewModel.signIn(token1)
       advanceUntilIdle()
-      assertEquals(1, events.size)
-      val error = events.first() as AuthUiEvent.ShowError
-      assertEquals(signInErrorMessage, error.message)
+      assertEquals(R.string.error_unknown, viewModel.uiState.value.repositoryErrorMessageRes)
+    }
+  }
+
+  @Test
+  fun signInShowsTheMessageMatchingTheAppExceptionOfTheRepository() {
+    runTest {
+      repository.signInError = AppException.Network("offline")
+      viewModel.signIn(token1)
+      advanceUntilIdle()
+      // The repository's AppException is not re-classified as unknown: its own message is shown.
+      assertEquals(R.string.error_network, viewModel.uiState.value.repositoryErrorMessageRes)
     }
   }
 
@@ -155,14 +174,13 @@ class AuthViewModelTest {
   }
 
   @Test
-  fun signOutSignsOutAndEmitsNoEvent() {
+  fun signOutSignsOutAndShowsNoError() {
     runTest {
       givenSignedInUser()
-      val events = collectEvents()
       viewModel.signOut()
       advanceUntilIdle()
       assertNull(viewModel.uiState.value.user)
-      assertTrue(events.isEmpty())
+      assertNull(viewModel.uiState.value.repositoryErrorMessageRes)
     }
   }
 
@@ -188,17 +206,14 @@ class AuthViewModelTest {
   }
 
   @Test
-  fun signOutKeepsUserSignedInAndEmitsErrorOnFailure() {
+  fun signOutKeepsUserSignedInAndShowsTheErrorOnFailure() {
     runTest {
       givenSignedInUser()
       repository.signOutError = RuntimeException(signOutErrorMessage)
-      val events = collectEvents()
       viewModel.signOut()
       advanceUntilIdle()
       assertEquals(userId, viewModel.uiState.value.user?.uid)
-      assertEquals(1, events.size)
-      val error = events.first() as AuthUiEvent.ShowError
-      assertEquals(signOutErrorMessage, error.message)
+      assertEquals(R.string.error_unknown, viewModel.uiState.value.repositoryErrorMessageRes)
     }
   }
 
@@ -230,17 +245,33 @@ class AuthViewModelTest {
   }
 
   @Test
-  fun errorEventsAreNotReplayedToLateCollectors() {
+  fun aNewSignInAttemptDismissesTheMessageOfThePreviousOne() {
     runTest {
       repository.signInError = RuntimeException(signInErrorMessage)
-      val events = collectEvents()
       viewModel.signIn(token1)
       advanceUntilIdle()
-      assertEquals(1, events.size)
+      assertEquals(R.string.error_unknown, viewModel.uiState.value.repositoryErrorMessageRes)
 
-      val lateEvents = collectEvents()
+      repository.signInError = null
+      repository.user = FakeAuthUser(userId)
+      viewModel.signIn(token2)
+      // Cleared together with the loading flag, so a retry never shows a stale message.
+      assertNull(viewModel.uiState.value.repositoryErrorMessageRes)
+    }
+  }
+
+  @Test
+  fun clearRepositoryErrorDismissesTheMessageOfTheLastAttempt() {
+    runTest {
+      repository.signInError = RuntimeException(signInErrorMessage)
+      viewModel.signIn(token1)
       advanceUntilIdle()
-      assertTrue(lateEvents.isEmpty())
+      assertEquals(R.string.error_unknown, viewModel.uiState.value.repositoryErrorMessageRes)
+
+      // The screen clears it as soon as the user starts a new attempt, before the credential
+      // interaction has resolved.
+      viewModel.clearRepositoryError()
+      assertNull(viewModel.uiState.value.repositoryErrorMessageRes)
     }
   }
 
@@ -274,22 +305,5 @@ class AuthViewModelTest {
     repository = FakeAuthRepository(FakeAuthUser(uid))
     viewModel = AuthViewModel(repository)
     advanceUntilIdle()
-  }
-
-  /**
-   * Starts collecting the ViewModel's one-shot [AuthUiEvent]s into a list for assertion.
-   *
-   * The collector runs in the test's [backgroundScope] so it is cancelled automatically when the
-   * test ends, and is started eagerly with an unconfined dispatcher so no event is missed.
-   *
-   * @return a live list of the events received so far
-   * @author timo-by
-   */
-  private fun TestScope.collectEvents(): List<AuthUiEvent> {
-    val events = mutableListOf<AuthUiEvent>()
-    backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
-      viewModel.events.toList(events)
-    }
-    return events
   }
 }

@@ -1,11 +1,12 @@
+// Co-authored-by: DeepSeek Flash
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.model.authentication
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
 
-// Co-authored-by: DeepSeek Flash
-// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 /**
  * In-memory [AuthRepository] for unit and instrumented tests.
  *
@@ -64,7 +65,17 @@ class FakeAuthRepository(initialUser: AuthUser? = null) : AuthRepository {
   var lastIdToken: String? = null
     private set
 
-  override val authState: Flow<AuthUser?> = state.asStateFlow()
+  /**
+   * When set, [authState] fails with this instead of emitting the authentication state.
+   *
+   * @author timo-by
+   */
+  var authStateError: Throwable? = null
+
+  override val authState: Flow<AuthUser?> = flow {
+    authStateError?.let { throw it }
+    emitAll(state)
+  }
 
   override suspend fun signIn(idToken: String): Result<AuthUser> {
     signInCallCount++

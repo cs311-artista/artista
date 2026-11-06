@@ -1,4 +1,5 @@
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
+// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 package com.artista.artista
 
 import android.os.Bundle
@@ -6,7 +7,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -47,8 +47,6 @@ import com.artista.artista.ui.search.SearchScreen
 import com.artista.artista.ui.search.SearchScreenViewModel
 import com.artista.artista.ui.theme.ArtistaTheme
 
-// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
-// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 /**
  * Hosts the Artista app's root navigation graph.
  *
@@ -103,7 +101,9 @@ fun ArtistaApp(
     composable(Screen.Auth.route) {
       AuthScreenContent(
           state = AuthUiState(),
-          snackbarHostState = remember { SnackbarHostState() },
+          // This placeholder renders nothing from the credential seam, so it has no outcome to
+          // show.
+          credentialErrorMessageRes = null,
           onSignInClick = {
             navController.navigate(Screen.Overview.route) {
               popUpTo(Screen.Auth.route) { inclusive = true }
