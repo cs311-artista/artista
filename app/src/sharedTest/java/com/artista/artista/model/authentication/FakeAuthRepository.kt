@@ -2,6 +2,7 @@
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.model.authentication
 
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emitAll
@@ -72,8 +73,16 @@ class FakeAuthRepository(initialUser: AuthUser? = null) : AuthRepository {
    */
   var authStateError: Throwable? = null
 
+  /**
+   * When true, [authState] never reports a state, as while a persisted session is being restored.
+   *
+   * @author timo-by
+   */
+  var authStateIsPending: Boolean = false
+
   override val authState: Flow<AuthUser?> = flow {
     authStateError?.let { throw it }
+    if (authStateIsPending) awaitCancellation()
     emitAll(state)
   }
 

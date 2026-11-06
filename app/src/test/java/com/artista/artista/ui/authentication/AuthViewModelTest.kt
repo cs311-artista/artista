@@ -1,3 +1,4 @@
+// Co-authored-by: DeepSeek Flash
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.authentication
 
@@ -21,8 +22,9 @@ import org.junit.Test
 /**
  * Unit tests for [AuthViewModel].
  *
- * Drives the ViewModel through a [FakeAuthRepository] injected at construction, covering both the
- * sign-in and sign-out flows: state, loading, error messages, re-entrancy guards and retries.
+ * Drives the ViewModel through a [FakeAuthRepository] injected at construction, covering the
+ * session it derives from the repository - restoring, signed out and signed in - along with the
+ * loading flag, error messages, re-entrancy guards and retries.
  *
  * @author timo-by
  */
@@ -47,10 +49,24 @@ class AuthViewModelTest {
   }
 
   @Test
-  fun initialStateIsSignedOutAndNotLoading() {
+  fun initialStateIsRestoring() {
+    runTest {
+      repository = FakeAuthRepository().apply { authStateIsPending = true }
+      viewModel = AuthViewModel(repository)
+
+      advanceUntilIdle()
+      // Nothing has been reported yet, so nothing can be decided: offering a sign-in would
+      // contradict the session the repository may be about to restore.
+      assertEquals(AuthSession.Restoring, viewModel.uiState.value.session)
+      assertFalse(viewModel.uiState.value.isLoading)
+    }
+  }
+
+  @Test
+  fun signedOutOnceTheRepositoryReportsNobodyIsSignedIn() {
     runTest {
       advanceUntilIdle()
-      assertNull(viewModel.uiState.value.user)
+      assertEquals(AuthSession.SignedOut, viewModel.uiState.value.session)
       assertFalse(viewModel.uiState.value.isLoading)
     }
   }
@@ -59,16 +75,16 @@ class AuthViewModelTest {
   fun uiStateTracksAuthStateChanges() {
     runTest {
       givenSignedInUser()
-      assertEquals(userId, viewModel.uiState.value.user?.uid)
+      assertEquals(userId, viewModel.signedInUid())
 
       repository.setAuthState(null)
       advanceUntilIdle()
-      assertNull(viewModel.uiState.value.user)
+      assertEquals(AuthSession.SignedOut, viewModel.uiState.value.session)
     }
   }
 
   @Test
-  fun authStateFailureIsReportedInTheUiState() {
+  fun authStateFailureIsReportedAndFailsClosedToSignedOut() {
     runTest {
       repository = FakeAuthRepository().apply { authStateError = IllegalStateException("stream") }
       viewModel = AuthViewModel(repository)
@@ -76,6 +92,9 @@ class AuthViewModelTest {
 
       // Reported even though no collector was listening: the message is state, not an event.
       assertEquals(R.string.error_unknown, viewModel.uiState.value.repositoryErrorMessageRes)
+      // Nothing will ever be emitted again, so the session must not stay restoring forever: being
+      // signed out is the recoverable situation, and it is also where the message can be shown.
+      assertEquals(AuthSession.SignedOut, viewModel.uiState.value.session)
     }
   }
 
@@ -85,7 +104,7 @@ class AuthViewModelTest {
       repository.user = FakeAuthUser(userId)
       viewModel.signIn(token1)
       advanceUntilIdle()
-      assertEquals(userId, viewModel.uiState.value.user?.uid)
+      assertEquals(userId, viewModel.signedInUid())
       assertEquals(token1, repository.lastIdToken)
       assertNull(viewModel.uiState.value.repositoryErrorMessageRes)
     }
@@ -103,12 +122,12 @@ class AuthViewModelTest {
   }
 
   @Test
-  fun signInLeavesTheUserSignedOutOnFailure() {
+  fun signInLeavesTheSessionSignedOutOnFailure() {
     runTest {
       repository.signInError = RuntimeException(signInErrorMessage)
       viewModel.signIn(token1)
       advanceUntilIdle()
-      assertNull(viewModel.uiState.value.user)
+      assertEquals(AuthSession.SignedOut, viewModel.uiState.value.session)
       assertFalse(viewModel.uiState.value.isLoading)
     }
   }
@@ -161,13 +180,13 @@ class AuthViewModelTest {
       repository.signInError = RuntimeException(signInErrorMessage)
       viewModel.signIn(token1)
       advanceUntilIdle()
-      assertNull(viewModel.uiState.value.user)
+      assertEquals(AuthSession.SignedOut, viewModel.uiState.value.session)
 
       repository.signInError = null
       repository.user = FakeAuthUser(userId)
       viewModel.signIn(token2)
       advanceUntilIdle()
-      assertEquals(userId, viewModel.uiState.value.user?.uid)
+      assertEquals(userId, viewModel.signedInUid())
       assertEquals(token2, repository.lastIdToken)
       assertEquals(2, repository.signInCallCount)
     }
@@ -179,7 +198,7 @@ class AuthViewModelTest {
       givenSignedInUser()
       viewModel.signOut()
       advanceUntilIdle()
-      assertNull(viewModel.uiState.value.user)
+      assertEquals(AuthSession.SignedOut, viewModel.uiState.value.session)
       assertNull(viewModel.uiState.value.repositoryErrorMessageRes)
     }
   }
@@ -197,8 +216,9 @@ class AuthViewModelTest {
   }
 
   @Test
-  fun signOutIsIgnoredWhenAlreadySignedOut() {
+  fun signOutIsIgnoredWhenNobodyIsSignedIn() {
     runTest {
+      advanceUntilIdle()
       viewModel.signOut()
       advanceUntilIdle()
       assertEquals(0, repository.signOutCallCount)
@@ -206,14 +226,17 @@ class AuthViewModelTest {
   }
 
   @Test
-  fun signOutKeepsUserSignedInAndShowsTheErrorOnFailure() {
+  fun signOutKeepsTheSessionSignedInAndReportsNothingOnFailure() {
     runTest {
       givenSignedInUser()
       repository.signOutError = RuntimeException(signOutErrorMessage)
       viewModel.signOut()
       advanceUntilIdle()
-      assertEquals(userId, viewModel.uiState.value.user?.uid)
-      assertEquals(R.string.error_unknown, viewModel.uiState.value.repositoryErrorMessageRes)
+      // The session still holds the user, which already says the sign-out did not happen. Reporting
+      // it would add a message with no screen to carry it: while a user is signed in the sign-in
+      // screen is not composed, and this message is only ever shown there.
+      assertEquals(userId, viewModel.signedInUid())
+      assertNull(viewModel.uiState.value.repositoryErrorMessageRes)
     }
   }
 
@@ -234,12 +257,12 @@ class AuthViewModelTest {
       repository.signOutError = RuntimeException(signOutErrorMessage)
       viewModel.signOut()
       advanceUntilIdle()
-      assertEquals(userId, viewModel.uiState.value.user?.uid)
+      assertEquals(userId, viewModel.signedInUid())
 
       repository.signOutError = null
       viewModel.signOut()
       advanceUntilIdle()
-      assertNull(viewModel.uiState.value.user)
+      assertEquals(AuthSession.SignedOut, viewModel.uiState.value.session)
       assertEquals(2, repository.signOutCallCount)
     }
   }
@@ -281,18 +304,27 @@ class AuthViewModelTest {
       repository.user = FakeAuthUser(userId)
       viewModel.signIn(token1)
       advanceUntilIdle()
-      assertEquals(userId, viewModel.uiState.value.user?.uid)
+      assertEquals(userId, viewModel.signedInUid())
 
       viewModel.signOut()
       advanceUntilIdle()
-      assertNull(viewModel.uiState.value.user)
+      assertEquals(AuthSession.SignedOut, viewModel.uiState.value.session)
 
       viewModel.signIn(token2)
       advanceUntilIdle()
-      assertEquals(userId, viewModel.uiState.value.user?.uid)
+      assertEquals(userId, viewModel.signedInUid())
       assertEquals(token2, repository.lastIdToken)
     }
   }
+
+  /**
+   * Returns the uid of the user the state says is signed in.
+   *
+   * @return the uid, or `null` when the session is not [AuthSession.SignedIn]
+   * @author timo-by
+   */
+  private fun AuthViewModel.signedInUid(): String? =
+      (uiState.value.session as? AuthSession.SignedIn)?.user?.uid
 
   /**
    * Rebuilds the repository and ViewModel with a user already signed in, and lets the ViewModel
