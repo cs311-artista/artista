@@ -1,5 +1,6 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
+// Co-authored-by: DeepSeek Flash
 package com.artista.artista.model.artwork
 
 import com.artista.artista.model.map.Location
@@ -101,6 +102,90 @@ class JsonResponseParserTest {
     assertEquals(0.0, artwork.dimension?.width ?: 0.0, 0.01)
     assertEquals(0.0, artwork.dimension?.height ?: 0.0, 0.01)
     assertNull(artwork.imageUrl)
+  }
+
+  /**
+   * Checks that two rows describing the same item yield a single artwork, the first of the two when
+   * they are equally rich.
+   *
+   * Wikidata returns one row per value of the optional properties, so an item with two images comes
+   * back twice. Left as is, the repeat reaches the artwork lists of Overview and Saved Artworks,
+   * whose Compose key is the uid, and throws "Key ... was already used".
+   */
+  @Test
+  fun parseArtworkResults_collapsesRepeatedRowsOfTheSameItem() {
+    val response =
+        """
+        {
+          "results": {
+            "bindings": [
+              {
+                "item": { "value": "http://www.wikidata.org/entity/Q19933946" },
+                "itemLabel": { "value": "Skulptur" },
+                "image": {
+                  "value": "http://commons.wikimedia.org/wiki/Special:FilePath/First.JPG"
+                }
+              },
+              {
+                "item": { "value": "http://www.wikidata.org/entity/Q19933946" },
+                "itemLabel": { "value": "Skulptur" },
+                "image": {
+                  "value": "http://commons.wikimedia.org/wiki/Special:FilePath/Second.JPG"
+                }
+              }
+            ]
+          }
+        }
+        """
+            .trimIndent()
+
+    val artworks = parser.parseArtworkResults(response)
+
+    assertEquals(1, artworks.size)
+    assertEquals("Q19933946", artworks.single().uid)
+    assertEquals(
+        "https://commons.wikimedia.org/wiki/Special:FilePath/First.JPG?width=800",
+        artworks.single().imageUrl,
+    )
+  }
+
+  /**
+   * Checks that the row carrying coordinates wins over one that only names the place.
+   *
+   * A row without coordinates still yields a location, at (0, 0), so keeping the wrong row would
+   * replace a correct pin with one in the Gulf of Guinea.
+   */
+  @Test
+  fun parseArtworkResults_prefersTheRowCarryingCoordinates() {
+    val response =
+        """
+        {
+          "results": {
+            "bindings": [
+              {
+                "item": { "value": "http://www.wikidata.org/entity/Q12418" },
+                "itemLabel": { "value": "Mona Lisa" },
+                "locationLabel": { "value": "Louvre" }
+              },
+              {
+                "item": { "value": "http://www.wikidata.org/entity/Q12418" },
+                "itemLabel": { "value": "Mona Lisa" },
+                "locationLabel": { "value": "Louvre" },
+                "locationCoordinates": { "value": "Point(2.337 48.860)" }
+              }
+            ]
+          }
+        }
+        """
+            .trimIndent()
+
+    val artworks = parser.parseArtworkResults(response)
+
+    assertEquals(1, artworks.size)
+    val location = artworks.single().location
+    assertNotNull(location)
+    assertEquals(2.337, location?.longitude ?: 0.0, 0.01)
+    assertEquals(48.860, location?.latitude ?: 0.0, 0.01)
   }
 
   /** Checks that optional fields set to JSON null, image included, are parsed as null. */
