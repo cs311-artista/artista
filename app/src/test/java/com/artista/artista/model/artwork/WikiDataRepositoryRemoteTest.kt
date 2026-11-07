@@ -5,12 +5,16 @@ import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.error.AppException
 import com.artista.artista.model.map.Location
 import java.io.IOException
+import java.util.concurrent.CancellationException
 import kotlinx.coroutines.test.runTest
+import okhttp3.Call
+import okhttp3.Callback
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
+import okio.Timeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -543,6 +547,38 @@ class WikiDataRepositoryRemoteTest {
     }
   }
 
+  @Test
+  fun searchArtworks_whenResponseBodyIsMissing_throwsInvalidData() = runTest {
+    val client = FakeCallClient {
+      Response.Builder()
+          .request(it)
+          .protocol(Protocol.HTTP_1_1)
+          .code(200)
+          .message("OK")
+          .body(null)
+          .build()
+    }
+    val repository = WikiDataRepositoryRemote(client)
+
+    assertThrowsSuspend<AppException.InvalidData> {
+      repository.searchArtworks("Mona Lisa", listOf(ArtworkType.PAINTING), 50)
+    }
+  }
+
+  @Test
+  fun searchArtworks_whenRequestIsCancelled_rethrowsCancellationException() = runTest {
+    val cancellation = CancellationException("request cancelled")
+    val client = FakeCallClient { throw cancellation }
+    val repository = WikiDataRepositoryRemote(client)
+
+    try {
+      repository.searchArtworks("Mona Lisa", listOf(ArtworkType.PAINTING), 50)
+      throw AssertionError("Expected CancellationException")
+    } catch (exception: CancellationException) {
+      assertEquals(cancellation.message, exception.message)
+    }
+  }
+
   private fun testClient(
       statusCode: Int = 200,
       responseBody: String = """{"results":{"bindings":[]}}""",
@@ -574,6 +610,29 @@ class WikiDataRepositoryRemoteTest {
             .build()
 
     override fun newCall(request: Request) = delegate.newCall(request)
+  }
+
+  private class FakeCallClient(private val execute: (Request) -> Response) : OkHttpClient() {
+    override fun newCall(request: Request): Call =
+        object : Call {
+          override fun request(): Request = request
+
+          override fun execute(): Response = execute(request)
+
+          override fun enqueue(responseCallback: Callback) {
+            throw UnsupportedOperationException("Asynchronous calls are not used in these tests")
+          }
+
+          override fun cancel() = Unit
+
+          override fun isExecuted(): Boolean = false
+
+          override fun isCanceled(): Boolean = false
+
+          override fun timeout(): Timeout = Timeout.NONE
+
+          override fun clone(): Call = newCall(request)
+        }
   }
 
   private suspend inline fun <reified T : Throwable> assertThrowsSuspend(
