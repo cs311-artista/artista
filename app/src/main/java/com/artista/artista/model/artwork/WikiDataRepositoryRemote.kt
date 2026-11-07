@@ -2,6 +2,7 @@
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.model.artwork
 
+import android.util.Log
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.error.AppException
 import java.text.Normalizer
@@ -223,7 +224,7 @@ class WikiDataRepositoryRemote(
     validateLimit(limit)
 
     val query = buildArtworkSearchQuery(sanitizedTitle, typeValues, limit)
-    return fetchArtworks(query)
+    return fetchArtworks(query, searchTermForOrdering = sanitizedTitle.removeSuffix("*"))
   }
 
   companion object {
@@ -268,17 +269,39 @@ class WikiDataRepositoryRemote(
   private suspend fun fetchArtworks(
       query: String,
       cacheEmptyResults: Boolean = true,
+      searchTermForOrdering: String? = null,
   ): List<Artwork> {
     artworkQueryCache.get(query)?.let {
       return it
     }
 
-    val artworks = jsonResponseParser.parseArtworkResults(executeSparqlRequest(query))
+    val fetchedArtworks = jsonResponseParser.parseArtworkResults(executeSparqlRequest(query))
+    val artworks =
+        searchTermForOrdering?.let { fetchedArtworks.orderBySearchRelevance(it) } ?: fetchedArtworks
     if (cacheEmptyResults || artworks.isNotEmpty()) {
       artworkQueryCache.put(query, artworks)
     }
     return artworks
   }
+
+  private fun List<Artwork>.orderBySearchRelevance(searchTerm: String): List<Artwork> {
+    val s = searchTerm.split(" ")
+
+    return sortedBy { artwork ->
+      var score = 0
+
+        if (artwork.name == null) score += 300
+        else s.forEach { if(artwork.name.contains(it, ignoreCase = true)) score -= 10}
+
+        if (artwork.artist?.name == null) score += 200
+        else s.forEach { if(artwork.artist.name.contains(it, ignoreCase = true)) score -= 20}
+
+        if (artwork.imageUrl.isNullOrBlank()) score += 400
+        if (artwork.location == null) score += 20
+
+        score
+      }
+    }
 
   private fun validateTypeValues(typeValues: List<ArtworkType>) {
     if (typeValues.isEmpty()) {
@@ -337,7 +360,7 @@ class WikiDataRepositoryRemote(
     }
     $DETAILS
   }
-  LIMIT $limit
+  LIMIT $MAX_LIMIT
     """
         .trimIndent()
   }
@@ -382,7 +405,7 @@ class WikiDataRepositoryRemote(
         }
         $DETAILS
       }
-      LIMIT $limit
+      LIMIT $MAX_LIMIT
     """
         .trimIndent()
   }
