@@ -183,7 +183,7 @@ class WikiDataRepositoryRemote(
    * @param searchArea geographic bounds used to locate matching artworks
    * @param typeValues artwork classes to include in the query
    * @param limit maximum number of results returned by the query
-   * @return matching artworks mapped from valid Wikidata results
+   * @return matching artworks mapped from valid Wikidata results, at most [limit] and unique by uid
    * @author IJJA3141
    */
   override suspend fun getArtworksNearLocation(
@@ -195,7 +195,7 @@ class WikiDataRepositoryRemote(
     validateLimit(limit)
 
     val query = buildArtworkNearLocationQuery(searchArea, typeValues, limit)
-    return fetchArtworks(query)
+    return fetchArtworks(query, limit = limit)
   }
 
   /**
@@ -207,8 +207,14 @@ class WikiDataRepositoryRemote(
    * The search is intentionally limited to English strings to keep the user-facing result set
    * stable and avoid mixing localized labels from other languages.
    *
+   * Results are ordered by relevance: artworks with an image first, then by how well the title and
+   * artist match the search terms (accent/case-insensitive, word-prefix matching). Ordering is
+   * applied only to the (at most [limit]) items selected by the Wikidata search; it cannot surface
+   * a better match that the remote search did not return.
+   *
    * @param artworkTitle text to search for in the artwork title
-   * @return the artworks whose English title contains the search term
+   * @return the artworks whose English title contains the search term, ordered by relevance, unique
+   *   by uid and at most [limit]
    * @throws AppException.InvalidInput if the title is blank or contains no supported characters
    * @author IJJA3141
    */
@@ -217,21 +223,33 @@ class WikiDataRepositoryRemote(
       typeValues: List<ArtworkType>,
       limit: Int,
   ): List<Artwork> {
-    val sanitizedTitle = sanitizeSearchText(artworkTitle)
+    val normalizedTitle = normalizeSearchText(artworkTitle)
 
     validateTypeValues(typeValues)
     validateLimit(limit)
 
-    val query = buildArtworkSearchQuery(sanitizedTitle, typeValues, limit)
-    return fetchArtworks(query, searchTermForOrdering = sanitizedTitle.removeSuffix("*"))
+    val query = buildArtworkSearchQuery(prefixTerm(normalizedTitle), typeValues, limit)
+    return fetchArtworks(query, searchTermForOrdering = normalizedTitle, limit = limit)
   }
 
   companion object {
     val ITEM_ID_REGEX = Regex("Q\\d+")
     val COMBINING_MARKS = Regex("\\p{M}+")
+    private val WHITESPACE = Regex("\\s+")
     private val UNSUPPORTED_SEARCH_CHARACTERS = Regex("[^\\p{L}\\p{M}\\p{N}\\s]+")
 
     const val MAX_LIMIT = 200
+
+    // Relevance scoring: lower score = more relevant. Title matches weigh more than artist matches
+    // so that searching a title is not outranked by an artist whose name merely resembles a term.
+    private const val MIN_TOKEN_LENGTH = 2
+    private const val TITLE_TOKEN_BONUS = 10
+    private const val ARTIST_TOKEN_BONUS = 20
+    private const val EXACT_TITLE_BONUS = 100
+    private const val TITLE_PREFIX_BONUS = 30
+    private const val NO_TITLE_PENALTY = 150
+    private const val NO_ARTIST_PENALTY = 100
+    private const val NO_LOCATION_PENALTY = 5
 
     const val SELECT_LINE =
         "SELECT ?item ?itemLabel ?artistLabel ?image ?inception ?collectionLabel ?locationLabel ?width ?height ?description ?locationCoordinates ?coordinateSource"
@@ -265,49 +283,83 @@ class WikiDataRepositoryRemote(
     }
   }
 
+  /**
+   * Runs [query] (or serves it from cache) and post-processes the rows.
+   *
+   * The outer SPARQL LIMIT is [MAX_LIMIT] so that the DETAILS fan-out rows (multiple labels,
+   * widths, collections) are not truncated before parsing. Rows are therefore deduplicated by uid,
+   * optionally ordered by relevance, and capped to [limit] here. The processed list is what gets
+   * cached.
+   */
   private suspend fun fetchArtworks(
       query: String,
       cacheEmptyResults: Boolean = true,
       searchTermForOrdering: String? = null,
+      limit: Int? = null,
   ): List<Artwork> {
     artworkQueryCache.get(query)?.let {
       return it
     }
 
-    val fetchedArtworks = jsonResponseParser.parseArtworkResults(executeSparqlRequest(query))
-    val artworks =
-        searchTermForOrdering?.let { fetchedArtworks.orderBySearchRelevance(it) } ?: fetchedArtworks
+    var artworks = jsonResponseParser.parseArtworkResults(executeSparqlRequest(query))
+    if (searchTermForOrdering != null) {
+      artworks = artworks.orderBySearchRelevance(searchTermForOrdering)
+    }
+    if (limit != null) {
+      artworks = artworks.take(limit)
+    }
+
     if (cacheEmptyResults || artworks.isNotEmpty()) {
       artworkQueryCache.put(query, artworks)
     }
+
     return artworks
   }
 
+  /**
+   * Orders artworks by relevance to [searchTerm], which must already be normalized (see
+   * [normalizeSearchText]). Artworks with an image come first, then lower scores, and ties keep
+   * their original order (the sort is stable).
+   */
   private fun List<Artwork>.orderBySearchRelevance(searchTerm: String): List<Artwork> {
-    val searchTerms = searchTerm.split(Regex("\\s+")).filter { it.isNotBlank() }
+    val foldedTerm = fold(searchTerm)
+    val allTokens = foldedTerm.split(WHITESPACE).filter { it.isNotEmpty() }
+    // Ignore very short tokens ("a", "of") which would match nearly everything, unless the query
+    // consists only of such tokens.
+    val tokens = allTokens.filter { it.length >= MIN_TOKEN_LENGTH }.ifEmpty { allTokens }
+    // Word-prefix match: the token must start at a word boundary.
+    val tokenRegexes = tokens.map {
+      Regex("(?<![\\p{L}\\p{N}])${Regex.escape(it)}", RegexOption.IGNORE_CASE)
+    }
 
-    return sortedWith(
-        compareBy<Artwork> { it.imageUrl.isNullOrBlank() }
-            .thenBy { artwork ->
-              var score = 0
+    fun score(artwork: Artwork): Int {
+      var score = 0
 
-              if (artwork.name == null) score += 300
-              else
-                  searchTerms.forEach {
-                    if (artwork.name.contains(it, ignoreCase = true)) score -= 10
-                  }
+      val title = artwork.name?.let(::fold)
+      if (title == null) {
+        score += NO_TITLE_PENALTY
+      } else {
+        tokenRegexes.forEach { if (it.containsMatchIn(title)) score -= TITLE_TOKEN_BONUS }
+        if (title == foldedTerm) score -= EXACT_TITLE_BONUS
+        else if (title.startsWith(foldedTerm)) score -= TITLE_PREFIX_BONUS
+      }
 
-              if (artwork.artist?.name == null) score += 200
-              else
-                  searchTerms.forEach {
-                    if (artwork.artist.name.contains(it, ignoreCase = true)) score -= 20
-                  }
+      val artistName = artwork.artist?.name?.let(::fold)
+      if (artistName == null) {
+        score += NO_ARTIST_PENALTY
+      } else {
+        tokenRegexes.forEach { if (it.containsMatchIn(artistName)) score -= ARTIST_TOKEN_BONUS }
+      }
 
-              if (artwork.location == null) score += 20
+      if (artwork.location == null) score += NO_LOCATION_PENALTY
 
-              score
-            }
-    )
+      return score
+    }
+
+    // Score each artwork once instead of on every comparison.
+    return map { artwork -> Triple(artwork.imageUrl.isNullOrBlank(), score(artwork), artwork) }
+        .sortedWith(compareBy<Triple<Boolean, Int, Artwork>>({ it.first }, { it.second }))
+        .map { it.third }
   }
 
   private fun validateTypeValues(typeValues: List<ArtworkType>) {
@@ -319,8 +371,10 @@ class WikiDataRepositoryRemote(
     }
   }
 
-  // Removes unsupported characters and appends * to the complete search query.
-  private fun sanitizeSearchText(searchTerm: String): String {
+  // Removes unsupported characters and collapses whitespace. The result is plain text (no wildcards
+  // or boolean syntax), so it is safe to use for relevance ordering; use [prefixTerm] to turn it
+  // into a Wikidata search expression.
+  private fun normalizeSearchText(searchTerm: String): String {
     // Keep Unicode letters, combining marks, numbers, and whitespace; remove other characters.
     val sanitizedSearchTerm = UNSUPPORTED_SEARCH_CHARACTERS.replace(searchTerm, "")
     if (sanitizedSearchTerm.isBlank()) {
@@ -330,12 +384,18 @@ class WikiDataRepositoryRemote(
     // Split on whitespace and rejoin with single spaces to normalize the query.
     val normalizedSearchTerm =
         sanitizedSearchTerm.split(Regex("\\s+")).filter { it.isNotEmpty() }.joinToString(" ")
-    return prefixTerm(normalizedSearchTerm)
+    return normalizedSearchTerm
   }
 
+  // Lowercases and strips diacritics so comparisons are case/accent-insensitive.
+  private fun fold(value: String): String =
+      Normalizer.normalize(value.lowercase(Locale.ROOT), Normalizer.Form.NFD)
+          .replace(COMBINING_MARKS, "")
+
+  // Appends * to the complete search query (and also matches the accent-folded form).
   private fun prefixTerm(query: String): String {
     val lower = query.lowercase(Locale.ROOT)
-    val folded = Normalizer.normalize(lower, Normalizer.Form.NFD).replace(COMBINING_MARKS, "")
+    val folded = fold(query)
     fun wild(value: String) = if (value.length >= 2) "$value*" else value
     return if (folded == lower) wild(lower) else "(${wild(folded)} OR ${wild(lower)})"
   }
@@ -384,7 +444,7 @@ class WikiDataRepositoryRemote(
           .trimIndent()
 
   private fun buildArtworkSearchQuery(
-      sanitizedTitle: String,
+      searchExpression: String,
       typeValues: List<ArtworkType>,
       limit: Int,
   ): String {
@@ -401,7 +461,7 @@ class WikiDataRepositoryRemote(
               bd:serviceParam wikibase:endpoint "www.wikidata.org" ;
                               wikibase:api "Generator" ;
                               mwapi:generator "search" ;
-              mwapi:gsrsearch "haswbstatement:$wikidataTypeFilter $sanitizedTitle" ;
+              mwapi:gsrsearch "haswbstatement:$wikidataTypeFilter $searchExpression" ;
                               mwapi:gsrlimit "$limit" .
               ?item wikibase:apiOutputItem mwapi:title .
             }

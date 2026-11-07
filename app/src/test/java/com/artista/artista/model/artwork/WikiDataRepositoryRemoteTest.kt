@@ -219,7 +219,7 @@ class WikiDataRepositoryRemoteTest {
     val first = repository.searchArtworks("Mona Lisa")
     val second = repository.searchArtworks("Mona Lisa")
 
-    assertEquals(listOf("Q4", "Q2", "Q5", "Q1"), first.map { it.uid })
+    assertEquals(listOf("Q4", "Q2", "Q1", "Q5"), first.map { it.uid })
     assertEquals(first, second)
     assertEquals(1, client.requestCount)
   }
@@ -258,7 +258,72 @@ class WikiDataRepositoryRemoteTest {
 
     val results = repository.searchArtworks("Mona Lisa")
 
-    assertEquals(listOf("Q2", "Q3", "Q1"), results.map { it.uid })
+    assertEquals(listOf("Q2", "Q1", "Q3"), results.map { it.uid })
+  }
+
+  @Test
+  fun searchArtworks_deduplicatesResultsAndAppliesLimitAfterRanking() = runTest {
+    val artworks =
+        listOf(
+            Artwork(
+                "Q2",
+                "Unrelated artwork",
+                Artist("Q13", "Someone else"),
+                null,
+                null,
+                null,
+                null,
+                null,
+            ),
+            Artwork(
+                "Q1",
+                "Mona Lisa",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                "https://example.com/image.jpg",
+            ),
+            Artwork(
+                "Q1",
+                "Duplicate title",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                "https://example.com/duplicate.jpg",
+            ),
+            Artwork(
+                "Q3",
+                "Unrelated title",
+                Artist("Q12", "Mona Lisa"),
+                null,
+                null,
+                null,
+                null,
+                null,
+                "https://example.com/artist-match.jpg",
+            ),
+        )
+    val repository =
+        WikiDataRepositoryRemote(
+            testClient(),
+            jsonResponseParser = ArtworkListParser(artworks),
+        )
+
+    val results =
+        repository.searchArtworks(
+            "Mona Lisa",
+            typeValues = listOf(ArtworkType.PAINTING),
+            limit = 2,
+        )
+
+    assertEquals(listOf("Q3", "Q1"), results.map { it.uid })
+    assertEquals(2, results.size)
   }
 
   @Test
