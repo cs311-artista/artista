@@ -221,6 +221,43 @@ class WikiDataRepositoryRemoteTest {
   }
 
   @Test
+  fun searchArtworks_weightsMatchingArtistOverTitleMatchWithoutArtist() = runTest {
+    val artworks =
+        listOf(
+            Artwork(
+                "Q3",
+                "Unrelated artwork",
+                Artist("Q13", "Another artist"),
+                null,
+                null,
+                null,
+                null,
+                null,
+            ),
+            Artwork(
+                "Q2",
+                "Unrelated artwork",
+                Artist("Q12", "Mona Lisa artist"),
+                null,
+                null,
+                null,
+                null,
+                null,
+            ),
+            Artwork("Q1", "Mona Lisa", null, null, null, null, null, null),
+        )
+    val repository =
+        WikiDataRepositoryRemote(
+            testClient(),
+            jsonResponseParser = ArtworkListParser(artworks),
+        )
+
+    val results = repository.searchArtworks("Mona Lisa")
+
+    assertEquals(listOf("Q2", "Q3", "Q1"), results.map { it.uid })
+  }
+
+  @Test
   fun getArtwork_returnsMatchingArtworkFromCachedSearchResults() = runTest {
     val client = testClient()
     val repository = WikiDataRepositoryRemote(client, jsonResponseParser = SuccessfulParser())
