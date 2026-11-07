@@ -1,7 +1,9 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 package com.artista.artista.model.artwork
 
+import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.error.AppException
+import com.artista.artista.model.map.Location
 import java.io.IOException
 import kotlinx.coroutines.test.runTest
 import okhttp3.OkHttpClient
@@ -36,6 +38,10 @@ class WikiDataRepositoryRemoteTest {
 
   private class EmptyParser : JsonResponseParser() {
     override fun parseArtworkResults(responseBody: String): List<Artwork> = emptyList()
+  }
+
+  private class ArtworkListParser(private val artworks: List<Artwork>) : JsonResponseParser() {
+    override fun parseArtworkResults(responseBody: String): List<Artwork> = artworks
   }
 
   @Ignore(
@@ -161,6 +167,55 @@ class WikiDataRepositoryRemoteTest {
     val first = repository.searchArtworks("Mona Lisa")
     val second = repository.searchArtworks("Mona Lisa")
 
+    assertEquals(first, second)
+    assertEquals(1, client.requestCount)
+  }
+
+  @Test
+  fun searchArtworks_ordersImageBackedResultsBeforeWeightedNoImageResults() = runTest {
+    val client = testClient()
+    val artworks =
+        listOf(
+            Artwork(
+                "Q5",
+                "Incomplete artwork",
+                Artist("Q11", "Someone"),
+                null,
+                null,
+                null,
+                null,
+                null,
+            ),
+            Artwork(
+                "Q4",
+                "Complete artwork",
+                Artist("Q12", "Another artist"),
+                null,
+                null,
+                null,
+                Location(longitude = 6.6, latitude = 46.5, name = "Lausanne"),
+                null,
+                "https://example.com/image.jpg",
+            ),
+            Artwork(
+                "Q2",
+                "Other title",
+                Artist("Q10", "The Mona Lisa artist"),
+                null,
+                null,
+                null,
+                null,
+                null,
+            ),
+            Artwork("Q1", "Móná Lisa", null, null, null, null, null, null),
+        )
+    val repository =
+        WikiDataRepositoryRemote(client, jsonResponseParser = ArtworkListParser(artworks))
+
+    val first = repository.searchArtworks("Mona Lisa")
+    val second = repository.searchArtworks("Mona Lisa")
+
+    assertEquals(listOf("Q4", "Q2", "Q5", "Q1"), first.map { it.uid })
     assertEquals(first, second)
     assertEquals(1, client.requestCount)
   }
@@ -297,7 +352,10 @@ class WikiDataRepositoryRemoteTest {
     assertTrue(query.contains("VALUES ?type { wd:Q3305213 wd:Q93184 }"))
     assertTrue(query.contains("?item wdt:P276 ?location"))
     assertTrue(query.contains("LIMIT 20"))
-    assertTrue("the outer query should also be limited", query.trimEnd().endsWith("LIMIT 20"))
+    assertTrue(
+        "the outer query should respect the repository maximum",
+        query.trimEnd().endsWith("LIMIT ${WikiDataRepositoryRemote.MAX_LIMIT}"),
+    )
   }
 
   @Test
@@ -377,7 +435,11 @@ class WikiDataRepositoryRemoteTest {
         sparql.contains("mwapi:gsrsearch \"haswbstatement:P31=Q3305213|P31=Q860861 mona lisa*\"")
     )
     assertTrue(sparql.contains("FILTER(LANG(?itemLabel) = \"en\")"))
-    assertTrue(sparql.trimEnd().endsWith("LIMIT 25"))
+    assertTrue(sparql.contains("LIMIT 25"))
+    assertTrue(
+        "the outer query should respect the repository maximum",
+        sparql.trimEnd().endsWith("LIMIT ${WikiDataRepositoryRemote.MAX_LIMIT}"),
+    )
   }
 
   @Test

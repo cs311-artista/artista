@@ -2,7 +2,6 @@
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.model.artwork
 
-import android.util.Log
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.error.AppException
 import java.text.Normalizer
@@ -285,23 +284,31 @@ class WikiDataRepositoryRemote(
   }
 
   private fun List<Artwork>.orderBySearchRelevance(searchTerm: String): List<Artwork> {
-    val s = searchTerm.split(" ")
+    val searchTerms = searchTerm.split(Regex("\\s+")).filter { it.isNotBlank() }
 
-    return sortedBy { artwork ->
-      var score = 0
+    return sortedWith(
+        compareBy<Artwork> { it.imageUrl.isNullOrBlank() }
+            .thenBy { artwork ->
+              var score = 0
 
-        if (artwork.name == null) score += 300
-        else s.forEach { if(artwork.name.contains(it, ignoreCase = true)) score -= 10}
+              if (artwork.name == null) score += 300
+              else
+                  searchTerms.forEach {
+                    if (artwork.name.contains(it, ignoreCase = true)) score -= 10
+                  }
 
-        if (artwork.artist?.name == null) score += 200
-        else s.forEach { if(artwork.artist.name.contains(it, ignoreCase = true)) score -= 20}
+              if (artwork.artist?.name == null) score += 200
+              else
+                  searchTerms.forEach {
+                    if (artwork.artist.name.contains(it, ignoreCase = true)) score -= 20
+                  }
 
-        if (artwork.imageUrl.isNullOrBlank()) score += 400
-        if (artwork.location == null) score += 20
+              if (artwork.location == null) score += 20
 
-        score
-      }
-    }
+              score
+            }
+    )
+  }
 
   private fun validateTypeValues(typeValues: List<ArtworkType>) {
     if (typeValues.isEmpty()) {
