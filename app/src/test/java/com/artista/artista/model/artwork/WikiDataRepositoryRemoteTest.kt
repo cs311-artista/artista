@@ -110,6 +110,19 @@ class WikiDataRepositoryRemoteTest {
   }
 
   @Test
+  fun wikidataDetails_includeOptionalImageAndLocationFields() {
+    assertTrue(WikiDataRepositoryRemote.DETAILS.contains("?item wdt:P18 ?image"))
+    assertTrue(WikiDataRepositoryRemote.DETAILS.contains("BIND(COALESCE"))
+  }
+
+  @Test
+  fun getPopularArtists_isNotImplemented() = runTest {
+    val repository = WikiDataRepositoryRemote(testClient())
+
+    assertThrowsSuspend<NotImplementedError> { repository.getPopularArtists() }
+  }
+
+  @Test
   fun getArtwork_whenUidIsNotAnExactItemId_throwsInvalidInputWithoutRequest() = runTest {
     val client = testClient()
     val repository = WikiDataRepositoryRemote(client)
@@ -133,6 +146,13 @@ class WikiDataRepositoryRemoteTest {
         }
 
     assertNull("invalid IDs must not trigger a request", client.lastRequest)
+  }
+
+  @Test
+  fun getArtwork_withDefaultDependenciesRejectsBlankId() = runTest {
+    val repository = WikiDataRepositoryRemote()
+
+    assertThrowsSuspend<AppException.InvalidInput> { repository.getArtwork("") }
   }
 
   @Test
@@ -237,6 +257,120 @@ class WikiDataRepositoryRemoteTest {
         )
 
     assertEquals(listOf("Q2", "Q1"), repository.searchArtworks("Monet").map { it.uid })
+  }
+
+  @Test
+  fun searchArtworks_treatsBlankImageUrlsAsMissingImages() = runTest {
+    val artworks =
+        listOf(
+            Artwork("Q1", "Mona Lisa", null, null, null, null, null, null),
+            Artwork(
+                "Q2",
+                "Mona Lisa",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                imageUrl = "",
+            ),
+            Artwork(
+                "Q3",
+                "Mona Lisa",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                "https://example.com/image.jpg",
+            ),
+            Artwork("Q4", "Mona Lisa", null, null, null, null, null, null, imageUrl = "   "),
+        )
+    val repository =
+        WikiDataRepositoryRemote(
+            testClient(),
+            jsonResponseParser = ArtworkListParser(artworks),
+        )
+
+    assertEquals(
+        listOf("Q3", "Q1", "Q2", "Q4"),
+        repository.searchArtworks("Mona Lisa").map { it.uid },
+    )
+  }
+
+  @Test
+  fun searchArtworks_usesShortTokensAndNormalizesRepeatedWhitespace() = runTest {
+    val client = testClient()
+    val artworks =
+        listOf(
+            Artwork(
+                "Q2",
+                "Unrelated artwork",
+                Artist("Q12", "Another artist"),
+                null,
+                null,
+                null,
+                null,
+                null,
+            ),
+            Artwork(
+                "Q1",
+                "A Study",
+                Artist("Q11", "Different artist"),
+                null,
+                null,
+                null,
+                null,
+                null,
+            ),
+        )
+    val repository =
+        WikiDataRepositoryRemote(
+            client,
+            jsonResponseParser = ArtworkListParser(artworks),
+        )
+
+    val results = repository.searchArtworks("  A   ")
+    val sparql = requireNotNull(client.lastRequest).url.queryParameter("query")
+
+    assertEquals(listOf("Q1", "Q2"), results.map { it.uid })
+    assertTrue(sparql!!.contains(" a\" ;"))
+  }
+
+  @Test
+  fun searchArtworks_ranksArtworksWithTitlesAboveMissingTitles() = runTest {
+    val artworks =
+        listOf(
+            Artwork("Q2", null, Artist("Q12", "Another artist"), null, null, null, null, null),
+            Artwork(
+                "Q1",
+                "Unrelated artwork",
+                Artist("Q11", "Another artist"),
+                null,
+                null,
+                null,
+                null,
+                null,
+            ),
+        )
+    val repository =
+        WikiDataRepositoryRemote(
+            testClient(),
+            jsonResponseParser = ArtworkListParser(artworks),
+        )
+
+    assertEquals(listOf("Q1", "Q2"), repository.searchArtworks("Monet").map { it.uid })
+  }
+
+  @Test
+  fun searchArtworks_handlesQueryMadeOnlyOfCombiningMarks() = runTest {
+    val client = testClient()
+    val repository = WikiDataRepositoryRemote(client, jsonResponseParser = EmptyParser())
+
+    assertTrue(repository.searchArtworks("\u0301").isEmpty())
+    assertTrue(client.lastRequest?.url?.queryParameter("query")?.contains("\u0301") == true)
   }
 
   @Test
@@ -459,6 +593,19 @@ class WikiDataRepositoryRemoteTest {
 
     assertEquals("Q1", artwork.uid)
     assertEquals("Artwork", artwork.name)
+    assertEquals(1, client.requestCount)
+  }
+
+  @Test
+  fun getArtwork_cachesArtworkFetchedDirectly() = runTest {
+    val client = testClient()
+    val repository = WikiDataRepositoryRemote(client, jsonResponseParser = SuccessfulParser())
+
+    val first = repository.getArtwork("Q1")
+    val second = repository.getArtwork("Q1")
+
+    assertEquals("Q1", first.uid)
+    assertEquals(first, second)
     assertEquals(1, client.requestCount)
   }
 
