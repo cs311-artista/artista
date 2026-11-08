@@ -2,6 +2,7 @@
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.artwork
 
+import com.artista.artista.R
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkId
@@ -9,6 +10,7 @@ import com.artista.artista.model.artwork.ArtworkType
 import com.artista.artista.model.artwork.SavedArtworksRepository
 import com.artista.artista.model.artwork.SearchArea
 import com.artista.artista.model.artwork.WikiDataRepository
+import com.artista.artista.model.error.AppException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -52,7 +54,6 @@ class ArtworkScreenViewModelTest {
     Dispatchers.setMain(testDispatcher)
     fakeRepository = FakeArtworkRepository()
     fakeWikiDataRepository = FakeWikiDataRepository(sampleArtwork)
-    viewModel = ArtworkScreenViewModel(sampleArtwork.uid, fakeWikiDataRepository, fakeRepository)
   }
 
   @After
@@ -64,6 +65,7 @@ class ArtworkScreenViewModelTest {
   fun setArtwork_updatesArtworkAndIsSavedFromRepository() = runTest {
     fakeRepository.saveArtwork(sampleArtwork)
 
+    viewModel = ArtworkScreenViewModel(sampleArtwork.uid, fakeWikiDataRepository, fakeRepository)
     viewModel.setArtwork(sampleArtwork.uid)
 
     val state = viewModel.uiState.value
@@ -73,6 +75,7 @@ class ArtworkScreenViewModelTest {
 
   @Test
   fun setArtwork_whenNotSavedInRepository_setsIsSavedToFalse() = runTest {
+    viewModel = ArtworkScreenViewModel(sampleArtwork.uid, fakeWikiDataRepository, fakeRepository)
     viewModel.setArtwork(sampleArtwork.uid)
 
     val state = viewModel.uiState.value
@@ -82,6 +85,7 @@ class ArtworkScreenViewModelTest {
 
   @Test
   fun toggleSaveArtwork_whenArtworkNotSaved_savesArtworkInRepositoryAndUpdatesState() = runTest {
+    viewModel = ArtworkScreenViewModel(sampleArtwork.uid, fakeWikiDataRepository, fakeRepository)
     viewModel.setArtwork(sampleArtwork.uid)
     viewModel.toggleSaveArtwork()
 
@@ -93,6 +97,8 @@ class ArtworkScreenViewModelTest {
   fun toggleSaveArtwork_whenArtworkAlreadySaved_removesArtworkFromRepositoryAndUpdatesState() =
       runTest {
         fakeRepository.saveArtwork(sampleArtwork)
+        viewModel =
+            ArtworkScreenViewModel(sampleArtwork.uid, fakeWikiDataRepository, fakeRepository)
         viewModel.setArtwork(sampleArtwork.uid)
 
         viewModel.toggleSaveArtwork()
@@ -106,6 +112,7 @@ class ArtworkScreenViewModelTest {
     val untitledArtwork = sampleArtwork.copy(name = null)
     fakeRepository.saveArtwork(untitledArtwork)
 
+    viewModel = ArtworkScreenViewModel(untitledArtwork.uid, fakeWikiDataRepository, fakeRepository)
     fakeWikiDataRepository.artwork = untitledArtwork
     viewModel.setArtwork(untitledArtwork.uid)
     assertTrue(viewModel.uiState.value.isSaved)
@@ -118,6 +125,7 @@ class ArtworkScreenViewModelTest {
   @Test
   fun toggleSaveArtwork_whenCurrentArtworkIsNull_doesNothing() {
     fakeWikiDataRepository.shouldThrow = true
+    viewModel = ArtworkScreenViewModel(sampleArtwork.uid, fakeWikiDataRepository, fakeRepository)
     viewModel.setArtwork(sampleArtwork.uid)
 
     viewModel.toggleSaveArtwork()
@@ -127,6 +135,7 @@ class ArtworkScreenViewModelTest {
 
   @Test
   fun toggleSaveArtwork_whenRepositoryEmptyAndThrowsException_revertsState() = runTest {
+    viewModel = ArtworkScreenViewModel(sampleArtwork.uid, fakeWikiDataRepository, fakeRepository)
     viewModel.setArtwork(sampleArtwork.uid)
     fakeRepository.shouldThrowError = true
 
@@ -135,24 +144,62 @@ class ArtworkScreenViewModelTest {
     assertFalse(viewModel.uiState.value.isSaved)
   }
 
+  @Test
+  fun initializingViewModel_withSavedArtwork_setsIsSavedToTrue() = runTest {
+    fakeRepository.saveArtwork(sampleArtwork)
+
+    val viewModel =
+        ArtworkScreenViewModel(
+            sampleArtwork.uid,
+            fakeWikiDataRepository,
+            fakeRepository,
+        )
+
+    assertTrue(viewModel.uiState.value.isSaved)
+  }
+
+  @Test
+  fun initializingViewModel_withUnsavedArtwork_setsIsSavedToFalse() = runTest {
+    val viewModel =
+        ArtworkScreenViewModel(
+            sampleArtwork.uid,
+            fakeWikiDataRepository,
+            fakeRepository,
+        )
+
+    assertFalse(viewModel.uiState.value.isSaved)
+  }
+
+  @Test
+  fun setArtwork_whenRepositoryThrowsUnauthorizedException_setsErrorMsg() = runTest {
+    viewModel =
+        ArtworkScreenViewModel(
+            "UnknownArtworkId",
+            fakeWikiDataRepository,
+            fakeRepository,
+        )
+
+    assertEquals(R.string.error_unauthorized, viewModel.uiState.value.errorMsg)
+  }
+
   /** Fake implementation of [SavedArtworksRepository] for testing [ArtworkScreenViewModel]. */
   class FakeArtworkRepository : SavedArtworksRepository {
     private val savedArtworks = mutableListOf<Artwork>()
     var shouldThrowError = false
 
     override suspend fun isArtworkSaved(uid: ArtworkId): Boolean {
-      if (shouldThrowError) throw RuntimeException("Simulated error")
+      if (shouldThrowError) throw AppException.Unknown("Simulated repository failure")
       return savedArtworks.any { it.uid == uid }
     }
 
     override suspend fun saveArtwork(artwork: Artwork) {
-      if (shouldThrowError) throw RuntimeException("Simulated database failure")
+      if (shouldThrowError) throw AppException.Unknown("Simulated database failure")
       savedArtworks.removeAll { it.uid == artwork.uid }
       savedArtworks.add(artwork)
     }
 
     override suspend fun removeArtworkFromSaved(uid: ArtworkId) {
-      if (shouldThrowError) throw RuntimeException("Simulated database failure")
+      if (shouldThrowError) throw AppException.Unknown("Simulated database failure")
       savedArtworks.removeAll { it.uid == uid }
     }
 

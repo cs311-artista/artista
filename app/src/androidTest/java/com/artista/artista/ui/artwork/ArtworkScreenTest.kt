@@ -125,12 +125,19 @@ class ArtworkScreenTest {
         .assertTextEquals(composeTestRule.activity.getString(R.string.artwork_unknown_title))
   }
 
+  @Test
+  fun artworkScreen_whenArtworkIsNull_displaysErrorMessage() {
+    setScreenContent(artwork = null)
+
+    composeTestRule.onNodeWithTag(ArtworkTestTags.ARTWORK_ERROR_MESSAGE).assertExists()
+  }
+
   private fun setScreenContent(
-      artwork: Artwork = sampleArtwork,
+      artwork: Artwork? = sampleArtwork,
       onBackClick: () -> Unit = {},
   ) {
     fakeRepository.artwork = artwork
-    viewModel = ArtworkScreenViewModel(artwork.uid, fakeRepository, fakeRepository)
+    viewModel = ArtworkScreenViewModel(artwork?.uid ?: "", fakeRepository, fakeRepository)
     composeTestRule.setContent {
       ArtistaTheme {
         ArtworkScreen(
