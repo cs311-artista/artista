@@ -293,7 +293,7 @@ class ArtistPreferencesViewModelTest {
     assertEquals(0, savedCount)
   }
 
-  /** Verifies that nothing is saved when nobody is signed in, and that the screen is left. */
+  /** Verifies that nothing is saved when nobody is signed in, and that onSaved is still called. */
   @Test
   fun saveSelectedArtists_signedOut_callsOnSavedWithoutWriting() = runTest {
     // No signIn(): the auth repository starts signed out.
