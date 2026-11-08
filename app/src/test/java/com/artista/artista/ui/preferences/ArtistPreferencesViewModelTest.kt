@@ -330,6 +330,28 @@ class ArtistPreferencesViewModelTest {
     assertFalse(viewModel.uiState.value.isSaving)
   }
 
+  /**
+   * Verifies that the artists saved are the ones selected when Save was tapped, even if the user
+   * changes the selection while the save runs.
+   */
+  @Test
+  fun saveSelectedArtists_toggleWhileSaving_savesSelectionAtTapTime() = runTest {
+    // Slows the read before the write, so the save is still running when the user toggles.
+    userRepository.readDelays[UID] = 1_000
+    signIn()
+    viewModel.toggleArtist(PICASSO.uid)
+
+    viewModel.saveSelectedArtists {}
+    // runCurrent starts the save without letting time pass, so it is still waiting on the read.
+    runCurrent()
+    viewModel.toggleArtist(MONET.uid)
+    advanceUntilIdle()
+
+    assertEquals(listOf(PICASSO.uid), userRepository.storedUser(UID)?.preference?.artists)
+    // The toggle is not lost: it stays on screen, ready for the next save.
+    assertEquals(setOf(PICASSO.uid, MONET.uid), viewModel.uiState.value.selectedArtists)
+  }
+
   /** Verifies that the artists are stored in the order the user selected them. */
   @Test
   fun saveSelectedArtists_keepsSelectionOrder() = runTest {
