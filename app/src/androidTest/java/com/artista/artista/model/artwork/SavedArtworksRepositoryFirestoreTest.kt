@@ -1,3 +1,4 @@
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 package com.artista.artista.model.artwork
 
@@ -25,11 +26,7 @@ import org.junit.Test
 import org.junit.rules.Timeout
 import org.junit.runner.RunWith
 
-/**
- * Verifies the Firestore repository against the local Firebase emulators.
- *
- * @author Copilot
- */
+/** Verifies the Firestore repository against the local Firebase emulators. */
 @RunWith(AndroidJUnit4::class)
 class SavedArtworksRepositoryFirestoreTest {
 
@@ -40,7 +37,6 @@ class SavedArtworksRepositoryFirestoreTest {
   private lateinit var repository: SavedArtworksRepositoryFirestore
   private lateinit var userId: String
   private lateinit var userEmail: String
-  private val userIds = mutableSetOf<String>()
 
   @Before
   fun setUp() = runBlocking {
@@ -50,17 +46,15 @@ class SavedArtworksRepositoryFirestoreTest {
     userEmail = "saved-artworks-${UUID.randomUUID()}@example.com"
     userId =
         checkNotNull(auth.createUserWithEmailAndPassword(userEmail, TEST_PASSWORD).await().user).uid
-    userIds += userId
     repository = SavedArtworksRepositoryFirestore(firestore, auth)
   }
 
   @After
   fun tearDown() = runBlocking {
-    userIds.forEach { id ->
-      savedArtworksCollection(id).get().await().documents.forEach { it.reference.delete().await() }
-    }
+    // The rules only let a user clear their own artworks, and a test may end signed out or as
+    // another user, so the data is wiped through the emulator's admin endpoint.
+    FirebaseEmulator.clearFirestore()
     auth.signOut()
-    userIds.clear()
   }
 
   @Test
@@ -141,7 +135,6 @@ class SavedArtworksRepositoryFirestoreTest {
                 auth.createUserWithEmailAndPassword(secondUserEmail, TEST_PASSWORD).await().user
             )
             .uid
-    userIds += secondUserId
     val secondUserRepository = SavedArtworksRepositoryFirestore(firestore, auth)
     assertFalse(secondUserRepository.isArtworkSaved("artwork-1"))
 

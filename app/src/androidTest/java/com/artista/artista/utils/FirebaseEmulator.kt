@@ -1,24 +1,25 @@
+// Co-authored-by: DeepSeek Flash
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
+// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 package com.artista.artista.utils
 
 import androidx.test.platform.app.InstrumentationRegistry
-import com.artista.artista.model.user.USER_COLLECTION_PATH
-import com.google.android.gms.tasks.Tasks
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import java.net.HttpURLConnection
-import java.net.URL
 import java.util.concurrent.TimeUnit
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 
-// Co-authored-by: DeepSeek Flash
 /**
  * Provides the Firebase services used by instrumented tests.
  *
  * The services are configured once for the Android emulator and all test data is removed between
- * tests through [clearUsers] and [clearAccounts].
+ * tests through [clearFirestore] and [clearAccounts].
  *
- * @author Kaio R. Freitas Pereira Nascimento (krfpn)
- * @author Copilot (223556219+Copilot@users.noreply.github.com)
+ * @author krfpn
  */
 object FirebaseEmulator {
 
@@ -31,8 +32,21 @@ object FirebaseEmulator {
   /** Port used by the local Authentication emulator. */
   const val AUTH_PORT = 9099
 
-  /** How long [clearAccounts] waits for the emulator before the test fails instead of hanging. */
-  private const val CLEAR_TIMEOUT_MILLIS = 10_000
+  /** How long an emulator REST call waits before the test fails instead of hanging. */
+  private const val REQUEST_TIMEOUT_MILLIS = 10_000L
+
+  /** Token the Firestore emulator treats as an admin, so the request skips the security rules. */
+  private const val OWNER_TOKEN = "Bearer owner"
+
+  /** Content type of the JSON bodies sent to the Firestore emulator. */
+  private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
+
+  /** HTTP client shared by every call to the emulators' REST endpoints. */
+  private val httpClient: OkHttpClient =
+      OkHttpClient.Builder()
+          .connectTimeout(REQUEST_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)
+          .readTimeout(REQUEST_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)
+          .build()
 
   /** Firestore service configured to use the local emulator. */
   val firestore: FirebaseFirestore by lazy {
@@ -59,23 +73,55 @@ object FirebaseEmulator {
     FirebaseAuth.getInstance().also { it.useEmulator(HOST, AUTH_PORT) }
   }
 
-  /** Deletes every user document from the emulator. */
-  fun clearUsers() {
-    val documents =
-        Tasks.await(
-            firestore.collection(USER_COLLECTION_PATH).get(),
-            10,
-            TimeUnit.SECONDS,
-        )
-    documents.documents.forEach { Tasks.await(it.reference.delete(), 10, TimeUnit.SECONDS) }
+  /**
+   * Deletes every document from the Firestore emulator.
+   *
+   * The security rules only open a user's own documents, so the collection can't be listed and
+   * cleared through the SDK; the emulator's REST endpoint skips the rules.
+   *
+   * @author krfpn
+   */
+  fun clearFirestore() {
+    sendEmulatorRequest(
+        port = FIRESTORE_PORT,
+        method = "DELETE",
+        path = "emulator/v1/projects/${projectId()}/databases/(default)/documents",
+        failureMessage = "the Firestore emulator refused to delete its documents",
+        asOwner = true,
+    )
+  }
+
+  /**
+   * Creates a raw document while skipping the security rules.
+   *
+   * Seeds documents the rules reject, such as a profile without its `uid` field, to check that the
+   * app still handles them.
+   *
+   * @param collection collection path relative to the database root, such as `Users`
+   * @param documentId identifier of the document to create
+   * @param fieldsJson the document's `fields` object in the Firestore REST format
+   * @author krfpn
+   */
+  fun createDocumentBypassingRules(collection: String, documentId: String, fieldsJson: String) {
+    // POST with an explicit id fails if the document already exists, so seeding never overwrites.
+    sendEmulatorRequest(
+        port = FIRESTORE_PORT,
+        method = "POST",
+        path =
+            "v1/projects/${projectId()}/databases/(default)/documents/$collection" +
+                "?documentId=$documentId",
+        failureMessage = "the Firestore emulator refused to create $collection/$documentId",
+        asOwner = true,
+        body = """{"fields":$fieldsJson}""",
+    )
   }
 
   /**
    * Deletes every account from the Authentication emulator.
    *
    * The SDK exposes no call for this, so the emulator's own REST endpoint is used. It is the
-   * counterpart of [clearUsers]: without it, accounts created by an earlier run stay visible to the
-   * next one.
+   * counterpart of [clearFirestore]: without it, accounts created by an earlier run stay visible to
+   * the next one.
    *
    * This deletes every account in the emulator, not only the ones a test created: it is a side
    * effect shared by every test in the same process, so a test that needs an account has to create
@@ -85,24 +131,48 @@ object FirebaseEmulator {
    * @author timo-by
    */
   fun clearAccounts() {
-    val projectId =
-        checkNotNull(FirebaseApp.getInstance().options.projectId) {
-          "the Firebase project ID is required to reach the Authentication emulator"
-        }
-    val connection =
-        (URL("http://$HOST:$AUTH_PORT/emulator/v1/projects/$projectId/accounts").openConnection()
-                as HttpURLConnection)
-            .apply {
-              requestMethod = "DELETE"
-              connectTimeout = CLEAR_TIMEOUT_MILLIS
-              readTimeout = CLEAR_TIMEOUT_MILLIS
-            }
-    try {
-      check((connection.responseCode in 200..299)) {
-        "the Authentication emulator refused to delete its accounts: ${connection.responseCode}"
+    sendEmulatorRequest(
+        port = AUTH_PORT,
+        method = "DELETE",
+        path = "emulator/v1/projects/${projectId()}/accounts",
+        failureMessage = "the Authentication emulator refused to delete its accounts",
+    )
+  }
+
+  /** Returns the Firebase project ID that the emulators' REST endpoints need. */
+  private fun projectId(): String =
+      checkNotNull(FirebaseApp.getInstance().options.projectId) {
+        "the Firebase project ID is required to reach the emulators"
       }
-    } finally {
-      connection.disconnect()
+
+  /**
+   * Sends a request to one of the emulators' REST endpoints and fails if it is refused.
+   *
+   * @param port port of the emulator to reach
+   * @param method HTTP method to use
+   * @param path endpoint path after the emulator's host and port
+   * @param failureMessage start of the error message if the emulator refuses the request
+   * @param asOwner whether to send the admin token that makes Firestore skip the security rules
+   * @param body optional JSON body
+   * @throws IllegalStateException if the emulator answers with a non-2xx status
+   */
+  private fun sendEmulatorRequest(
+      port: Int,
+      method: String,
+      path: String,
+      failureMessage: String,
+      asOwner: Boolean = false,
+      body: String? = null,
+  ) {
+    val request =
+        Request.Builder()
+            .url("http://$HOST:$port/$path")
+            .method(method, body?.toRequestBody(JSON_MEDIA_TYPE))
+            .apply { if (asOwner) header("Authorization", OWNER_TOKEN) }
+            .build()
+    // use {} closes the response so its connection goes back to the pool.
+    httpClient.newCall(request).execute().use { response ->
+      check(response.isSuccessful) { "$failureMessage: ${response.code}" }
     }
   }
 }
