@@ -79,7 +79,7 @@ private val PillShape = RoundedCornerShape(percent = 50)
  *   saving them fails.
  * @param onTabSelected Callback invoked with the destination selected in the bottom navigation.
  * @param artistPreferencesViewModel ViewModel providing the artists and the current selection.
- * @author Timz3rr
+ * @author Timz3rr, krfpn
  */
 @Composable
 fun ArtistPreferencesScreen(
