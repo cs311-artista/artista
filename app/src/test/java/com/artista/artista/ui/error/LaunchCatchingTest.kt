@@ -4,6 +4,7 @@ package com.artista.artista.ui.error
 import com.artista.artista.model.error.AppException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -74,6 +75,32 @@ class LaunchCatchingTest {
     advanceUntilIdle()
 
     assertTrue(job.isCancelled)
+    assertTrue(reportedErrors.isEmpty())
+  }
+
+  /** Checks that an [AppException] arriving after cancellation does not call `onError`. */
+  @Test
+  fun launchCatching_whenAppExceptionArrivesAfterCancellation_doesNotReportError() = runTest {
+    launchCatching(TAG, onError = { reportedErrors += it }) {
+      // A failure already on its way when the coroutine is cancelled is delivered as itself, not
+      // as a CancellationException, which is what cancelling then throwing reproduces.
+      cancel()
+      throw AppException.Network()
+    }
+    advanceUntilIdle()
+
+    assertTrue(reportedErrors.isEmpty())
+  }
+
+  /** Checks that any other exception arriving after cancellation does not call `onError`. */
+  @Test
+  fun launchCatching_whenOtherExceptionArrivesAfterCancellation_doesNotReportError() = runTest {
+    launchCatching(TAG, onError = { reportedErrors += it }) {
+      cancel()
+      throw IllegalStateException("Simulated late failure")
+    }
+    advanceUntilIdle()
+
     assertTrue(reportedErrors.isEmpty())
   }
 

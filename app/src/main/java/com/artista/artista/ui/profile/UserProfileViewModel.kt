@@ -199,10 +199,8 @@ class UserProfileViewModel(
           } catch (exception: CancellationException) {
             throw exception
           } catch (exception: Exception) {
-            // launchCatching calls onError even for a failure arriving after the job was cancelled,
-            // when it would change the state of the next user or rename. Throwing the cancellation
-            // here keeps it from onError; onError itself cannot check, because it can run before
-            // launchCatching has returned the job it would have to look at.
+            // launchCatching only keeps a failure arriving after cancellation from onError. It runs
+            // too late to protect undo, which would overwrite what the next user or rename cached.
             ensureActive()
             undo()
             throw exception
