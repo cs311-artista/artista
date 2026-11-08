@@ -3,12 +3,15 @@
 package com.artista.artista.ui.search
 
 import androidx.compose.ui.text.TextRange
+import com.artista.artista.R
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.ArtworkType
+import com.artista.artista.model.artwork.SavedArtworksRepository
 import com.artista.artista.model.artwork.SearchArea
 import com.artista.artista.model.artwork.WikiDataRepository
+import com.artista.artista.model.error.AppException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -76,6 +79,62 @@ class SearchScreenViewModelTest {
     advanceUntilIdle()
 
     assertEquals(listOf("starryId"), viewModel.uiState.value.recommendations.map { it.uid })
+  }
+
+  @Test
+  fun unauthorizedSavedArtworkLoad_doesNotPreventSearching() = runTest {
+    val savedArtworksRepository =
+        object : SavedArtworksRepository by SearchTestData.savedArtworksRepository() {
+          override suspend fun getSavedArtworks(): List<Artwork> {
+            throw AppException.Unauthorized("No user is signed in")
+          }
+        }
+    val viewModel =
+        SearchScreenViewModel(savedArtworksRepository, SearchTestData.wikiDataRepository())
+
+    advanceUntilIdle()
+    viewModel.onSearchSubmitted("star")
+    advanceUntilIdle()
+
+    assertTrue(viewModel.uiState.value.savedArtworks.isEmpty())
+    assertEquals(listOf(SearchTestData.starryNight), viewModel.uiState.value.artworks)
+    assertFalse(viewModel.uiState.value.isLoading)
+  }
+
+  @Test
+  fun onSearchSubmitted_whenWikiDataRequestFails_setsSearchErrorMessage() = runTest {
+    val wikiRepository =
+        object : WikiDataRepository {
+          override suspend fun getArtworksNearLocation(
+              searchArea: SearchArea,
+              typeValues: List<ArtworkType>,
+              limit: Int,
+          ): List<Artwork> {
+            throw NotImplementedError("Should not be used in this test")
+          }
+
+          override suspend fun getPopularArtists(): List<Artist> {
+            throw NotImplementedError("Should not be used in this test")
+          }
+
+          override suspend fun getArtwork(uid: ArtworkId): Artwork =
+              throw NoSuchElementException("No artwork matching uid $uid was found")
+
+          override suspend fun searchArtworks(
+              artworkTitle: String,
+              typeValues: List<ArtworkType>,
+              limit: Int,
+          ): List<Artwork> = throw AppException.Network("Search failed")
+        }
+    val viewModel = SearchScreenViewModel(SearchTestData.savedArtworksRepository(), wikiRepository)
+
+    advanceUntilIdle()
+    viewModel.onSearchSubmitted("van gogh")
+    advanceUntilIdle()
+
+    assertEquals(R.string.error_network, viewModel.uiState.value.searchErrorMessageResId)
+    assertFalse(viewModel.uiState.value.isLoading)
+    assertTrue(viewModel.uiState.value.artworks.isEmpty())
   }
 
   @Test
@@ -201,6 +260,24 @@ class SearchScreenViewModelTest {
 
     assertEquals(" ", viewModel.uiState.value.query)
     assertTrue(viewModel.uiState.value.recommendations.isEmpty())
+  }
+
+  @Test
+  fun toggleSavedArtwork_whenSaveFails_setsSaveErrorMessage() = runTest {
+    val repository =
+        object : SavedArtworksRepository by SearchTestData.savedArtworksRepository() {
+          override suspend fun saveArtwork(artwork: Artwork) {
+            throw AppException.Network("Could not save artwork")
+          }
+        }
+    val viewModel = SearchScreenViewModel(repository, SearchTestData.wikiDataRepository())
+    val artwork = SearchTestData.untitledStudy.copy(uid = "newArtworkId", name = "New Artwork")
+
+    advanceUntilIdle()
+    viewModel.toggleSavedArtwork(artwork)
+    advanceUntilIdle()
+
+    assertEquals(R.string.error_network, viewModel.uiState.value.saveErrorMessageResId)
   }
 
   @Test

@@ -2,6 +2,7 @@
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.search
 
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -35,6 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -89,10 +91,27 @@ fun SearchScreen(
 ) {
   val uiState by viewModel.uiState.collectAsState()
   val loadingDescription = stringResource(R.string.search_loading)
+  val context = LocalContext.current
+  val searchErrorMessage = uiState.searchErrorMessageResId?.let { stringResource(it) }
+  val saveErrorMessage = uiState.saveErrorMessageResId?.let { stringResource(it) }
   val textFieldState =
       remember(viewModel) {
         TextFieldState(initialText = uiState.query, initialSelection = uiState.selection)
       }
+
+  LaunchedEffect(searchErrorMessage) {
+    searchErrorMessage?.let {
+      Toast.makeText(context, it, Toast.LENGTH_LONG).show()
+      viewModel.clearSearchError()
+    }
+  }
+
+  LaunchedEffect(saveErrorMessage) {
+    saveErrorMessage?.let {
+      Toast.makeText(context, it, Toast.LENGTH_LONG).show()
+      viewModel.clearSaveError()
+    }
+  }
 
   Scaffold(
       topBar = {

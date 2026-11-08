@@ -2,6 +2,7 @@
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.search
 
+import androidx.annotation.StringRes
 import androidx.compose.ui.text.TextRange
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -9,12 +10,14 @@ import androidx.lifecycle.viewModelScope
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.SavedArtworksRepository
 import com.artista.artista.model.artwork.WikiDataRepository
-import kotlinx.coroutines.CancellationException
+import com.artista.artista.model.error.AppException
+import com.artista.artista.ui.error.launchCatching
+import com.artista.artista.ui.error.toMessageRes
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.update
 
 /**
  * Immutable UI state displayed by the Search screen.
@@ -25,6 +28,10 @@ import kotlinx.coroutines.launch
  * @property recommendations saved artworks matching the current query
  * @property artworks results returned for the submitted query
  * @property isLoading whether submitted search results are being fetched
+ * @property searchErrorMessageResId string resource of the message shown when submitting a query
+ *   fails
+ * @property saveErrorMessageResId string resource of the message shown when saving or unsaving an
+ *   artwork fails
  * @author IJJA3141
  */
 data class SearchScreenUiState(
@@ -34,6 +41,8 @@ data class SearchScreenUiState(
     val recommendations: List<Artwork> = emptyList(),
     val artworks: List<Artwork> = emptyList(),
     val isLoading: Boolean = false,
+    @param:StringRes val searchErrorMessageResId: Int? = null,
+    @param:StringRes val saveErrorMessageResId: Int? = null,
 )
 
 /**
@@ -56,13 +65,24 @@ class SearchScreenViewModel(
   val uiState: StateFlow<SearchScreenUiState> = _uiState.asStateFlow()
 
   init {
-    viewModelScope.launch {
+    viewModelScope.launchCatching(
+        tag = TAG,
+        onError = { error ->
+          if (error is AppException.Unauthorized) {
+            // Signed-out users can still search; they just have no saved-artwork recommendations.
+            _uiState.update { it.copy(savedArtworks = emptyList(), recommendations = emptyList()) }
+          } else {
+            _uiState.update { it.copy(searchErrorMessageResId = error.toMessageRes()) }
+          }
+        },
+    ) {
       val savedArtworks = savedArtworksRepository.getSavedArtworks()
-      _uiState.value =
-          _uiState.value.copy(
-              savedArtworks = savedArtworks,
-              recommendations = recommendationsFor(_uiState.value.query, savedArtworks),
-          )
+      _uiState.update {
+        it.copy(
+            savedArtworks = savedArtworks,
+            recommendations = recommendationsFor(it.query, savedArtworks),
+        )
+      }
     }
   }
 
@@ -87,6 +107,7 @@ class SearchScreenViewModel(
             recommendations = recommendationsFor(query, currentState.savedArtworks),
             artworks = if (query.isBlank()) emptyList() else currentState.artworks,
             isLoading = if (queryChanged) false else currentState.isLoading,
+            searchErrorMessageResId = null,
         )
   }
 
@@ -107,31 +128,32 @@ class SearchScreenViewModel(
             recommendations = emptyList(),
             artworks = if (query.isBlank()) emptyList() else _uiState.value.artworks,
             isLoading = query.isNotBlank(),
+            searchErrorMessageResId = null,
         )
     if (query.isBlank()) return
 
-    searchJob = viewModelScope.launch {
-      try {
-        val results = wikiDataRepository.searchArtworks(query)
-        if (requestId == searchRequestId) {
-          _uiState.value = _uiState.value.copy(artworks = results)
+    searchJob =
+        viewModelScope.launchCatching(
+            tag = TAG,
+            onError = { error ->
+              if (requestId == searchRequestId) {
+                _uiState.update {
+                  it.copy(
+                      artworks = emptyList(),
+                      isLoading = false,
+                      searchErrorMessageResId = error.toMessageRes(),
+                  )
+                }
+              }
+            },
+        ) {
+          val results = wikiDataRepository.searchArtworks(query)
+          if (requestId == searchRequestId) {
+            _uiState.update {
+              it.copy(artworks = results, isLoading = false, searchErrorMessageResId = null)
+            }
+          }
         }
-      } catch (e: CancellationException) {
-        throw e
-      } catch (e: Exception) {
-        // TODO: define error in interface and decide how to display it to the user
-
-        // this line ensures that if an error occurs, the artworks list is cleared to avoid showing
-        // stale data
-        if (requestId == searchRequestId) {
-          _uiState.value = _uiState.value.copy(artworks = emptyList())
-        }
-      } finally {
-        if (requestId == searchRequestId) {
-          _uiState.value = _uiState.value.copy(isLoading = false)
-        }
-      }
-    }
   }
 
   /**
@@ -143,24 +165,37 @@ class SearchScreenViewModel(
   fun toggleSavedArtwork(artwork: Artwork) {
     val isCurrentlySaved = artwork.uid in _uiState.value.savedArtworks.map { it.uid }
 
-    viewModelScope.launch {
-      try {
-        if (isCurrentlySaved) {
-          savedArtworksRepository.removeArtworkFromSaved(artwork.uid)
-        } else {
-          savedArtworksRepository.saveArtwork(artwork)
-        }
-      } catch (e: Exception) {
-        // TODO: define error in interface and decide how to display it to the user
+    viewModelScope.launchCatching(
+        tag = TAG,
+        onError = { error ->
+          _uiState.update { it.copy(saveErrorMessageResId = error.toMessageRes()) }
+        },
+    ) {
+      if (isCurrentlySaved) {
+        savedArtworksRepository.removeArtworkFromSaved(artwork.uid)
+      } else {
+        savedArtworksRepository.saveArtwork(artwork)
       }
 
       val savedArtworks = savedArtworksRepository.getSavedArtworks()
-      _uiState.value =
-          _uiState.value.copy(
-              savedArtworks = savedArtworks,
-              recommendations = recommendationsFor(_uiState.value.query, savedArtworks),
-          )
+      _uiState.update {
+        it.copy(
+            savedArtworks = savedArtworks,
+            recommendations = recommendationsFor(it.query, savedArtworks),
+            saveErrorMessageResId = null,
+        )
+      }
     }
+  }
+
+  /** Clears the search error after the UI has shown it. */
+  fun clearSearchError() {
+    _uiState.update { it.copy(searchErrorMessageResId = null) }
+  }
+
+  /** Clears the save-toggle error after the UI has shown it. */
+  fun clearSaveError() {
+    _uiState.update { it.copy(saveErrorMessageResId = null) }
   }
 
   private fun recommendationsFor(query: String, savedArtworks: List<Artwork>): List<Artwork> =
@@ -176,6 +211,8 @@ class SearchScreenViewModel(
       }
 
   companion object {
+    private const val TAG = "SearchScreenViewModel"
+
     /**
      * Creates a factory for a search ViewModel with its repository dependencies.
      *
