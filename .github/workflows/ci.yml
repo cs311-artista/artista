@@ -43,7 +43,7 @@ jobs:
           MAPS_API_KEY: ${{ secrets.MAPS_API_KEY }}
         run: |
           if [ -n "$MAPS_API_KEY" ]; then
-            printf '%s\n' "$MAPS_API_KEY" | base64 --decode > local.properties
+            printf "$MAPS_API_KEY" | base64 --decode > local.properties
           else
             echo "::warning::MAPS_API_KEY secret is not set. Maps will not be configured."
           fi
