@@ -15,7 +15,10 @@ import com.artista.artista.R
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkId
+import com.artista.artista.model.artwork.ArtworkType
 import com.artista.artista.model.artwork.SavedArtworksRepository
+import com.artista.artista.model.artwork.SearchArea
+import com.artista.artista.model.artwork.WikiDataRepository
 import com.artista.artista.model.map.Location
 import com.artista.artista.ui.theme.ArtistaTheme
 import kotlinx.coroutines.runBlocking
@@ -65,7 +68,6 @@ class ArtworkScreenTest {
   @Before
   fun setUp() {
     fakeRepository = FakeArtworkRepository()
-    viewModel = ArtworkScreenViewModel(fakeRepository)
   }
 
   @Test
@@ -123,11 +125,15 @@ class ArtworkScreenTest {
         .assertTextEquals(composeTestRule.activity.getString(R.string.artwork_unknown_title))
   }
 
-  private fun setScreenContent(artwork: Artwork = sampleArtwork, onBackClick: () -> Unit = {}) {
+  private fun setScreenContent(
+      artwork: Artwork = sampleArtwork,
+      onBackClick: () -> Unit = {},
+  ) {
+    fakeRepository.artwork = artwork
+    viewModel = ArtworkScreenViewModel(artwork.uid, fakeRepository, fakeRepository)
     composeTestRule.setContent {
       ArtistaTheme {
         ArtworkScreen(
-            artwork = artwork,
             artworkScreenViewModel = viewModel,
             onBackClick = onBackClick,
         )
@@ -144,8 +150,9 @@ class ArtworkScreenTest {
   }
 
   /** In-memory test double implementing [SavedArtworksRepository]. */
-  private class FakeArtworkRepository : SavedArtworksRepository {
+  private class FakeArtworkRepository : SavedArtworksRepository, WikiDataRepository {
     private val savedArtworks = mutableListOf<Artwork>()
+    var artwork: Artwork? = null
 
     override suspend fun isArtworkSaved(uid: ArtworkId): Boolean {
       return savedArtworks.any { it.uid == uid }
@@ -160,18 +167,26 @@ class ArtworkScreenTest {
       savedArtworks.removeAll { it.uid == uid }
     }
 
-    override suspend fun getSavedArtworks(): List<Artwork> =
-        listOf(
-            Artwork(
-                uid = "starryId",
-                name = "The Starry Night",
-                artist = Artist("test-van-gogh", "Vincent van Gogh"),
-                location = null,
-                conceptionDate = null,
-                dimension = null,
-                description = null,
-                museum = null,
-            )
-        )
+    override suspend fun getSavedArtworks(): List<Artwork> = savedArtworks.toList()
+
+    override suspend fun getArtworksNearLocation(
+        searchArea: SearchArea,
+        typeValues: List<ArtworkType>,
+        limit: Int,
+    ): List<Artwork> = emptyList()
+
+    @Deprecated(
+        "This function will be moved outside of WikiDataRepository since the popularity isn't a Wikidata metric."
+    )
+    override suspend fun getPopularArtists(): List<Artist> = emptyList()
+
+    override suspend fun getArtwork(uid: ArtworkId): Artwork =
+        checkNotNull(artwork) { "Test artwork was not configured." }
+
+    override suspend fun searchArtworks(
+        artworkTitle: String,
+        typeValues: List<ArtworkType>,
+        limit: Int,
+    ): List<Artwork> = emptyList()
   }
 }
