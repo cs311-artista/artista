@@ -111,6 +111,37 @@ class OverviewScreenViewModelTest {
     assertEquals(null, viewModel.uiState.value.errorMessageRes)
   }
 
+  /** Checks that a successful reload clears the error left by an earlier failed load. */
+  @Test
+  fun overviewViewModel_whenReloadSucceedsAfterFailure_clearsError() = runTest {
+    val expectedArtworks =
+        listOf(artwork(name = "The Starry Night", artistName = "Vincent van Gogh"))
+    var loadCount = 0
+    val repository =
+        object : WikiDataRepository by ArtworkRepositoryLocal() {
+          override suspend fun getArtworksNearLocation(
+              searchArea: SearchArea,
+              typeValues: List<ArtworkType>,
+              limit: Int,
+          ): List<Artwork> {
+            loadCount++
+            if (loadCount == 1) throw AppException.Network()
+            return expectedArtworks
+          }
+        }
+    val viewModel = OverviewViewModel(repository, ArtworkRepositoryLocal())
+
+    advanceUntilIdle()
+
+    assertEquals(R.string.error_network, viewModel.uiState.value.errorMessageRes)
+
+    viewModel.refreshUiState()
+    advanceUntilIdle()
+
+    assertEquals(null, viewModel.uiState.value.errorMessageRes)
+    assertEquals(expectedArtworks, viewModel.uiState.value.artworks)
+  }
+
   /** Verifies toggling an artwork saves and removes it while updating bookmark state. */
   @Test
   fun overviewViewModel_toggleSavedArtwork_persistsArtworkAndUpdatesState() = runTest {
@@ -284,15 +315,6 @@ class OverviewScreenViewModelTest {
   /** ViewModel unrelated to the overview screen, used to trigger the factory's error. */
   private class OtherViewModel : ViewModel()
 
-  private fun repositoryFailingWith(failure: Exception): WikiDataRepository =
-      object : WikiDataRepository by ArtworkRepositoryLocal() {
-        override suspend fun getArtworksNearLocation(
-            searchArea: SearchArea,
-            typeValues: List<ArtworkType>,
-            limit: Int,
-        ): List<Artwork> = throw failure
-      }
-
   private fun artwork(name: String, artistName: String): Artwork =
       Artwork(
           uid = "$name-$artistName",
@@ -305,3 +327,19 @@ class OverviewScreenViewModelTest {
           dimension = null,
       )
 }
+
+/**
+ * Builds a repository whose nearby-artworks query always fails.
+ *
+ * @param failure exception thrown by the query
+ * @return the failing repository
+ * @author Timz3rr
+ */
+internal fun repositoryFailingWith(failure: Exception): WikiDataRepository =
+    object : WikiDataRepository by ArtworkRepositoryLocal() {
+      override suspend fun getArtworksNearLocation(
+          searchArea: SearchArea,
+          typeValues: List<ArtworkType>,
+          limit: Int,
+      ): List<Artwork> = throw failure
+    }
