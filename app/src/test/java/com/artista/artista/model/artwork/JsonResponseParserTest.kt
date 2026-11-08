@@ -32,7 +32,59 @@ class JsonResponseParserTest {
         "https://commons.wikimedia.org/wiki/Special:FilePath/" +
             "Mona%20Lisa%2C%20by%20Leonardo%20da%20Vinci%2C%20from%20C2RMF%20retouched.jpg" +
             "?width=800"
+
+    const val FIRST_IMAGE = "http://commons.wikimedia.org/wiki/Special:FilePath/First.JPG"
+    const val SECOND_IMAGE = "http://commons.wikimedia.org/wiki/Special:FilePath/Second.JPG"
   }
+
+  /**
+   * Returns the bindings of one artwork row, for the values a test gives.
+   *
+   * Writing a response as rows rather than as a JSON literal is what keeps a test about the data it
+   * is checking: a row that differs from another by one binding reads as that one difference.
+   *
+   * @param uid Wikidata id of the artwork, e.g. `Q12418`
+   * @param name label of the artwork
+   * @param image raw Commons link of its image, or null when the row carries none
+   * @param locationLabel label of its location, or null when the row carries none
+   * @param locationCoordinates WKT coordinates of its location, or null when the row carries none
+   * @return the bindings of the row, as binding name to value
+   * @author timo-by
+   */
+  private fun artworkRow(
+      uid: String,
+      name: String,
+      image: String? = null,
+      locationLabel: String? = null,
+      locationCoordinates: String? = null,
+  ): Map<String, String> = buildMap {
+    put("item", "http://www.wikidata.org/entity/$uid")
+    put("itemLabel", name)
+    image?.let { put("image", it) }
+    locationLabel?.let { put("locationLabel", it) }
+    locationCoordinates?.let { put("locationCoordinates", it) }
+  }
+
+  /**
+   * Builds the body the endpoint would answer with, from the bindings of each row.
+   *
+   * Every response carries the same `results.bindings` envelope, so the tests spell out only the
+   * bindings they are about.
+   *
+   * @param rows bindings of each row, as [artworkRow] returns them
+   * @return the JSON body, ready to be parsed
+   * @author timo-by
+   */
+  private fun sparqlResponse(vararg rows: Map<String, String>): String =
+      rows.joinToString(
+          prefix = """{"results":{"bindings":[""",
+          postfix = "]}}",
+          separator = ",",
+      ) { bindings ->
+        bindings.entries.joinToString(prefix = "{", postfix = "}") { (name, value) ->
+          "\"$name\": {\"value\": \"$value\"}"
+        }
+      }
 
   /** Checks that every field of a complete Wikidata row, image included, is parsed. */
   @Test
@@ -115,29 +167,10 @@ class JsonResponseParserTest {
   @Test
   fun parseArtworkResults_collapsesRepeatedRowsOfTheSameItem() {
     val response =
-        """
-        {
-          "results": {
-            "bindings": [
-              {
-                "item": { "value": "http://www.wikidata.org/entity/Q19933946" },
-                "itemLabel": { "value": "Skulptur" },
-                "image": {
-                  "value": "http://commons.wikimedia.org/wiki/Special:FilePath/First.JPG"
-                }
-              },
-              {
-                "item": { "value": "http://www.wikidata.org/entity/Q19933946" },
-                "itemLabel": { "value": "Skulptur" },
-                "image": {
-                  "value": "http://commons.wikimedia.org/wiki/Special:FilePath/Second.JPG"
-                }
-              }
-            ]
-          }
-        }
-        """
-            .trimIndent()
+        sparqlResponse(
+            artworkRow(uid = "Q19933946", name = "Skulptur", image = FIRST_IMAGE),
+            artworkRow(uid = "Q19933946", name = "Skulptur", image = SECOND_IMAGE),
+        )
 
     val artworks = parser.parseArtworkResults(response)
 
@@ -158,26 +191,15 @@ class JsonResponseParserTest {
   @Test
   fun parseArtworkResults_prefersTheRowCarryingCoordinates() {
     val response =
-        """
-        {
-          "results": {
-            "bindings": [
-              {
-                "item": { "value": "http://www.wikidata.org/entity/Q12418" },
-                "itemLabel": { "value": "Mona Lisa" },
-                "locationLabel": { "value": "Louvre" }
-              },
-              {
-                "item": { "value": "http://www.wikidata.org/entity/Q12418" },
-                "itemLabel": { "value": "Mona Lisa" },
-                "locationLabel": { "value": "Louvre" },
-                "locationCoordinates": { "value": "Point(2.337 48.860)" }
-              }
-            ]
-          }
-        }
-        """
-            .trimIndent()
+        sparqlResponse(
+            artworkRow(uid = "Q12418", name = "Mona Lisa", locationLabel = "Louvre"),
+            artworkRow(
+                uid = "Q12418",
+                name = "Mona Lisa",
+                locationLabel = "Louvre",
+                locationCoordinates = "Point(2.337 48.860)",
+            ),
+        )
 
     val artworks = parser.parseArtworkResults(response)
 
