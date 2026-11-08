@@ -4,6 +4,7 @@
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.artwork
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -35,6 +36,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -97,6 +99,15 @@ fun ArtworkScreen(
 
   val uiState by artworkScreenViewModel.uiState.collectAsState()
   val isSaved = uiState.isSaved
+  val context = LocalContext.current
+  val errorMessage = uiState.errorMessageResId?.let { stringResource(it) }
+
+  LaunchedEffect(errorMessage) {
+    errorMessage?.let { message ->
+      Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+      artworkScreenViewModel.clearErrorMessage()
+    }
+  }
 
   val locale = LocalLocale.current.platformLocale
   // Cache the formatter to prevent re-instantiation across recompositions
@@ -142,6 +153,7 @@ fun ArtworkScreen(
             actions = {
               IconButton(
                   onClick = { artworkScreenViewModel.toggleSaveArtwork() },
+                  enabled = !uiState.isSaveInProgress,
                   modifier = Modifier.testTag(ArtworkTestTags.SAVE_BUTTON),
               ) {
                 Icon(
