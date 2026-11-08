@@ -85,7 +85,7 @@ class ArtworkRepositoryLocal : SavedArtworksRepository, WikiDataRepository {
    */
   fun putArtworkInRepositoryUnsavedSection(artwork: Artwork) {
     if (artworks.keys.contains(artwork.uid))
-        throw IllegalArgumentException("uid $artwork.uid already in use!")
+        throw IllegalArgumentException("uid ${artwork.uid} already in use!")
     artworks[artwork.uid] = artwork
   }
 
