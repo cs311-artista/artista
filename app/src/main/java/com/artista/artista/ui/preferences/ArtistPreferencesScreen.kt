@@ -2,6 +2,7 @@
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.preferences
 
+import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -33,11 +34,13 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -50,12 +53,17 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.artista.artista.R
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
+import com.artista.artista.model.authentication.AuthRepository
+import com.artista.artista.model.authentication.AuthUser
+import com.artista.artista.model.user.UserRepositoryLocal
 import com.artista.artista.ui.navigation.BackButton
 import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaColors
 import com.artista.artista.ui.theme.ArtistaTheme
 import com.artista.artista.ui.theme.Dimensions
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 
 private val PillShape = RoundedCornerShape(percent = 50)
 
@@ -67,7 +75,8 @@ private val PillShape = RoundedCornerShape(percent = 50)
  * fails to compile instead of leaving a button that silently does nothing.
  *
  * @param onBackClick Callback invoked when the user leaves the screen.
- * @param onSaveClick Callback invoked when the user saves their preferences.
+ * @param onPreferencesSaved Callback invoked once the selected artists have been saved, not when
+ *   saving them fails.
  * @param onTabSelected Callback invoked with the destination selected in the bottom navigation.
  * @param artistPreferencesViewModel ViewModel providing the artists and the current selection.
  * @author Timz3rr
@@ -75,11 +84,23 @@ private val PillShape = RoundedCornerShape(percent = 50)
 @Composable
 fun ArtistPreferencesScreen(
     onBackClick: () -> Unit,
-    onSaveClick: () -> Unit,
+    onPreferencesSaved: () -> Unit,
     onTabSelected: (Tab) -> Unit,
     artistPreferencesViewModel: ArtistPreferencesViewModel,
 ) {
   val uiState by artistPreferencesViewModel.uiState.collectAsStateWithLifecycle()
+  val context = LocalContext.current
+  val errorMessage = uiState.errorMessageResId?.let { stringResource(it) }
+
+  // A toast does not block the screen, so the user can retry at once. LaunchedEffect runs only when
+  // the message changes, so the toast is shown once per error.
+  LaunchedEffect(errorMessage) {
+    errorMessage?.let {
+      Toast.makeText(context, it, Toast.LENGTH_LONG).show()
+      // Cleared once shown, so a recomposition or a return to the screen does not show it again.
+      artistPreferencesViewModel.clearErrorMessage()
+    }
+  }
 
   Scaffold(
       modifier = Modifier.fillMaxSize().testTag(ArtistPreferencesTestTags.SCREEN),
@@ -128,11 +149,15 @@ fun ArtistPreferencesScreen(
           )
         }
       }
-      // Nothing is persisted yet, since saving to Firestore is not implemented. The plan is for the
-      // ViewModel to take the selected artists from its state and store them in the user's
-      // preferences through the user repository; onSaveClick then only handles navigation.
+      // The ViewModel saves the selection and calls onPreferencesSaved only once the save
+      // succeeded, so a
+      // failed save keeps the user on the screen.
       Button(
-          onClick = onSaveClick,
+          onClick = {
+            artistPreferencesViewModel.saveSelectedArtists(onSaved = onPreferencesSaved)
+          },
+          // Disabled while saving, so a double tap does not start a second write.
+          enabled = !uiState.isSaving,
           modifier =
               Modifier.fillMaxWidth()
                   .height(Dimensions.preferencesSaveButtonHeight)
@@ -328,17 +353,37 @@ private fun SelectionIndicator(selected: Boolean, modifier: Modifier = Modifier)
 @Composable
 internal fun ArtistPreferencesScreenPreview() {
   val viewModel = remember {
-    ArtistPreferencesViewModel(ArtworkRepositoryProvider.mockRepository).apply {
-      toggleArtist("mock-artist-002")
-      toggleArtist("mock-artist-004")
-    }
+    ArtistPreferencesViewModel(
+            artworkRepository = ArtworkRepositoryProvider.mockRepository,
+            authRepository = PreviewAuthRepository,
+            userRepository = UserRepositoryLocal(),
+        )
+        .apply {
+          toggleArtist("mock-artist-002")
+          toggleArtist("mock-artist-004")
+        }
   }
   ArtistaTheme {
     ArtistPreferencesScreen(
         onBackClick = {},
-        onSaveClick = {},
+        onPreferencesSaved = {},
         onTabSelected = {},
         artistPreferencesViewModel = viewModel,
     )
   }
+}
+
+/**
+ * Signed-out [AuthRepository] for the preview.
+ *
+ * [ArtistPreferencesViewModel] needs an [AuthRepository] to know who is signed in, but the preview
+ * cannot reach Firebase. This one always answers that nobody is signed in, so saves nothing.
+ */
+private object PreviewAuthRepository : AuthRepository {
+  override val authState: Flow<AuthUser?> = flowOf(null)
+
+  override suspend fun signIn(idToken: String): Result<AuthUser> =
+      Result.failure(UnsupportedOperationException("Sign-in is not available in previews"))
+
+  override suspend fun signOut(): Result<Unit> = Result.success(Unit)
 }

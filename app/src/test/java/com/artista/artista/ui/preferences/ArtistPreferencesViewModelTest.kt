@@ -4,6 +4,8 @@ import com.artista.artista.MainDispatcherRule
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
 import com.artista.artista.model.artwork.WikiDataRepository
+import com.artista.artista.model.authentication.FakeAuthRepository
+import com.artista.artista.model.user.FakeUserRepository
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -30,7 +32,7 @@ class ArtistPreferencesViewModelTest {
   @Before
   fun setUp() {
     val repository = ArtworkRepositoryLocal()
-    viewModel = ArtistPreferencesViewModel(repository)
+    viewModel = ArtistPreferencesViewModel(repository, FakeAuthRepository(), FakeUserRepository())
   }
 
   /** Verifies that the popular artists of the mockup are exposed, in their display order. */
@@ -89,7 +91,8 @@ class ArtistPreferencesViewModelTest {
         object : WikiDataRepository by ArtworkRepositoryLocal() {
           override suspend fun getPopularArtists(): List<Artist> = listOf(first, second)
         }
-    val viewModel = ArtistPreferencesViewModel(repository)
+    val viewModel =
+        ArtistPreferencesViewModel(repository, FakeAuthRepository(), FakeUserRepository())
     advanceUntilIdle()
     assertEquals(listOf(first, second), viewModel.uiState.value.popularArtists)
 
@@ -105,7 +108,8 @@ class ArtistPreferencesViewModelTest {
         object : WikiDataRepository by ArtworkRepositoryLocal() {
           override suspend fun getPopularArtists(): List<Artist> = error("Popular artists failure")
         }
-    val viewModel = ArtistPreferencesViewModel(repository)
+    val viewModel =
+        ArtistPreferencesViewModel(repository, FakeAuthRepository(), FakeUserRepository())
     advanceUntilIdle()
 
     assertTrue(viewModel.uiState.value.popularArtists.isEmpty())
@@ -142,7 +146,8 @@ class ArtistPreferencesViewModelTest {
         }
 
     // The user opens the screen: loading starts, then stays stuck waiting for the artists.
-    val slowLoadingViewModel = ArtistPreferencesViewModel(repository)
+    val slowLoadingViewModel =
+        ArtistPreferencesViewModel(repository, FakeAuthRepository(), FakeUserRepository())
     advanceUntilIdle()
 
     // The user types while the artists are still loading.

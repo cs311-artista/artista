@@ -21,6 +21,8 @@ import com.artista.artista.R
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
 import com.artista.artista.model.artwork.WikiDataRepository
+import com.artista.artista.model.authentication.FakeAuthRepository
+import com.artista.artista.model.user.UserRepositoryLocal
 import com.artista.artista.ui.navigation.NavigationTestTags
 import com.artista.artista.ui.navigation.Tab
 import org.junit.Assert.assertTrue
@@ -226,26 +228,25 @@ class ArtistPreferencesScreenTest {
 
     composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.BACK_BUTTON).performClick()
 
-    // Fails if the button is wired to another callback, such as onSaveClick.
+    // Fails if the button is wired to another callback, such as onPreferencesSaved.
     assertTrue(backClicked)
   }
 
   /**
-   * Verifies that clicking the save button invokes the save callback.
+   * Verifies that clicking the save button invokes the saved callback.
    *
-   * The test passes its own callback and only checks that it is called: what saving does is decided
-   * by the caller, so this test stays valid once the callback persists the preferences.
+   * Nobody is signed in here, so the ViewModel saves nothing and calls the callback at once.
    */
   @Test
-  fun saveButton_click_invokesOnSaveClick() {
+  fun saveButton_click_invokesOnPreferencesSaved() {
     // Only the callback below can flip this flag, so it proves the click reached the callback.
-    var saveClicked = false
-    setPreferencesContent(onSaveClick = { saveClicked = true })
+    var preferencesSaved = false
+    setPreferencesContent(onPreferencesSaved = { preferencesSaved = true })
 
     composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SAVE_BUTTON).performClick()
 
     // Fails if the button is wired to another callback, such as onBackClick.
-    assertTrue(saveClicked)
+    assertTrue(preferencesSaved)
   }
 
   /** Verifies that the profile tab stays selected, since preferences are part of the profile. */
@@ -269,7 +270,10 @@ class ArtistPreferencesScreenTest {
         object : WikiDataRepository by ArtworkRepositoryLocal() {
           override suspend fun getPopularArtists(): List<Artist> = listOf(first, second)
         }
-    setPreferencesContent(viewModel = ArtistPreferencesViewModel(repository))
+    setPreferencesContent(
+        viewModel =
+            ArtistPreferencesViewModel(repository, FakeAuthRepository(), UserRepositoryLocal())
+    )
     val firstCard =
         composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.getArtistCardTestTag(first.uid))
     val secondCard =
@@ -284,7 +288,7 @@ class ArtistPreferencesScreenTest {
   private fun setPreferencesContent(
       viewModel: ArtistPreferencesViewModel = createViewModel(),
       onBackClick: () -> Unit = {},
-      onSaveClick: () -> Unit = {},
+      onPreferencesSaved: () -> Unit = {},
       onTabSelected: (Tab) -> Unit = {},
   ) {
     composeTestRule.setContent {
@@ -292,7 +296,7 @@ class ArtistPreferencesScreenTest {
         ArtistPreferencesScreen(
             artistPreferencesViewModel = viewModel,
             onBackClick = onBackClick,
-            onSaveClick = onSaveClick,
+            onPreferencesSaved = onPreferencesSaved,
             onTabSelected = onTabSelected,
         )
       }
@@ -334,5 +338,5 @@ class ArtistPreferencesScreenTest {
    * @return a ViewModel backed by [fakeWikiRepository]
    */
   private fun createViewModel(): ArtistPreferencesViewModel =
-      ArtistPreferencesViewModel(fakeWikiRepository())
+      ArtistPreferencesViewModel(fakeWikiRepository(), FakeAuthRepository(), UserRepositoryLocal())
 }
