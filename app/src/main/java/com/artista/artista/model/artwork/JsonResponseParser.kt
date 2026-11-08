@@ -37,7 +37,7 @@ open class JsonResponseParser {
    *
    * @param responseBody raw SPARQL JSON body returned by the endpoint
    * @return one artwork per distinct item id, each built from its richest row
-   * @author 5kyPhy
+   * @author 5kyPhy, timo-by
    */
   open fun parseArtworkResults(responseBody: String): List<Artwork> {
     val json = JSONObject(responseBody)
@@ -139,7 +139,6 @@ open class JsonResponseParser {
    *
    * @param hasCoordinates whether the row bound coordinates, for the artwork or for its location
    * @return a bit per piece of data the row carries
-   * @author DeepSeek Flash
    */
   private fun Artwork.richness(hasCoordinates: Boolean): Int =
       (if (hasCoordinates) 1 shl 6 else 0) or
