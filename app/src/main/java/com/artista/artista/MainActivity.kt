@@ -11,6 +11,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -27,6 +28,8 @@ import com.artista.artista.model.artwork.createArtworkImageLoader
 import com.artista.artista.model.artwork.mockArtworks
 import com.artista.artista.model.authentication.AuthRepositoryProvider
 import com.artista.artista.model.user.UserRepositoryProvider
+import com.artista.artista.model.user.UsernameCacheDataStore
+import com.artista.artista.model.user.usernameDataStore
 import com.artista.artista.ui.artwork.ArtworkScreen
 import com.artista.artista.ui.artwork.ArtworkScreenViewModel
 import com.artista.artista.ui.artwork.SavedArtworksScreen
@@ -187,6 +190,10 @@ fun ArtistaApp(
                         UserProfileViewModel.provideFactory(
                             authRepository = AuthRepositoryProvider.repository,
                             userRepository = UserRepositoryProvider.repository,
+                            usernameCache =
+                                UsernameCacheDataStore(
+                                    LocalContext.current.applicationContext.usernameDataStore
+                                ),
                         )
                 ),
             onLogoutClick = {

@@ -2,7 +2,9 @@
 package com.artista.artista.model.user
 
 import com.artista.artista.model.error.AppException
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 
 /**
  * In-memory [UserRepository] for unit tests, which can also simulate backend failures and slow
@@ -26,10 +28,25 @@ class FakeUserRepository : UserRepository {
    */
   val readDelays = mutableMapOf<UserId, Long>()
 
+  /**
+   * Delay in milliseconds before [createUser] and [updateUser] reach the backend, per user, to
+   * simulate a write that has not completed yet, as with Firestore while offline.
+   */
+  val writeDelays = mutableMapOf<UserId, Long>()
+
+  /**
+   * When true, a write in [writeDelays] runs to its end even once its caller is cancelled, to
+   * simulate a backend reporting a failure after the save it belongs to was cancelled.
+   */
+  var writesIgnoreCancellation: Boolean = false
+
   /** When set, [createUser] and [updateUser] throw it instead of writing. */
   var writeFailure: Throwable? = null
 
-  /** Number of calls to [createUser] and [updateUser], failed ones included. */
+  /**
+   * Number of calls to [createUser] and [updateUser] that reached the backend, failed ones
+   * included. A write cancelled during its [writeDelays] does not count.
+   */
   var writeCount: Int = 0
     private set
 
@@ -53,6 +70,7 @@ class FakeUserRepository : UserRepository {
   fun storedUser(userId: UserId): User? = users[userId]
 
   override suspend fun createUser(user: User) {
+    waitForWrite(user.uid)
     writeCount++
     writeFailure?.let { throw it }
     if (user.uid in users) throw AppException.AlreadyExists("uid ${user.uid} already taken")
@@ -66,6 +84,7 @@ class FakeUserRepository : UserRepository {
   }
 
   override suspend fun updateUser(userId: UserId, newValue: User) {
+    waitForWrite(userId)
     writeCount++
     writeFailure?.let { throw it }
     if (userId !in users) throw AppException.NotFound("No user with uid $userId")
@@ -74,5 +93,16 @@ class FakeUserRepository : UserRepository {
 
   override suspend fun deleteUser(userId: UserId) {
     users.remove(userId) ?: throw AppException.NotFound("No user with uid $userId")
+  }
+
+  /**
+   * Waits for the delay configured in [writeDelays] for a user, if any.
+   *
+   * @param userId identifier of the user being written
+   */
+  private suspend fun waitForWrite(userId: UserId) {
+    val writeDelay = writeDelays[userId] ?: return
+    if (writesIgnoreCancellation) withContext(NonCancellable) { delay(writeDelay) }
+    else delay(writeDelay)
   }
 }
