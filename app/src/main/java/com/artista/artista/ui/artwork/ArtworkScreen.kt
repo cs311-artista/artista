@@ -72,6 +72,7 @@ object ArtworkTestTags {
   const val BACK_BUTTON = "artwork_back_button"
   const val ARTWORK_TITLE = "artwork_title"
   const val ARTWORK_MAP_TILE = "artwork_map_tile"
+  const val ARTWORK_ERROR_MESSAGE = "artwork_error_message"
 }
 
 /**
@@ -180,7 +181,9 @@ fun ArtworkScreen(
             text = errorMessage ?: stringResource(R.string.error_unknown),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.error,
-            modifier = Modifier.align(Alignment.CenterHorizontally),
+            modifier =
+                Modifier.align(Alignment.CenterHorizontally)
+                    .testTag(ArtworkTestTags.ARTWORK_ERROR_MESSAGE),
         )
         return@Column
       }
