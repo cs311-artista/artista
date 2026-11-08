@@ -150,8 +150,7 @@ fun ArtistPreferencesScreen(
         }
       }
       // The ViewModel saves the selection and calls onPreferencesSaved only once the save
-      // succeeded, so a
-      // failed save keeps the user on the screen.
+      // succeeded, so a failed save keeps the user on the screen.
       Button(
           onClick = {
             artistPreferencesViewModel.saveSelectedArtists(onSaved = onPreferencesSaved)
