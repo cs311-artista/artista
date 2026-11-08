@@ -42,12 +42,12 @@ jobs:
         env:
           MAPS_API_KEY: ${{ secrets.MAPS_API_KEY }}
         run: |
-          if [ -z "$MAPS_API_KEY" ]; then
+          if [ -n "$MAPS_API_KEY" ]; then
+            printf "$MAPS_API_KEY" | base64 --decode > local.properties
+          else
             echo "::error::MAPS_API_KEY secret is required to build the release APK."
             exit 1
           fi
-
-          printf 'MAPS_API_KEY=%s\n' "$MAPS_API_KEY" > local.properties
 
       - name: Build debug APK
         run: ./gradlew assembleDebug --no-daemon
