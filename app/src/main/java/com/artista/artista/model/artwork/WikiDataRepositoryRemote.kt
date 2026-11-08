@@ -301,7 +301,8 @@ class WikiDataRepositoryRemote(
       return it
     }
 
-    var artworks = jsonResponseParser.parseArtworkResults(executeSparqlRequest(query))
+    var artworks =
+        jsonResponseParser.parseArtworkResults(executeSparqlRequest(query)).distinctBy { it.uid }
     if (searchTermForOrdering != null) {
       artworks = artworks.orderBySearchRelevance(searchTermForOrdering)
     }
