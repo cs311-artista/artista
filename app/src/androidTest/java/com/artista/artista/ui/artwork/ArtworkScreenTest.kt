@@ -18,6 +18,7 @@ import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.map.Location
 import com.artista.artista.ui.theme.ArtistaTheme
 import kotlinx.coroutines.runBlocking
+import org.junit.Assert
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -120,6 +121,20 @@ class ArtworkScreenTest {
     composeTestRule
         .onNodeWithTag(ArtworkTestTags.ARTWORK_TITLE)
         .assertTextEquals(composeTestRule.activity.getString(R.string.artwork_unknown_title))
+  }
+
+  @Test
+  fun artworkScreen_whenRepositoryErrorOccurs_displaysToastAndClearsError() {
+    val invalidArtwork = sampleArtwork.copy(uid = "")
+
+    setScreenContent(artwork = invalidArtwork)
+
+    composeTestRule.waitUntil(timeoutMillis = milliseconds) {
+      viewModel.uiState.value.errorMessageResId == null &&
+          viewModel.uiState.value.artwork == invalidArtwork
+    }
+
+    composeTestRule.runOnIdle { Assert.assertNull(viewModel.uiState.value.errorMessageResId) }
   }
 
   private fun setScreenContent(artwork: Artwork = sampleArtwork, onBackClick: () -> Unit = {}) {
