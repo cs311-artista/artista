@@ -30,6 +30,7 @@ import kotlinx.coroutines.flow.update
  * @property recommendations saved artworks matching the current query
  * @property artworks results returned for the submitted query
  * @property isLoading whether submitted search results are being fetched
+ * @property hasInvalidSearchInput whether the last search failed because its input was invalid
  * @property searchErrorMessageResId string resource of the message shown when submitting a query
  *   fails
  * @property saveErrorMessageResId string resource of the message shown when saving or unsaving an
@@ -44,6 +45,7 @@ data class SearchScreenUiState(
     val recommendations: List<Artwork> = emptyList(),
     val artworks: List<Artwork> = emptyList(),
     val isLoading: Boolean = false,
+    val hasInvalidSearchInput: Boolean = false,
     @param:StringRes val searchErrorMessageResId: Int? = null,
     @param:StringRes val saveErrorMessageResId: Int? = null,
 )
@@ -111,6 +113,7 @@ class SearchScreenViewModel(
             artworks = if (query.isBlank()) emptyList() else currentState.artworks,
             isLoading = if (queryChanged) false else currentState.isLoading,
             searchErrorMessageResId = null,
+            hasInvalidSearchInput = false,
         )
   }
 
@@ -132,6 +135,7 @@ class SearchScreenViewModel(
             artworks = if (query.isBlank()) emptyList() else _uiState.value.artworks,
             isLoading = query.isNotBlank(),
             searchErrorMessageResId = null,
+            hasInvalidSearchInput = false,
         )
     if (query.isBlank()) return
     val typeValues = _uiState.value.typeValues
@@ -146,6 +150,7 @@ class SearchScreenViewModel(
                       artworks = emptyList(),
                       isLoading = false,
                       searchErrorMessageResId = error.toMessageRes(),
+                      hasInvalidSearchInput = error is AppException.InvalidInput,
                   )
                 }
               }
@@ -154,7 +159,12 @@ class SearchScreenViewModel(
           val results = wikiDataRepository.searchArtworks(query, typeValues)
           if (requestId == searchRequestId) {
             _uiState.update {
-              it.copy(artworks = results, isLoading = false, searchErrorMessageResId = null)
+              it.copy(
+                  artworks = results,
+                  isLoading = false,
+                  searchErrorMessageResId = null,
+                  hasInvalidSearchInput = false,
+              )
             }
           }
         }

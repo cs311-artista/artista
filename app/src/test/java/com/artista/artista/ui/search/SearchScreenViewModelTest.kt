@@ -133,8 +133,34 @@ class SearchScreenViewModelTest {
     advanceUntilIdle()
 
     assertEquals(R.string.error_network, viewModel.uiState.value.searchErrorMessageResId)
+    assertFalse(viewModel.uiState.value.hasInvalidSearchInput)
     assertFalse(viewModel.uiState.value.isLoading)
     assertTrue(viewModel.uiState.value.artworks.isEmpty())
+  }
+
+  @Test
+  fun onSearchSubmitted_withInvalidInputMarksSearchFieldUntilEdited() = runTest {
+    val wikiRepository =
+        object : WikiDataRepository by SearchTestData.wikiDataRepository() {
+          override suspend fun searchArtworks(
+              artworkTitle: String,
+              typeValues: List<ArtworkType>,
+              limit: Int,
+          ): List<Artwork> {
+            throw AppException.InvalidInput("Invalid search text")
+          }
+        }
+    val viewModel = SearchScreenViewModel(SearchTestData.savedArtworksRepository(), wikiRepository)
+
+    advanceUntilIdle()
+    viewModel.onSearchSubmitted("bad query")
+    advanceUntilIdle()
+
+    assertTrue(viewModel.uiState.value.hasInvalidSearchInput)
+
+    viewModel.onSearchInputChanged("corrected query", TextRange(15))
+
+    assertFalse(viewModel.uiState.value.hasInvalidSearchInput)
   }
 
   @Test

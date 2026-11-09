@@ -152,6 +152,7 @@ fun SearchScreen(
             textFieldState = textFieldState,
             recommendations = uiState.recommendations,
             selectedTypeValues = uiState.typeValues,
+            hasInvalidSearchInput = uiState.hasInvalidSearchInput,
             onQueryChanged = viewModel::onSearchInputChanged,
             onSearchSubmitted = viewModel::onSearchSubmitted,
             onRecommendationSelected = onRecommendationSelected,
@@ -197,6 +198,7 @@ fun SearchScreen(
  * @param textFieldState text and cursor state currently shown in the search field
  * @param recommendations artwork entries to show in the dropdown
  * @param selectedTypeValues artwork types included in submitted searches
+ * @param hasInvalidSearchInput whether the last search failed because its input was invalid
  * @param onQueryChanged called when the user edits the query or selection
  * @param onSearchSubmitted called when the user submits the query from the keyboard
  * @param onRecommendationSelected called when the user selects a dropdown recommendation
@@ -210,6 +212,7 @@ private fun SearchInput(
     textFieldState: TextFieldState,
     recommendations: List<Artwork>,
     selectedTypeValues: List<ArtworkType>,
+    hasInvalidSearchInput: Boolean,
     onQueryChanged: (String, TextRange) -> Unit,
     onSearchSubmitted: (String) -> Unit,
     onRecommendationSelected: (Artwork) -> Unit,
@@ -243,6 +246,39 @@ private fun SearchInput(
               },
               expanded = expanded,
               onExpandedChange = { expanded = it },
+              colors =
+                  SearchBarDefaults.inputFieldColors(
+                      focusedContainerColor =
+                          if (hasInvalidSearchInput) {
+                            MaterialTheme.colorScheme.errorContainer
+                          } else {
+                            MaterialTheme.colorScheme.surfaceContainerHigh
+                          },
+                      unfocusedContainerColor =
+                          if (hasInvalidSearchInput) {
+                            MaterialTheme.colorScheme.errorContainer
+                          } else {
+                            MaterialTheme.colorScheme.surfaceContainerHigh
+                          },
+                      cursorColor =
+                          if (hasInvalidSearchInput) {
+                            MaterialTheme.colorScheme.error
+                          } else {
+                            MaterialTheme.colorScheme.primary
+                          },
+                      focusedLeadingIconColor =
+                          if (hasInvalidSearchInput) {
+                            MaterialTheme.colorScheme.error
+                          } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                          },
+                      unfocusedLeadingIconColor =
+                          if (hasInvalidSearchInput) {
+                            MaterialTheme.colorScheme.error
+                          } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                          },
+                  ),
               modifier =
                   Modifier.weight(1f)
                       // Same padding and height as OverviewSearchBar so it sits in the same spot
