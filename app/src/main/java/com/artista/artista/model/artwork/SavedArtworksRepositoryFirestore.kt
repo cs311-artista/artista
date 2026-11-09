@@ -1,4 +1,5 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.model.artwork
 
 import com.artista.artista.model.artist.Artist
@@ -125,6 +126,9 @@ class SavedArtworksRepositoryFirestore(
                 mapOf("longitude" to it.longitude, "latitude" to it.latitude, "name" to it.name)
               },
           "dimension" to dimension?.let { mapOf("width" to it.width, "height" to it.height) },
+          // Saved artworks are rebuilt only from this document, so without the link they would lose
+          // their image on the saved list and details screen.
+          "imageUrl" to imageUrl,
       )
 
   /** Converts a validated Firestore document to an artwork domain value. */
@@ -145,6 +149,8 @@ class SavedArtworksRepositoryFirestore(
         museum = document.optionalStringField("museum"),
         location = document.optionalMapField("location")?.toLocation(document.id),
         dimension = document.optionalMapField("dimension")?.toDimension(document.id),
+        // Optional because documents saved before this field existed do not have it.
+        imageUrl = document.optionalStringField("imageUrl"),
     )
   }
 

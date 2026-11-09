@@ -34,8 +34,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.platform.testTag
@@ -71,11 +71,13 @@ object ArtworkTestTags {
   const val BACK_BUTTON = "artwork_back_button"
   const val ARTWORK_TITLE = "artwork_title"
   const val ARTWORK_MAP_TILE = "artwork_map_tile"
+  const val ARTWORK_IMAGE = "artwork_image"
+  const val ARTWORK_IMAGE_FALLBACK = "artwork_image_fallback"
 }
 
 /**
- * Displays the detailed view for an artwork, allowing the user to view its metadata and bookmark
- * it.
+ * Displays the detailed view for an artwork, allowing the user to view its image and metadata and
+ * bookmark it.
  *
  * Synchronizes the passed [artwork] instance with the [artworkScreenViewModel] to display and
  * toggle its persistent bookmark status in Firestore/local storage.
@@ -179,31 +181,31 @@ fun ArtworkScreen(
     ) {
       Spacer(modifier = Modifier.height(Dimensions.artworkDetailsImageVerticalSpacing))
 
-      /**
-       * TODO: This component serves as a placeholder for the image. Remove it, and implement
-       *   component for the image.
-       */
       Card(
           modifier = Modifier.fillMaxWidth().height(Dimensions.artworkDetailsImageHeight),
           shape = RoundedCornerShape(Dimensions.cornerRadiusMedium),
           elevation =
               CardDefaults.cardElevation(defaultElevation = Dimensions.artworkCardElevation),
       ) {
+        // Same background as the artwork cards, so the bars around a fitted image look intentional.
         Surface(
             modifier = Modifier.fillMaxSize(),
-            color = MaterialTheme.colorScheme.surface,
+            color = MaterialTheme.colorScheme.surfaceVariant,
         ) {
-          Column(
+          // Fit keeps the whole painting visible: unlike the cropped list cards, this screen is
+          // where the user looks at the artwork itself.
+          ArtworkImage(
+              imageUrl = artwork.imageUrl,
+              contentDescription =
+                  stringResource(
+                      R.string.artwork_card_image_description,
+                      artwork.name ?: stringResource(R.string.artwork_unknown_title),
+                  ),
+              contentScale = ContentScale.Fit,
+              imageTestTag = ArtworkTestTags.ARTWORK_IMAGE,
+              fallbackTestTag = ArtworkTestTags.ARTWORK_IMAGE_FALLBACK,
               modifier = Modifier.fillMaxSize(),
-              verticalArrangement = Arrangement.Center,
-              horizontalAlignment = Alignment.CenterHorizontally,
-          ) {
-            Text(
-                text = "Picture/thumbnail",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-          }
+          )
         }
       }
 
