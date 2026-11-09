@@ -203,10 +203,15 @@ fun ArtistaApp(
       composable(Screen.ArtistPreferences.route) {
         ArtistPreferencesScreen(
             artistPreferencesViewModel =
-                viewModel(factory = ArtistPreferencesViewModel.provideFactory(wikiDataRepository)),
+                viewModel(
+                    factory =
+                        ArtistPreferencesViewModel.provideFactory(
+                            wikiDataRepository = wikiDataRepository,
+                            authRepository = AuthRepositoryProvider.repository,
+                            userRepository = UserRepositoryProvider.repository,
+                        )
+                ),
             onBackClick = { navigationActions.goBack() },
-            // TODO: implement the logic for saving preferences (now it's just a placeholder)
-            onSaveClick = { navigationActions.goBack() },
             onTabSelected = { tab -> navigationActions.navigateTo(tab.destination) },
         )
       }
