@@ -21,11 +21,9 @@ import androidx.lifecycle.Lifecycle
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.artista.artista.R
 import com.artista.artista.model.artist.Artist
+import com.artista.artista.model.artist.failingWikiDataRepository
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
-import com.artista.artista.model.artwork.ArtworkType
-import com.artista.artista.model.artwork.SearchArea
-import com.artista.artista.model.artwork.WikiDataRepository
 import com.artista.artista.ui.artwork.ArtworkCardTestTag
 import com.artista.artista.ui.artwork.ArtworkFilterTestTags
 import com.artista.artista.ui.navigation.NavigationTestTags
@@ -117,15 +115,7 @@ class OverviewScreenTest {
   @Test
   fun overviewScreen_whenLoadingFails_showsSavedArtworksAction() {
     var savedArtworksRequested = false
-    val failing =
-        object : WikiDataRepository by ArtworkRepositoryLocal() {
-          override suspend fun getArtworksNearLocation(
-              searchArea: SearchArea,
-              typeValues: List<ArtworkType>,
-              limit: Int,
-          ): List<Artwork> = error("Artwork provider failure")
-        }
-    val viewModel = OverviewViewModel(failing, ArtworkRepositoryLocal())
+    val viewModel = OverviewViewModel(failingWikiDataRepository(), ArtworkRepositoryLocal())
 
     setOverviewContent(viewModel, onSavedArtworksClick = { savedArtworksRequested = true })
 

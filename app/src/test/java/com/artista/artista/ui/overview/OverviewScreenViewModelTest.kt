@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import com.artista.artista.MainDispatcherRule
 import com.artista.artista.R
 import com.artista.artista.model.artist.Artist
+import com.artista.artista.model.artist.failingWikiDataRepository
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkFilter
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
@@ -67,15 +68,7 @@ class OverviewScreenViewModelTest {
    */
   @Test
   fun overviewViewModel_whenLoadingFails_exposesLoadError() = runTest {
-    val failing =
-        object : WikiDataRepository by ArtworkRepositoryLocal() {
-          override suspend fun getArtworksNearLocation(
-              searchArea: SearchArea,
-              typeValues: List<ArtworkType>,
-              limit: Int,
-          ): List<Artwork> = error("Artwork provider failure")
-        }
-    val viewModel = OverviewViewModel(failing, ArtworkRepositoryLocal())
+    val viewModel = OverviewViewModel(failingWikiDataRepository(), ArtworkRepositoryLocal())
 
     advanceUntilIdle()
 
@@ -198,15 +191,7 @@ class OverviewScreenViewModelTest {
    */
   @Test
   fun clearErrorMessage_removesTheCurrentError() = runTest {
-    val failing =
-        object : WikiDataRepository by ArtworkRepositoryLocal() {
-          override suspend fun getArtworksNearLocation(
-              searchArea: SearchArea,
-              typeValues: List<ArtworkType>,
-              limit: Int,
-          ): List<Artwork> = error("Artwork provider failure")
-        }
-    val viewModel = OverviewViewModel(failing, ArtworkRepositoryLocal())
+    val viewModel = OverviewViewModel(failingWikiDataRepository(), ArtworkRepositoryLocal())
 
     advanceUntilIdle()
     viewModel.clearErrorMessage()
