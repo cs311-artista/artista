@@ -348,6 +348,75 @@ class ArtistPreferencesViewModelTest {
     assertEquals(setOf(PICASSO.uid, MONET.uid), viewModel.uiState.value.selectedArtists)
   }
 
+  /** Verifies that Save is disabled when the screen opens, since nothing has changed yet. */
+  @Test
+  fun canSave_initially_isFalse() {
+    assertFalse(viewModel.uiState.value.canSave)
+  }
+
+  /** Verifies that selecting an artist enables Save. */
+  @Test
+  fun canSave_afterToggle_isTrue() {
+    viewModel.toggleArtist(PICASSO.uid)
+
+    assertTrue(viewModel.uiState.value.canSave)
+  }
+
+  /** Verifies that undoing a change disables Save again, since the selection is the saved one. */
+  @Test
+  fun canSave_afterUndoingToggle_isFalse() {
+    viewModel.toggleArtist(PICASSO.uid)
+    viewModel.toggleArtist(PICASSO.uid)
+
+    assertFalse(viewModel.uiState.value.canSave)
+  }
+
+  /** Verifies that a successful save exposes the confirmation message and disables Save. */
+  @Test
+  fun saveSelectedArtists_success_exposesSavedMessage() = runTest {
+    signIn()
+    viewModel.toggleArtist(PICASSO.uid)
+
+    viewModel.saveSelectedArtists()
+    advanceUntilIdle()
+
+    assertEquals(R.string.artist_preferences_saved, viewModel.uiState.value.messageResId)
+    assertFalse(viewModel.uiState.value.canSave)
+  }
+
+  /** Verifies that saving without any change writes nothing. */
+  @Test
+  fun saveSelectedArtists_withoutChange_isIgnored() = runTest {
+    signIn()
+
+    viewModel.saveSelectedArtists()
+    advanceUntilIdle()
+
+    assertEquals(0, userRepository.writeCount)
+    assertNull(viewModel.uiState.value.messageResId)
+  }
+
+  /**
+   * Verifies that a toggle made during a save leaves Save enabled once the save ends, since the
+   * selection then differs from the one just saved.
+   */
+  @Test
+  fun saveSelectedArtists_toggleWhileSaving_canSaveAgain() = runTest {
+    // Slows the read before the write, so the save is still running when the user toggles.
+    userRepository.readDelays[UID] = 1_000
+    signIn()
+    viewModel.toggleArtist(PICASSO.uid)
+
+    viewModel.saveSelectedArtists()
+    // runCurrent starts the save without letting time pass, so it is still waiting on the read.
+    runCurrent()
+    viewModel.toggleArtist(MONET.uid)
+    advanceUntilIdle()
+
+    assertEquals(setOf(PICASSO.uid), viewModel.uiState.value.savedArtists)
+    assertTrue(viewModel.uiState.value.canSave)
+  }
+
   /** Verifies that the artists are stored in the order the user selected them. */
   @Test
   fun saveSelectedArtists_keepsSelectionOrder() = runTest {

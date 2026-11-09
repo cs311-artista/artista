@@ -307,6 +307,27 @@ class ArtistPreferencesScreenTest {
     composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SAVE_BUTTON).assertIsNotEnabled()
   }
 
+  /** Verifies that the save button is disabled when the screen opens, as nothing has changed. */
+  @Test
+  fun saveButton_initially_isDisabled() {
+    setPreferencesContent()
+
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SAVE_BUTTON).assertIsNotEnabled()
+  }
+
+  /** Verifies that selecting then deselecting an artist disables the save button again. */
+  @Test
+  fun saveButton_afterUndoingToggle_isDisabled() {
+    setPreferencesContent()
+
+    clickArtistCard(testArtists.first())
+    // Enabled in between, so the final check proves the undo disabled it.
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SAVE_BUTTON).assertIsEnabled()
+    clickArtistCard(testArtists.first())
+
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SAVE_BUTTON).assertIsNotEnabled()
+  }
+
   /** Verifies that the profile tab stays selected, since preferences are part of the profile. */
   @Test
   fun artistPreferencesScreen_selectsProfileTab() {
