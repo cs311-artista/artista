@@ -93,12 +93,10 @@ internal object Dimensions {
   val overviewSearchBarElevation = shallowElevation
 
   // Search screen.
-  val searchInputHorizontalPadding = 16.dp
-  val searchInputVerticalPadding = 8.dp
-  val searchInputElevation = 0.dp
   val searchRecommendationVerticalPadding = 8.dp
   val searchRecommendationHorizontalPadding = 8.dp
   val searchRecommendationIconContainerSize = 40.dp
+  val searchRecommendationsMaxHeight = 320.dp
   val searchTypeFilterMaxHeight = 400.dp
   val searchTypeFilterHorizontalPadding = 16.dp
   val searchTypeFilterTitleVerticalPadding = 8.dp

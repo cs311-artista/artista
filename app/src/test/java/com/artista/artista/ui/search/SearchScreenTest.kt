@@ -85,26 +85,6 @@ class SearchScreenTest {
   }
 
   @Test
-  fun searchBar_invokesVoiceSearchCallback() = runTest {
-    var voiceSearchClicked = false
-    val viewModel = createViewModel()
-
-    composeTestRule.setContent {
-      MaterialTheme {
-        SearchScreen(
-            onTabSelected = {},
-            viewModel = viewModel,
-            onVoiceSearchClick = { voiceSearchClicked = true },
-        )
-      }
-    }
-
-    composeTestRule.waitForIdle()
-    composeTestRule.onNodeWithContentDescription("Voice search").performClick()
-    composeTestRule.runOnIdle { assertTrue(voiceSearchClicked) }
-  }
-
-  @Test
   fun searchFilter_opensTypePopupAndUpdatesSelection() = runTest {
     val viewModel = createViewModel()
 
@@ -168,8 +148,21 @@ class SearchScreenTest {
 
     composeTestRule.waitForIdle()
     advanceUntilIdle()
+    val collapsedSearchBounds =
+        composeTestRule
+            .onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT)
+            .fetchSemanticsNode()
+            .boundsInRoot
     composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT).performTextInput("star")
     advanceUntilIdle()
+    val expandedSearchBounds =
+        composeTestRule
+            .onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT)
+            .fetchSemanticsNode()
+            .boundsInRoot
+
+    assertEquals(collapsedSearchBounds.top, expandedSearchBounds.top, 0f)
+    assertEquals(collapsedSearchBounds.height, expandedSearchBounds.height, 0f)
 
     composeTestRule
         .onAllNodesWithTag(SearchScreenTestTags.SEARCH_RECOMMENDATION)

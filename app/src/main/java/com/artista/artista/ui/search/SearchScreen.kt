@@ -4,10 +4,10 @@ package com.artista.artista.ui.search
 
 import android.widget.Toast
 import androidx.annotation.StringRes
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,14 +15,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.outlined.Brush
+import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Checkbox
@@ -36,8 +35,8 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -49,7 +48,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
@@ -109,7 +107,6 @@ object SearchScreenTestTags {
  * @param onArtworkClick callback invoked when the user selects an artwork in the results list
  * @param onMapClick callback invoked when the user selects the map action for a result
  * @param onRecommendationSelected callback invoked when the user selects a search suggestion
- * @param onVoiceSearchClick callback invoked when the user selects voice search
  * @author IJJA3141
  */
 @Composable
@@ -119,7 +116,6 @@ fun SearchScreen(
     onArtworkClick: (Artwork) -> Unit = {},
     onMapClick: (Artwork) -> Unit = {},
     onRecommendationSelected: (Artwork) -> Unit = {},
-    onVoiceSearchClick: () -> Unit = {},
 ) {
   val uiState by viewModel.uiState.collectAsState()
   val loadingDescription = stringResource(R.string.search_loading)
@@ -146,7 +142,7 @@ fun SearchScreen(
   }
 
   Scaffold(
-      containerColor = MaterialTheme.colorScheme.surface,
+      containerColor = MaterialTheme.colorScheme.background,
       topBar = {
         SearchInput(
             textFieldState = textFieldState,
@@ -157,7 +153,6 @@ fun SearchScreen(
             onSearchSubmitted = viewModel::onSearchSubmitted,
             onRecommendationSelected = onRecommendationSelected,
             onArtworkTypeToggle = viewModel::toggleArtworkType,
-            onVoiceSearchClick = onVoiceSearchClick,
         )
       },
       bottomBar = {
@@ -203,7 +198,6 @@ fun SearchScreen(
  * @param onSearchSubmitted called when the user submits the query from the keyboard
  * @param onRecommendationSelected called when the user selects a dropdown recommendation
  * @param onArtworkTypeToggle called when the user toggles an artwork type
- * @param onVoiceSearchClick called when the user selects voice search
  * @author IJJA3141
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -217,12 +211,10 @@ private fun SearchInput(
     onSearchSubmitted: (String) -> Unit,
     onRecommendationSelected: (Artwork) -> Unit,
     onArtworkTypeToggle: (ArtworkType) -> Unit,
-    onVoiceSearchClick: () -> Unit,
 ) {
   var expanded by remember { mutableStateOf(false) }
   val focusRequester = remember { FocusRequester() }
   val keyboardController = LocalSoftwareKeyboardController.current
-  var isFilterMenuExpanded by remember { mutableStateOf(false) }
 
   LaunchedEffect(Unit) {
     focusRequester.requestFocus()
@@ -234,168 +226,192 @@ private fun SearchInput(
         .collect { (query, selection) -> onQueryChanged(query, selection) }
   }
 
-  SearchBar(
-      inputField = {
-        // Same layout as the overview top bar: [ search pill ][ filter button ]
-        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-          SearchBarDefaults.InputField(
-              state = textFieldState,
-              onSearch = {
-                onSearchSubmitted(it)
-                expanded = false
-              },
-              expanded = expanded,
-              onExpandedChange = { expanded = it },
-              colors =
-                  SearchBarDefaults.inputFieldColors(
-                      focusedContainerColor =
-                          if (hasInvalidSearchInput) {
-                            MaterialTheme.colorScheme.errorContainer
-                          } else {
-                            MaterialTheme.colorScheme.surfaceContainerHigh
-                          },
-                      unfocusedContainerColor =
-                          if (hasInvalidSearchInput) {
-                            MaterialTheme.colorScheme.errorContainer
-                          } else {
-                            MaterialTheme.colorScheme.surfaceContainerHigh
-                          },
-                      cursorColor =
-                          if (hasInvalidSearchInput) {
-                            MaterialTheme.colorScheme.error
-                          } else {
-                            MaterialTheme.colorScheme.primary
-                          },
-                      focusedLeadingIconColor =
-                          if (hasInvalidSearchInput) {
-                            MaterialTheme.colorScheme.error
-                          } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                          },
-                      unfocusedLeadingIconColor =
-                          if (hasInvalidSearchInput) {
-                            MaterialTheme.colorScheme.error
-                          } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                          },
-                  ),
-              modifier =
-                  Modifier.weight(1f)
-                      // Same padding and height as OverviewSearchBar so it sits in the same spot
-                      .padding(
-                          horizontal = Dimensions.overviewSearchBarHorizontalPadding,
-                          vertical = Dimensions.overviewSearchBarVerticalPadding,
-                      )
-                      .height(Dimensions.overviewSearchBarHeight)
-                      .focusRequester(focusRequester)
-                      .testTag(SearchScreenTestTags.SEARCH_INPUT),
-              placeholder = { Text(stringResource(R.string.search_placeholder)) },
-              // Back arrow when expanded, magnifier when collapsed
-              leadingIcon = {
-                if (expanded) {
-                  IconButton(onClick = { expanded = false }) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                  }
-                } else {
-                  Icon(Icons.Outlined.Search, contentDescription = "Search")
-                }
-              },
-          )
-          Box {
-            IconButton(onClick = { isFilterMenuExpanded = true }) {
-              Icon(
-                  imageVector = Icons.Outlined.FilterList,
-                  contentDescription = stringResource(R.string.overview_filter_open),
-                  tint = MaterialTheme.colorScheme.onSurface,
-              )
-            }
-            DropdownMenu(
-                expanded = isFilterMenuExpanded,
-                onDismissRequest = { isFilterMenuExpanded = false },
-                modifier = Modifier.heightIn(max = Dimensions.searchTypeFilterMaxHeight),
-            ) {
-              Text(
-                  text = stringResource(R.string.search_filter_title),
-                  style = MaterialTheme.typography.titleSmall,
-                  modifier =
-                      Modifier.padding(
-                          horizontal = Dimensions.searchTypeFilterHorizontalPadding,
-                          vertical = Dimensions.searchTypeFilterTitleVerticalPadding,
-                      ),
-              )
-              Text(
-                  text = stringResource(R.string.search_filter_scroll_hint),
-                  style = MaterialTheme.typography.bodySmall,
-                  color = MaterialTheme.colorScheme.onSurfaceVariant,
-                  modifier =
-                      Modifier.padding(
-                              horizontal = Dimensions.searchTypeFilterHorizontalPadding,
-                              vertical = Dimensions.searchTypeFilterTitleVerticalPadding,
-                          )
-                          .testTag(SearchScreenTestTags.FILTER_SCROLL_HINT),
-              )
-              ArtworkType.entries.forEach { type ->
-                DropdownMenuItem(
-                    text = { Text(stringResource(type.toDisplayNameRes())) },
-                    leadingIcon = {
-                      Checkbox(
-                          checked = type in selectedTypeValues,
-                          onCheckedChange = null,
-                      )
-                    },
-                    onClick = { onArtworkTypeToggle(type) },
-                    modifier = Modifier.testTag(SearchScreenTestTags.filterType(type)),
-                )
-              }
-            }
-          }
-        }
-      },
-      expanded = expanded,
-      onExpandedChange = { expanded = it },
-      colors = SearchBarDefaults.colors(containerColor = MaterialTheme.colorScheme.surface),
-      tonalElevation = Dimensions.searchInputElevation,
-  ) {
-    LazyColumn(
-        contentPadding = PaddingValues(vertical = Dimensions.searchRecommendationVerticalPadding)
+  Column(modifier = Modifier.fillMaxWidth().statusBarsPadding()) {
+    Row(
+        modifier =
+            Modifier.fillMaxWidth()
+                .padding(
+                    horizontal = Dimensions.overviewSearchBarHorizontalPadding,
+                    vertical = Dimensions.overviewSearchBarVerticalPadding,
+                ),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-      items(recommendations) { recommendation ->
-        ListItem(
-            headlineContent = {
-              Text(
-                  recommendation.name ?: stringResource(R.string.artwork_unknown_title),
-                  style = MaterialTheme.typography.bodyLarge,
+      SearchBarDefaults.InputField(
+          state = textFieldState,
+          onSearch = {
+            onSearchSubmitted(it)
+            expanded = false
+          },
+          expanded = false,
+          onExpandedChange = { expanded = it },
+          colors =
+              SearchBarDefaults.inputFieldColors(
+                  focusedContainerColor =
+                      if (hasInvalidSearchInput) {
+                        MaterialTheme.colorScheme.errorContainer
+                      } else {
+                        MaterialTheme.colorScheme.surface
+                      },
+                  unfocusedContainerColor =
+                      if (hasInvalidSearchInput) {
+                        MaterialTheme.colorScheme.errorContainer
+                      } else {
+                        MaterialTheme.colorScheme.surface
+                      },
+                  cursorColor =
+                      if (hasInvalidSearchInput) {
+                        MaterialTheme.colorScheme.error
+                      } else {
+                        MaterialTheme.colorScheme.primary
+                      },
+                  focusedLeadingIconColor =
+                      if (hasInvalidSearchInput) {
+                        MaterialTheme.colorScheme.error
+                      } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                      },
+                  unfocusedLeadingIconColor =
+                      if (hasInvalidSearchInput) {
+                        MaterialTheme.colorScheme.error
+                      } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                      },
+              ),
+          modifier =
+              Modifier.weight(1f)
+                  .height(Dimensions.overviewSearchBarHeight)
+                  .focusRequester(focusRequester)
+                  .testTag(SearchScreenTestTags.SEARCH_INPUT),
+          placeholder = { Text(stringResource(R.string.search_placeholder)) },
+          leadingIcon = {
+            if (expanded) {
+              IconButton(onClick = { expanded = false }) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+              }
+            } else {
+              Icon(Icons.Outlined.Search, contentDescription = "Search")
+            }
+          },
+      )
+      ArtworkTypeFilter(
+          selectedTypeValues = selectedTypeValues,
+          onArtworkTypeToggle = onArtworkTypeToggle,
+      )
+    }
+
+    if (expanded && recommendations.isNotEmpty()) {
+      Dropdown(
+          recommendations,
+          onRecommendationSelected = { recommendation ->
+            onRecommendationSelected(recommendation)
+            expanded = false
+          },
+      )
+    }
+  }
+}
+
+@Composable
+private fun ArtworkTypeFilter(
+    selectedTypeValues: List<ArtworkType>,
+    onArtworkTypeToggle: (ArtworkType) -> Unit,
+) {
+  var isFilterMenuExpanded by remember { mutableStateOf(false) }
+
+  Box {
+    IconButton(onClick = { isFilterMenuExpanded = true }) {
+      Icon(
+          imageVector = Icons.Outlined.FilterList,
+          contentDescription = stringResource(R.string.overview_filter_open),
+          tint = MaterialTheme.colorScheme.onSurface,
+      )
+    }
+    DropdownMenu(
+        expanded = isFilterMenuExpanded,
+        onDismissRequest = { isFilterMenuExpanded = false },
+        modifier = Modifier.heightIn(max = Dimensions.searchTypeFilterMaxHeight),
+    ) {
+      Text(
+          text = stringResource(R.string.search_filter_title),
+          style = MaterialTheme.typography.titleSmall,
+          modifier =
+              Modifier.padding(
+                  horizontal = Dimensions.searchTypeFilterHorizontalPadding,
+                  vertical = Dimensions.searchTypeFilterTitleVerticalPadding,
+              ),
+      )
+      Text(
+          text = stringResource(R.string.search_filter_scroll_hint),
+          style = MaterialTheme.typography.bodySmall,
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+          modifier =
+              Modifier.padding(
+                      horizontal = Dimensions.searchTypeFilterHorizontalPadding,
+                      vertical = Dimensions.searchTypeFilterTitleVerticalPadding,
+                  )
+                  .testTag(SearchScreenTestTags.FILTER_SCROLL_HINT),
+      )
+      ArtworkType.entries.forEach { type ->
+        DropdownMenuItem(
+            text = { Text(stringResource(type.toDisplayNameRes())) },
+            leadingIcon = {
+              Checkbox(
+                  checked = type in selectedTypeValues,
+                  onCheckedChange = null,
               )
             },
-            leadingContent = {
-              Box(
-                  modifier =
-                      Modifier.size(Dimensions.searchRecommendationIconContainerSize)
-                          .clip(CircleShape)
-                          .background(MaterialTheme.colorScheme.surfaceContainerHigh),
-                  contentAlignment = Alignment.Center,
-              ) {
-                Icon(
-                    Icons.Outlined.Brush,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-              }
-            },
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-            modifier =
-                Modifier.fillMaxWidth()
-                    .clickable {
-                      onRecommendationSelected(recommendation)
-                      expanded = false
-                    }
-                    .padding(horizontal = Dimensions.searchRecommendationHorizontalPadding)
-                    .testTag(SearchScreenTestTags.SEARCH_RECOMMENDATION),
+            onClick = { onArtworkTypeToggle(type) },
+            modifier = Modifier.testTag(SearchScreenTestTags.filterType(type)),
         )
       }
     }
   }
 }
+
+@Composable
+private fun Dropdown(
+    recommendations: List<Artwork>,
+    onRecommendationSelected: (Artwork) -> Unit,
+    modifier: Modifier = Modifier,
+) =
+    Surface(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .padding(horizontal = Dimensions.overviewSearchBarHorizontalPadding)
+                .heightIn(max = Dimensions.searchRecommendationsMaxHeight),
+        shape = MaterialTheme.shapes.extraLarge,
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = Dimensions.overviewSearchBarElevation,
+    ) {
+      LazyColumn(
+          contentPadding = PaddingValues(vertical = Dimensions.searchRecommendationVerticalPadding)
+      ) {
+        items(recommendations) { recommendation ->
+          ListItem(
+              headlineContent = {
+                Text(
+                    recommendation.name ?: stringResource(R.string.artwork_unknown_title),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+              },
+              leadingContent = {
+                Icon(
+                    imageVector = Icons.Filled.Bookmark,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+              },
+              colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+              modifier =
+                  Modifier.fillMaxWidth()
+                      .clickable { onRecommendationSelected(recommendation) }
+                      .padding(horizontal = Dimensions.searchRecommendationHorizontalPadding)
+                      .testTag(SearchScreenTestTags.SEARCH_RECOMMENDATION),
+          )
+        }
+      }
+    }
 
 @StringRes
 private fun ArtworkType.toDisplayNameRes(): Int =
