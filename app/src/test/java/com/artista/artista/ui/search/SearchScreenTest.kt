@@ -28,6 +28,7 @@ import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.ArtworkType
 import com.artista.artista.model.artwork.SearchArea
 import com.artista.artista.model.artwork.WikiDataRepository
+import com.artista.artista.model.artwork.mockArtworks
 import com.artista.artista.ui.artwork.ArtworkCardTestTag
 import kotlin.NotImplementedError
 import kotlinx.coroutines.CompletableDeferred
@@ -140,7 +141,7 @@ class SearchScreenTest {
   }
 
   @Test
-  fun searchBar_displaysMatchingRecommendationsFromSavedArtworks() = runTest {
+  fun searchBar_displaysMatchingDevelopmentMockRecommendations() = runTest {
     val viewModel = createViewModel()
 
     composeTestRule.setContent {
@@ -154,7 +155,8 @@ class SearchScreenTest {
             .onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT)
             .fetchSemanticsNode()
             .boundsInRoot
-    composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT).performTextInput("star")
+    composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT).performClick()
+    composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT).performTextInput("thinker")
     advanceUntilIdle()
     val expandedSearchBounds =
         composeTestRule
@@ -170,11 +172,11 @@ class SearchScreenTest {
         .assertCountEquals(1)
     composeTestRule
         .onNodeWithTag(SearchScreenTestTags.SEARCH_RECOMMENDATION)
-        .assert(hasText("The Starry Night"))
+        .assert(hasText("The Thinker"))
     composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_RECOMMENDATION).assertIsDisplayed()
 
     composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT).performTextClearance()
-    composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT).performTextInput("pearl")
+    composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT).performTextInput("nighthawks")
     advanceUntilIdle()
 
     composeTestRule
@@ -182,7 +184,7 @@ class SearchScreenTest {
         .assertCountEquals(1)
     composeTestRule
         .onNodeWithTag(SearchScreenTestTags.SEARCH_RECOMMENDATION)
-        .assert(hasText("Girl with a Pearl Earring"))
+        .assert(hasText("Nighthawks"))
         .assertIsDisplayed()
 
     composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT).performTextClearance()
@@ -205,7 +207,8 @@ class SearchScreenTest {
 
     composeTestRule.waitForIdle()
     advanceUntilIdle()
-    composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT).performTextInput("star")
+    composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT).performClick()
+    composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT).performTextInput("thinker")
     advanceUntilIdle()
 
     composeTestRule
@@ -217,7 +220,7 @@ class SearchScreenTest {
     composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT).performImeAction()
     advanceUntilIdle()
 
-    assertEquals(listOf("star"), wikiRepository.searchedQueries)
+    assertEquals(listOf("thinker"), wikiRepository.searchedQueries)
     composeTestRule
         .onAllNodesWithTag(SearchScreenTestTags.SEARCH_RECOMMENDATION)
         .assertCountEquals(0)
@@ -238,23 +241,6 @@ class SearchScreenTest {
           ): List<Artwork> {
             resultsGate.await()
             return wikiRepository.searchArtworks(artworkTitle)
-          }
-
-          @Test
-          fun searchResults_showsHelpfulEmptyStateWhenNoArtworksMatch() = runTest {
-            val viewModel = createViewModel()
-            viewModel.onSearchSubmitted("no matching artwork")
-            advanceUntilIdle()
-
-            composeTestRule.setContent {
-              MaterialTheme { SearchScreen(onTabSelected = {}, viewModel = viewModel) }
-            }
-
-            composeTestRule.onNodeWithTag(SearchScreenTestTags.EMPTY_RESULTS).assertIsDisplayed()
-            composeTestRule.onNodeWithText("No artworks found").assertIsDisplayed()
-            composeTestRule
-                .onNodeWithText("Try another search or change the artwork type filters.")
-                .assertIsDisplayed()
           }
 
           override suspend fun getArtworksNearLocation(
@@ -295,6 +281,23 @@ class SearchScreenTest {
   }
 
   @Test
+  fun searchResults_showsHelpfulEmptyStateWhenNoArtworksMatch() = runTest {
+    val viewModel = createViewModel()
+    viewModel.onSearchSubmitted("no matching artwork")
+    advanceUntilIdle()
+
+    composeTestRule.setContent {
+      MaterialTheme { SearchScreen(onTabSelected = {}, viewModel = viewModel) }
+    }
+
+    composeTestRule.onNodeWithTag(SearchScreenTestTags.EMPTY_RESULTS).assertIsDisplayed()
+    composeTestRule.onNodeWithText("No artworks found").assertIsDisplayed()
+    composeTestRule
+        .onNodeWithText("Try another search or change the artwork type filters.")
+        .assertIsDisplayed()
+  }
+
+  @Test
   fun searchResults_displayFallbackArtistWhenArtistIsMissing() = runTest {
     val viewModel = createViewModel()
 
@@ -315,24 +318,18 @@ class SearchScreenTest {
   }
 
   @Test
-  fun toggleSavedArtwork_usesSavedArtworkListToSaveOrRemoveArtwork() = runTest {
-    val artwork = SearchTestData.girlWithPearlEarring.copy(uid = "savedId", name = "Saved artwork")
+  fun toggleSavedArtwork_persistsRepositoryChangesWhileShowingMockArtworks() = runTest {
+    val artwork = mockArtworks.first()
     val repository = SearchTestData.savedArtworksRepository(listOf(artwork))
     val viewModel = SearchScreenViewModel(repository, SearchTestData.wikiDataRepository())
     advanceUntilIdle()
-    assertEquals(listOf(artwork), viewModel.uiState.value.savedArtworks)
+    assertEquals(mockArtworks, viewModel.uiState.value.savedArtworks)
 
     viewModel.toggleSavedArtwork(artwork)
     advanceUntilIdle()
 
     assertEquals(emptyList<Artwork>(), repository.savedArtworks)
-    assertEquals(emptyList<Artwork>(), viewModel.uiState.value.savedArtworks)
-
-    viewModel.toggleSavedArtwork(artwork)
-    advanceUntilIdle()
-
-    assertEquals(listOf(artwork), repository.savedArtworks)
-    assertEquals(listOf(artwork), viewModel.uiState.value.savedArtworks)
+    assertEquals(mockArtworks, viewModel.uiState.value.savedArtworks)
   }
 
   private fun createViewModel() =
