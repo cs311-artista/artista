@@ -185,15 +185,15 @@ class ArtistPreferencesScreenTest {
         .assertIsOn()
   }
 
-  /** Verifies that every popular artist has a card displaying its name. */
+  /** Verifies that every expected popular artist has a card displaying its name. */
   @Test
   fun artistsGrid_displaysCardForEachPopularArtist() {
-    val viewModel = createViewModel()
-    setPreferencesContent(viewModel = viewModel)
+    setPreferencesContent(viewModel = createViewModel())
 
-    viewModel.uiState.value.popularArtists.forEach { artist ->
+    testArtists.forEach { artist ->
       val cardTag = ArtistPreferencesTestTags.getArtistCardTestTag(artist.uid)
-      // The grid is lazy, so cards below the fold only exist once scrolled into view.
+
+      // The grid is lazy, so cards below the fold need to be brought into view.
       composeTestRule
           .onNodeWithTag(ArtistPreferencesTestTags.ARTISTS_GRID)
           .performScrollToNode(hasTestTag(cardTag))
