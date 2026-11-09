@@ -11,6 +11,7 @@ import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkType
 import com.artista.artista.model.artwork.SavedArtworksRepository
 import com.artista.artista.model.artwork.WikiDataRepository
+import com.artista.artista.model.artwork.mockArtworks
 import com.artista.artista.model.error.AppException
 import com.artista.artista.ui.error.launchCatching
 import com.artista.artista.ui.error.toMessageRes
@@ -46,6 +47,7 @@ data class SearchScreenUiState(
     val artworks: List<Artwork> = emptyList(),
     val isLoading: Boolean = false,
     val hasInvalidSearchInput: Boolean = false,
+    val hasAlreadySearched: Boolean = false,
     @param:StringRes val searchErrorMessageResId: Int? = null,
     @param:StringRes val saveErrorMessageResId: Int? = null,
 )
@@ -136,6 +138,7 @@ class SearchScreenViewModel(
             isLoading = query.isNotBlank(),
             searchErrorMessageResId = null,
             hasInvalidSearchInput = false,
+            hasAlreadySearched = query.isNotBlank(),
         )
     if (query.isBlank()) return
     val typeValues = _uiState.value.typeValues

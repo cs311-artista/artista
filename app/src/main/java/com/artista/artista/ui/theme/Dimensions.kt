@@ -103,6 +103,10 @@ internal object Dimensions {
   val searchResultsHorizontalPadding = 16.dp
   val searchResultsVerticalPadding = 8.dp
   val searchResultItemSpacing = 8.dp
+  val searchEmptyStateHorizontalPadding = 32.dp
+  val searchEmptyStateSpacing = 12.dp
+  val searchEmptyStateIconContainerSize = 64.dp
+  val searchEmptyStateMessageMaxWidth = 280.dp
 
   // Artist preferences screen.
   val artistPreferencesScreenHorizontalPadding = 24.dp

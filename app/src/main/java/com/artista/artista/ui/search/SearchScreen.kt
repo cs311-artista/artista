@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -86,6 +87,9 @@ object SearchScreenTestTags {
 
   /** Tag of the search loading indicator. */
   const val SEARCH_LOADING_INDICATOR = "search_loading_indicator"
+
+  /** Tag of the empty search results state. */
+  const val EMPTY_RESULTS = "search_empty_results"
 
   /** Tag of the hint indicating that artwork types can be scrolled. */
   const val FILTER_SCROLL_HINT = "search_filter_scroll_hint"
@@ -176,6 +180,8 @@ fun SearchScreen(
                 }
         )
       }
+    } else if (uiState.artworks.isEmpty() && uiState.hasAlreadySearched) {
+      EmptySearchResults(modifier = Modifier.fillMaxSize().padding(contentPadding))
     } else {
       ArtworkResults(
           artworks = uiState.artworks,
@@ -184,6 +190,29 @@ fun SearchScreen(
           onMapClick = onMapClick,
           onSaveClick = viewModel::toggleSavedArtwork,
           modifier = Modifier.fillMaxSize().padding(contentPadding),
+      )
+    }
+  }
+}
+
+@Composable
+private fun EmptySearchResults(modifier: Modifier = Modifier) {
+  Box(modifier = modifier.testTag(SearchScreenTestTags.EMPTY_RESULTS), contentAlignment = Alignment.Center) {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = Dimensions.searchEmptyStateHorizontalPadding),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(Dimensions.searchEmptyStateSpacing),
+    ) {
+      Text(
+          text = stringResource(R.string.search_empty_results_title),
+          style = MaterialTheme.typography.titleMedium,
+          color = MaterialTheme.colorScheme.onSurface,
+      )
+      Text(
+          text = stringResource(R.string.search_empty_results_message),
+          modifier = Modifier.widthIn(max = Dimensions.searchEmptyStateMessageMaxWidth),
+          style = MaterialTheme.typography.bodyMedium,
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
       )
     }
   }

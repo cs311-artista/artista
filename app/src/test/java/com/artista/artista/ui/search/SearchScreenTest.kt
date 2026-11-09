@@ -15,6 +15,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performTextClearance
@@ -237,6 +238,25 @@ class SearchScreenTest {
           ): List<Artwork> {
             resultsGate.await()
             return wikiRepository.searchArtworks(artworkTitle)
+          }
+
+          @Test
+          fun searchResults_showsHelpfulEmptyStateWhenNoArtworksMatch() = runTest {
+            val viewModel = createViewModel()
+            viewModel.onSearchSubmitted("no matching artwork")
+            advanceUntilIdle()
+
+            composeTestRule.setContent {
+              MaterialTheme { SearchScreen(onTabSelected = {}, viewModel = viewModel) }
+            }
+
+            composeTestRule
+                .onNodeWithTag(SearchScreenTestTags.EMPTY_RESULTS)
+                .assertIsDisplayed()
+            composeTestRule.onNodeWithText("No artworks found").assertIsDisplayed()
+            composeTestRule
+                .onNodeWithText("Try another search or change the artwork type filters.")
+                .assertIsDisplayed()
           }
 
           override suspend fun getArtworksNearLocation(
