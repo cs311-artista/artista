@@ -9,6 +9,7 @@ import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artist.ArtistId
 import com.artista.artista.model.artwork.WikiDataRepository
 import com.artista.artista.model.authentication.AuthRepository
+import com.artista.artista.model.authentication.AuthUser
 import com.artista.artista.model.error.AppException
 import com.artista.artista.model.user.User
 import com.artista.artista.model.user.UserId
@@ -16,6 +17,7 @@ import com.artista.artista.model.user.UserPreference
 import com.artista.artista.model.user.UserRepository
 import com.artista.artista.ui.error.launchCatching
 import com.artista.artista.ui.error.toMessageRes
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -37,7 +39,7 @@ import kotlinx.coroutines.launch
  *   [selectedArtists] to know whether there is anything to save.
  * @property isSaving whether the selection is being saved, during which saving again is disabled.
  * @property messageResId string resource of the message shown once a save succeeds or fails, or
- *   null when there is nothing to show.
+ *   when loading the saved artists fails; null when there is nothing to show.
  * @author Timz3rr, patrickmcdan, krfpn
  */
 data class ArtistPreferencesUiState(
@@ -74,7 +76,8 @@ data class ArtistPreferencesUiState(
 
 /**
  * Holds the popular artists and the selection made by the user on the artist preferences screen,
- * and saves that selection in the preferences of the signed-in user.
+ * pre-selects the artists the signed-in user saved earlier, and saves the selection in their
+ * preferences.
  *
  * @param artworkRepository source of the popular artists
  * @param authRepository source of the signed-in user, whose preferences are saved
@@ -99,6 +102,10 @@ class ArtistPreferencesViewModel(
   /** Identifier of the signed-in user, or null when nobody is signed in. */
   private var signedInUid: UserId? = null
 
+  // A slow load for a user who has since signed out could finish last and select their artists
+  // for the next user, so only the load of the current user is kept running.
+  private var loadJob: Job? = null
+
   init {
     viewModelScope.launchCatching(
         tag = TAG,
@@ -109,8 +116,51 @@ class ArtistPreferencesViewModel(
       _uiState.update { it.copy(popularArtists = artworkRepository.getPopularArtists()) }
     }
     // A plain launch is enough: collecting the auth state only listens to sign-ins and sign-outs
-    // and does not fail (see AuthRepository.authState).
-    viewModelScope.launch { authRepository.authState.collect { signedInUid = it?.uid } }
+    // and does not fail (see AuthRepository.authState). The load of the saved artists, which can
+    // fail, is protected by launchCatching in onAuthStateChanged.
+    viewModelScope.launch { authRepository.authState.collect(::onAuthStateChanged) }
+  }
+
+  /**
+   * Pre-selects the saved artists of the user who just signed in, or clears the selection of the
+   * user who left.
+   *
+   * @param authUser the signed-in user, or null when nobody is signed in
+   */
+  private fun onAuthStateChanged(authUser: AuthUser?) {
+    // Stops the load of the previous user, whose late result would otherwise replace the
+    // selection of the new one.
+    loadJob?.cancel()
+    if (authUser == null) {
+      // Nobody signed in from the start: an in-memory selection belongs to no one who left, so it
+      // is kept. After a sign-out, the previous user's choices are cleared.
+      if (signedInUid != null) clearSelection()
+      signedInUid = null
+      return
+    }
+    signedInUid = authUser.uid
+    // Clears the previous user's selection, so it is not shown while the new one loads.
+    clearSelection()
+    loadJob =
+        viewModelScope.launchCatching(
+            tag = TAG,
+            onError = { error ->
+              // The selection stays empty, so the screen is still usable. The message warns the
+              // user that saving now could replace artists they saved before.
+              _uiState.update { it.copy(messageResId = error.toMessageRes()) }
+            },
+        ) {
+          // No profile yet means no saved artists, so the selection stays empty. toSet() keeps the
+          // saved order, and artists that are not popular stay selected, so the next save does not
+          // drop them.
+          val artists = findUser(authUser.uid)?.preference?.artists.orEmpty().toSet()
+          _uiState.update { it.copy(selectedArtists = artists, savedArtists = artists) }
+        }
+  }
+
+  /** Empties both the current and the saved selection. */
+  private fun clearSelection() {
+    _uiState.update { it.copy(selectedArtists = emptySet(), savedArtists = emptySet()) }
   }
 
   /**
@@ -152,6 +202,8 @@ class ArtistPreferencesViewModel(
   fun saveSelectedArtists() {
     // Also covers a double tap: the first tap sets isSaving, so the second one is ignored.
     if (!_uiState.value.canSave) return
+    // A load still running would replace the selection being saved with the stored one.
+    loadJob?.cancel()
     // Taken now, so a toggle made while the write runs does not change what is saved.
     val artists = _uiState.value.selectedArtists
     // Nobody signed in (the sign-in screen is still a placeholder, and in the UI tests and the

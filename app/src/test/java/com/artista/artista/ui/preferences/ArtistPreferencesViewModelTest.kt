@@ -218,6 +218,9 @@ class ArtistPreferencesViewModelTest {
         )
     userRepository.store(User(uid = UID, userName = "Artista Fan", preference = storedPreference))
     signIn()
+    // Klimt is pre-selected from the stored profile; replacing him checks that the stored list is
+    // replaced, not appended to.
+    viewModel.toggleArtist(KLIMT.uid)
     viewModel.toggleArtist(PICASSO.uid)
 
     viewModel.saveSelectedArtists()
@@ -265,9 +268,10 @@ class ArtistPreferencesViewModelTest {
     val state = viewModel.uiState.value
     assertEquals(R.string.error_network, state.messageResId)
     assertFalse(state.isSaving)
-    assertTrue(state.savedArtists.isEmpty())
+    // The saved selection is still the loaded one, so the new one stays unsaved.
+    assertEquals(setOf(KLIMT.uid), state.savedArtists)
     // The selection is kept so the user can try again.
-    assertEquals(setOf(PICASSO.uid), state.selectedArtists)
+    assertEquals(setOf(KLIMT.uid, PICASSO.uid), state.selectedArtists)
     assertEquals(listOf(KLIMT.uid), userRepository.storedUser(UID)?.preference?.artists)
   }
 
