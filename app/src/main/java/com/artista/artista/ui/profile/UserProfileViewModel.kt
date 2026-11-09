@@ -12,10 +12,13 @@ import com.artista.artista.model.user.User
 import com.artista.artista.model.user.UserId
 import com.artista.artista.model.user.UserPreference
 import com.artista.artista.model.user.UserRepository
+import com.artista.artista.model.user.UsernameCache
 import com.artista.artista.ui.error.launchCatching
 import com.artista.artista.ui.error.toMessageRes
 import java.text.Normalizer
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -71,15 +74,18 @@ data class UserProfileUiState(
 
 /**
  * Holds the state displayed by the user profile screen, and keeps the username of the signed-in
- * user in sync with the user repository.
+ * user in sync with the user repository, which stays the source of truth, and with a local copy
+ * that lets the name be displayed offline.
  *
  * @param authRepository source of the signed-in user, whose profile is loaded and saved
  * @param userRepository storage of the user profiles
+ * @param usernameCache local copy of the username, so that it can be displayed offline
  * @author Timz3rr
  */
 class UserProfileViewModel(
     private val authRepository: AuthRepository,
     private val userRepository: UserRepository,
+    private val usernameCache: UsernameCache,
 ) : ViewModel() {
 
   private val _uiState = MutableStateFlow(UserProfileUiState())
@@ -95,8 +101,13 @@ class UserProfileViewModel(
   private var signedInUid: UserId? = null
 
   // A slow load for a user who has since signed out could finish last and display their name for
-  // the next user, so only the load of the current user is kept running.
-  private var loadJob: Job? = null
+  // the next user, and a save replaced by a newer rename or a sign-out must not report or cache
+  // anything, so only the latest load or save of the current user is kept running.
+  private var profileJob: Job? = null
+
+  // A rename replaced while still running was never saved, so a failed rename goes back to this
+  // name and not to the one displayed just before it.
+  private var lastSavedUsername: String? = null
 
   init {
     // A plain launch is enough: collecting the auth state only listens to sign-ins and sign-outs
@@ -111,28 +122,101 @@ class UserProfileViewModel(
    * @param authUser the signed-in user, or null when nobody is signed in
    */
   private fun onAuthStateChanged(authUser: AuthUser?) {
-    // Stops the load of the previous user: if Alice signs out and Bob signs in while her slow load
-    // is still running, its late result would otherwise replace Bob's name with Alice's.
-    loadJob?.cancel()
+    // Stops the load or save of the previous user: if Alice signs out and Bob signs in while her
+    // slow load is still running, its late result would otherwise replace Bob's name with Alice's.
+    profileJob?.cancel()
+    lastSavedUsername = null
     if (authUser == null) {
       // Nobody signed in from the start (e.g. before Google sign-in is wired): a username already
       // displayed belongs to no one who left, so it is kept.
-      if (signedInUid != null) _uiState.update { it.copy(username = null) }
+      signedInUid?.let(::forgetUser)
       signedInUid = null
       return
     }
     signedInUid = authUser.uid
     // Clears the previous user's name, so it is not displayed while the new profile loads.
     _uiState.update { it.copy(username = null) }
-    loadJob =
-        viewModelScope.launchCatching(
-            tag = TAG,
-            onError = { error ->
-              _uiState.update { it.copy(errorMessageResId = error.toMessageRes()) }
-            },
-        ) {
-          findUser(authUser.uid)?.let(::setUser)
+    launchProfileJob(
+        onError = { error ->
+          // Being offline is expected when a cached name is displayed: the user has what they need
+          // on screen, so a toast at every start without connection would only be noise.
+          val offlineWithName = error is AppException.Network && _uiState.value.username != null
+          if (!offlineWithName) {
+            _uiState.update { it.copy(errorMessageResId = error.toMessageRes()) }
+          }
+        },
+    ) {
+      loadProfile(authUser.uid)
+    }
+  }
+
+  /**
+   * Removes what is kept about a user who signed out.
+   *
+   * @param uid identifier of the user who left
+   */
+  private fun forgetUser(uid: UserId) {
+    _uiState.update { it.copy(username = null) }
+    // Cleared so that no name stays on a shared phone and a rename cancelled by the sign-out cannot
+    // leave a stale value. Not part of profileJob, which the next sign-in would cancel.
+    viewModelScope.launch { usernameCache.clearUsername(uid) }
+  }
+
+  /**
+   * Displays the cached name of a user, then replaces it with the stored profile if there is one.
+   *
+   * @param uid identifier of the user
+   */
+  private suspend fun loadProfile(uid: UserId) {
+    val cachedUsername = usernameCache.getUsername(uid)
+    lastSavedUsername = cachedUsername
+    _uiState.update { it.copy(username = cachedUsername) }
+    // No profile leaves the cache alone: a rename made offline is cached before its profile reaches
+    // Firestore, so a missing profile does not mean the cached name is wrong.
+    val user = findUser(uid) ?: return
+    setUser(user)
+    val storedUsername = _uiState.value.username
+    lastSavedUsername = storedUsername
+    writeCache(uid, storedUsername)
+  }
+
+  /**
+   * Starts the given work as the new [profileJob].
+   *
+   * @param onError reports a failure of [block] that happened while the job was still running
+   * @param undo reverts, before [onError] runs, what [block] already wrote
+   * @param block the work to run
+   */
+  private fun launchProfileJob(
+      onError: (AppException) -> Unit,
+      undo: suspend () -> Unit = {},
+      block: suspend () -> Unit,
+  ) {
+    profileJob =
+        viewModelScope.launchCatching(tag = TAG, onError = onError) {
+          try {
+            block()
+          } catch (exception: CancellationException) {
+            throw exception
+          } catch (exception: Exception) {
+            // launchCatching only keeps a failure arriving after cancellation from onError. It runs
+            // too late to protect undo, which would overwrite what the next user or rename cached.
+            ensureActive()
+            undo()
+            throw exception
+          }
         }
+  }
+
+  /**
+   * Makes the cache hold the given name.
+   *
+   * @param uid identifier of the user
+   * @param username the name to cache, or null to remove the entry of the user
+   */
+  private suspend fun writeCache(uid: UserId, username: String?) {
+    if (username == null) usernameCache.clearUsername(uid)
+    else usernameCache.saveUsername(uid, username)
   }
 
   /**
@@ -152,8 +236,9 @@ class UserProfileViewModel(
    * Replaces the displayed username with the one entered by the user, and saves it for the
    * signed-in user.
    *
-   * The new name is displayed at once. If saving it fails, the previous name is displayed again and
-   * an error message is exposed. When nobody is signed in, the name is only kept in memory.
+   * The new name is displayed and cached at once, and replaces a save still running. If saving it
+   * fails, the last name really saved is displayed and cached again and an error message is
+   * exposed. When nobody is signed in, the name is only kept in memory.
    *
    * @param newName the username as typed by the user; ignored if [isValidUsername] rejects it.
    * @author Timz3rr
@@ -162,26 +247,30 @@ class UserProfileViewModel(
     // The dialog already disables saving an invalid name; checking again keeps the state valid
     // whatever the caller.
     if (!isValidUsername(newName)) return
-    // A load still running would overwrite the new name with the stored one when it finishes.
-    loadJob?.cancel()
-    val previousUsername = _uiState.value.username
+    // A load still running would overwrite the new name with the stored one when it finishes, and
+    // a save still running is replaced by this one.
+    profileJob?.cancel()
     val username = normalizeUsername(newName)
     _uiState.update { it.copy(username = username) }
 
     // Nobody signed in (as in the UI tests and the preview): there is no one to save the name for,
     // so it is only kept in memory.
     val uid = signedInUid ?: return
-    viewModelScope.launchCatching(
-        tag = TAG,
+    launchProfileJob(
         onError = { error ->
-          // The name was displayed before being saved, so a failed save puts the previous one back
-          // and the screen shows the error in a toast. A successful save needs nothing more.
+          // The name was displayed before being saved, so a failed save puts the last saved one
+          // back and the screen shows the error in a toast. A successful save needs nothing more.
           _uiState.update {
-            it.copy(username = previousUsername, errorMessageResId = error.toMessageRes())
+            it.copy(username = lastSavedUsername, errorMessageResId = error.toMessageRes())
           }
         },
+        undo = { writeCache(uid, lastSavedUsername) },
     ) {
+      // Written before Firestore because offline set().await() does not complete until the
+      // connection returns, so a write placed after it would be lost on a cold start.
+      usernameCache.saveUsername(uid, username)
       saveUsername(uid, username)
+      lastSavedUsername = username
     }
   }
 
@@ -241,18 +330,20 @@ class UserProfileViewModel(
      *
      * @param authRepository source of the signed-in user
      * @param userRepository storage of the user profiles
+     * @param usernameCache local copy of the username, so that it can be displayed offline
      * @return a factory that creates [UserProfileViewModel] instances
      * @author Timz3rr
      */
     fun provideFactory(
         authRepository: AuthRepository,
         userRepository: UserRepository,
+        usernameCache: UsernameCache,
     ): ViewModelProvider.Factory =
         object : ViewModelProvider.Factory {
           @Suppress("UNCHECKED_CAST")
           override fun <T : ViewModel> create(modelClass: Class<T>): T {
             if (modelClass.isAssignableFrom(UserProfileViewModel::class.java)) {
-              return UserProfileViewModel(authRepository, userRepository) as T
+              return UserProfileViewModel(authRepository, userRepository, usernameCache) as T
             }
             throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
           }
