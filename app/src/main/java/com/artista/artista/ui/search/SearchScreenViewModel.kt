@@ -85,9 +85,7 @@ class SearchScreenViewModel(
           }
         },
     ) {
-      // val savedArtworks = savedArtworksRepository.getSavedArtworks()
-
-      val savedArtworks = mockArtworks
+      val savedArtworks = savedArtworksRepository.getSavedArtworks()
       _uiState.update {
         it.copy(
             savedArtworks = savedArtworks,
@@ -224,8 +222,7 @@ class SearchScreenViewModel(
             savedArtworksRepository.saveArtwork(artwork)
           }
 
-          // val savedArtworks = savedArtworksRepository.getSavedArtworks()
-          val savedArtworks = mockArtworks
+          val savedArtworks = savedArtworksRepository.getSavedArtworks()
           _uiState.update {
             it.copy(
                 savedArtworks = savedArtworks,
