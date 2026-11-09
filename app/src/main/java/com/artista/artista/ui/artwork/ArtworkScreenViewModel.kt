@@ -69,7 +69,8 @@ class ArtworkScreenViewModel(
         onError = ::setLoadingArtworkError,
     ) {
       // isArtworkSaved may throw an exception if the user is not authenticated, so we catch it and
-      // treat it as "not saved"
+      // treat it as "not saved". Displaying an artwork should not depend on whether the current
+      // user is logged in.
       val saved =
           try {
             savedArtworksRepository.isArtworkSaved(artworkId)
@@ -113,7 +114,7 @@ class ArtworkScreenViewModel(
       } catch (e: Exception) {
         // Revert state if the operation failed
         _uiState.update { it.copy(isSaved = wasSaved) }
-        if (e is AppException.Unauthorized) {
+        if (e is AppException) {
           setSavingArtworkError(e)
         }
       }

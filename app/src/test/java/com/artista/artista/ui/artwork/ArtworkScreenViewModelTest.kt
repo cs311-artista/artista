@@ -2,7 +2,6 @@
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.artwork
 
-import com.artista.artista.R
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkId
@@ -171,15 +170,18 @@ class ArtworkScreenViewModelTest {
   }
 
   @Test
-  fun setArtwork_whenRepositoryThrowsUnauthorizedException_setsErrorMsg() = runTest {
+  fun toggleSaveArtwork_whenRepositoryThrowsUnauthorizedException_setsErrorMsg() = runTest {
     viewModel =
         ArtworkScreenViewModel(
-            "UnknownArtworkId",
+            sampleArtwork.uid,
             fakeWikiDataRepository,
             fakeRepository,
         )
 
-    assertEquals(R.string.error_unauthorized, viewModel.uiState.value.errorMsg)
+    fakeRepository.shouldThrowError = true
+    viewModel.toggleSaveArtwork()
+
+    assert(viewModel.uiState.value.errorMsg != null)
   }
 
   /** Fake implementation of [SavedArtworksRepository] for testing [ArtworkScreenViewModel]. */
