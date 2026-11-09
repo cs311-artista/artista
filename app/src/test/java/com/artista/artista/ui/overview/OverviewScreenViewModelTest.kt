@@ -68,14 +68,6 @@ class OverviewScreenViewModelTest {
    */
   @Test
   fun overviewViewModel_whenLoadingFailsUnexpectedly_exposesUnknownError() = runTest {
-    val failing =
-        object : WikiDataRepository by ArtworkRepositoryLocal() {
-          override suspend fun getArtworksNearLocation(
-              searchArea: SearchArea,
-              typeValues: List<ArtworkType>,
-              limit: Int,
-          ): List<Artwork> = error("Artwork provider failure")
-        }
     val viewModel =
         OverviewViewModel(
             repositoryFailingWith(IllegalStateException("Artwork provider failure")),
