@@ -9,7 +9,10 @@ import com.artista.artista.model.user.FakeUserRepository
 import com.artista.artista.model.user.User
 import com.artista.artista.model.user.UserId
 import com.artista.artista.model.user.UserPreference
+import com.artista.artista.model.user.UsernameCache
+import com.artista.artista.model.user.UsernameCacheInMemory
 import com.artista.artista.utils.userNamed
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -31,6 +34,7 @@ class UserProfileViewModelTest {
 
   private val authRepository = FakeAuthRepository()
   private val userRepository = FakeUserRepository()
+  private val usernameCache = RecordingUsernameCache()
   private lateinit var viewModel: UserProfileViewModel
 
   private companion object {
@@ -41,7 +45,7 @@ class UserProfileViewModelTest {
 
   @Before
   fun setUp() {
-    viewModel = UserProfileViewModel(authRepository, userRepository)
+    viewModel = UserProfileViewModel(authRepository, userRepository, usernameCache)
   }
 
   /** Checks that the username stored for the signed-in user is displayed once loaded. */
@@ -243,6 +247,314 @@ class UserProfileViewModelTest {
     assertNull(viewModel.uiState.value.errorMessageResId)
   }
 
+  /**
+   * Checks that the cached name is displayed while the profile is still loading, so that a slow or
+   * missing connection does not leave the placeholder on screen.
+   */
+  @Test
+  fun signIn_displaysCachedUsernameBeforeSlowLoadFinishes() {
+    usernameCache.seed(UID, "Cached")
+    userRepository.store(userNamed("Alice"))
+    userRepository.readDelays[UID] = 1_000
+
+    authRepository.setAuthState(FakeAuthUser(UID))
+    mainDispatcherRule.testDispatcher.scheduler.runCurrent()
+
+    assertEquals("Cached", viewModel.uiState.value.username)
+  }
+
+  /** Checks that the Firestore name replaces the cached one on screen and in the cache. */
+  @Test
+  fun signIn_withStoredProfile_replacesCachedUsernameAndRefreshesCache() {
+    usernameCache.seed(UID, "Cached")
+    userRepository.store(userNamed("Alice"))
+
+    signIn()
+
+    assertEquals("Alice", viewModel.uiState.value.username)
+    assertEquals("Alice", usernameCache.stored(UID))
+  }
+
+  /** Checks that a profile with no name removes the outdated name from the screen and the cache. */
+  @Test
+  fun signIn_withProfileWithoutName_clearsCacheEntry() {
+    usernameCache.seed(UID, "Cached")
+    userRepository.store(userNamed(null))
+
+    signIn()
+
+    assertNull(viewModel.uiState.value.username)
+    assertNull(usernameCache.stored(UID))
+  }
+
+  /** Checks that a blank remote name counts as no name, as it does on the screen. */
+  @Test
+  fun signIn_withProfileWithBlankName_clearsCacheEntry() {
+    usernameCache.seed(UID, "Cached")
+    userRepository.store(userNamed("   "))
+
+    signIn()
+
+    assertNull(viewModel.uiState.value.username)
+    assertNull(usernameCache.stored(UID))
+  }
+
+  /**
+   * Checks that being offline with a cached name shows that name and no error: the user has what
+   * they need on screen, so a toast at every start without connection would only be noise.
+   */
+  @Test
+  fun signIn_whenNetworkFailsWithCachedUsername_keepsItWithoutError() {
+    usernameCache.seed(UID, "Cached")
+    userRepository.readFailure = AppException.Network()
+
+    signIn()
+
+    assertEquals("Cached", viewModel.uiState.value.username)
+    assertNull(viewModel.uiState.value.errorMessageResId)
+    assertEquals("Cached", usernameCache.stored(UID))
+  }
+
+  /** Checks that being offline with nothing to display still reports the failure. */
+  @Test
+  fun signIn_whenNetworkFailsWithoutCachedUsername_showsError() {
+    userRepository.readFailure = AppException.Network()
+
+    signIn()
+
+    assertNull(viewModel.uiState.value.username)
+    assertEquals(R.string.error_network, viewModel.uiState.value.errorMessageResId)
+  }
+
+  /**
+   * Checks that a failure other than the network is reported even with a cached name, because being
+   * offline is the only failure the cache is meant to hide.
+   */
+  @Test
+  fun signIn_whenLoadFailsForAnotherReasonWithCachedUsername_showsError() {
+    usernameCache.seed(UID, "Cached")
+    userRepository.readFailure = AppException.Unauthorized()
+
+    signIn()
+
+    assertEquals("Cached", viewModel.uiState.value.username)
+    assertEquals(R.string.error_unauthorized, viewModel.uiState.value.errorMessageResId)
+  }
+
+  /**
+   * Checks that a user with no profile keeps their cached name: a rename made offline is cached
+   * before its profile reaches Firestore, so a missing profile does not mean the name is wrong.
+   */
+  @Test
+  fun signIn_withoutStoredProfile_leavesCacheAlone() {
+    usernameCache.seed(UID, "Cached")
+
+    signIn()
+
+    assertEquals("Cached", viewModel.uiState.value.username)
+    assertNull(viewModel.uiState.value.errorMessageResId)
+    assertEquals(0, usernameCache.modificationCount)
+  }
+
+  /**
+   * Checks that the cache is written while the Firestore write is still pending. Offline,
+   * Firestore's write does not complete until the connection returns, so a cache write placed after
+   * it would never happen and the new name would be lost on a cold start.
+   */
+  @Test
+  fun updateUsername_whileFirestoreWriteIsPending_writesCache() {
+    userRepository.store(userNamed("Alice"))
+    signIn()
+    userRepository.writeDelays[UID] = 1_000
+
+    viewModel.updateUsername("Bob")
+    mainDispatcherRule.testDispatcher.scheduler.runCurrent()
+
+    assertEquals("Alice", userRepository.storedUser(UID)?.userName)
+    assertEquals("Bob", usernameCache.stored(UID))
+  }
+
+  /** Checks that a failed save puts the previous name back on screen and in the cache. */
+  @Test
+  fun updateUsername_whenSaveFails_rollsBackScreenAndCache() {
+    userRepository.store(userNamed("Alice"))
+    signIn()
+    userRepository.writeFailure = AppException.Network()
+
+    viewModel.updateUsername("Bob")
+    runPendingCoroutines()
+
+    assertEquals("Alice", viewModel.uiState.value.username)
+    assertEquals("Alice", usernameCache.stored(UID))
+    assertEquals(R.string.error_network, viewModel.uiState.value.errorMessageResId)
+  }
+
+  /** Checks that a failed first name removes the entry written before the save was attempted. */
+  @Test
+  fun updateUsername_whenSaveFailsWithNoEarlierName_clearsCacheEntry() {
+    signIn()
+    userRepository.writeDelays[UID] = 1_000
+    userRepository.writeFailure = AppException.Network()
+    val scheduler = mainDispatcherRule.testDispatcher.scheduler
+
+    viewModel.updateUsername("Bob")
+    scheduler.runCurrent()
+    assertEquals("Bob", usernameCache.stored(UID))
+    runPendingCoroutines()
+
+    assertNull(viewModel.uiState.value.username)
+    assertNull(usernameCache.stored(UID))
+  }
+
+  /**
+   * Checks that a failed rename goes back to a name saved by an earlier rename, not to the one
+   * loaded at sign-in.
+   */
+  @Test
+  fun updateUsername_whenSaveFailsAfterSuccessfulRename_rollsBackToThatRename() {
+    userRepository.store(userNamed("Alice"))
+    signIn()
+    viewModel.updateUsername("Bob")
+    runPendingCoroutines()
+    userRepository.writeFailure = AppException.Network()
+
+    viewModel.updateUsername("Carol")
+    runPendingCoroutines()
+
+    assertEquals("Bob", viewModel.uiState.value.username)
+    assertEquals("Bob", usernameCache.stored(UID))
+  }
+
+  /**
+   * Checks that a cached name shown after an offline start counts as the earlier name, so that a
+   * failed rename does not wipe the only copy the device has.
+   */
+  @Test
+  fun updateUsername_whenSaveFailsAfterOfflineStart_rollsBackToCachedUsername() {
+    usernameCache.seed(UID, "Cached")
+    userRepository.readFailure = AppException.Network()
+    signIn()
+    userRepository.writeFailure = AppException.Network()
+
+    viewModel.updateUsername("Bob")
+    runPendingCoroutines()
+
+    assertEquals("Cached", viewModel.uiState.value.username)
+    assertEquals("Cached", usernameCache.stored(UID))
+  }
+
+  /** Checks that a rename with nobody signed in stays in memory and leaves the cache untouched. */
+  @Test
+  fun updateUsername_whenSignedOut_doesNotTouchCache() {
+    usernameCache.seed(UID, "Cached")
+    runPendingCoroutines()
+
+    viewModel.updateUsername("Bob")
+    runPendingCoroutines()
+
+    assertEquals(0, usernameCache.modificationCount)
+    assertEquals("Cached", usernameCache.stored(UID))
+  }
+
+  /** Checks that a rename replacing a save still running is the only one written. */
+  @Test
+  fun updateUsername_twiceQuickly_writesOnlySecondName() {
+    userRepository.store(userNamed("Alice"))
+    signIn()
+    userRepository.writeDelays[UID] = 1_000
+
+    // runCurrent lets the first save reach its write without letting time pass, so it is still
+    // running when the second rename replaces it.
+    viewModel.updateUsername("Bob")
+    mainDispatcherRule.testDispatcher.scheduler.runCurrent()
+    viewModel.updateUsername("Carol")
+    runPendingCoroutines()
+
+    assertEquals(1, userRepository.writeCount)
+    assertEquals("Carol", userRepository.storedUser(UID)?.userName)
+    assertEquals("Carol", viewModel.uiState.value.username)
+    assertEquals("Carol", usernameCache.stored(UID))
+  }
+
+  /**
+   * Checks that a failed rename which replaced a running one goes back to the last name actually
+   * saved. The name of the cancelled rename never reached Firestore, so restoring it would display
+   * and cache a name the backend does not have.
+   */
+  @Test
+  fun updateUsername_whenReplacingRenameFails_restoresLastSavedUsername() {
+    userRepository.store(userNamed("Alice"))
+    signIn()
+    userRepository.writeDelays[UID] = 1_000
+
+    viewModel.updateUsername("Bob")
+    mainDispatcherRule.testDispatcher.scheduler.runCurrent()
+    userRepository.writeFailure = AppException.Network()
+    viewModel.updateUsername("Carol")
+    runPendingCoroutines()
+
+    assertEquals("Alice", viewModel.uiState.value.username)
+    assertEquals("Alice", usernameCache.stored(UID))
+    assertEquals(R.string.error_network, viewModel.uiState.value.errorMessageResId)
+  }
+
+  /**
+   * Checks that a save failing after its user signed out changes nothing for the next user: the
+   * write ignores cancellation here because a backend can still report a failure once it is too
+   * late to matter.
+   */
+  @Test
+  fun signOut_duringSave_doesNotChangeNextUserState() {
+    userRepository.store(userNamed("Alice"))
+    userRepository.store(User(uid = OTHER_UID, userName = "Carol", preference = UserPreference()))
+    signIn()
+    userRepository.writeDelays[UID] = 1_000
+    userRepository.writesIgnoreCancellation = true
+    userRepository.writeFailure = AppException.Network()
+    val scheduler = mainDispatcherRule.testDispatcher.scheduler
+
+    viewModel.updateUsername("Bob")
+    scheduler.runCurrent()
+    authRepository.setAuthState(null)
+    scheduler.runCurrent()
+    authRepository.setAuthState(FakeAuthUser(OTHER_UID))
+    runPendingCoroutines()
+
+    assertEquals("Carol", viewModel.uiState.value.username)
+    assertNull(viewModel.uiState.value.errorMessageResId)
+    assertEquals("Carol", usernameCache.stored(OTHER_UID))
+    assertNull(usernameCache.stored(UID))
+  }
+
+  /**
+   * Checks that signing out removes the entry of the user who left, and only theirs, so that their
+   * name does not remain on a shared device.
+   */
+  @Test
+  fun signOut_clearsCacheEntryOfLeavingUser() {
+    usernameCache.seed(UID, "Alice")
+    usernameCache.seed(OTHER_UID, "Bob")
+    userRepository.store(userNamed("Alice"))
+    signIn()
+
+    authRepository.setAuthState(null)
+    runPendingCoroutines()
+
+    assertNull(usernameCache.stored(UID))
+    assertEquals("Bob", usernameCache.stored(OTHER_UID))
+  }
+
+  /** Checks that being signed out from the start clears nothing, since no user left. */
+  @Test
+  fun signedOutFromStart_doesNotClearCache() {
+    usernameCache.seed(UID, "Alice")
+
+    runPendingCoroutines()
+
+    assertEquals("Alice", usernameCache.stored(UID))
+    assertEquals(0, usernameCache.modificationCount)
+  }
+
   /** Verifies that no username is displayed before a user is provided. */
   @Test
   fun initialState_hasNoUsername() {
@@ -416,5 +728,44 @@ class UserProfileViewModelTest {
   /** Runs the coroutines the ViewModel launched, such as loading or saving the profile. */
   private fun runPendingCoroutines() {
     mainDispatcherRule.testDispatcher.scheduler.advanceUntilIdle()
+  }
+
+  /** [UsernameCacheInMemory] that also counts the changes made through [UsernameCache]. */
+  private class RecordingUsernameCache : UsernameCache {
+    private val cache = UsernameCacheInMemory()
+
+    /** Number of calls to [saveUsername] and [clearUsername]. */
+    var modificationCount: Int = 0
+      private set
+
+    /**
+     * Stores a name without counting as a change, to set up the state a test starts from.
+     *
+     * @param userId identifier of the user
+     * @param username the name to store
+     */
+    fun seed(userId: UserId, username: String) = runBlocking {
+      cache.saveUsername(userId, username)
+    }
+
+    /**
+     * Reads the name currently cached for a user.
+     *
+     * @param userId identifier of the user
+     * @return the cached name, or null if there is none
+     */
+    fun stored(userId: UserId): String? = runBlocking { cache.getUsername(userId) }
+
+    override suspend fun getUsername(userId: UserId): String? = cache.getUsername(userId)
+
+    override suspend fun saveUsername(userId: UserId, username: String) {
+      modificationCount++
+      cache.saveUsername(userId, username)
+    }
+
+    override suspend fun clearUsername(userId: UserId) {
+      modificationCount++
+      cache.clearUsername(userId)
+    }
   }
 }

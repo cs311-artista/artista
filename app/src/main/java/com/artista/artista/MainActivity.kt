@@ -11,6 +11,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -26,6 +28,8 @@ import com.artista.artista.model.artwork.WikiDataRepository
 import com.artista.artista.model.artwork.createArtworkImageLoader
 import com.artista.artista.model.authentication.AuthRepositoryProvider
 import com.artista.artista.model.user.UserRepositoryProvider
+import com.artista.artista.model.user.UsernameCacheDataStore
+import com.artista.artista.model.user.usernameDataStore
 import com.artista.artista.ui.artwork.ArtworkScreen
 import com.artista.artista.ui.artwork.ArtworkScreenViewModel
 import com.artista.artista.ui.artwork.SavedArtworksScreen
@@ -93,6 +97,10 @@ fun ArtistaApp(
         ArtworkRepositoryProvider.savedArtworksRepository,
 ) {
   val navigationActions = remember { NavigationActions(navController) }
+  // Read here, outside the NavHost, where the owner is the Activity: inside a destination it is the
+  // navigation entry, which the bottom bar discards on every tab change.
+  val activityViewModelOwner =
+      checkNotNull(LocalViewModelStoreOwner.current) { "ArtistaApp needs a ViewModelStoreOwner" }
 
   NavHost(navController = navController, startDestination = startDestination) {
 
@@ -182,11 +190,19 @@ fun ArtistaApp(
         UserProfileScreen(
             userProfileViewModel =
                 viewModel(
+                    // Outlives the tab changes: until the Google sign-in is wired, nobody is signed
+                    // in, so the ViewModel is the only place holding a renamed username. Once
+                    // signed in, it also avoids reading the profile again on every return.
+                    viewModelStoreOwner = activityViewModelOwner,
                     factory =
                         UserProfileViewModel.provideFactory(
                             authRepository = AuthRepositoryProvider.repository,
                             userRepository = UserRepositoryProvider.repository,
-                        )
+                            usernameCache =
+                                UsernameCacheDataStore(
+                                    LocalContext.current.applicationContext.usernameDataStore
+                                ),
+                        ),
                 ),
             onLogoutClick = {
               navController.navigate(Screen.Auth.route) {
@@ -202,10 +218,15 @@ fun ArtistaApp(
       composable(Screen.ArtistPreferences.route) {
         ArtistPreferencesScreen(
             artistPreferencesViewModel =
-                viewModel(factory = ArtistPreferencesViewModel.provideFactory(wikiDataRepository)),
+                viewModel(
+                    factory =
+                        ArtistPreferencesViewModel.provideFactory(
+                            wikiDataRepository = wikiDataRepository,
+                            authRepository = AuthRepositoryProvider.repository,
+                            userRepository = UserRepositoryProvider.repository,
+                        )
+                ),
             onBackClick = { navigationActions.goBack() },
-            // TODO: implement the logic for saving preferences (now it's just a placeholder)
-            onSaveClick = { navigationActions.goBack() },
             onTabSelected = { tab -> navigationActions.navigateTo(tab.destination) },
         )
       }

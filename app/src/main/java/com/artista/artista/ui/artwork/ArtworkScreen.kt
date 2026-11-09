@@ -94,9 +94,15 @@ fun ArtworkScreen(
   val uiState by artworkScreenViewModel.uiState.collectAsState()
   val isSaved = uiState.isSaved
   val artwork = uiState.artwork
-  val errorMessageResId = uiState.errorMsg
-  val errorMessage = errorMessageResId?.let { stringResource(it) }
   val context = LocalContext.current
+  val errorMessage = uiState.errorMessageResId?.let { stringResource(it) }
+
+  LaunchedEffect(errorMessage) {
+    errorMessage?.let { message ->
+      Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+      artworkScreenViewModel.clearErrorMessage()
+    }
+  }
 
   val locale = LocalLocale.current.platformLocale
   // Cache the formatter to prevent re-instantiation across recompositions
@@ -121,10 +127,6 @@ fun ArtworkScreen(
     )
   }
 
-  LaunchedEffect(errorMessage) {
-    errorMessage?.let { Toast.makeText(context, it, Toast.LENGTH_LONG).show() }
-  }
-
   Scaffold(
       modifier = modifier.testTag(ArtworkTestTags.ARTWORK_SCREEN),
       topBar = {
@@ -146,6 +148,7 @@ fun ArtworkScreen(
             actions = {
               IconButton(
                   onClick = { artworkScreenViewModel.toggleSaveArtwork() },
+                  enabled = !uiState.isSaveInProgress,
                   modifier = Modifier.testTag(ArtworkTestTags.SAVE_BUTTON),
               ) {
                 Icon(

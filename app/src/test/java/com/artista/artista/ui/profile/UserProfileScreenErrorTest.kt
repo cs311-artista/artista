@@ -10,6 +10,7 @@ import com.artista.artista.model.authentication.FakeAuthRepository
 import com.artista.artista.model.authentication.FakeAuthUser
 import com.artista.artista.model.error.AppException
 import com.artista.artista.model.user.FakeUserRepository
+import com.artista.artista.model.user.UsernameCacheInMemory
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Rule
@@ -38,7 +39,12 @@ class UserProfileScreenErrorTest {
   @Test
   fun userProfileScreen_whenLoadFails_showsErrorToastOnce() {
     val userRepository = FakeUserRepository().apply { readFailure = AppException.Network() }
-    val viewModel = UserProfileViewModel(FakeAuthRepository(FakeAuthUser("uid-1")), userRepository)
+    val viewModel =
+        UserProfileViewModel(
+            FakeAuthRepository(FakeAuthUser("uid-1")),
+            userRepository,
+            UsernameCacheInMemory(),
+        )
 
     composeTestRule.setContent {
       MaterialTheme { UserProfileScreen(onLogoutClick = {}, userProfileViewModel = viewModel) }

@@ -24,6 +24,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.artista.artista.R
 import com.artista.artista.model.authentication.FakeAuthRepository
 import com.artista.artista.model.user.UserRepositoryLocal
+import com.artista.artista.model.user.UsernameCacheInMemory
 import com.artista.artista.ui.navigation.NavigationTestTags
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.utils.userNamed
@@ -318,7 +319,7 @@ class UserProfileScreenTest {
    * [UserProfileViewModel.setUser] and never reach Firebase.
    */
   private fun signedOutViewModel(): UserProfileViewModel =
-      UserProfileViewModel(FakeAuthRepository(), UserRepositoryLocal())
+      UserProfileViewModel(FakeAuthRepository(), UserRepositoryLocal(), UsernameCacheInMemory())
 
   private fun setProfileContent(
       viewModel: UserProfileViewModel = signedOutViewModel(),

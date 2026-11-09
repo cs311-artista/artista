@@ -14,11 +14,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.artista.artista.R
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.Artwork
-import com.artista.artista.model.artwork.ArtworkId
-import com.artista.artista.model.artwork.ArtworkType
-import com.artista.artista.model.artwork.SavedArtworksRepository
-import com.artista.artista.model.artwork.SearchArea
-import com.artista.artista.model.artwork.WikiDataRepository
+import com.artista.artista.model.artwork.ArtworkRepositoryLocal
 import com.artista.artista.model.map.Location
 import com.artista.artista.ui.theme.ArtistaTheme
 import kotlinx.coroutines.runBlocking
@@ -39,7 +35,8 @@ class ArtworkScreenTest {
 
   @get:Rule val composeTestRule = createAndroidComposeRule<ComponentActivity>()
 
-  private lateinit var fakeRepository: FakeArtworkRepository
+  private val savedRepository = ArtworkRepositoryLocal()
+  private val wikiDataRepository = ArtworkRepositoryLocal()
   private lateinit var viewModel: ArtworkScreenViewModel
   private val milliseconds = 3000L
 
@@ -67,7 +64,10 @@ class ArtworkScreenTest {
 
   @Before
   fun setUp() {
-    fakeRepository = FakeArtworkRepository()
+    savedRepository.clear()
+    wikiDataRepository.clear()
+    wikiDataRepository.putArtworkInRepositoryUnsavedSection(sampleArtwork)
+    viewModel = ArtworkScreenViewModel(sampleArtwork.uid, wikiDataRepository, savedRepository)
   }
 
   @Test
@@ -77,30 +77,32 @@ class ArtworkScreenTest {
     composeTestRule.onNodeWithTag(ArtworkTestTags.SAVE_BUTTON).performClick()
 
     composeTestRule.waitUntil(timeoutMillis = milliseconds) {
-      runBlocking { fakeRepository.isArtworkSaved(sampleArtwork.uid) }
+      runBlocking { savedRepository.isArtworkSaved(sampleArtwork.uid) }
     }
 
-    runBlocking { assertTrue(fakeRepository.isArtworkSaved(sampleArtwork.uid)) }
+    runBlocking { assertTrue(savedRepository.isArtworkSaved(sampleArtwork.uid)) }
   }
 
   @Test
   fun artworkScreen_whenAlreadySaved_clickingSaveButtonRemovesArtworkFromRepository() {
-    runBlocking { fakeRepository.saveArtwork(sampleArtwork) }
+    runBlocking { savedRepository.saveArtwork(sampleArtwork) }
 
     setScreenContent()
 
     composeTestRule.onNodeWithTag(ArtworkTestTags.SAVE_BUTTON).performClick()
 
     composeTestRule.waitUntil(timeoutMillis = milliseconds) {
-      runBlocking { !fakeRepository.isArtworkSaved(sampleArtwork.uid) }
+      runBlocking { !savedRepository.isArtworkSaved(sampleArtwork.uid) }
     }
 
-    runBlocking { assertFalse(fakeRepository.isArtworkSaved(sampleArtwork.uid)) }
+    runBlocking { assertFalse(savedRepository.isArtworkSaved(sampleArtwork.uid)) }
   }
 
   @Test
   fun artworkScreen_whenLocationIsProvided_mapTileIsDisplayed() {
     setScreenContent(artwork = sampleArtworkWithLocation)
+
+    composeTestRule.waitForIdle()
 
     composeTestRule.onNodeWithTag(ArtworkTestTags.ARTWORK_MAP_TILE).assertExists()
 
@@ -126,6 +128,21 @@ class ArtworkScreenTest {
   }
 
   @Test
+  fun artworkScreen_whenArtworkLookupFails_displaysFallbackErrorAndClearsTransientError() {
+    val invalidArtwork = sampleArtwork.copy(uid = "")
+
+    setScreenContent(artwork = invalidArtwork)
+
+    composeTestRule.waitForIdle()
+
+    composeTestRule.runOnIdle {
+      assertTrue(viewModel.uiState.value.errorMessageResId == null)
+      assertTrue(viewModel.uiState.value.artwork == null)
+    }
+    composeTestRule.onNodeWithTag(ArtworkTestTags.ARTWORK_ERROR_MESSAGE).assertIsDisplayed()
+  }
+
+  @Test
   fun artworkScreen_whenArtworkIsNull_displaysErrorMessage() {
     setScreenContent(artwork = null)
 
@@ -136,8 +153,9 @@ class ArtworkScreenTest {
       artwork: Artwork? = sampleArtwork,
       onBackClick: () -> Unit = {},
   ) {
-    fakeRepository.artwork = artwork
-    viewModel = ArtworkScreenViewModel(artwork?.uid ?: "", fakeRepository, fakeRepository)
+    wikiDataRepository.clear()
+    artwork?.let { wikiDataRepository.putArtworkInRepositoryUnsavedSection(it) }
+    viewModel = ArtworkScreenViewModel(artwork?.uid ?: "", wikiDataRepository, savedRepository)
     composeTestRule.setContent {
       ArtistaTheme {
         ArtworkScreen(
@@ -154,46 +172,5 @@ class ArtworkScreenTest {
 
     composeTestRule.onNodeWithTag(ArtworkTestTags.ARTWORK_SCREEN).assertIsDisplayed()
     composeTestRule.onNodeWithTag(ArtworkTestTags.ARTWORK_TITLE).assertIsDisplayed()
-  }
-
-  /** In-memory test double implementing [SavedArtworksRepository]. */
-  private class FakeArtworkRepository : SavedArtworksRepository, WikiDataRepository {
-    private val savedArtworks = mutableListOf<Artwork>()
-    var artwork: Artwork? = null
-
-    override suspend fun isArtworkSaved(uid: ArtworkId): Boolean {
-      return savedArtworks.any { it.uid == uid }
-    }
-
-    override suspend fun saveArtwork(artwork: Artwork) {
-      savedArtworks.removeAll { it.uid == artwork.uid }
-      savedArtworks.add(artwork)
-    }
-
-    override suspend fun removeArtworkFromSaved(uid: ArtworkId) {
-      savedArtworks.removeAll { it.uid == uid }
-    }
-
-    override suspend fun getSavedArtworks(): List<Artwork> = savedArtworks.toList()
-
-    override suspend fun getArtworksNearLocation(
-        searchArea: SearchArea,
-        typeValues: List<ArtworkType>,
-        limit: Int,
-    ): List<Artwork> = emptyList()
-
-    @Deprecated(
-        "This function will be moved outside of WikiDataRepository since the popularity isn't a Wikidata metric."
-    )
-    override suspend fun getPopularArtists(): List<Artist> = emptyList()
-
-    override suspend fun getArtwork(uid: ArtworkId): Artwork =
-        checkNotNull(artwork) { "Test artwork was not configured." }
-
-    override suspend fun searchArtworks(
-        artworkTitle: String,
-        typeValues: List<ArtworkType>,
-        limit: Int,
-    ): List<Artwork> = emptyList()
   }
 }

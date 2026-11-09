@@ -43,6 +43,7 @@
     <string name="artist_preferences_search_placeholder">Search artists…</string>
     <string name="artist_preferences_popular_artists">Popular Artists</string>
     <string name="artist_preferences_save">Save Preferences</string>
+    <string name="artist_preferences_saved">Your favorite artists have been saved.</string>
     <!-- Map screen -->
     <string name="map_location_permission_error">Location permission is required to show your position.</string>
     <string name="map_location_unavailable_error">Current location is unavailable.</string>

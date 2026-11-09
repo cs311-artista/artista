@@ -1,5 +1,6 @@
 // Co-authored-by: Gemini <gemini@google.com>
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
+// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 package com.artista.artista.ui.artwork
 
 import androidx.annotation.StringRes
@@ -10,26 +11,27 @@ import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.SavedArtworksRepository
 import com.artista.artista.model.artwork.WikiDataRepository
-import com.artista.artista.model.error.AppException
 import com.artista.artista.ui.error.launchCatching
 import com.artista.artista.ui.error.toMessageRes
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
 
 /**
  * Immutable UI state model for the artwork details screen[cite: 1].
  *
  * @property artwork the active artwork model currently viewed, or null if uninitialized[cite: 1]
  * @property isSaved true if this artwork is currently bookmarked in local storage[cite: 1]
+ * @property isSaveInProgress true while a bookmark change is being persisted
+ * @property errorMessageResId localized message for the most recent repository failure
  * @author hixeum
  */
 data class ArtworkScreenUIState(
     val artwork: Artwork? = null,
     val isSaved: Boolean = false,
-    @param:StringRes val errorMsg: Int? = null,
+    val isSaveInProgress: Boolean = false,
+    @param:StringRes val errorMessageResId: Int? = null,
 )
 
 /**
@@ -38,6 +40,8 @@ data class ArtworkScreenUIState(
  * Operates strictly with [SavedArtworksRepository] abstractions to preserve MVVM boundaries[cite:
  * 1].
  *
+ * @param artworkId the [ArtworkId] of the artwork whose information is to be displayed on screen
+ * @param wikiDataRepository repository responsible for calls to the external [Artwork] source
  * @param savedArtworksRepository repository responsible for checking, saving, and deleting
  *   artworks[cite: 1]
  * @author hixeum
@@ -65,8 +69,16 @@ class ArtworkScreenViewModel(
    */
   fun setArtwork(artworkId: ArtworkId) {
     viewModelScope.launchCatching(
-        tag = ArtworkScreenViewModel::class.java.simpleName,
-        onError = ::setLoadingArtworkError,
+        tag = TAG,
+        onError = { error ->
+          _uiState.update {
+            it.copy(
+                artwork = null,
+                isSaved = false,
+                errorMessageResId = error.toMessageRes(),
+            )
+          }
+        },
     ) {
       // isArtworkSaved may throw an exception if the user is not authenticated, so we catch it and
       // treat it as "not saved". Displaying an artwork should not depend on whether the current
@@ -87,49 +99,70 @@ class ArtworkScreenViewModel(
         it.copy(
             artwork = artwork,
             isSaved = saved,
+            errorMessageResId = null,
         )
       }
     }
   }
 
   /**
+   * Toggles the bookmark status of the current artwork with an optimistic update[cite: 1].
+   *
    * Flips the visual bookmark state immediately for responsive UI, rolling back only if the
    * repository persistence operation fails[cite: 1].
    */
   fun toggleSaveArtwork() {
-    val artwork = _uiState.value.artwork ?: return
-    val wasSaved = _uiState.value.isSaved
+    val currentState = _uiState.value
+    val artwork = currentState.artwork ?: return
+    if (currentState.isSaveInProgress) return
+    val wasSaved = currentState.isSaved
 
     // 1. Optimistic UI update
-    _uiState.update { it.copy(isSaved = !wasSaved) }
+    _uiState.update {
+      it.copy(
+          isSaved = !wasSaved,
+          isSaveInProgress = true,
+          errorMessageResId = null,
+      )
+    }
 
     // 2. Perform background write to repository
-    viewModelScope.launch {
+    viewModelScope.launchCatching(
+        tag = TAG,
+        onError = { error ->
+          _uiState.update {
+            it.copy(
+                isSaved = wasSaved,
+                isSaveInProgress = false,
+                errorMessageResId = error.toMessageRes(),
+            )
+          }
+        },
+    ) {
       try {
         if (wasSaved) {
           savedArtworksRepository.removeArtworkFromSaved(artwork.uid)
         } else {
           savedArtworksRepository.saveArtwork(artwork)
         }
-      } catch (e: Exception) {
-        // Revert state if the operation failed
-        _uiState.update { it.copy(isSaved = wasSaved) }
-        if (e is AppException) {
-          setSavingArtworkError(e)
-        }
+      } finally {
+        _uiState.update { it.copy(isSaveInProgress = false) }
       }
     }
   }
 
-  private fun setLoadingArtworkError(error: AppException) {
-    _uiState.update { it.copy(artwork = null, errorMsg = error.toMessageRes()) }
-  }
-
-  private fun setSavingArtworkError(error: AppException) {
-    _uiState.update { it.copy(errorMsg = error.toMessageRes()) }
+  /**
+   * Clears the repository error after the screen has displayed it.
+   *
+   * @author hixeum
+   */
+  fun clearErrorMessage() {
+    _uiState.update { it.copy(errorMessageResId = null) }
   }
 
   companion object {
+    private const val TAG = "ArtworkScreenViewModel"
+
     /**
      * Creates a [ViewModelProvider.Factory] instance supplying dependencies to
      * [ArtworkScreenViewModel][cite: 1].
