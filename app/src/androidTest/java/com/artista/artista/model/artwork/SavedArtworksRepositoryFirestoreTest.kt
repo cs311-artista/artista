@@ -26,7 +26,11 @@ import org.junit.Test
 import org.junit.rules.Timeout
 import org.junit.runner.RunWith
 
-/** Verifies the Firestore repository against the local Firebase emulators. */
+/**
+ * Verifies the Firestore repository against the local Firebase emulators.
+ *
+ * @author hixeum
+ */
 @RunWith(AndroidJUnit4::class)
 class SavedArtworksRepositoryFirestoreTest {
 

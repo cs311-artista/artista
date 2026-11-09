@@ -128,7 +128,7 @@ object FirebaseEmulator {
    * it after this has run. Timeouts are set because it is called from both the set-up and the
    * tear-down of a class, where a wedged emulator would hang the run instead of failing it.
    *
-   * @author timo-by
+   * @author timo-by, krfpn
    */
   fun clearAccounts() {
     sendEmulatorRequest(
