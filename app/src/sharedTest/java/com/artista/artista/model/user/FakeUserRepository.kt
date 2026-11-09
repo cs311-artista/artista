@@ -7,11 +7,12 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
 /**
- * In-memory [UserRepository] for unit tests, which can also simulate backend failures and slow
- * reads.
+ * In-memory [UserRepository] for unit and instrumented tests, which can also simulate backend
+ * failures and slow reads.
  *
- * [UserRepositoryLocal] stores users the same way but never fails, while the profile tests need to
- * check what the user sees when reading or saving their profile fails.
+ * [UserRepositoryLocal] stores users the same way but never fails, while the profile and
+ * preferences tests need to check what the user sees when reading or saving a profile fails. It
+ * lives in the shared test sources so that both suites use this single copy.
  *
  * @author Timz3rr
  */

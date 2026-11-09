@@ -14,11 +14,11 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.artista.artista.R
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.Artwork
-import com.artista.artista.model.artwork.ArtworkId
-import com.artista.artista.model.artwork.SavedArtworksRepository
+import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.map.Location
 import com.artista.artista.ui.theme.ArtistaTheme
 import kotlinx.coroutines.runBlocking
+import org.junit.Assert
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -36,7 +36,7 @@ class ArtworkScreenTest {
 
   @get:Rule val composeTestRule = createAndroidComposeRule<ComponentActivity>()
 
-  private lateinit var fakeRepository: FakeArtworkRepository
+  private val repository = ArtworkRepositoryProvider.mockRepository
   private lateinit var viewModel: ArtworkScreenViewModel
   private val milliseconds = 3000L
 
@@ -64,8 +64,8 @@ class ArtworkScreenTest {
 
   @Before
   fun setUp() {
-    fakeRepository = FakeArtworkRepository()
-    viewModel = ArtworkScreenViewModel(fakeRepository)
+    repository.clear()
+    viewModel = ArtworkScreenViewModel(repository)
   }
 
   @Test
@@ -75,25 +75,25 @@ class ArtworkScreenTest {
     composeTestRule.onNodeWithTag(ArtworkTestTags.SAVE_BUTTON).performClick()
 
     composeTestRule.waitUntil(timeoutMillis = milliseconds) {
-      runBlocking { fakeRepository.isArtworkSaved(sampleArtwork.uid) }
+      runBlocking { repository.isArtworkSaved(sampleArtwork.uid) }
     }
 
-    runBlocking { assertTrue(fakeRepository.isArtworkSaved(sampleArtwork.uid)) }
+    runBlocking { assertTrue(repository.isArtworkSaved(sampleArtwork.uid)) }
   }
 
   @Test
   fun artworkScreen_whenAlreadySaved_clickingSaveButtonRemovesArtworkFromRepository() {
-    runBlocking { fakeRepository.saveArtwork(sampleArtwork) }
+    runBlocking { repository.saveArtwork(sampleArtwork) }
 
     setScreenContent()
 
     composeTestRule.onNodeWithTag(ArtworkTestTags.SAVE_BUTTON).performClick()
 
     composeTestRule.waitUntil(timeoutMillis = milliseconds) {
-      runBlocking { !fakeRepository.isArtworkSaved(sampleArtwork.uid) }
+      runBlocking { !repository.isArtworkSaved(sampleArtwork.uid) }
     }
 
-    runBlocking { assertFalse(fakeRepository.isArtworkSaved(sampleArtwork.uid)) }
+    runBlocking { assertFalse(repository.isArtworkSaved(sampleArtwork.uid)) }
   }
 
   @Test
@@ -123,6 +123,20 @@ class ArtworkScreenTest {
         .assertTextEquals(composeTestRule.activity.getString(R.string.artwork_unknown_title))
   }
 
+  @Test
+  fun artworkScreen_whenRepositoryErrorOccurs_displaysToastAndClearsError() {
+    val invalidArtwork = sampleArtwork.copy(uid = "")
+
+    setScreenContent(artwork = invalidArtwork)
+
+    composeTestRule.waitUntil(timeoutMillis = milliseconds) {
+      viewModel.uiState.value.errorMessageResId == null &&
+          viewModel.uiState.value.artwork == invalidArtwork
+    }
+
+    composeTestRule.runOnIdle { Assert.assertNull(viewModel.uiState.value.errorMessageResId) }
+  }
+
   private fun setScreenContent(artwork: Artwork = sampleArtwork, onBackClick: () -> Unit = {}) {
     composeTestRule.setContent {
       ArtistaTheme {
@@ -141,37 +155,5 @@ class ArtworkScreenTest {
 
     composeTestRule.onNodeWithTag(ArtworkTestTags.ARTWORK_SCREEN).assertIsDisplayed()
     composeTestRule.onNodeWithTag(ArtworkTestTags.ARTWORK_TITLE).assertIsDisplayed()
-  }
-
-  /** In-memory test double implementing [SavedArtworksRepository]. */
-  private class FakeArtworkRepository : SavedArtworksRepository {
-    private val savedArtworks = mutableListOf<Artwork>()
-
-    override suspend fun isArtworkSaved(uid: ArtworkId): Boolean {
-      return savedArtworks.any { it.uid == uid }
-    }
-
-    override suspend fun saveArtwork(artwork: Artwork) {
-      savedArtworks.removeAll { it.uid == artwork.uid }
-      savedArtworks.add(artwork)
-    }
-
-    override suspend fun removeArtworkFromSaved(uid: ArtworkId) {
-      savedArtworks.removeAll { it.uid == uid }
-    }
-
-    override suspend fun getSavedArtworks(): List<Artwork> =
-        listOf(
-            Artwork(
-                uid = "starryId",
-                name = "The Starry Night",
-                artist = Artist("test-van-gogh", "Vincent van Gogh"),
-                location = null,
-                conceptionDate = null,
-                dimension = null,
-                description = null,
-                museum = null,
-            )
-        )
   }
 }
