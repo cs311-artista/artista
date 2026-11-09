@@ -108,4 +108,6 @@
     <string name="navigation_overview">Overview</string>
     <string name="navigation_map">Map</string>
     <string name="navigation_profile">Profile</string>
+    <string name="arrow_back_description">Back</string>
+    <string name="search_icon_description">Search</string>
 </resources>

@@ -8,6 +8,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.artista.artista.model.artwork.Artwork
+import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.ArtworkType
 import com.artista.artista.model.artwork.SavedArtworksRepository
 import com.artista.artista.model.artwork.WikiDataRepository
@@ -32,6 +33,7 @@ import kotlinx.coroutines.flow.update
  * @property artworks results returned for the submitted query
  * @property isLoading whether submitted search results are being fetched
  * @property hasInvalidSearchInput whether the last search failed because its input was invalid
+ * @property hasAlreadySearched whether a search as already been submitted
  * @property searchErrorMessageResId string resource of the message shown when submitting a query
  *   fails
  * @property saveErrorMessageResId string resource of the message shown when saving or unsaving an
@@ -64,7 +66,7 @@ class SearchScreenViewModel(
     private val wikiDataRepository: WikiDataRepository,
 ) : ViewModel() {
   private val _uiState = MutableStateFlow(SearchScreenUiState())
-
+  private val _pendingSaveIds = mutableSetOf<ArtworkId>()
   private var searchJob: Job? = null
   private var searchRequestId = 0
 
@@ -83,7 +85,9 @@ class SearchScreenViewModel(
           }
         },
     ) {
-      val savedArtworks = savedArtworksRepository.getSavedArtworks()
+      // val savedArtworks = savedArtworksRepository.getSavedArtworks()
+
+      val savedArtworks = mockArtworks
       _uiState.update {
         it.copy(
             savedArtworks = savedArtworks,
@@ -112,7 +116,7 @@ class SearchScreenViewModel(
             query = query,
             selection = selection,
             recommendations = recommendationsFor(query, currentState.savedArtworks),
-            artworks = if (query.isBlank()) emptyList() else currentState.artworks,
+            artworks = currentState.artworks,
             isLoading = if (queryChanged) false else currentState.isLoading,
             searchErrorMessageResId = null,
             hasInvalidSearchInput = false,
@@ -202,29 +206,35 @@ class SearchScreenViewModel(
    * @author IJJA3141
    */
   fun toggleSavedArtwork(artwork: Artwork) {
+    // add() returns false if already present, so a second tap is dropped here, before launching.
+    if (!_pendingSaveIds.add(artwork.uid)) return
+
     val isCurrentlySaved = artwork.uid in _uiState.value.savedArtworks.map { it.uid }
 
-    viewModelScope.launchCatching(
-        tag = TAG,
-        onError = { error ->
-          _uiState.update { it.copy(saveErrorMessageResId = error.toMessageRes()) }
-        },
-    ) {
-      if (isCurrentlySaved) {
-        savedArtworksRepository.removeArtworkFromSaved(artwork.uid)
-      } else {
-        savedArtworksRepository.saveArtwork(artwork)
-      }
+    viewModelScope
+        .launchCatching(
+            tag = TAG,
+            onError = { error ->
+              _uiState.update { it.copy(saveErrorMessageResId = error.toMessageRes()) }
+            },
+        ) {
+          if (isCurrentlySaved) {
+            savedArtworksRepository.removeArtworkFromSaved(artwork.uid)
+          } else {
+            savedArtworksRepository.saveArtwork(artwork)
+          }
 
-      val savedArtworks = savedArtworksRepository.getSavedArtworks()
-      _uiState.update {
-        it.copy(
-            savedArtworks = savedArtworks,
-            recommendations = recommendationsFor(it.query, savedArtworks),
-            saveErrorMessageResId = null,
-        )
-      }
-    }
+          // val savedArtworks = savedArtworksRepository.getSavedArtworks()
+          val savedArtworks = mockArtworks
+          _uiState.update {
+            it.copy(
+                savedArtworks = savedArtworks,
+                recommendations = recommendationsFor(it.query, savedArtworks),
+                saveErrorMessageResId = null,
+            )
+          }
+        }
+        .invokeOnCompletion { _pendingSaveIds.remove(artwork.uid) }
   }
 
   /** Clears the search error after the UI has shown it. */

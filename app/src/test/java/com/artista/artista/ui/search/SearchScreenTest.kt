@@ -250,9 +250,7 @@ class SearchScreenTest {
               MaterialTheme { SearchScreen(onTabSelected = {}, viewModel = viewModel) }
             }
 
-            composeTestRule
-                .onNodeWithTag(SearchScreenTestTags.EMPTY_RESULTS)
-                .assertIsDisplayed()
+            composeTestRule.onNodeWithTag(SearchScreenTestTags.EMPTY_RESULTS).assertIsDisplayed()
             composeTestRule.onNodeWithText("No artworks found").assertIsDisplayed()
             composeTestRule
                 .onNodeWithText("Try another search or change the artwork type filters.")

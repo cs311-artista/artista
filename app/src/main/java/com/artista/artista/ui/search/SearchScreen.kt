@@ -14,9 +14,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.input.TextFieldState
@@ -180,7 +180,9 @@ fun SearchScreen(
                 }
         )
       }
-    } else if (uiState.artworks.isEmpty() && uiState.hasAlreadySearched) {
+    } else if (
+        uiState.artworks.isEmpty() && uiState.hasAlreadySearched && !uiState.hasInvalidSearchInput
+    ) {
       EmptySearchResults(modifier = Modifier.fillMaxSize().padding(contentPadding))
     } else {
       ArtworkResults(
@@ -197,9 +199,14 @@ fun SearchScreen(
 
 @Composable
 private fun EmptySearchResults(modifier: Modifier = Modifier) {
-  Box(modifier = modifier.testTag(SearchScreenTestTags.EMPTY_RESULTS), contentAlignment = Alignment.Center) {
+  Box(
+      modifier = modifier.testTag(SearchScreenTestTags.EMPTY_RESULTS),
+      contentAlignment = Alignment.Center,
+  ) {
     Column(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = Dimensions.searchEmptyStateHorizontalPadding),
+        modifier =
+            Modifier.fillMaxWidth()
+                .padding(horizontal = Dimensions.searchEmptyStateHorizontalPadding),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(Dimensions.searchEmptyStateSpacing),
     ) {
@@ -346,10 +353,16 @@ private fun SearchTextField(
       leadingIcon = {
         if (expanded) {
           IconButton(onClick = { onExpandedChange(false) }) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+            Icon(
+                Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = stringResource(R.string.arrow_back_description),
+            )
           }
         } else {
-          Icon(Icons.Outlined.Search, contentDescription = "Search")
+          Icon(
+              Icons.Outlined.Search,
+              contentDescription = stringResource(R.string.search_icon_description),
+          )
         }
       },
   )
@@ -417,45 +430,46 @@ private fun Dropdown(
     recommendations: List<Artwork>,
     onRecommendationSelected: (Artwork) -> Unit,
     modifier: Modifier = Modifier,
-) =
-    Surface(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .padding(horizontal = Dimensions.overviewSearchBarHorizontalPadding)
-                .heightIn(max = Dimensions.searchRecommendationsMaxHeight),
-        shape = MaterialTheme.shapes.extraLarge,
-        color = SearchBarPalette.container,
-        tonalElevation = Dimensions.overviewSearchBarElevation,
+) {
+  Surface(
+      modifier =
+          modifier
+              .fillMaxWidth()
+              .padding(horizontal = Dimensions.overviewSearchBarHorizontalPadding)
+              .heightIn(max = Dimensions.searchRecommendationsMaxHeight),
+      shape = MaterialTheme.shapes.extraLarge,
+      color = SearchBarPalette.container,
+      tonalElevation = Dimensions.overviewSearchBarElevation,
+  ) {
+    LazyColumn(
+        contentPadding = PaddingValues(vertical = Dimensions.searchRecommendationVerticalPadding)
     ) {
-      LazyColumn(
-          contentPadding = PaddingValues(vertical = Dimensions.searchRecommendationVerticalPadding)
-      ) {
-        items(recommendations) { recommendation ->
-          ListItem(
-              headlineContent = {
-                Text(
-                    recommendation.name ?: stringResource(R.string.artwork_unknown_title),
-                    style = MaterialTheme.typography.bodyLarge,
-                )
-              },
-              leadingContent = {
-                Icon(
-                    imageVector = Icons.Filled.Bookmark,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                )
-              },
-              colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-              modifier =
-                  Modifier.fillMaxWidth()
-                      .clickable { onRecommendationSelected(recommendation) }
-                      .padding(horizontal = Dimensions.searchRecommendationHorizontalPadding)
-                      .testTag(SearchScreenTestTags.SEARCH_RECOMMENDATION),
-          )
-        }
+      items(recommendations, key = { it.uid }) { recommendation ->
+        ListItem(
+            headlineContent = {
+              Text(
+                  recommendation.name ?: stringResource(R.string.artwork_unknown_title),
+                  style = MaterialTheme.typography.bodyLarge,
+              )
+            },
+            leadingContent = {
+              Icon(
+                  imageVector = Icons.Filled.Bookmark,
+                  contentDescription = null,
+                  tint = MaterialTheme.colorScheme.primary,
+              )
+            },
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            modifier =
+                Modifier.fillMaxWidth()
+                    .clickable { onRecommendationSelected(recommendation) }
+                    .padding(horizontal = Dimensions.searchRecommendationHorizontalPadding)
+                    .testTag(SearchScreenTestTags.SEARCH_RECOMMENDATION),
+        )
       }
     }
+  }
+}
 
 @StringRes
 private fun ArtworkType.toDisplayNameRes(): Int =
