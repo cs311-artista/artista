@@ -27,7 +27,11 @@ class OverviewScreenErrorTest {
 
   @get:Rule val composeTestRule = createComposeRule()
 
-  /** Checks that a network failure while loading shows the network error in a toast. */
+  /**
+   * Checks that a network failure while loading shows the network error in a toast.
+   *
+   * @author Timz3rr
+   */
   @Test
   fun overviewScreen_whenLoadFailsWithNetworkError_showsNetworkErrorToast() {
     val viewModel =
