@@ -1,6 +1,7 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 // Co-authored-by: Qwen2.5-coder
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
+// Co-authored-by: DeepSeek Flash
 package com.artista.artista.model.artwork
 
 import com.artista.artista.model.artist.Artist
@@ -24,9 +25,19 @@ open class JsonResponseParser {
   /**
    * Parses a SPARQL JSON response into a list of Artwork objects.
    *
+   * Wikidata answers one row per combination of the optional values it is asked for, so an item
+   * carrying two images - or two artists, two collections, two locations - comes back as several
+   * rows holding the same item id. The result carries one artwork per id, in the order the ids are
+   * first seen, each built from the richest of its rows.
+   *
+   * That collapse is lossy on purpose: an [Artwork] holds a single image, artist and location, so
+   * the extra values of a repeated row have nowhere to go and are dropped. Showing every image of
+   * an artwork needs the model to carry a list, which is a change of its own; until then this keeps
+   * as much as the model can hold, and keeps which row wins deterministic.
+   *
    * @param responseBody raw SPARQL JSON body returned by the endpoint
-   * @return the artworks encoded in the response
-   * @author 5kyPhy
+   * @return one artwork per distinct item id, each built from its richest row
+   * @author 5kyPhy, timo-by
    */
   open fun parseArtworkResults(responseBody: String): List<Artwork> {
     val json = JSONObject(responseBody)
@@ -41,7 +52,9 @@ open class JsonResponseParser {
     }
     val bindings = results.getJSONArray("bindings")
 
-    val artworks = mutableListOf<Artwork>()
+    // Each row is paired with how complete it is, so the rows of one item can be compared before
+    // being collapsed.
+    val rows = mutableListOf<Pair<Artwork, Int>>()
 
     for (i in 0 until bindings.length()) {
       val binding = bindings.getJSONObject(i)
@@ -86,7 +99,7 @@ open class JsonResponseParser {
       // parseImageUrl. A missing image stays null and the card shows its fallback icon.
       val imageUrl = image?.optString("value")?.let(::parseImageUrl)
 
-      artworks.add(
+      val artwork =
           Artwork(
               uid = uid,
               name = name,
@@ -98,11 +111,43 @@ open class JsonResponseParser {
               dimension = dimension,
               imageUrl = imageUrl,
           )
-      )
+      rows.add(artwork to artwork.richness(hasCoordinates = coordinates != null))
     }
 
-    return artworks
+    // An artwork is identified by its uid, and the lists of Overview and Saved Artworks use it as
+    // their Compose key, so a repeated uid makes Compose throw "Key ... was already used" as soon
+    // as the list is measured. Collapsing here, where the model is built, fixes every consumer at
+    // once instead of each screen guarding its own list. groupBy keeps the order the ids are first
+    // seen in, so the artworks that appear only once stay where Wikidata put them rather than being
+    // reordered by how complete they are.
+    return rows
+        .groupBy { (artwork, _) -> artwork.uid }
+        .map { (_, rowsOfTheSameItem) ->
+          // maxBy keeps the first of two equally rich rows, so the winning row only depends on the
+          // response and never on anything else.
+          rowsOfTheSameItem.maxBy { (_, richness) -> richness }.first
+        }
   }
+
+  /**
+   * Scores how much of an item one row carries, so the rows of the same item can be compared.
+   *
+   * Coordinates weigh the most because the map button, the map marker and the location filter all
+   * depend on them, while a row without them still yields a location - at (0, 0), see
+   * [parseLocation] - so collapsing onto that row would put an artwork in the Gulf of Guinea even
+   * though the response knew where it really is.
+   *
+   * @param hasCoordinates whether the row bound coordinates, for the artwork or for its location
+   * @return a bit per piece of data the row carries
+   */
+  private fun Artwork.richness(hasCoordinates: Boolean): Int =
+      (if (hasCoordinates) 1 shl 6 else 0) or
+          (if (imageUrl != null) 1 shl 5 else 0) or
+          (if (artist != null) 1 shl 4 else 0) or
+          (if (museum != null) 1 shl 3 else 0) or
+          (if (description != null) 1 shl 2 else 0) or
+          (if (conceptionDate != null) 1 shl 1 else 0) or
+          (if (dimension != null) 1 shl 0 else 0)
 
   private fun parseDate(value: String): Date? {
     return runCatching { Date.from(Instant.parse(value)) }

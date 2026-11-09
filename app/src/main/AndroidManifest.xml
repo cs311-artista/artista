@@ -30,6 +30,12 @@
                 android:name="com.google.android.geo.API_KEY"
                 android:value="${MAPS_API_KEY}" />
 
+        <!-- The Maps code in Google Play services still uses Apache HTTP, which Android 9+
+             no longer exposes by default; without this, opening the map crashes the app. -->
+        <uses-library
+            android:name="org.apache.http.legacy"
+            android:required="false" />
+
     </application>
 
 </manifest>
