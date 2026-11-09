@@ -1,28 +1,35 @@
 // Co-authored-by: Gemini <gemini@google.com>
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
+// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 package com.artista.artista.ui.artwork
 
+import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.SavedArtworksRepository
+import com.artista.artista.ui.error.launchCatching
+import com.artista.artista.ui.error.toMessageRes
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
 
 /**
  * Immutable UI state model for the artwork details screen[cite: 1].
  *
  * @property artwork the active artwork model currently viewed, or null if uninitialized[cite: 1]
  * @property isSaved true if this artwork is currently bookmarked in local storage[cite: 1]
+ * @property isSaveInProgress true while a bookmark change is being persisted
+ * @property errorMessageResId localized message for the most recent repository failure
  * @author hixeum
  */
 data class ArtworkScreenUIState(
     val artwork: Artwork? = null,
     val isSaved: Boolean = false,
+    val isSaveInProgress: Boolean = false,
+    @param:StringRes val errorMessageResId: Int? = null,
 )
 
 /**
@@ -51,9 +58,20 @@ class ArtworkScreenViewModel(
    * @param artwork the artwork entity to display and monitor[cite: 1]
    */
   fun setArtwork(artwork: Artwork) {
-    viewModelScope.launch {
+    viewModelScope.launchCatching(
+        tag = TAG,
+        onError = { error ->
+          _uiState.update {
+            it.copy(
+                artwork = artwork,
+                isSaved = false,
+                errorMessageResId = error.toMessageRes(),
+            )
+          }
+        },
+    ) {
       val saved = savedArtworkRepository.isArtworkSaved(artwork.uid)
-      _uiState.update { it.copy(artwork = artwork, isSaved = saved) }
+      _uiState.update { it.copy(artwork = artwork, isSaved = saved, errorMessageResId = null) }
     }
   }
 
@@ -64,28 +82,57 @@ class ArtworkScreenViewModel(
    * repository persistence operation fails[cite: 1].
    */
   fun toggleSaveArtwork() {
-    val artwork = _uiState.value.artwork ?: return
-    val wasSaved = _uiState.value.isSaved
+    val currentState = _uiState.value
+    val artwork = currentState.artwork ?: return
+    if (currentState.isSaveInProgress) return
+    val wasSaved = currentState.isSaved
 
     // 1. Optimistic UI update
-    _uiState.update { it.copy(isSaved = !wasSaved) }
+    _uiState.update {
+      it.copy(
+          isSaved = !wasSaved,
+          isSaveInProgress = true,
+          errorMessageResId = null,
+      )
+    }
 
     // 2. Perform background write to repository
-    viewModelScope.launch {
+    viewModelScope.launchCatching(
+        tag = TAG,
+        onError = { error ->
+          _uiState.update {
+            it.copy(
+                isSaved = wasSaved,
+                isSaveInProgress = false,
+                errorMessageResId = error.toMessageRes(),
+            )
+          }
+        },
+    ) {
       try {
         if (wasSaved) {
           savedArtworkRepository.removeArtworkFromSaved(artwork.uid)
         } else {
           savedArtworkRepository.saveArtwork(artwork)
         }
-      } catch (e: Exception) {
-        // Revert state if the operation failed
-        _uiState.update { it.copy(isSaved = wasSaved) }
+      } finally {
+        _uiState.update { it.copy(isSaveInProgress = false) }
       }
     }
   }
 
+  /**
+   * Clears the repository error after the screen has displayed it.
+   *
+   * @author hixeum
+   */
+  fun clearErrorMessage() {
+    _uiState.update { it.copy(errorMessageResId = null) }
+  }
+
   companion object {
+    private const val TAG = "ArtworkScreenViewModel"
+
     /**
      * Creates a [ViewModelProvider.Factory] instance supplying dependencies to
      * [ArtworkScreenViewModel][cite: 1].

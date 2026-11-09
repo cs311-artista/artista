@@ -1,14 +1,16 @@
 // Co-authored-by: Gemini <gemini@google.com>
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
+// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 package com.artista.artista.ui.artwork
 
+import com.artista.artista.R
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.Artwork
-import com.artista.artista.model.artwork.ArtworkId
-import com.artista.artista.model.artwork.SavedArtworksRepository
+import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -27,8 +29,8 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class ArtworkScreenViewModelTest {
 
-  private val testDispatcher = UnconfinedTestDispatcher()
-  private lateinit var fakeRepository: FakeArtworkRepository
+  private val testDispatcher = StandardTestDispatcher()
+  private val repository = ArtworkRepositoryProvider.mockRepository
   private lateinit var viewModel: ArtworkScreenViewModel
 
   private val sampleArtwork =
@@ -46,8 +48,8 @@ class ArtworkScreenViewModelTest {
   @Before
   fun setUp() {
     Dispatchers.setMain(testDispatcher)
-    fakeRepository = FakeArtworkRepository()
-    viewModel = ArtworkScreenViewModel(savedArtworkRepository = fakeRepository)
+    repository.clear()
+    viewModel = ArtworkScreenViewModel(savedArtworkRepository = repository)
   }
 
   @After
@@ -57,9 +59,10 @@ class ArtworkScreenViewModelTest {
 
   @Test
   fun setArtwork_updatesArtworkAndIsSavedFromRepository() = runTest {
-    fakeRepository.saveArtwork(sampleArtwork)
+    repository.saveArtwork(sampleArtwork)
 
     viewModel.setArtwork(sampleArtwork)
+    advanceUntilIdle()
 
     val state = viewModel.uiState.value
     assertEquals(sampleArtwork, state.artwork)
@@ -69,6 +72,7 @@ class ArtworkScreenViewModelTest {
   @Test
   fun setArtwork_whenNotSavedInRepository_setsIsSavedToFalse() = runTest {
     viewModel.setArtwork(sampleArtwork)
+    advanceUntilIdle()
 
     val state = viewModel.uiState.value
     assertEquals(sampleArtwork, state.artwork)
@@ -78,35 +82,41 @@ class ArtworkScreenViewModelTest {
   @Test
   fun toggleSaveArtwork_whenArtworkNotSaved_savesArtworkInRepositoryAndUpdatesState() = runTest {
     viewModel.setArtwork(sampleArtwork)
+    advanceUntilIdle()
     viewModel.toggleSaveArtwork()
+    advanceUntilIdle()
 
     assertTrue(viewModel.uiState.value.isSaved)
-    assertTrue(fakeRepository.isArtworkSaved(sampleArtwork.uid))
+    assertTrue(repository.isArtworkSaved(sampleArtwork.uid))
   }
 
   @Test
   fun toggleSaveArtwork_whenArtworkAlreadySaved_removesArtworkFromRepositoryAndUpdatesState() =
       runTest {
-        fakeRepository.saveArtwork(sampleArtwork)
+        repository.saveArtwork(sampleArtwork)
         viewModel.setArtwork(sampleArtwork)
+        advanceUntilIdle()
 
         viewModel.toggleSaveArtwork()
+        advanceUntilIdle()
 
         assertFalse(viewModel.uiState.value.isSaved)
-        assertFalse(fakeRepository.isArtworkSaved(sampleArtwork.uid))
+        assertFalse(repository.isArtworkSaved(sampleArtwork.uid))
       }
 
   @Test
   fun setArtwork_whenArtworkHasNoName_tracksSavedStateByUid() = runTest {
     val untitledArtwork = sampleArtwork.copy(name = null)
-    fakeRepository.saveArtwork(untitledArtwork)
+    repository.saveArtwork(untitledArtwork)
 
     viewModel.setArtwork(untitledArtwork)
+    advanceUntilIdle()
     assertTrue(viewModel.uiState.value.isSaved)
 
     viewModel.toggleSaveArtwork()
+    advanceUntilIdle()
     assertFalse(viewModel.uiState.value.isSaved)
-    assertFalse(fakeRepository.isArtworkSaved(untitledArtwork.uid))
+    assertFalse(repository.isArtworkSaved(untitledArtwork.uid))
   }
 
   @Test
@@ -117,48 +127,51 @@ class ArtworkScreenViewModelTest {
   }
 
   @Test
-  fun toggleSaveArtwork_whenRepositoryEmptyAndThrowsException_revertsState() = runTest {
+  fun setArtwork_whenRepositoryThrowsAppException_showsMappedError() = runTest {
+    val invalidArtwork = sampleArtwork.copy(uid = "")
+
+    viewModel.setArtwork(invalidArtwork)
+    advanceUntilIdle()
+
+    assertEquals(invalidArtwork, viewModel.uiState.value.artwork)
+    assertFalse(viewModel.uiState.value.isSaved)
+    assertEquals(R.string.error_invalid_input, viewModel.uiState.value.errorMessageResId)
+  }
+
+  @Test
+  fun toggleSaveArtwork_whileSaveIsPending_ignoresFurtherToggles() = runTest {
     viewModel.setArtwork(sampleArtwork)
-    fakeRepository.shouldThrowError = true
+    advanceUntilIdle()
+
+    viewModel.toggleSaveArtwork()
+    assertTrue(viewModel.uiState.value.isSaveInProgress)
+    assertTrue(viewModel.uiState.value.isSaved)
 
     viewModel.toggleSaveArtwork()
 
-    assertFalse(viewModel.uiState.value.isSaved)
+    assertTrue(viewModel.uiState.value.isSaveInProgress)
+    assertTrue(viewModel.uiState.value.isSaved)
+    advanceUntilIdle()
+
+    assertFalse(viewModel.uiState.value.isSaveInProgress)
+    assertTrue(viewModel.uiState.value.isSaved)
+    assertTrue(repository.isArtworkSaved(sampleArtwork.uid))
   }
 
-  /** Fake implementation of [SavedArtworksRepository] for testing [ArtworkScreenViewModel]. */
-  class FakeArtworkRepository : SavedArtworksRepository {
-    private val savedArtworks = mutableListOf<Artwork>()
-    var shouldThrowError = false
+  @Test
+  fun toggleSaveArtwork_whenRepositoryThrowsAppException_revertsStateAndShowsMappedError() =
+      runTest {
+        val invalidArtwork = sampleArtwork.copy(uid = "")
+        viewModel.setArtwork(invalidArtwork)
+        advanceUntilIdle()
+        viewModel.clearErrorMessage()
 
-    override suspend fun isArtworkSaved(uid: ArtworkId): Boolean {
-      if (shouldThrowError) throw RuntimeException("Simulated error")
-      return savedArtworks.any { it.uid == uid }
-    }
+        viewModel.toggleSaveArtwork()
+        assertTrue(viewModel.uiState.value.isSaveInProgress)
+        advanceUntilIdle()
 
-    override suspend fun saveArtwork(artwork: Artwork) {
-      if (shouldThrowError) throw RuntimeException("Simulated database failure")
-      savedArtworks.removeAll { it.uid == artwork.uid }
-      savedArtworks.add(artwork)
-    }
-
-    override suspend fun removeArtworkFromSaved(uid: ArtworkId) {
-      if (shouldThrowError) throw RuntimeException("Simulated database failure")
-      savedArtworks.removeAll { it.uid == uid }
-    }
-
-    override suspend fun getSavedArtworks(): List<Artwork> =
-        listOf(
-            Artwork(
-                uid = "starryId",
-                name = "The Starry Night",
-                artist = Artist("test-van-gogh", "Vincent van Gogh"),
-                location = null,
-                conceptionDate = null,
-                dimension = null,
-                description = null,
-                museum = null,
-            )
-        )
-  }
+        assertFalse(viewModel.uiState.value.isSaved)
+        assertFalse(viewModel.uiState.value.isSaveInProgress)
+        assertEquals(R.string.error_invalid_input, viewModel.uiState.value.errorMessageResId)
+      }
 }
