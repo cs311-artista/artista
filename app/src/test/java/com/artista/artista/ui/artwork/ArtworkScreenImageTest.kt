@@ -5,6 +5,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import coil3.SingletonImageLoader
@@ -14,7 +15,10 @@ import coil3.test.FakeImage
 import coil3.test.FakeImageLoaderEngine
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.Artwork
+import com.artista.artista.model.artwork.ArtworkId
+import com.artista.artista.model.artwork.ArtworkRepositoryLocal
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
+import com.artista.artista.model.artwork.WikiDataRepository
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
@@ -36,7 +40,6 @@ class ArtworkScreenImageTest {
   @get:Rule val composeTestRule = createComposeRule()
 
   private val repository = ArtworkRepositoryProvider.mockRepository
-  private lateinit var viewModel: ArtworkScreenViewModel
 
   private val sampleArtwork =
       Artwork(
@@ -53,7 +56,6 @@ class ArtworkScreenImageTest {
   @Before
   fun setUp() {
     repository.clear()
-    viewModel = ArtworkScreenViewModel(repository)
   }
 
   // The image loader is a process-wide singleton, so each test that replaces it must restore it.
@@ -132,14 +134,23 @@ class ArtworkScreenImageTest {
   }
 
   private fun setScreenContent(artwork: Artwork) {
+    val viewModel =
+        ArtworkScreenViewModel(artwork.uid, SingleArtworkWikiDataRepository(artwork), repository)
     composeTestRule.setContent {
-      MaterialTheme {
-        ArtworkScreen(
-            artwork = artwork,
-            artworkScreenViewModel = viewModel,
-            onBackClick = {},
-        )
-      }
+      MaterialTheme { ArtworkScreen(artworkScreenViewModel = viewModel, onBackClick = {}) }
     }
+    // The screen now fetches its artwork, and assertions on an image would be meaningless while
+    // the loading indicator is still replacing it.
+    composeTestRule.waitUntil(IMAGE_TIMEOUT_MS) {
+      composeTestRule
+          .onAllNodesWithTag(ArtworkTestTags.ARTWORK_LOADING_INDICATOR)
+          .fetchSemanticsNodes()
+          .isEmpty()
+    }
+  }
+
+  private class SingleArtworkWikiDataRepository(private val artwork: Artwork) :
+      WikiDataRepository by ArtworkRepositoryLocal() {
+    override suspend fun getArtwork(uid: ArtworkId): Artwork = artwork
   }
 }

@@ -18,6 +18,7 @@
     <string name="artwork_no_description">No description available</string>
     <string name="artwork_no_location">Location not specified</string>
     <string name="artwork_no_dimensions">Dimensions unavailable</string>
+    <string name="artwork_try_again">Try again</string>
 
     <string name="artwork_location_format">%1$.5f, %2$.5f</string>
     <string name="artwork_card_map">Map</string>
