@@ -12,7 +12,6 @@ import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.ArtworkType
 import com.artista.artista.model.artwork.SavedArtworksRepository
 import com.artista.artista.model.artwork.WikiDataRepository
-import com.artista.artista.model.artwork.mockArtworks
 import com.artista.artista.model.error.AppException
 import com.artista.artista.ui.error.launchCatching
 import com.artista.artista.ui.error.toMessageRes
