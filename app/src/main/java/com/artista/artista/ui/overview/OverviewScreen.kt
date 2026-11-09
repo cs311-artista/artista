@@ -60,6 +60,7 @@ import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaTheme
 import com.artista.artista.ui.theme.Dimensions
+import com.artista.artista.ui.theme.SearchBarPalette
 
 /**
  * Provides stable semantics tags for Overview screen UI tests.
@@ -137,7 +138,13 @@ fun OverviewScreen(
       modifier = Modifier.fillMaxSize().testTag(OverviewTestTags.SCREEN),
       topBar = {
         Row(
-            modifier = Modifier.fillMaxWidth().statusBarsPadding(),
+            modifier =
+                Modifier.fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(
+                        horizontal = Dimensions.overviewSearchBarHorizontalPadding,
+                        vertical = Dimensions.overviewSearchBarVerticalPadding,
+                    ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
           OverviewSearchBar(
@@ -247,16 +254,12 @@ private fun OverviewSearchBar(
       modifier =
           modifier
               .fillMaxWidth()
-              .padding(
-                  horizontal = Dimensions.overviewSearchBarHorizontalPadding,
-                  vertical = Dimensions.overviewSearchBarVerticalPadding,
-              )
               .height(Dimensions.overviewSearchBarHeight)
               .clickable(role = Role.Button, onClick = onClick)
               .semantics(mergeDescendants = true) {}
               .testTag(OverviewTestTags.SEARCH_BAR),
       shape = MaterialTheme.shapes.extraLarge,
-      color = MaterialTheme.colorScheme.surface,
+      color = SearchBarPalette.container,
       tonalElevation = Dimensions.overviewSearchBarElevation,
   ) {
     Row(
@@ -268,12 +271,12 @@ private fun OverviewSearchBar(
       Icon(
           imageVector = Icons.Outlined.Search,
           contentDescription = null,
-          tint = MaterialTheme.colorScheme.onSurfaceVariant,
+          tint = SearchBarPalette.content,
       )
       Text(
           text = stringResource(R.string.overview_search_placeholder),
           modifier = Modifier.padding(start = Dimensions.overviewSearchBarIconTextSpacing),
-          color = MaterialTheme.colorScheme.onSurfaceVariant,
+          color = SearchBarPalette.content,
       )
     }
   }

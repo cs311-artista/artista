@@ -52,6 +52,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -70,6 +71,7 @@ import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaTheme
 import com.artista.artista.ui.theme.Dimensions
+import com.artista.artista.ui.theme.SearchBarPalette
 
 /** Stable semantics tags used by SearchScreen UI tests. */
 object SearchScreenTestTags {
@@ -200,7 +202,6 @@ fun SearchScreen(
  * @param onArtworkTypeToggle called when the user toggles an artwork type
  * @author IJJA3141
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SearchInput(
     textFieldState: TextFieldState,
@@ -214,6 +215,7 @@ private fun SearchInput(
 ) {
   var expanded by remember { mutableStateOf(false) }
   val focusRequester = remember { FocusRequester() }
+  val focusManager = LocalFocusManager.current
   val keyboardController = LocalSoftwareKeyboardController.current
 
   LaunchedEffect(Unit) {
@@ -236,62 +238,24 @@ private fun SearchInput(
                 ),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-      SearchBarDefaults.InputField(
-          state = textFieldState,
-          onSearch = {
-            onSearchSubmitted(it)
+      SearchTextField(
+          textFieldState = textFieldState,
+          hasInvalidSearchInput = hasInvalidSearchInput,
+          expanded = expanded,
+          onSearch = { query ->
+            onSearchSubmitted(query)
             expanded = false
+            focusManager.clearFocus()
           },
-          expanded = false,
-          onExpandedChange = { expanded = it },
-          colors =
-              SearchBarDefaults.inputFieldColors(
-                  focusedContainerColor =
-                      if (hasInvalidSearchInput) {
-                        MaterialTheme.colorScheme.errorContainer
-                      } else {
-                        MaterialTheme.colorScheme.surface
-                      },
-                  unfocusedContainerColor =
-                      if (hasInvalidSearchInput) {
-                        MaterialTheme.colorScheme.errorContainer
-                      } else {
-                        MaterialTheme.colorScheme.surface
-                      },
-                  cursorColor =
-                      if (hasInvalidSearchInput) {
-                        MaterialTheme.colorScheme.error
-                      } else {
-                        MaterialTheme.colorScheme.primary
-                      },
-                  focusedLeadingIconColor =
-                      if (hasInvalidSearchInput) {
-                        MaterialTheme.colorScheme.error
-                      } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                      },
-                  unfocusedLeadingIconColor =
-                      if (hasInvalidSearchInput) {
-                        MaterialTheme.colorScheme.error
-                      } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                      },
-              ),
+          onExpandedChange = {
+            expanded = it
+            if (!expanded) focusManager.clearFocus()
+          },
           modifier =
               Modifier.weight(1f)
                   .height(Dimensions.overviewSearchBarHeight)
                   .focusRequester(focusRequester)
                   .testTag(SearchScreenTestTags.SEARCH_INPUT),
-          placeholder = { Text(stringResource(R.string.search_placeholder)) },
-          leadingIcon = {
-            if (expanded) {
-              IconButton(onClick = { expanded = false }) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-              }
-            } else {
-              Icon(Icons.Outlined.Search, contentDescription = "Search")
-            }
-          },
       )
       ArtworkTypeFilter(
           selectedTypeValues = selectedTypeValues,
@@ -305,10 +269,61 @@ private fun SearchInput(
           onRecommendationSelected = { recommendation ->
             onRecommendationSelected(recommendation)
             expanded = false
+            focusManager.clearFocus()
           },
       )
     }
   }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SearchTextField(
+    textFieldState: TextFieldState,
+    hasInvalidSearchInput: Boolean,
+    expanded: Boolean,
+    onSearch: (String) -> Unit,
+    onExpandedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+  SearchBarDefaults.InputField(
+      state = textFieldState,
+      onSearch = onSearch,
+      expanded = false,
+      onExpandedChange = onExpandedChange,
+      colors =
+          SearchBarDefaults.inputFieldColors(
+              focusedContainerColor =
+                  if (hasInvalidSearchInput) {
+                    SearchBarPalette.invalidContainer
+                  } else {
+                    SearchBarPalette.container
+                  },
+              unfocusedContainerColor =
+                  if (hasInvalidSearchInput) {
+                    SearchBarPalette.invalidContainer
+                  } else {
+                    SearchBarPalette.container
+                  },
+              cursorColor =
+                  if (hasInvalidSearchInput) SearchBarPalette.error else SearchBarPalette.cursor,
+              focusedLeadingIconColor =
+                  if (hasInvalidSearchInput) SearchBarPalette.error else SearchBarPalette.content,
+              unfocusedLeadingIconColor =
+                  if (hasInvalidSearchInput) SearchBarPalette.error else SearchBarPalette.content,
+          ),
+      modifier = modifier,
+      placeholder = { Text(stringResource(R.string.search_placeholder)) },
+      leadingIcon = {
+        if (expanded) {
+          IconButton(onClick = { onExpandedChange(false) }) {
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+          }
+        } else {
+          Icon(Icons.Outlined.Search, contentDescription = "Search")
+        }
+      },
+  )
 }
 
 @Composable
@@ -381,7 +396,7 @@ private fun Dropdown(
                 .padding(horizontal = Dimensions.overviewSearchBarHorizontalPadding)
                 .heightIn(max = Dimensions.searchRecommendationsMaxHeight),
         shape = MaterialTheme.shapes.extraLarge,
-        color = MaterialTheme.colorScheme.surface,
+        color = SearchBarPalette.container,
         tonalElevation = Dimensions.overviewSearchBarElevation,
     ) {
       LazyColumn(
