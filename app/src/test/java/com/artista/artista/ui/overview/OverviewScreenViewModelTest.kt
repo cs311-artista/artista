@@ -119,7 +119,11 @@ class OverviewScreenViewModelTest {
     assertEquals(null, viewModel.uiState.value.errorMessageRes)
   }
 
-  /** Checks that a successful reload clears the error left by an earlier failed load. */
+  /**
+   * Checks that a successful reload clears the error left by an earlier failed load.
+   *
+   * @author Timz3rr
+   */
   @Test
   fun overviewViewModel_whenReloadSucceedsAfterFailure_clearsError() = runTest {
     val expectedArtworks =
