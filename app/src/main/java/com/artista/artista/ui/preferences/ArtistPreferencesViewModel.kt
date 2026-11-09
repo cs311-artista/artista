@@ -103,6 +103,7 @@ class ArtistPreferencesViewModel(
     viewModelScope.launchCatching(
         tag = TAG,
         onError = {
+          // TODO (#260): Add an error field to the state and show a message with a retry action.
           // Already logged by launchCatching. The grid stays empty until a retry exists.
         },
     ) {
