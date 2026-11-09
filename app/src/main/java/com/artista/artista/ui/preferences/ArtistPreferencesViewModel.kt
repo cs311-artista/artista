@@ -205,9 +205,9 @@ class ArtistPreferencesViewModel(
     // such as the username, are written back unchanged instead of being reset.
     val storedUser = findUser(uid)
     if (storedUser == null) {
-      // TODO: no profile is created at sign-in yet, so a user who never saved a username has none.
-      //  Once sign-in creates it, decide whether to keep this fallback (it still covers a failed
-      //  creation and accounts created before that) here and in UserProfileViewModel.
+      // TODO(#253): no profile is created at sign-in yet, so a user who never saved a username has
+      //  none. Once sign-in creates it, decide whether to keep this fallback (it still covers a
+      //  failed creation and accounts created before that) here and in UserProfileViewModel.
       userRepository.createUser(User(uid = uid, preference = UserPreference(artists = artists)))
     } else {
       userRepository.updateUser(
