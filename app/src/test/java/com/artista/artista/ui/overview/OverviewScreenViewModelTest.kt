@@ -76,7 +76,11 @@ class OverviewScreenViewModelTest {
               limit: Int,
           ): List<Artwork> = error("Artwork provider failure")
         }
-    val viewModel = OverviewViewModel(failing, ArtworkRepositoryLocal())
+    val viewModel =
+        OverviewViewModel(
+            repositoryFailingWith(IllegalStateException("Artwork provider failure")),
+            ArtworkRepositoryLocal(),
+        )
 
     advanceUntilIdle()
 
