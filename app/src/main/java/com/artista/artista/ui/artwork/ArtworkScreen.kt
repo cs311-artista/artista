@@ -19,9 +19,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.outlined.BookmarkBorder
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -72,7 +74,9 @@ object ArtworkTestTags {
   const val BACK_BUTTON = "artwork_back_button"
   const val ARTWORK_TITLE = "artwork_title"
   const val ARTWORK_MAP_TILE = "artwork_map_tile"
+  const val ARTWORK_LOADING_INDICATOR = "artwork_loading_indicator"
   const val ARTWORK_ERROR_MESSAGE = "artwork_error_message"
+  const val ARTWORK_RETRY_BUTTON = "artwork_retry_button"
 }
 
 /**
@@ -96,6 +100,7 @@ fun ArtworkScreen(
   val artwork = uiState.artwork
   val context = LocalContext.current
   val errorMessage = uiState.errorMessageResId?.let { stringResource(it) }
+  val loadErrorMessage = uiState.loadErrorMessageResId?.let { stringResource(it) }
 
   LaunchedEffect(errorMessage) {
     errorMessage?.let { message ->
@@ -174,20 +179,39 @@ fun ArtworkScreen(
     ) {
       Spacer(modifier = Modifier.height(Dimensions.artworkDetailsImageVerticalSpacing))
 
-      if (artwork == null) {
-        // If the artwork is null, display an error message. If the app is in debug mode and no
-        // error message is provided, log a warning to help with debugging.
-        if (BuildConfig.DEBUG && errorMessage == null) {
-          Log.w("ArtworkScreen", "Artwork is null but no error message is provided.")
-        }
-        Text(
-            text = errorMessage ?: stringResource(R.string.error_unknown),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.error,
+      if (uiState.isLoading) {
+        CircularProgressIndicator(
             modifier =
                 Modifier.align(Alignment.CenterHorizontally)
-                    .testTag(ArtworkTestTags.ARTWORK_ERROR_MESSAGE),
+                    .testTag(ArtworkTestTags.ARTWORK_LOADING_INDICATOR)
         )
+        return@Column
+      }
+
+      if (artwork == null) {
+        // A null artwork after loading means the repository request failed.
+        if (BuildConfig.DEBUG && loadErrorMessage == null) {
+          Log.w("ArtworkScreen", "Artwork is null but no error message is provided.")
+        }
+
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+          Text(
+              text = loadErrorMessage ?: stringResource(R.string.error_unknown),
+              style = MaterialTheme.typography.bodyMedium,
+              color = MaterialTheme.colorScheme.error,
+              modifier = Modifier.testTag(ArtworkTestTags.ARTWORK_ERROR_MESSAGE),
+          )
+          Spacer(modifier = Modifier.height(Dimensions.artworkDetailsSectionSpacing))
+          Button(
+              onClick = artworkScreenViewModel::retryArtwork,
+              modifier = Modifier.testTag(ArtworkTestTags.ARTWORK_RETRY_BUTTON),
+          ) {
+            Text(text = stringResource(R.string.artwork_try_again))
+          }
+        }
         return@Column
       }
 

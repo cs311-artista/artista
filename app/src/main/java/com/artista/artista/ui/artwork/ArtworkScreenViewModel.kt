@@ -11,6 +11,7 @@ import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.SavedArtworksRepository
 import com.artista.artista.model.artwork.WikiDataRepository
+import com.artista.artista.model.error.AppException
 import com.artista.artista.ui.error.launchCatching
 import com.artista.artista.ui.error.toMessageRes
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,15 +23,21 @@ import kotlinx.coroutines.flow.update
  * Immutable UI state model for the artwork details screen[cite: 1].
  *
  * @property artwork the active artwork model currently viewed, or null if uninitialized[cite: 1]
+ * @property isLoading true while the artwork is being fetched
  * @property isSaved true if this artwork is currently bookmarked in local storage[cite: 1]
  * @property isSaveInProgress true while a bookmark change is being persisted
+ * @property hasLoadFailed true when the latest artwork fetch failed
+ * @property loadErrorMessageResId localized message for the latest artwork fetch failure
  * @property errorMessageResId localized message for the most recent repository failure
  * @author hixeum
  */
 data class ArtworkScreenUIState(
     val artwork: Artwork? = null,
+    val isLoading: Boolean = true,
     val isSaved: Boolean = false,
     val isSaveInProgress: Boolean = false,
+    val hasLoadFailed: Boolean = false,
+    @param:StringRes val loadErrorMessageResId: Int? = null,
     @param:StringRes val errorMessageResId: Int? = null,
 )
 
@@ -47,7 +54,7 @@ data class ArtworkScreenUIState(
  * @author hixeum
  */
 class ArtworkScreenViewModel(
-    artworkId: ArtworkId,
+    private val artworkId: ArtworkId,
     private val wikiDataRepository: WikiDataRepository,
     private val savedArtworksRepository: SavedArtworksRepository,
 ) : ViewModel() {
@@ -68,13 +75,25 @@ class ArtworkScreenViewModel(
    * @param artworkId the artworkId of the entity to display and monitor[cite: 1]
    */
   fun setArtwork(artworkId: ArtworkId) {
+    _uiState.update {
+      it.copy(
+          isLoading = true,
+          hasLoadFailed = false,
+          loadErrorMessageResId = null,
+          errorMessageResId = null,
+      )
+    }
+
     viewModelScope.launchCatching(
         tag = TAG,
         onError = { error ->
           _uiState.update {
             it.copy(
                 artwork = null,
+                isLoading = false,
                 isSaved = false,
+                hasLoadFailed = true,
+                loadErrorMessageResId = error.toMessageRes(),
                 errorMessageResId = error.toMessageRes(),
             )
           }
@@ -86,7 +105,7 @@ class ArtworkScreenViewModel(
       val saved =
           try {
             savedArtworksRepository.isArtworkSaved(artworkId)
-          } catch (exception: Exception) {
+          } catch (appException: AppException.Unauthorized) {
             false
           }
       val artwork =
@@ -98,11 +117,19 @@ class ArtworkScreenViewModel(
       _uiState.update {
         it.copy(
             artwork = artwork,
+            isLoading = false,
             isSaved = saved,
+            hasLoadFailed = false,
+            loadErrorMessageResId = null,
             errorMessageResId = null,
         )
       }
     }
+  }
+
+  /** Retries loading the artwork currently associated with this screen. */
+  fun retryArtwork() {
+    setArtwork(artworkId)
   }
 
   /**

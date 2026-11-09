@@ -9,7 +9,9 @@ import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.artwork.SavedArtworksRepository
+import com.artista.artista.model.artwork.WikiDataRepository
 import com.artista.artista.model.error.AppException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -73,6 +75,73 @@ class ArtworkScreenViewModelTest {
     val state = viewModel.uiState.value
     assertEquals(sampleArtwork, state.artwork)
     assertTrue(state.isSaved)
+  }
+
+  @Test
+  fun setArtwork_exposesLoadingUntilArtworkIsFetched() = runTest {
+    val artworkResult = CompletableDeferred<Artwork>()
+    val delayedRepository =
+        object : WikiDataRepository by wikiDataRepository {
+          override suspend fun getArtwork(uid: ArtworkId): Artwork = artworkResult.await()
+        }
+    viewModel = ArtworkScreenViewModel(sampleArtwork.uid, delayedRepository, savedRepository)
+
+    assertTrue(viewModel.uiState.value.isLoading)
+    assertEquals(null, viewModel.uiState.value.artwork)
+
+    artworkResult.complete(sampleArtwork)
+    advanceUntilIdle()
+
+    assertFalse(viewModel.uiState.value.isLoading)
+    assertEquals(sampleArtwork, viewModel.uiState.value.artwork)
+    assertFalse(viewModel.uiState.value.hasLoadFailed)
+  }
+
+  @Test
+  fun setArtwork_whenLoadingFails_clearsLoadingAndExposesLoadFailure() = runTest {
+    val artworkResult = CompletableDeferred<Artwork>()
+    val delayedRepository =
+        object : WikiDataRepository by wikiDataRepository {
+          override suspend fun getArtwork(uid: ArtworkId): Artwork = artworkResult.await()
+        }
+    viewModel = ArtworkScreenViewModel(sampleArtwork.uid, delayedRepository, savedRepository)
+
+    assertTrue(viewModel.uiState.value.isLoading)
+    artworkResult.completeExceptionally(AppException.Network())
+    advanceUntilIdle()
+
+    assertFalse(viewModel.uiState.value.isLoading)
+    assertTrue(viewModel.uiState.value.hasLoadFailed)
+    assertEquals(R.string.error_network, viewModel.uiState.value.loadErrorMessageResId)
+    assertEquals(null, viewModel.uiState.value.artwork)
+  }
+
+  @Test
+  fun retryArtwork_restartsLoadingAndDisplaysTheArtworkAfterRetry() = runTest {
+    val firstResult = CompletableDeferred<Artwork>()
+    val secondResult = CompletableDeferred<Artwork>()
+    var requestCount = 0
+    val delayedRepository =
+        object : WikiDataRepository by wikiDataRepository {
+          override suspend fun getArtwork(uid: ArtworkId): Artwork {
+            requestCount++
+            return if (requestCount == 1) firstResult.await() else secondResult.await()
+          }
+        }
+    viewModel = ArtworkScreenViewModel(sampleArtwork.uid, delayedRepository, savedRepository)
+    firstResult.completeExceptionally(AppException.Network())
+    advanceUntilIdle()
+
+    viewModel.retryArtwork()
+    assertTrue(viewModel.uiState.value.isLoading)
+    assertFalse(viewModel.uiState.value.hasLoadFailed)
+
+    secondResult.complete(sampleArtwork)
+    advanceUntilIdle()
+
+    assertFalse(viewModel.uiState.value.isLoading)
+    assertEquals(sampleArtwork, viewModel.uiState.value.artwork)
+    assertFalse(viewModel.uiState.value.hasLoadFailed)
   }
 
   @Test

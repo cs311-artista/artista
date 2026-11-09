@@ -7,6 +7,7 @@ import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -140,12 +141,19 @@ class ArtworkScreenTest {
       assertTrue(viewModel.uiState.value.artwork == null)
     }
     composeTestRule.onNodeWithTag(ArtworkTestTags.ARTWORK_ERROR_MESSAGE).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(ArtworkTestTags.ARTWORK_RETRY_BUTTON).assertIsDisplayed()
   }
 
   @Test
   fun artworkScreen_whenArtworkIsNull_displaysErrorMessage() {
     setScreenContent(artwork = null)
 
+    composeTestRule.waitUntil(timeoutMillis = milliseconds) {
+      composeTestRule
+          .onAllNodesWithTag(ArtworkTestTags.ARTWORK_ERROR_MESSAGE)
+          .fetchSemanticsNodes()
+          .isNotEmpty()
+    }
     composeTestRule.onNodeWithTag(ArtworkTestTags.ARTWORK_ERROR_MESSAGE).assertExists()
   }
 
