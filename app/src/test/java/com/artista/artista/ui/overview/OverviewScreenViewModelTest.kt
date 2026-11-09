@@ -84,7 +84,11 @@ class OverviewScreenViewModelTest {
     assertTrue(viewModel.uiState.value.artworks.isEmpty())
   }
 
-  /** Checks that a network failure while loading exposes the network error and no artworks. */
+  /**
+   * Checks that a network failure while loading exposes the network error and no artworks.
+   *
+   * @author Timz3rr
+   */
   @Test
   fun overviewViewModel_whenLoadingFailsWithNetworkError_exposesNetworkError() = runTest {
     val viewModel =
