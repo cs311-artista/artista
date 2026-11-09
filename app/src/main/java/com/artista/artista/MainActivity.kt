@@ -26,7 +26,6 @@ import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.artwork.SavedArtworksRepository
 import com.artista.artista.model.artwork.WikiDataRepository
 import com.artista.artista.model.artwork.createArtworkImageLoader
-import com.artista.artista.model.artwork.mockArtworks
 import com.artista.artista.model.authentication.AuthRepositoryProvider
 import com.artista.artista.model.user.UserRepositoryProvider
 import com.artista.artista.model.user.UsernameCacheDataStore
@@ -252,13 +251,18 @@ fun ArtistaApp(
         arguments = listOf(navArgument("artworkId") { type = NavType.StringType }),
     ) { backStackEntry ->
       val artworkId = backStackEntry.arguments?.getString("artworkId")
-      val artwork = mockArtworks.firstOrNull { it.uid == artworkId }
 
-      if (artwork != null) {
+      if (artworkId != null) {
         ArtworkScreen(
-            artwork = artwork,
             artworkScreenViewModel =
-                viewModel(factory = ArtworkScreenViewModel.provideFactory(savedArtworksRepository)),
+                viewModel(
+                    factory =
+                        ArtworkScreenViewModel.provideFactory(
+                            artworkId,
+                            wikiDataRepository,
+                            savedArtworksRepository,
+                        )
+                ),
             onBackClick = { navController.popBackStack() },
         )
       }
