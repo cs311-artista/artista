@@ -212,7 +212,6 @@ fun ArtistaApp(
                         )
                 ),
             onBackClick = { navigationActions.goBack() },
-            onPreferencesSaved = { navigationActions.goBack() },
             onTabSelected = { tab -> navigationActions.navigateTo(tab.destination) },
         )
       }

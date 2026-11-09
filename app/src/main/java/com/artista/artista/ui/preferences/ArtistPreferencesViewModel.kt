@@ -4,6 +4,7 @@ import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.artista.artista.R
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artist.ArtistId
 import com.artista.artista.model.artwork.WikiDataRepository
@@ -32,18 +33,31 @@ import kotlinx.coroutines.launch
  * @property popularArtists the artists suggested to the user, in display order.
  * @property selectedArtists identifiers of the artists the user has selected as favorites.
  * @property searchQuery the text typed in the search field, exactly as the user entered it.
+ * @property savedArtists identifiers of the artists in the last saved selection, compared with
+ *   [selectedArtists] to know whether there is anything to save.
  * @property isSaving whether the selection is being saved, during which saving again is disabled.
- * @property errorMessageResId string resource of the message shown when saving the selection fails,
- *   or null when there is nothing to show.
+ * @property messageResId string resource of the message shown once a save succeeds or fails, or
+ *   null when there is nothing to show.
  * @author Timz3rr, patrickmcdan, krfpn
  */
 data class ArtistPreferencesUiState(
     val popularArtists: List<Artist> = emptyList(),
     val selectedArtists: Set<ArtistId> = emptySet(),
     val searchQuery: String = "",
+    val savedArtists: Set<ArtistId> = emptySet(),
     val isSaving: Boolean = false,
-    @param:StringRes val errorMessageResId: Int? = null,
+    @param:StringRes val messageResId: Int? = null,
 ) {
+  /**
+   * Whether the Save button can be used: the selection differs from the last saved one and no save
+   * is running.
+   *
+   * Comparing with the saved selection, rather than tracking toggles, makes the button disabled
+   * again when the user undoes their changes.
+   */
+  val canSave: Boolean
+    get() = selectedArtists != savedArtists && !isSaving
+
   /**
    * The popular artists whose name matches [searchQuery], in display order.
    *
@@ -127,49 +141,57 @@ class ArtistPreferencesViewModel(
   /**
    * Saves the selected artists in the preferences of the signed-in user.
    *
-   * Only the favorite artists of the stored profile are replaced; its other fields are kept. If
-   * saving fails, [onSaved] is not called and an error message is exposed instead. When nobody is
-   * signed in, nothing is saved and [onSaved] is called at once. A call made while a save is still
-   * running is ignored.
+   * Only the favorite artists of the stored profile are replaced; its other fields are kept. On
+   * success, the selection becomes the saved one and a confirmation message is exposed; on failure,
+   * an error message is exposed instead and the selection stays unsaved, so the user can retry.
+   * When nobody is signed in, the selection only becomes the saved one in memory. The call is
+   * ignored when [ArtistPreferencesUiState.canSave] is false.
    *
-   * @param onSaved called once the selection is saved, e.g. to leave the screen
    * @author krfpn
    */
-  fun saveSelectedArtists(onSaved: () -> Unit) {
-    // A double tap would otherwise start two writes and navigate back twice.
-    if (_uiState.value.isSaving) return
+  fun saveSelectedArtists() {
+    // Also covers a double tap: the first tap sets isSaving, so the second one is ignored.
+    if (!_uiState.value.canSave) return
+    // Taken now, so a toggle made while the write runs does not change what is saved.
+    val artists = _uiState.value.selectedArtists
     // Nobody signed in (the sign-in screen is still a placeholder, and in the UI tests and the
-    // preview): there is no one to save the selection for, so the screen is just left.
+    // preview): there is no one to save the selection for, so it is only kept in memory, as the
+    // profile screen does for the username.
     val uid =
         signedInUid
             ?: run {
-              onSaved()
+              _uiState.update { it.copy(savedArtists = artists) }
               return
             }
-    // Taken now, so a toggle made while the write runs does not change what is saved.
-    val artists = _uiState.value.selectedArtists.toList()
     _uiState.update { it.copy(isSaving = true) }
     viewModelScope.launchCatching(
         tag = TAG,
         onError = { error ->
-          // The user stays on the screen with their selection, so they can try again.
-          _uiState.update { it.copy(isSaving = false, errorMessageResId = error.toMessageRes()) }
+          // savedArtists is unchanged, so the button is enabled again for a retry.
+          _uiState.update { it.copy(isSaving = false, messageResId = error.toMessageRes()) }
         },
     ) {
-      saveArtists(uid, artists)
-      _uiState.update { it.copy(isSaving = false) }
-      // Reached only when the write succeeded, since a failure jumps to onError.
-      onSaved()
+      saveArtists(uid, artists.toList())
+      // Reached only when the write succeeded, since a failure jumps to onError. If the user
+      // toggled during the save, the selection now differs from savedArtists, so the button is
+      // enabled again for the next save.
+      _uiState.update {
+        it.copy(
+            savedArtists = artists,
+            isSaving = false,
+            messageResId = R.string.artist_preferences_saved,
+        )
+      }
     }
   }
 
   /**
-   * Clears the error message after the screen has shown it.
+   * Clears the message after the screen has shown it.
    *
    * @author krfpn
    */
-  fun clearErrorMessage() {
-    _uiState.update { it.copy(errorMessageResId = null) }
+  fun clearMessage() {
+    _uiState.update { it.copy(messageResId = null) }
   }
 
   /**

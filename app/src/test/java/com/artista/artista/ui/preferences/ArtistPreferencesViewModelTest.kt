@@ -218,10 +218,9 @@ class ArtistPreferencesViewModelTest {
         )
     userRepository.store(User(uid = UID, userName = "Artista Fan", preference = storedPreference))
     signIn()
-    var savedCount = 0
     viewModel.toggleArtist(PICASSO.uid)
 
-    viewModel.saveSelectedArtists { savedCount++ }
+    viewModel.saveSelectedArtists()
     advanceUntilIdle()
 
     assertEquals(
@@ -232,7 +231,7 @@ class ArtistPreferencesViewModelTest {
         ),
         userRepository.storedUser(UID),
     )
-    assertEquals(1, savedCount)
+    assertEquals(setOf(PICASSO.uid), viewModel.uiState.value.savedArtists)
     assertFalse(viewModel.uiState.value.isSaving)
   }
 
@@ -240,35 +239,33 @@ class ArtistPreferencesViewModelTest {
   @Test
   fun saveSelectedArtists_noProfile_createsProfileWithArtists() = runTest {
     signIn()
-    var savedCount = 0
     viewModel.toggleArtist(MONET.uid)
 
-    viewModel.saveSelectedArtists { savedCount++ }
+    viewModel.saveSelectedArtists()
     advanceUntilIdle()
 
     assertEquals(
         User(uid = UID, userName = null, preference = UserPreference(artists = listOf(MONET.uid))),
         userRepository.storedUser(UID),
     )
-    assertEquals(1, savedCount)
+    assertEquals(setOf(MONET.uid), viewModel.uiState.value.savedArtists)
   }
 
-  /** Verifies that a failed write exposes an error and keeps the user on the screen. */
+  /** Verifies that a failed write exposes an error and leaves the selection unsaved. */
   @Test
   fun saveSelectedArtists_writeFails_exposesErrorAndStays() = runTest {
     userRepository.store(userWithArtists(listOf(KLIMT.uid)))
     userRepository.writeFailure = AppException.Network()
     signIn()
-    var savedCount = 0
     viewModel.toggleArtist(PICASSO.uid)
 
-    viewModel.saveSelectedArtists { savedCount++ }
+    viewModel.saveSelectedArtists()
     advanceUntilIdle()
 
     val state = viewModel.uiState.value
-    assertEquals(R.string.error_network, state.errorMessageResId)
+    assertEquals(R.string.error_network, state.messageResId)
     assertFalse(state.isSaving)
-    assertEquals(0, savedCount)
+    assertTrue(state.savedArtists.isEmpty())
     // The selection is kept so the user can try again.
     assertEquals(setOf(PICASSO.uid), state.selectedArtists)
     assertEquals(listOf(KLIMT.uid), userRepository.storedUser(UID)?.preference?.artists)
@@ -282,30 +279,31 @@ class ArtistPreferencesViewModelTest {
   fun saveSelectedArtists_readFails_exposesErrorAndDoesNotWrite() = runTest {
     userRepository.readFailure = AppException.Network()
     signIn()
-    var savedCount = 0
     viewModel.toggleArtist(PICASSO.uid)
 
-    viewModel.saveSelectedArtists { savedCount++ }
+    viewModel.saveSelectedArtists()
     advanceUntilIdle()
 
-    assertEquals(R.string.error_network, viewModel.uiState.value.errorMessageResId)
+    assertEquals(R.string.error_network, viewModel.uiState.value.messageResId)
     assertEquals(0, userRepository.writeCount)
-    assertEquals(0, savedCount)
+    assertTrue(viewModel.uiState.value.savedArtists.isEmpty())
   }
 
-  /** Verifies that nothing is saved when nobody is signed in, and that onSaved is still called. */
+  /**
+   * Verifies that nothing is written when nobody is signed in, and that the selection is still kept
+   * as the saved one in memory.
+   */
   @Test
-  fun saveSelectedArtists_signedOut_callsOnSavedWithoutWriting() = runTest {
+  fun saveSelectedArtists_signedOut_savesInMemoryWithoutWriting() = runTest {
     // No signIn(): the auth repository starts signed out.
     advanceUntilIdle()
-    var savedCount = 0
     viewModel.toggleArtist(PICASSO.uid)
 
-    viewModel.saveSelectedArtists { savedCount++ }
+    viewModel.saveSelectedArtists()
     advanceUntilIdle()
 
     assertEquals(0, userRepository.writeCount)
-    assertEquals(1, savedCount)
+    assertEquals(setOf(PICASSO.uid), viewModel.uiState.value.savedArtists)
   }
 
   /** Verifies that a second save requested while the first one runs is ignored. */
@@ -315,18 +313,16 @@ class ArtistPreferencesViewModelTest {
     // save running just as a slow write would.
     userRepository.readDelays[UID] = 1_000
     signIn()
-    var savedCount = 0
     viewModel.toggleArtist(PICASSO.uid)
 
-    viewModel.saveSelectedArtists { savedCount++ }
+    viewModel.saveSelectedArtists()
     // runCurrent starts the save without letting time pass, so it is still waiting on the read.
     runCurrent()
     assertTrue(viewModel.uiState.value.isSaving)
-    viewModel.saveSelectedArtists { savedCount++ }
+    viewModel.saveSelectedArtists()
     advanceUntilIdle()
 
     assertEquals(1, userRepository.writeCount)
-    assertEquals(1, savedCount)
     assertFalse(viewModel.uiState.value.isSaving)
   }
 
@@ -341,7 +337,7 @@ class ArtistPreferencesViewModelTest {
     signIn()
     viewModel.toggleArtist(PICASSO.uid)
 
-    viewModel.saveSelectedArtists {}
+    viewModel.saveSelectedArtists()
     // runCurrent starts the save without letting time pass, so it is still waiting on the read.
     runCurrent()
     viewModel.toggleArtist(MONET.uid)
@@ -360,7 +356,7 @@ class ArtistPreferencesViewModelTest {
     viewModel.toggleArtist(PICASSO.uid)
     viewModel.toggleArtist(KLIMT.uid)
 
-    viewModel.saveSelectedArtists {}
+    viewModel.saveSelectedArtists()
     advanceUntilIdle()
 
     assertEquals(
@@ -369,18 +365,20 @@ class ArtistPreferencesViewModelTest {
     )
   }
 
-  /** Verifies that the error message is removed once the screen has shown it. */
+  /** Verifies that the message is removed once the screen has shown it. */
   @Test
-  fun clearErrorMessage_resetsError() = runTest {
+  fun clearMessage_resetsMessage() = runTest {
     userRepository.writeFailure = AppException.Network()
     signIn()
-    viewModel.saveSelectedArtists {}
+    // Saving needs a change to save, otherwise the call is ignored.
+    viewModel.toggleArtist(PICASSO.uid)
+    viewModel.saveSelectedArtists()
     advanceUntilIdle()
-    assertEquals(R.string.error_network, viewModel.uiState.value.errorMessageResId)
+    assertEquals(R.string.error_network, viewModel.uiState.value.messageResId)
 
-    viewModel.clearErrorMessage()
+    viewModel.clearMessage()
 
-    assertNull(viewModel.uiState.value.errorMessageResId)
+    assertNull(viewModel.uiState.value.messageResId)
   }
 
   /**

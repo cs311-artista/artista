@@ -74,9 +74,10 @@ private val PillShape = RoundedCornerShape(percent = 50)
  * The callbacks have no default value, so that integrating the screen without wiring one of them
  * fails to compile instead of leaving a button that silently does nothing.
  *
+ * Saving keeps the user on the screen: the Save button is enabled only when the selection differs
+ * from the saved one, and a toast tells whether the save succeeded.
+ *
  * @param onBackClick Callback invoked when the user leaves the screen.
- * @param onPreferencesSaved Callback invoked once the selected artists have been saved, not when
- *   saving them fails.
  * @param onTabSelected Callback invoked with the destination selected in the bottom navigation.
  * @param artistPreferencesViewModel ViewModel providing the artists and the current selection.
  * @author Timz3rr, krfpn
@@ -84,21 +85,20 @@ private val PillShape = RoundedCornerShape(percent = 50)
 @Composable
 fun ArtistPreferencesScreen(
     onBackClick: () -> Unit,
-    onPreferencesSaved: () -> Unit,
     onTabSelected: (Tab) -> Unit,
     artistPreferencesViewModel: ArtistPreferencesViewModel,
 ) {
   val uiState by artistPreferencesViewModel.uiState.collectAsStateWithLifecycle()
   val context = LocalContext.current
-  val errorMessage = uiState.errorMessageResId?.let { stringResource(it) }
+  val message = uiState.messageResId?.let { stringResource(it) }
 
-  // A toast does not block the screen, so the user can retry at once. LaunchedEffect runs only when
-  // the message changes, so the toast is shown once per error.
-  LaunchedEffect(errorMessage) {
-    errorMessage?.let {
+  // A toast does not block the screen, so the user can keep editing or retry at once.
+  // LaunchedEffect runs only when the message changes, so the toast is shown once per save.
+  LaunchedEffect(message) {
+    message?.let {
       Toast.makeText(context, it, Toast.LENGTH_LONG).show()
       // Cleared once shown, so a recomposition or a return to the screen does not show it again.
-      artistPreferencesViewModel.clearErrorMessage()
+      artistPreferencesViewModel.clearMessage()
     }
   }
 
@@ -149,14 +149,11 @@ fun ArtistPreferencesScreen(
           )
         }
       }
-      // The ViewModel saves the selection and calls onPreferencesSaved only once the save
-      // succeeded, so a failed save keeps the user on the screen.
       Button(
-          onClick = {
-            artistPreferencesViewModel.saveSelectedArtists(onSaved = onPreferencesSaved)
-          },
-          // Disabled while saving, so a double tap does not start a second write.
-          enabled = !uiState.isSaving,
+          onClick = artistPreferencesViewModel::saveSelectedArtists,
+          // Disabled when there is nothing new to save, and while saving so a double tap does not
+          // start a second write.
+          enabled = uiState.canSave,
           modifier =
               Modifier.fillMaxWidth()
                   .height(Dimensions.preferencesSaveButtonHeight)
@@ -365,7 +362,6 @@ internal fun ArtistPreferencesScreenPreview() {
   ArtistaTheme {
     ArtistPreferencesScreen(
         onBackClick = {},
-        onPreferencesSaved = {},
         onTabSelected = {},
         artistPreferencesViewModel = viewModel,
     )

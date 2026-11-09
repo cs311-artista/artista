@@ -31,7 +31,6 @@ import com.artista.artista.model.user.UserRepositoryLocal
 import com.artista.artista.ui.navigation.NavigationTestTags
 import com.artista.artista.ui.navigation.Tab
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -235,57 +234,52 @@ class ArtistPreferencesScreenTest {
 
     composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.BACK_BUTTON).performClick()
 
-    // Fails if the button is wired to another callback, such as onPreferencesSaved.
+    // Fails if the button is wired to another action, such as saving.
     assertTrue(backClicked)
   }
 
   /**
-   * Verifies that clicking the save button invokes the saved callback.
-   *
-   * Nobody is signed in here, so the ViewModel saves nothing and calls the callback at once.
+   * Verifies that saving when nobody is signed in keeps the selection in memory, so the button is
+   * disabled until the next change.
    */
   @Test
-  fun saveButton_click_invokesOnPreferencesSaved() {
-    // Only the callback below can flip this flag, so it proves the click reached the callback.
-    var preferencesSaved = false
-    setPreferencesContent(onPreferencesSaved = { preferencesSaved = true })
+  fun saveButton_signedOut_click_disablesButton() {
+    setPreferencesContent()
 
+    clickArtistCard(testArtists.first())
     composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SAVE_BUTTON).performClick()
 
-    // Fails if the button is wired to another callback, such as onBackClick.
-    assertTrue(preferencesSaved)
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SAVE_BUTTON).assertIsNotEnabled()
   }
 
-  /** Verifies that a signed-in user's selection is saved before the saved callback is invoked. */
+  /**
+   * Verifies that a signed-in user's selection is saved, and that the user stays on the screen with
+   * the button disabled until the next change.
+   */
   @Test
-  fun saveButton_signedIn_saveSucceeds_invokesOnPreferencesSaved() {
+  fun saveButton_signedIn_saveSucceeds_storesSelectionAndDisablesButton() {
     val userRepository = FakeUserRepository()
-    var preferencesSaved = false
-    setPreferencesContent(
-        viewModel = signedInViewModel(userRepository),
-        onPreferencesSaved = { preferencesSaved = true },
-    )
+    setPreferencesContent(viewModel = signedInViewModel(userRepository))
 
     clickArtistCard(testArtists.first())
     composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SAVE_BUTTON).performClick()
 
     // The save runs in a coroutine that the compose rule does not wait for, hence the polling.
-    composeTestRule.waitUntil(TIMEOUT_MS) { preferencesSaved }
+    composeTestRule.waitUntil(TIMEOUT_MS) { userRepository.writeCount == 1 }
+    composeTestRule.waitForIdle()
     assertEquals(
         listOf(testArtists.first().uid),
         userRepository.storedUser(UID)?.preference?.artists,
     )
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SCREEN).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SAVE_BUTTON).assertIsNotEnabled()
   }
 
-  /** Verifies that a failed save keeps the user on the screen instead of invoking the callback. */
+  /** Verifies that a failed save keeps the user on the screen with the button enabled. */
   @Test
-  fun saveButton_signedIn_saveFails_doesNotInvokeOnPreferencesSaved() {
+  fun saveButton_signedIn_saveFails_keepsButtonEnabled() {
     val userRepository = FakeUserRepository().apply { writeFailure = AppException.Network() }
-    var preferencesSaved = false
-    setPreferencesContent(
-        viewModel = signedInViewModel(userRepository),
-        onPreferencesSaved = { preferencesSaved = true },
-    )
+    setPreferencesContent(viewModel = signedInViewModel(userRepository))
 
     clickArtistCard(testArtists.first())
     composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SAVE_BUTTON).performClick()
@@ -293,7 +287,6 @@ class ArtistPreferencesScreenTest {
     // The failed write is the last step of the save, so once it is counted the save is over.
     composeTestRule.waitUntil(TIMEOUT_MS) { userRepository.writeCount == 1 }
     composeTestRule.waitForIdle()
-    assertFalse(preferencesSaved)
     composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SCREEN).assertIsDisplayed()
     // Enabled again, so the user can retry.
     composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SAVE_BUTTON).assertIsEnabled()
@@ -305,6 +298,9 @@ class ArtistPreferencesScreenTest {
     // The read before the write never returns, so the save stays running for the whole test.
     val userRepository = FakeUserRepository().apply { readDelays[UID] = Long.MAX_VALUE }
     setPreferencesContent(viewModel = signedInViewModel(userRepository))
+    // Without a change the button is already disabled, which would make this test pass for nothing.
+    clickArtistCard(testArtists.first())
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SAVE_BUTTON).assertIsEnabled()
 
     composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SAVE_BUTTON).performClick()
 
@@ -350,7 +346,6 @@ class ArtistPreferencesScreenTest {
   private fun setPreferencesContent(
       viewModel: ArtistPreferencesViewModel = createViewModel(),
       onBackClick: () -> Unit = {},
-      onPreferencesSaved: () -> Unit = {},
       onTabSelected: (Tab) -> Unit = {},
   ) {
     composeTestRule.setContent {
@@ -358,7 +353,6 @@ class ArtistPreferencesScreenTest {
         ArtistPreferencesScreen(
             artistPreferencesViewModel = viewModel,
             onBackClick = onBackClick,
-            onPreferencesSaved = onPreferencesSaved,
             onTabSelected = onTabSelected,
         )
       }
