@@ -100,7 +100,11 @@ class OverviewScreenViewModelTest {
     assertTrue(viewModel.uiState.value.artworks.isEmpty())
   }
 
-  /** Checks that a cancelled load does not expose an error. */
+  /**
+   * Checks that a cancelled load does not expose an error.
+   *
+   * @author Timz3rr
+   */
   @Test
   fun overviewViewModel_whenLoadingIsCancelled_exposesNoError() = runTest {
     // Cancellation is how a coroutine stops (e.g. leaving the screen), so it is not a failure.
