@@ -8,6 +8,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.artista.artista.model.artwork.Artwork
+import com.artista.artista.model.artwork.ArtworkType
 import com.artista.artista.model.artwork.SavedArtworksRepository
 import com.artista.artista.model.artwork.WikiDataRepository
 import com.artista.artista.model.error.AppException
@@ -25,6 +26,7 @@ import kotlinx.coroutines.flow.update
  * @property query current text entered in the search field
  * @property selection current cursor or text selection range
  * @property savedArtworks artworks saved by the current user
+ * @property typeValues artwork types included in submitted searches
  * @property recommendations saved artworks matching the current query
  * @property artworks results returned for the submitted query
  * @property isLoading whether submitted search results are being fetched
@@ -38,6 +40,7 @@ data class SearchScreenUiState(
     val query: String = "",
     val selection: TextRange = TextRange.Zero,
     val savedArtworks: List<Artwork> = emptyList(),
+    val typeValues: List<ArtworkType> = ArtworkType.entries,
     val recommendations: List<Artwork> = emptyList(),
     val artworks: List<Artwork> = emptyList(),
     val isLoading: Boolean = false,
@@ -131,6 +134,7 @@ class SearchScreenViewModel(
             searchErrorMessageResId = null,
         )
     if (query.isBlank()) return
+    val typeValues = _uiState.value.typeValues
 
     searchJob =
         viewModelScope.launchCatching(
@@ -147,13 +151,35 @@ class SearchScreenViewModel(
               }
             },
         ) {
-          val results = wikiDataRepository.searchArtworks(query)
+          val results = wikiDataRepository.searchArtworks(query, typeValues)
           if (requestId == searchRequestId) {
             _uiState.update {
               it.copy(artworks = results, isLoading = false, searchErrorMessageResId = null)
             }
           }
         }
+  }
+
+  /**
+   * Toggles an artwork type included in submitted searches.
+   *
+   * The selection always retains at least one type because the repository requires a non-empty type
+   * list.
+   *
+   * @param type artwork type to add or remove
+   * @author IJJA3141
+   */
+  fun toggleArtworkType(type: ArtworkType) {
+    _uiState.update { state ->
+      val updatedTypes =
+          if (type in state.typeValues) {
+            if (state.typeValues.size == 1) return@update state
+            state.typeValues - type
+          } else {
+            ArtworkType.entries.filter { it in state.typeValues || it == type }
+          }
+      state.copy(typeValues = updatedTypes)
+    }
   }
 
   /**

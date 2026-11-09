@@ -157,6 +157,37 @@ class SearchScreenViewModelTest {
   }
 
   @Test
+  fun onSearchSubmitted_passesSelectedArtworkTypesToRepository() = runTest {
+    val wikiRepository = SearchTestData.wikiDataRepository()
+    val viewModel = SearchScreenViewModel(SearchTestData.savedArtworksRepository(), wikiRepository)
+    val selectedTypes = listOf(ArtworkType.PAINTING, ArtworkType.MURAL)
+
+    advanceUntilIdle()
+    ArtworkType.entries.filterNot { it in selectedTypes }.forEach(viewModel::toggleArtworkType)
+    viewModel.onSearchSubmitted("star")
+    advanceUntilIdle()
+
+    assertEquals(selectedTypes, wikiRepository.searchedTypeValues.single())
+  }
+
+  @Test
+  fun toggleArtworkType_doesNotAllowRemovingLastSelectedType() = runTest {
+    val viewModel =
+        SearchScreenViewModel(
+            SearchTestData.savedArtworksRepository(),
+            SearchTestData.wikiDataRepository(),
+        )
+
+    advanceUntilIdle()
+    ArtworkType.entries.drop(1).forEach(viewModel::toggleArtworkType)
+    assertEquals(listOf(ArtworkType.PAINTING), viewModel.uiState.value.typeValues)
+
+    viewModel.toggleArtworkType(ArtworkType.PAINTING)
+
+    assertEquals(listOf(ArtworkType.PAINTING), viewModel.uiState.value.typeValues)
+  }
+
+  @Test
   fun onSearchSubmitted_exposesLoadingUntilResultsArrive() = runTest {
     val results = CompletableDeferred<List<Artwork>>()
     val wikiRepository =

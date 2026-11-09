@@ -13,7 +13,9 @@ import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
@@ -80,6 +82,47 @@ class SearchScreenTest {
 
     composeTestRule.waitForIdle()
     composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT).assertIsFocused()
+  }
+
+  @Test
+  fun searchBar_invokesVoiceSearchCallback() = runTest {
+    var voiceSearchClicked = false
+    val viewModel = createViewModel()
+
+    composeTestRule.setContent {
+      MaterialTheme {
+        SearchScreen(
+            onTabSelected = {},
+            viewModel = viewModel,
+            onVoiceSearchClick = { voiceSearchClicked = true },
+        )
+      }
+    }
+
+    composeTestRule.waitForIdle()
+    composeTestRule.onNodeWithContentDescription("Voice search").performClick()
+    composeTestRule.runOnIdle { assertTrue(voiceSearchClicked) }
+  }
+
+  @Test
+  fun searchFilter_opensTypePopupAndUpdatesSelection() = runTest {
+    val viewModel = createViewModel()
+
+    composeTestRule.setContent {
+      MaterialTheme { SearchScreen(onTabSelected = {}, viewModel = viewModel) }
+    }
+
+    composeTestRule.waitForIdle()
+    composeTestRule.onNodeWithContentDescription("Filter artworks").performClick()
+    composeTestRule
+        .onNodeWithTag(SearchScreenTestTags.filterType(ArtworkType.PAINTING))
+        .assertIsDisplayed()
+        .performClick()
+
+    composeTestRule.runOnIdle {
+      assertTrue(ArtworkType.PAINTING !in viewModel.uiState.value.typeValues)
+      assertTrue(viewModel.uiState.value.typeValues.isNotEmpty())
+    }
   }
 
   @Test

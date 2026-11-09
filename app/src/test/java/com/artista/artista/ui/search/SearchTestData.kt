@@ -104,6 +104,7 @@ internal class FakeWikiDataRepository(
     private val artworks: List<Artwork>,
 ) : WikiDataRepository {
   val searchedQueries = mutableListOf<String>()
+  val searchedTypeValues = mutableListOf<List<ArtworkType>>()
 
   override suspend fun getArtworksNearLocation(
       searchArea: SearchArea,
@@ -127,6 +128,7 @@ internal class FakeWikiDataRepository(
       limit: Int,
   ): List<Artwork> {
     searchedQueries.add(artworkTitle)
+    searchedTypeValues.add(typeValues)
     return artworks.filter {
       it.name?.contains(artworkTitle, ignoreCase = true) == true ||
           it.artist?.name?.contains(artworkTitle, ignoreCase = true) == true

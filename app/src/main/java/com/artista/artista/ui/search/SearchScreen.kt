@@ -3,22 +3,37 @@
 package com.artista.artista.ui.search
 
 import android.widget.Toast
+import androidx.annotation.StringRes
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.Brush
+import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SearchBar
@@ -34,8 +49,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
@@ -49,6 +66,7 @@ import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
+import com.artista.artista.model.artwork.ArtworkType
 import com.artista.artista.ui.artwork.ArtworkCard
 import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
@@ -68,6 +86,18 @@ object SearchScreenTestTags {
 
   /** Tag of the search loading indicator. */
   const val SEARCH_LOADING_INDICATOR = "search_loading_indicator"
+
+  /** Tag of the hint indicating that artwork types can be scrolled. */
+  const val FILTER_SCROLL_HINT = "search_filter_scroll_hint"
+
+  /**
+   * Returns the stable tag of an artwork-type filter.
+   *
+   * @param type artwork type represented by the filter
+   * @return test tag for the filter
+   * @author IJJA3141
+   */
+  fun filterType(type: ArtworkType): String = "search_filter_type_${type.name.lowercase()}"
 }
 
 /**
@@ -79,6 +109,7 @@ object SearchScreenTestTags {
  * @param onArtworkClick callback invoked when the user selects an artwork in the results list
  * @param onMapClick callback invoked when the user selects the map action for a result
  * @param onRecommendationSelected callback invoked when the user selects a search suggestion
+ * @param onVoiceSearchClick callback invoked when the user selects voice search
  * @author IJJA3141
  */
 @Composable
@@ -88,6 +119,7 @@ fun SearchScreen(
     onArtworkClick: (Artwork) -> Unit = {},
     onMapClick: (Artwork) -> Unit = {},
     onRecommendationSelected: (Artwork) -> Unit = {},
+    onVoiceSearchClick: () -> Unit = {},
 ) {
   val uiState by viewModel.uiState.collectAsState()
   val loadingDescription = stringResource(R.string.search_loading)
@@ -114,13 +146,17 @@ fun SearchScreen(
   }
 
   Scaffold(
+      containerColor = MaterialTheme.colorScheme.surface,
       topBar = {
         SearchInput(
             textFieldState = textFieldState,
             recommendations = uiState.recommendations,
+            selectedTypeValues = uiState.typeValues,
             onQueryChanged = viewModel::onSearchInputChanged,
             onSearchSubmitted = viewModel::onSearchSubmitted,
             onRecommendationSelected = onRecommendationSelected,
+            onArtworkTypeToggle = viewModel::toggleArtworkType,
+            onVoiceSearchClick = onVoiceSearchClick,
         )
       },
       bottomBar = {
@@ -160,9 +196,12 @@ fun SearchScreen(
  *
  * @param textFieldState text and cursor state currently shown in the search field
  * @param recommendations artwork entries to show in the dropdown
+ * @param selectedTypeValues artwork types included in submitted searches
  * @param onQueryChanged called when the user edits the query or selection
  * @param onSearchSubmitted called when the user submits the query from the keyboard
  * @param onRecommendationSelected called when the user selects a dropdown recommendation
+ * @param onArtworkTypeToggle called when the user toggles an artwork type
+ * @param onVoiceSearchClick called when the user selects voice search
  * @author IJJA3141
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -170,13 +209,17 @@ fun SearchScreen(
 private fun SearchInput(
     textFieldState: TextFieldState,
     recommendations: List<Artwork>,
+    selectedTypeValues: List<ArtworkType>,
     onQueryChanged: (String, TextRange) -> Unit,
     onSearchSubmitted: (String) -> Unit,
     onRecommendationSelected: (Artwork) -> Unit,
+    onArtworkTypeToggle: (ArtworkType) -> Unit,
+    onVoiceSearchClick: () -> Unit,
 ) {
   var expanded by remember { mutableStateOf(false) }
   val focusRequester = remember { FocusRequester() }
   val keyboardController = LocalSoftwareKeyboardController.current
+  var isFilterMenuExpanded by remember { mutableStateOf(false) }
 
   LaunchedEffect(Unit) {
     focusRequester.requestFocus()
@@ -190,49 +233,147 @@ private fun SearchInput(
 
   SearchBar(
       inputField = {
-        SearchBarDefaults.InputField(
-            state = textFieldState,
-            onSearch = {
-              onSearchSubmitted(it)
-              expanded = false
-            },
-            expanded = expanded,
-            onExpandedChange = { expanded = it },
-            modifier =
-                Modifier.fillMaxWidth()
-                    .padding(
-                        horizontal = Dimensions.searchInputHorizontalPadding,
-                        vertical = Dimensions.searchInputVerticalPadding,
-                    )
-                    .focusRequester(focusRequester)
-                    .testTag(SearchScreenTestTags.SEARCH_INPUT),
-            placeholder = { Text(stringResource(R.string.search_placeholder)) },
-            leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = "Search") },
-        )
+        // Same layout as the overview top bar: [ search pill ][ filter button ]
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+          SearchBarDefaults.InputField(
+              state = textFieldState,
+              onSearch = {
+                onSearchSubmitted(it)
+                expanded = false
+              },
+              expanded = expanded,
+              onExpandedChange = { expanded = it },
+              modifier =
+                  Modifier.weight(1f)
+                      // Same padding and height as OverviewSearchBar so it sits in the same spot
+                      .padding(
+                          horizontal = Dimensions.overviewSearchBarHorizontalPadding,
+                          vertical = Dimensions.overviewSearchBarVerticalPadding,
+                      )
+                      .height(Dimensions.overviewSearchBarHeight)
+                      .focusRequester(focusRequester)
+                      .testTag(SearchScreenTestTags.SEARCH_INPUT),
+              placeholder = { Text(stringResource(R.string.search_placeholder)) },
+              // Back arrow when expanded, magnifier when collapsed
+              leadingIcon = {
+                if (expanded) {
+                  IconButton(onClick = { expanded = false }) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                  }
+                } else {
+                  Icon(Icons.Outlined.Search, contentDescription = "Search")
+                }
+              },
+          )
+          Box {
+            IconButton(onClick = { isFilterMenuExpanded = true }) {
+              Icon(
+                  imageVector = Icons.Outlined.FilterList,
+                  contentDescription = stringResource(R.string.overview_filter_open),
+                  tint = MaterialTheme.colorScheme.onSurface,
+              )
+            }
+            DropdownMenu(
+                expanded = isFilterMenuExpanded,
+                onDismissRequest = { isFilterMenuExpanded = false },
+                modifier = Modifier.heightIn(max = Dimensions.searchTypeFilterMaxHeight),
+            ) {
+              Text(
+                  text = stringResource(R.string.search_filter_title),
+                  style = MaterialTheme.typography.titleSmall,
+                  modifier =
+                      Modifier.padding(
+                          horizontal = Dimensions.searchTypeFilterHorizontalPadding,
+                          vertical = Dimensions.searchTypeFilterTitleVerticalPadding,
+                      ),
+              )
+              Text(
+                  text = stringResource(R.string.search_filter_scroll_hint),
+                  style = MaterialTheme.typography.bodySmall,
+                  color = MaterialTheme.colorScheme.onSurfaceVariant,
+                  modifier =
+                      Modifier.padding(
+                              horizontal = Dimensions.searchTypeFilterHorizontalPadding,
+                              vertical = Dimensions.searchTypeFilterTitleVerticalPadding,
+                          )
+                          .testTag(SearchScreenTestTags.FILTER_SCROLL_HINT),
+              )
+              ArtworkType.entries.forEach { type ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(type.toDisplayNameRes())) },
+                    leadingIcon = {
+                      Checkbox(
+                          checked = type in selectedTypeValues,
+                          onCheckedChange = null,
+                      )
+                    },
+                    onClick = { onArtworkTypeToggle(type) },
+                    modifier = Modifier.testTag(SearchScreenTestTags.filterType(type)),
+                )
+              }
+            }
+          }
+        }
       },
       expanded = expanded,
       onExpandedChange = { expanded = it },
-      modifier = Modifier.fillMaxWidth(),
       colors = SearchBarDefaults.colors(containerColor = MaterialTheme.colorScheme.surface),
+      tonalElevation = Dimensions.searchInputElevation,
   ) {
-    LazyColumn {
+    LazyColumn(
+        contentPadding = PaddingValues(vertical = Dimensions.searchRecommendationVerticalPadding)
+    ) {
       items(recommendations) { recommendation ->
         ListItem(
             headlineContent = {
-              Text(recommendation.name ?: stringResource(R.string.artwork_unknown_title))
+              Text(
+                  recommendation.name ?: stringResource(R.string.artwork_unknown_title),
+                  style = MaterialTheme.typography.bodyLarge,
+              )
             },
+            leadingContent = {
+              Box(
+                  modifier =
+                      Modifier.size(Dimensions.searchRecommendationIconContainerSize)
+                          .clip(CircleShape)
+                          .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+                  contentAlignment = Alignment.Center,
+              ) {
+                Icon(
+                    Icons.Outlined.Brush,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+              }
+            },
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
             modifier =
                 Modifier.fillMaxWidth()
                     .clickable {
                       onRecommendationSelected(recommendation)
                       expanded = false
                     }
+                    .padding(horizontal = Dimensions.searchRecommendationHorizontalPadding)
                     .testTag(SearchScreenTestTags.SEARCH_RECOMMENDATION),
         )
       }
     }
   }
 }
+
+@StringRes
+private fun ArtworkType.toDisplayNameRes(): Int =
+    when (this) {
+      ArtworkType.PAINTING -> R.string.search_filter_type_painting
+      ArtworkType.DRAWING -> R.string.search_filter_type_drawing
+      ArtworkType.SCULPTURE -> R.string.search_filter_type_sculpture
+      ArtworkType.PRINT -> R.string.search_filter_type_print
+      ArtworkType.PHOTOGRAPH -> R.string.search_filter_type_photograph
+      ArtworkType.MURAL -> R.string.search_filter_type_mural
+      ArtworkType.OIL_PAINTING -> R.string.search_filter_type_oil_painting
+      ArtworkType.WATERCOLOR_PAINTING -> R.string.search_filter_type_watercolor_painting
+      ArtworkType.MOSAIC -> R.string.search_filter_type_mosaic
+    }
 
 /**
  * Displays the artwork results provided by the ViewModel.
