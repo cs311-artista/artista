@@ -1,9 +1,9 @@
+// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+// Co-authored-by: DeepSeek Flash
 package com.artista.artista.ui.navigation
 
 import androidx.navigation.NavHostController
 
-// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
-// Co-authored-by: DeepSeek Flash
 /**
  * Represents a screen route used by the application's navigation layer.
  *

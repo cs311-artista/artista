@@ -1,3 +1,5 @@
+// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+// Co-authored-by: DeepSeek Flash
 package com.artista.artista.ui.artwork
 
 import androidx.activity.ComponentActivity
@@ -24,8 +26,6 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
-// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
-// Co-authored-by: DeepSeek Flash
 /**
  * Verifies navigation from Saved Artworks back to the screen that opened it.
  *
