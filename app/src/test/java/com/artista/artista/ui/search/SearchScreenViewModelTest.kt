@@ -3,6 +3,7 @@
 package com.artista.artista.ui.search
 
 import androidx.compose.ui.text.TextRange
+import androidx.lifecycle.ViewModel
 import com.artista.artista.R
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.Artwork
@@ -23,6 +24,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -102,6 +104,22 @@ class SearchScreenViewModelTest {
   }
 
   @Test
+  fun savedArtworkLoadFailure_setsSearchErrorMessage() = runTest {
+    val savedArtworksRepository =
+        object : SavedArtworksRepository by SearchTestData.savedArtworksRepository() {
+          override suspend fun getSavedArtworks(): List<Artwork> {
+            throw AppException.Network("Could not load saved artworks")
+          }
+        }
+    val viewModel =
+        SearchScreenViewModel(savedArtworksRepository, SearchTestData.wikiDataRepository())
+
+    advanceUntilIdle()
+
+    assertEquals(R.string.error_network, viewModel.uiState.value.searchErrorMessageResId)
+  }
+
+  @Test
   fun onSearchSubmitted_whenWikiDataRequestFails_setsSearchErrorMessage() = runTest {
     val wikiRepository =
         object : WikiDataRepository {
@@ -136,6 +154,10 @@ class SearchScreenViewModelTest {
     assertFalse(viewModel.uiState.value.hasInvalidSearchInput)
     assertFalse(viewModel.uiState.value.isLoading)
     assertTrue(viewModel.uiState.value.artworks.isEmpty())
+
+    viewModel.clearSearchError()
+
+    assertEquals(null, viewModel.uiState.value.searchErrorMessageResId)
   }
 
   @Test
@@ -335,6 +357,10 @@ class SearchScreenViewModelTest {
     advanceUntilIdle()
 
     assertEquals(R.string.error_network, viewModel.uiState.value.saveErrorMessageResId)
+
+    viewModel.clearSaveError()
+
+    assertEquals(null, viewModel.uiState.value.saveErrorMessageResId)
   }
 
   @Test
@@ -364,4 +390,19 @@ class SearchScreenViewModelTest {
     assertTrue(viewModel.uiState.value.savedArtworks.none { it.uid == artwork.uid })
     assertTrue(repository.savedArtworks.none { it.uid == artwork.uid })
   }
+
+  @Test
+  fun provideFactory_forUnknownViewModelClass_throws() {
+    val factory =
+        SearchScreenViewModel.provideFactory(
+            SearchTestData.savedArtworksRepository(),
+            SearchTestData.wikiDataRepository(),
+        )
+
+    assertThrows(IllegalArgumentException::class.java) {
+      factory.create(OtherViewModel::class.java)
+    }
+  }
+
+  private class OtherViewModel : ViewModel()
 }
