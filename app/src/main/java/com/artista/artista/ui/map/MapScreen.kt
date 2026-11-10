@@ -39,6 +39,7 @@ import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.map.UserLocation
+import com.artista.artista.model.walking.WalkingRouteRepositoryRemote
 import com.artista.artista.resources.C
 import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
@@ -326,6 +327,7 @@ internal fun MapScreenPreview() {
                     MapViewModel.provideFactory(
                         wikiDataRepository = ArtworkRepositoryProvider.mockRepository,
                         savedArtworksRepository = ArtworkRepositoryProvider.mockRepository,
+                        walkingRouteRepository = WalkingRouteRepositoryRemote(),
                     )
             )
     )
