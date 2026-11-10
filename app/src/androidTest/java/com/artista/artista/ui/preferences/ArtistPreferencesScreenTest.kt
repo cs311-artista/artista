@@ -295,9 +295,12 @@ class ArtistPreferencesScreenTest {
   /** Verifies that the save button cannot be clicked again while a save is running. */
   @Test
   fun saveButton_whileSaving_isDisabled() {
-    // The read before the write never returns, so the save stays running for the whole test.
-    val userRepository = FakeUserRepository().apply { readDelays[UID] = Long.MAX_VALUE }
+    val userRepository = FakeUserRepository()
     setPreferencesContent(viewModel = signedInViewModel(userRepository))
+    // Set only once the stored artists are loaded, since the cards cannot be clicked while they
+    // load. From now on, the read before the write never returns, so the save stays running.
+    composeTestRule.waitForIdle()
+    userRepository.readDelays[UID] = Long.MAX_VALUE
     // Without a change the button is already disabled, which would make this test pass for nothing.
     clickArtistCard(testArtists.first())
     composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SAVE_BUTTON).assertIsEnabled()
@@ -305,6 +308,21 @@ class ArtistPreferencesScreenTest {
     composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SAVE_BUTTON).performClick()
 
     composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SAVE_BUTTON).assertIsNotEnabled()
+  }
+
+  /**
+   * Verifies that the artist cards cannot be clicked while the stored artists load, so a tap is not
+   * replaced by the loaded selection.
+   */
+  @Test
+  fun artistCards_whileLoading_areDisabled() {
+    // The load never returns, so the screen stays loading for the whole test.
+    val userRepository = FakeUserRepository().apply { readDelays[UID] = Long.MAX_VALUE }
+    setPreferencesContent(viewModel = signedInViewModel(userRepository))
+
+    composeTestRule
+        .onNodeWithTag(ArtistPreferencesTestTags.getArtistCardTestTag(testArtists.first().uid))
+        .assertIsNotEnabled()
   }
 
   /** Verifies that the save button is disabled when the screen opens, as nothing has changed. */
