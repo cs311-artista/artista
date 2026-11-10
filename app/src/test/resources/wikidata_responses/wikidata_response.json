@@ -36,6 +36,11 @@
           "type": "literal",
           "value": "Department of Paintings of the Louvre"
         },
+        "locationCoordinates": {
+          "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+          "type": "literal",
+          "value": "Point(2.3354 48.8601)"
+        },
         "artistLabel": {
           "xml:lang": "en",
           "type": "literal",

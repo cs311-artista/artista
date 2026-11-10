@@ -157,6 +157,14 @@ open class JsonResponseParser {
         .getOrNull()
   }
 
+  /**
+   * Parses the location of an artwork from its coordinates and label.
+   *
+   * @param coordinates the coordinates of the location, in the format "Point(longitude latitude)"
+   * @param label the label of the location
+   * @return the parsed location, or null if the coordinates are invalid or the label is null
+   * @author 5kyPhy
+   */
   private fun parseLocation(coordinates: String?, label: String?): Location? {
     val match = coordinates?.let { POINT_PATTERN.find(it) }
     return when {
@@ -166,8 +174,6 @@ open class JsonResponseParser {
               latitude = match.groupValues[2].toDouble(),
               name = label,
           )
-
-      label != null -> Location(0.0, 0.0, label)
       else -> null
     }
   }
