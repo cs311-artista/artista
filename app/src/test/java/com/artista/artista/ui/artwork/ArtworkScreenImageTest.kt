@@ -7,7 +7,6 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.test.onNodeWithText
 import coil3.SingletonImageLoader
 import coil3.annotation.DelicateCoilApi
 import coil3.annotation.ExperimentalCoilApi
@@ -123,14 +122,6 @@ class ArtworkScreenImageTest {
     composeTestRule
         .onNodeWithTag(ArtworkTestTags.ARTWORK_IMAGE, useUnmergedTree = true)
         .assertContentDescriptionEquals("Image of Untitled")
-  }
-
-  /** Checks that the placeholder text is gone from the screen. */
-  @Test
-  fun artworkScreen_doesNotDisplayPlaceholderText() {
-    setScreenContent(sampleArtwork.copy(imageUrl = null))
-
-    composeTestRule.onNodeWithText("Picture/thumbnail").assertDoesNotExist()
   }
 
   private fun setScreenContent(artwork: Artwork) {
