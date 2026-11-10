@@ -26,7 +26,8 @@ import com.artista.artista.ui.theme.Dimensions
  * there is no image.
  *
  * @param imageUrl link of the image to download, or null if the artwork has no image
- * @param contentDescription description of the image for accessibility services
+ * @param contentDescription description of the image for accessibility services, applied only once
+ *   the image has loaded
  * @param contentScale how the image is scaled inside the available area
  * @param imageTestTag test tag applied to the image
  * @param fallbackTestTag test tag applied to the fallback icon
@@ -55,7 +56,9 @@ fun ArtworkImage(
     if (imageUrl != null) {
       AsyncImage(
           model = imageUrl,
-          contentDescription = contentDescription,
+          // Only described once loaded: while loading or after a failure the user sees the
+          // fallback icon, so announcing the requested image would describe something not shown.
+          contentDescription = if (isImageLoaded) contentDescription else null,
           modifier = Modifier.fillMaxSize().testTag(imageTestTag),
           contentScale = contentScale,
           onState = { state -> isImageLoaded = state is AsyncImagePainter.State.Success },

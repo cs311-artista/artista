@@ -2,6 +2,9 @@
 package com.artista.artista.ui.artwork
 
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -107,6 +110,21 @@ class ArtworkScreenImageTest {
     composeTestRule
         .onNodeWithTag(ArtworkTestTags.ARTWORK_IMAGE_FALLBACK, useUnmergedTree = true)
         .assertIsDisplayed()
+  }
+
+  /** Checks that an image that fails to download is not described to accessibility services. */
+  @Test
+  fun artworkScreen_whenImageFailsToLoad_hasNoContentDescription() {
+    var imageRequested = false
+    installFakeImageLoader(failingImageEngine(BROKEN_IMAGE_URL) { imageRequested = true })
+
+    setScreenContent(sampleArtwork.copy(imageUrl = BROKEN_IMAGE_URL))
+    composeTestRule.waitUntil(IMAGE_TIMEOUT_MS) { imageRequested }
+    composeTestRule.waitForIdle()
+
+    composeTestRule
+        .onNodeWithTag(ArtworkTestTags.ARTWORK_IMAGE, useUnmergedTree = true)
+        .assert(SemanticsMatcher.keyNotDefined(SemanticsProperties.ContentDescription))
   }
 
   /** Checks that the image description uses the unknown title when the artwork has no name. */
