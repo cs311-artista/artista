@@ -251,6 +251,9 @@ class MapViewModel(
             return@launchCatching
           }
 
+          // Safety net only: entry points should never pass an artwork without a
+          // location If it happens anyway, "no route" is accurate and there is
+          // nothing for the user to retry.
           val destination =
               artwork.location
                   ?: run {
