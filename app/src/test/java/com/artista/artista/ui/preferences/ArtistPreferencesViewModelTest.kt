@@ -501,6 +501,7 @@ class ArtistPreferencesViewModelTest {
 
     assertEquals(R.string.error_network, viewModel.uiState.value.messageResId)
     assertTrue(viewModel.uiState.value.selectedArtists.isEmpty())
+    assertFalse(viewModel.uiState.value.isLoadingSavedArtists)
 
     // The backend is reachable again, as when the user retries after the error.
     userRepository.readFailure = null
@@ -586,26 +587,51 @@ class ArtistPreferencesViewModelTest {
     assertTrue(viewModel.uiState.value.savedArtists.isEmpty())
   }
 
-  /**
-   * Verifies that saving while the stored artists are still loading keeps the saved selection,
-   * instead of letting the late load replace it.
-   */
+  /** Verifies that the loading flag is set while the stored artists load, and reset after. */
   @Test
-  fun save_whileLoading_cancelsLoad() = runTest {
+  fun signIn_whileLoading_isLoadingSavedArtists() = runTest {
     userRepository.store(userWithArtists(listOf(KLIMT.uid)))
-    // Slows both the load and the read made by the save, so the load is still running at the tap.
     userRepository.readDelays[UID] = 1_000
     authRepository.setAuthState(FakeAuthUser(UID))
     // runCurrent starts the load without letting time pass, so it is still waiting on the read.
     runCurrent()
 
-    viewModel.toggleArtist(PICASSO.uid)
-    viewModel.saveSelectedArtists()
+    assertTrue(viewModel.uiState.value.isLoadingSavedArtists)
+
     advanceUntilIdle()
 
-    assertEquals(setOf(PICASSO.uid), viewModel.uiState.value.selectedArtists)
-    assertEquals(setOf(PICASSO.uid), viewModel.uiState.value.savedArtists)
-    assertEquals(listOf(PICASSO.uid), userRepository.storedUser(UID)?.preference?.artists)
+    assertFalse(viewModel.uiState.value.isLoadingSavedArtists)
+  }
+
+  /**
+   * Verifies that a tap made while the stored artists load is ignored, and that the loaded artists
+   * are selected once the load ends.
+   */
+  @Test
+  fun toggleArtist_whileLoading_isIgnored() = runTest {
+    userRepository.store(userWithArtists(listOf(KLIMT.uid)))
+    userRepository.readDelays[UID] = 1_000
+    authRepository.setAuthState(FakeAuthUser(UID))
+    runCurrent()
+
+    viewModel.toggleArtist(PICASSO.uid)
+
+    assertTrue(viewModel.uiState.value.selectedArtists.isEmpty())
+    advanceUntilIdle()
+    assertEquals(setOf(KLIMT.uid), viewModel.uiState.value.selectedArtists)
+  }
+
+  /** Verifies that signing out during a load resets the flag, so the screen is not stuck. */
+  @Test
+  fun signOut_whileLoading_stopsLoading() = runTest {
+    userRepository.readDelays[UID] = 1_000
+    authRepository.setAuthState(FakeAuthUser(UID))
+    runCurrent()
+
+    authRepository.setAuthState(null)
+    advanceUntilIdle()
+
+    assertFalse(viewModel.uiState.value.isLoadingSavedArtists)
   }
 
   /**

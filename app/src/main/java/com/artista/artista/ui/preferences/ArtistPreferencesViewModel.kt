@@ -38,6 +38,8 @@ import kotlinx.coroutines.launch
  * @property savedArtists identifiers of the artists in the last saved selection, compared with
  *   [selectedArtists] to know whether there is anything to save.
  * @property isSaving whether the selection is being saved, during which saving again is disabled.
+ * @property isLoadingSavedArtists whether the stored artists of the signed-in user are loading,
+ *   during which the artists cannot be selected, so a tap is not replaced by the loaded selection.
  * @property messageResId string resource of the message shown once a save succeeds or fails, or
  *   when loading the saved artists fails; null when there is nothing to show.
  * @author Timz3rr, patrickmcdan, krfpn
@@ -48,6 +50,7 @@ data class ArtistPreferencesUiState(
     val searchQuery: String = "",
     val savedArtists: Set<ArtistId> = emptySet(),
     val isSaving: Boolean = false,
+    val isLoadingSavedArtists: Boolean = false,
     @param:StringRes val messageResId: Int? = null,
 ) {
   /**
@@ -136,25 +139,37 @@ class ArtistPreferencesViewModel(
       // is kept. After a sign-out, the previous user's choices are cleared.
       if (signedInUid != null) clearSelection()
       signedInUid = null
+      // The canceled load cannot reset the flag itself, so the screen would stay locked.
+      _uiState.update { it.copy(isLoadingSavedArtists = false) }
       return
     }
     signedInUid = authUser.uid
     // Clears the previous user's selection, so it is not shown while the new one loads.
     clearSelection()
+    _uiState.update { it.copy(isLoadingSavedArtists = true) }
     loadJob =
         viewModelScope.launchCatching(
             tag = TAG,
             onError = { error ->
-              // The selection stays empty, so the screen is still usable. The message warns the
-              // user that saving now could replace artists they saved before.
-              _uiState.update { it.copy(messageResId = error.toMessageRes()) }
+              // The cards are enabled again with an empty selection, so the screen stays usable.
+              // The message warns the user that saving now could replace artists they saved
+              // before.
+              _uiState.update {
+                it.copy(isLoadingSavedArtists = false, messageResId = error.toMessageRes())
+              }
             },
         ) {
           // No profile yet means no saved artists, so the selection stays empty. toSet() keeps the
           // saved order, and artists that are not popular stay selected, so the next save does not
           // drop them.
           val artists = findUser(authUser.uid)?.preference?.artists.orEmpty().toSet()
-          _uiState.update { it.copy(selectedArtists = artists, savedArtists = artists) }
+          _uiState.update {
+            it.copy(
+                selectedArtists = artists,
+                savedArtists = artists,
+                isLoadingSavedArtists = false,
+            )
+          }
         }
   }
 
@@ -166,10 +181,15 @@ class ArtistPreferencesViewModel(
   /**
    * Selects the given artist, or deselects it if it is already selected.
    *
+   * Ignored while the saved artists load.
+   *
    * @param artistId the identifier of the artist to toggle.
-   * @author Timz3rr, patrickmcdan
+   * @author Timz3rr, patrickmcdan, krfpn
    */
   fun toggleArtist(artistId: ArtistId) {
+    // The cards are disabled while loading; checking here keeps the state valid whatever the
+    // caller.
+    if (_uiState.value.isLoadingSavedArtists) return
     _uiState.update { state ->
       val selectedArtists =
           if (artistId in state.selectedArtists) state.selectedArtists - artistId
@@ -202,8 +222,6 @@ class ArtistPreferencesViewModel(
   fun saveSelectedArtists() {
     // Also covers a double tap: the first tap sets isSaving, so the second one is ignored.
     if (!_uiState.value.canSave) return
-    // A load still running would replace the selection being saved with the stored one.
-    loadJob?.cancel()
     // Taken now, so a toggle made while the write runs does not change what is saved.
     val artists = _uiState.value.selectedArtists
     // Nobody signed in (the sign-in screen is still a placeholder, and in the UI tests and the
@@ -224,7 +242,7 @@ class ArtistPreferencesViewModel(
         },
     ) {
       saveArtists(uid, artists.toList())
-      // Reached only when the write succeeded, since a failure jumps to onError. If the user
+      // Reached only when the writing succeeded, since a failure jumps to onError. If the user
       // toggled during the save, the selection now differs from savedArtists, so the button is
       // enabled again for the next save.
       _uiState.update {

@@ -145,6 +145,7 @@ fun ArtistPreferencesScreen(
           ArtistCard(
               artist = artist,
               selected = artist.uid in uiState.selectedArtists,
+              enabled = !uiState.isLoadingSavedArtists,
               onToggle = { artistPreferencesViewModel.toggleArtist(artist.uid) },
           )
         }
@@ -243,14 +244,16 @@ private fun SearchField(query: String, onQueryChange: (String) -> Unit) {
  *
  * @param artist Artist displayed by the card.
  * @param selected Whether the artist is currently selected.
+ * @param enabled Whether the card can be clicked; false while the saved artists load.
  * @param onToggle Callback invoked when the card is clicked.
  */
 @Composable
-private fun ArtistCard(artist: Artist, selected: Boolean, onToggle: () -> Unit) {
+private fun ArtistCard(artist: Artist, selected: Boolean, enabled: Boolean, onToggle: () -> Unit) {
   // A checkable Surface, unlike a clickable one, exposes the on/off state used by assertIsOn.
   Surface(
       checked = selected,
       onCheckedChange = { onToggle() },
+      enabled = enabled,
       modifier =
           Modifier.fillMaxWidth()
               // Lets accessibility services announce the card as a checkbox with its state.
