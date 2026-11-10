@@ -11,7 +11,6 @@ import com.artista.artista.model.artwork.ArtworkType
 import com.artista.artista.model.artwork.SavedArtworksRepository
 import com.artista.artista.model.artwork.SearchArea
 import com.artista.artista.model.artwork.WikiDataRepository
-import com.artista.artista.model.artwork.mockArtworks
 import com.artista.artista.model.error.AppException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
@@ -50,36 +49,40 @@ class SearchScreenViewModelTest {
         )
 
     advanceUntilIdle()
-    viewModel.onSearchInputChanged("thinker", TextRange(2))
+    viewModel.onSearchInputChanged("star", TextRange(2))
     advanceUntilIdle()
 
-    assertEquals("thinker", viewModel.uiState.value.query)
+    assertEquals("star", viewModel.uiState.value.query)
     assertEquals(TextRange(2), viewModel.uiState.value.selection)
-    assertEquals(listOf("mock-001"), viewModel.uiState.value.recommendations.map { it.uid })
+    assertEquals(listOf("starryId"), viewModel.uiState.value.recommendations.map { it.uid })
     assertEquals(
-        listOf("The Thinker"),
+        listOf("The Starry Night"),
         viewModel.uiState.value.recommendations.map { it.name },
     )
     assertTrue(viewModel.uiState.value.artworks.isEmpty())
   }
 
   @Test
-  fun onSearchInputChanged_usesDevelopmentMockArtworksForRecommendations() = runTest {
+  fun onSearchInputChanged_ignoresSavedArtworksWithoutAName() = runTest {
+    val starryNight = SearchTestData.savedArtworks.first { it.uid == "starryId" }
     val viewModel =
         SearchScreenViewModel(
-            SearchTestData.savedArtworksRepository(initialSavedArtworks = emptyList()),
+            SearchTestData.savedArtworksRepository(
+                initialSavedArtworks =
+                    listOf(starryNight, starryNight.copy(uid = "noNameId", name = null))
+            ),
             SearchTestData.wikiDataRepository(),
         )
 
     advanceUntilIdle()
-    viewModel.onSearchInputChanged("blue", TextRange(4))
+    viewModel.onSearchInputChanged("star", TextRange(4))
     advanceUntilIdle()
 
-    assertEquals(listOf("mock-004"), viewModel.uiState.value.recommendations.map { it.uid })
+    assertEquals(listOf("starryId"), viewModel.uiState.value.recommendations.map { it.uid })
   }
 
   @Test
-  fun developmentMockArtworksAreUsedWithoutLoadingSavedArtworks() = runTest {
+  fun unauthorizedSavedArtworkLoad_doesNotPreventSearching() = runTest {
     val savedArtworksRepository =
         object : SavedArtworksRepository by SearchTestData.savedArtworksRepository() {
           override suspend fun getSavedArtworks(): List<Artwork> {
@@ -93,7 +96,7 @@ class SearchScreenViewModelTest {
     viewModel.onSearchSubmitted("star")
     advanceUntilIdle()
 
-    assertEquals(mockArtworks, viewModel.uiState.value.savedArtworks)
+    assertTrue(viewModel.uiState.value.savedArtworks.isEmpty())
     assertEquals(listOf(SearchTestData.starryNight), viewModel.uiState.value.artworks)
     assertFalse(viewModel.uiState.value.isLoading)
   }
@@ -335,7 +338,7 @@ class SearchScreenViewModelTest {
   }
 
   @Test
-  fun toggleSavedArtwork_addsToRepositoryAndKeepsDevelopmentMocksInUiState() = runTest {
+  fun toggleSavedArtwork_addsArtworkToSavedCollection() = runTest {
     val repository = SearchTestData.savedArtworksRepository()
     val viewModel = SearchScreenViewModel(repository, SearchTestData.wikiDataRepository())
     val artwork = SearchTestData.untitledStudy.copy(uid = "newArtworkId", name = "New Artwork")
@@ -344,13 +347,13 @@ class SearchScreenViewModelTest {
     viewModel.toggleSavedArtwork(artwork)
     advanceUntilIdle()
 
-    assertEquals(mockArtworks, viewModel.uiState.value.savedArtworks)
+    assertTrue(viewModel.uiState.value.savedArtworks.any { it.uid == artwork.uid })
     assertTrue(repository.savedArtworks.any { it.uid == artwork.uid && it.name == artwork.name })
   }
 
   @Test
-  fun toggleSavedArtwork_removesFromRepositoryAndKeepsDevelopmentMocksInUiState() = runTest {
-    val artwork = mockArtworks.first()
+  fun toggleSavedArtwork_removesArtworkFromSavedCollectionWhenAlreadySaved() = runTest {
+    val artwork = SearchTestData.starryNight
     val repository = SearchTestData.savedArtworksRepository(listOf(artwork))
     val viewModel = SearchScreenViewModel(repository, SearchTestData.wikiDataRepository())
 
@@ -358,7 +361,7 @@ class SearchScreenViewModelTest {
     viewModel.toggleSavedArtwork(artwork)
     advanceUntilIdle()
 
-    assertEquals(mockArtworks, viewModel.uiState.value.savedArtworks)
+    assertTrue(viewModel.uiState.value.savedArtworks.none { it.uid == artwork.uid })
     assertTrue(repository.savedArtworks.none { it.uid == artwork.uid })
   }
 }
