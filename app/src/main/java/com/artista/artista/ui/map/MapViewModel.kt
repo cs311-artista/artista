@@ -132,6 +132,7 @@ class MapViewModel(
   private val _uiState = MutableStateFlow(MapViewUiState())
   private val _routeUiState = MutableStateFlow<RouteUiState>(RouteUiState.Idle)
   private var routeRequestJob: Job? = null
+  private var artworkLoadJob: Job? = null
 
   /** Exposes the latest map state for reactive UI rendering. */
   val uiStateFlow: StateFlow<MapViewUiState> = _uiState.asStateFlow()
@@ -177,24 +178,26 @@ class MapViewModel(
    * Loads artworks located near the user's current position.
    *
    * @param location center of the geographic artwork search
-   * @author Copilot
+   * @author Felix Burchardt
    */
   private fun loadRemoteArtworks(location: UserLocation) {
-    viewModelScope.launchCatching(
-        tag = MapViewModel::class.java.simpleName,
-        onError = ::setRepositoryError,
-    ) {
-      val artworks =
-          wikiDataRepository.getArtworksNearLocation(
-              searchArea =
-                  SearchArea(
-                      latitude = location.latitude,
-                      longitude = location.longitude,
-                      radiusKm = ARTWORK_SEARCH_RADIUS_KM,
-                  )
-          )
-      _uiState.update { it.copy(remoteArtworks = artworks) }
-    }
+    artworkLoadJob?.cancel()
+    artworkLoadJob =
+        viewModelScope.launchCatching(
+            tag = MapViewModel::class.java.simpleName,
+            onError = ::setRepositoryError,
+        ) {
+          val artworks =
+              wikiDataRepository.getArtworksNearLocation(
+                  searchArea =
+                      SearchArea(
+                          latitude = location.latitude,
+                          longitude = location.longitude,
+                          radiusKm = ARTWORK_SEARCH_RADIUS_KM,
+                      )
+              )
+          _uiState.update { it.copy(remoteArtworks = artworks) }
+        }
   }
 
   private fun setRepositoryError(error: AppException) {
