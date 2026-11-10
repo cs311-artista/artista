@@ -8,7 +8,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -26,6 +25,8 @@ import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -46,6 +47,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -82,6 +84,7 @@ private val PillShape = RoundedCornerShape(percent = 50)
  * @param artistPreferencesViewModel ViewModel providing the artists and the current selection.
  * @author Timz3rr, krfpn
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ArtistPreferencesScreen(
     onBackClick: () -> Unit,
@@ -105,6 +108,24 @@ fun ArtistPreferencesScreen(
   Scaffold(
       modifier = Modifier.fillMaxSize().testTag(ArtistPreferencesTestTags.SCREEN),
       containerColor = MaterialTheme.colorScheme.background,
+      topBar = {
+        CenterAlignedTopAppBar(
+            title = {
+              Text(
+                  text = stringResource(R.string.artist_preferences_title),
+                  style = MaterialTheme.typography.titleLarge,
+                  fontWeight = FontWeight.Bold,
+                  modifier = Modifier.testTag(ArtistPreferencesTestTags.TITLE),
+              )
+            },
+            navigationIcon = {
+              BackButton(
+                  onClick = onBackClick,
+                  modifier = Modifier.testTag(ArtistPreferencesTestTags.BACK_BUTTON),
+              )
+            },
+        )
+      },
       bottomBar = {
         BottomNavigationMenu(selectedTab = Tab.Profile, onTabSelected = onTabSelected)
       },
@@ -119,7 +140,12 @@ fun ArtistPreferencesScreen(
                 ),
         verticalArrangement = Arrangement.spacedBy(Dimensions.artistPreferencesSectionSpacing),
     ) {
-      Header(onBackClick = onBackClick)
+      Text(
+          text = stringResource(R.string.artist_preferences_description),
+          modifier = Modifier.testTag(ArtistPreferencesTestTags.DESCRIPTION),
+          style = MaterialTheme.typography.bodyLarge,
+          color = MaterialTheme.colorScheme.primary,
+      )
       SearchField(
           query = uiState.searchQuery,
           onQueryChange = artistPreferencesViewModel::onSearchQueryChange,
@@ -171,39 +197,6 @@ fun ArtistPreferencesScreen(
         )
       }
     }
-  }
-}
-
-/**
- * Back button, title and description at the top of the screen.
- *
- * @param onBackClick Callback invoked when the back button is clicked.
- */
-@Composable
-private fun Header(onBackClick: () -> Unit) {
-  Column {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-      BackButton(
-          onClick = onBackClick,
-          modifier =
-              Modifier.size(Dimensions.standardTouchTargetSize)
-                  .testTag(ArtistPreferencesTestTags.BACK_BUTTON),
-      )
-      Text(
-          text = stringResource(R.string.artist_preferences_title),
-          modifier = Modifier.testTag(ArtistPreferencesTestTags.TITLE),
-          style = MaterialTheme.typography.headlineMedium,
-          color = MaterialTheme.colorScheme.primary,
-      )
-    }
-    Text(
-        text = stringResource(R.string.artist_preferences_description),
-        modifier =
-            Modifier.padding(start = Dimensions.standardTouchTargetSize)
-                .testTag(ArtistPreferencesTestTags.DESCRIPTION),
-        style = MaterialTheme.typography.bodyLarge,
-        color = MaterialTheme.colorScheme.primary,
-    )
   }
 }
 
