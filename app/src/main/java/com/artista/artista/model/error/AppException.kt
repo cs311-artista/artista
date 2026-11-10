@@ -90,6 +90,16 @@ sealed class AppException(message: String? = null, cause: Throwable? = null) :
   ) : AppException(message, cause)
 
   /**
+   * The user's location could not be accessed.
+   *
+   * @param message details about the failure, meant for logs, if any
+   * @param cause the original failure, if any
+   * @author 5kyPhy
+   */
+  class UserLocationError(message: String? = null, cause: Throwable? = null) :
+      AppException(message, cause)
+
+  /**
    * Any other failure, for which the user has nothing specific to fix.
    *
    * @param message details about the failure, meant for logs, if any

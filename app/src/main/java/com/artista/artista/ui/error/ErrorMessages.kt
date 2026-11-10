@@ -30,5 +30,6 @@ fun AppException.toMessageRes(): Int =
           } else {
             R.string.error_rate_limited_daily
           }
+      is AppException.UserLocationError -> R.string.error_user_location
       is AppException.Unknown -> R.string.error_unknown
     }
