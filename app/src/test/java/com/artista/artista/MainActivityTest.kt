@@ -7,7 +7,6 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.artista.artista.model.authentication.AuthRepository
 import com.artista.artista.model.authentication.AuthRepositoryProvider
 import com.artista.artista.model.authentication.FakeAuthRepository
 import com.artista.artista.resources.C
@@ -38,8 +37,6 @@ class MainActivityTest {
   // and an idling resource bound to the launched activity.
   @get:Rule val composeTestRule = createEmptyComposeRule()
 
-  private lateinit var applicationAuthRepository: AuthRepository
-
   /**
    * Points the application at a signed-out fake session.
    *
@@ -48,27 +45,23 @@ class MainActivityTest {
    * which Robolectric does not provide on its own. Calling [FirebaseApp.initializeApp] again
    * returns the app created by a previous test instead of replacing it, so this is safe to repeat.
    *
-   * The repository the application started with is kept so [tearDown] can put it back: the provider
-   * is process-wide, and leaving the fake in place would decide the session of whichever test runs
-   * next.
-   *
    * @author timo-by
    */
   @Before
   fun setUp() {
     FirebaseApp.initializeApp(InstrumentationRegistry.getInstrumentation().targetContext)
-    applicationAuthRepository = AuthRepositoryProvider.repository
     AuthRepositoryProvider.repository = FakeAuthRepository()
   }
 
   /**
-   * Restores the repository the application started with.
+   * Puts the application's repository back: the provider is process-wide, and leaving the fake in
+   * place would decide the session of whichever test runs next.
    *
    * @author timo-by
    */
   @After
   fun tearDown() {
-    AuthRepositoryProvider.repository = applicationAuthRepository
+    AuthRepositoryProvider.resetToApplicationRepository()
   }
 
   /**

@@ -1,5 +1,7 @@
 package com.artista.artista.model.authentication
 
+import org.junit.After
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertSame
 import org.junit.Test
 
@@ -17,6 +19,16 @@ import org.junit.Test
 class AuthRepositoryProviderTest {
 
   /**
+   * Puts the application's repository back, so the swap of a test does not outlive it.
+   *
+   * @author timo-by
+   */
+  @After
+  fun tearDown() {
+    AuthRepositoryProvider.resetToApplicationRepository()
+  }
+
+  /**
    * Verifies that a repository set on the provider is the one the application reads back, which is
    * how every test (and every caller of the provider) points the app at an in-memory repository.
    *
@@ -29,5 +41,20 @@ class AuthRepositoryProviderTest {
     AuthRepositoryProvider.repository = fake
 
     assertSame(fake, AuthRepositoryProvider.repository)
+  }
+
+  /**
+   * Verifies that resetting the provider discards the installed repository, which is what lets a
+   * test swap in a fake without deciding the session of the tests that follow it.
+   *
+   * @author timo-by
+   */
+  @Test
+  fun resettingToTheApplicationRepositoryDiscardsTheOverride() {
+    AuthRepositoryProvider.repository = FakeAuthRepository()
+
+    AuthRepositoryProvider.resetToApplicationRepository()
+
+    assertFalse(AuthRepositoryProvider.isOverridden)
   }
 }

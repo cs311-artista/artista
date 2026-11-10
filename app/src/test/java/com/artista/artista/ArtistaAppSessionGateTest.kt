@@ -20,6 +20,7 @@ import com.artista.artista.ui.overview.OverviewTestTags
 import com.artista.artista.ui.profile.UserProfileTestTags
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Rule
@@ -58,6 +59,24 @@ class ArtistaAppSessionGateTest {
   fun setUp() {
     repository = FakeAuthRepository()
     credentialProvider = FakeGoogleCredentialProvider(idToken = GOOGLE_ID_TOKEN)
+    // The graph builds the profile screen's ViewModel from the providers rather than from its own
+    // arguments, so both are pointed at fakes here rather than in the test that opens that screen.
+    AuthRepositoryProvider.repository = repository
+    UserRepositoryProvider.resetFakeRepository()
+  }
+
+  /**
+   * Puts the application's repositories back, so the fakes do not outlive this class.
+   *
+   * Both providers are process-wide: a fake left in place would decide the dependencies - and the
+   * session - of whichever test runs next in the same process.
+   *
+   * @author timo-by
+   */
+  @After
+  fun tearDown() {
+    AuthRepositoryProvider.resetToApplicationRepository()
+    UserRepositoryProvider.resetToApplicationRepository()
   }
 
   /**
@@ -133,11 +152,6 @@ class ArtistaAppSessionGateTest {
    */
   @Test
   fun signOutClearsTheViewModelsOfTheGraph() {
-    // The graph builds its own profile screen, so the providers it reads are pointed at fakes. Both
-    // are process-wide, and no other unit test reads them.
-    AuthRepositoryProvider.repository = repository
-    UserRepositoryProvider.resetFakeRepository()
-
     repository.setAuthState(FakeAuthUser(uid = UID))
     showApp()
     composeTestRule.waitForIdle()
