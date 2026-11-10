@@ -1,19 +1,23 @@
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    // There is no catch-all rule, so Firestore denies every path not matched below.
+    // A new collection needs its own rule here before the app can use it.
 
-    // This rule allows anyone with your Firestore database reference to view, edit,
-    // and delete all data in your Firestore database. It is useful for getting
-    // started, but it is configured to expire after 30 days because it
-    // leaves your app open to attackers. At that time, all client
-    // requests to your Firestore database will be denied.
-    //
-    // Make sure to write security rules for your app before that time, or else
-    // all client requests to your Firestore database will be denied until you Update
-    // your rules
-    match /{document=**} {
-      allow read, write: if request.time < timestamp.date(2027, 1, 1);
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    match /Users/{uid} {
+      allow read, delete: if isOwner(uid);
+      // The app reads the uid field as the user's identity, so it must match the document id.
+      allow create, update: if isOwner(uid) && request.resource.data.uid == uid;
+
+      match /saved_artworks/{artworkId} {
+        allow read, write: if isOwner(uid);
+      }
     }
   }
 }

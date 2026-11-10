@@ -6,6 +6,7 @@ import com.artista.artista.model.error.AppException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 
 /**
@@ -16,7 +17,7 @@ import kotlinx.coroutines.launch
  * [AppException.Unknown], with the original failure as its cause. Every failure is logged.
  *
  * @param tag the log tag of the caller, usually its class name
- * @param onError called with the failure when [block] throws
+ * @param onError called with the failure when [block] throws, unless the coroutine was cancelled
  * @param block the work to run
  * @return the launched job, e.g. to cancel a load that a newer one replaces
  * @author Timz3rr
@@ -33,9 +34,13 @@ fun CoroutineScope.launchCatching(
     // CancellationException extends Exception, so it must be rethrown before the catches below.
     throw exception
   } catch (exception: AppException) { // one of the artista exeption
+    // A failure already on its way when the coroutine is cancelled arrives as itself and not as a
+    // CancellationException. Whoever cancelled has moved on, so reporting it would undo their work.
+    ensureActive()
     Log.e(tag, "Operation failed.", exception)
     onError(exception)
   } catch (exception: Exception) { // else, all other exeptions
+    ensureActive()
     Log.e(tag, "Unexpected failure.", exception)
     onError(AppException.Unknown(exception.message, exception))
   }

@@ -51,6 +51,7 @@ import com.artista.artista.model.authentication.AuthUser
 import com.artista.artista.model.user.User
 import com.artista.artista.model.user.UserPreference
 import com.artista.artista.model.user.UserRepositoryLocal
+import com.artista.artista.model.user.UsernameCacheInMemory
 import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaTheme
@@ -381,9 +382,10 @@ private fun EditUsernameDialog(
 @Composable
 internal fun UserProfileScreenPreview() {
   val viewModel = remember {
-    UserProfileViewModel(PreviewAuthRepository, UserRepositoryLocal()).apply {
-      setUser(User(uid = "preview", userName = "Artista Fan", preference = UserPreference()))
-    }
+    UserProfileViewModel(PreviewAuthRepository, UserRepositoryLocal(), UsernameCacheInMemory())
+        .apply {
+          setUser(User(uid = "preview", userName = "Artista Fan", preference = UserPreference()))
+        }
   }
   ArtistaTheme { UserProfileScreen(onLogoutClick = {}, userProfileViewModel = viewModel) }
 }
