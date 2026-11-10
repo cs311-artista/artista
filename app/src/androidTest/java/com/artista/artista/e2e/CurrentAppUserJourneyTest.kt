@@ -1,4 +1,5 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+// Co-authored-by: DeepSeek Flash
 package com.artista.artista.e2e
 
 import androidx.activity.ComponentActivity
@@ -19,9 +20,12 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.artista.artista.ArtistaApp
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.artwork.mockArtworks
+import com.artista.artista.model.authentication.FakeAuthRepository
 import com.artista.artista.resources.C
 import com.artista.artista.ui.artwork.ArtworkTestTags
 import com.artista.artista.ui.artwork.SavedArtworksTestTags
+import com.artista.artista.ui.authentication.AuthViewModel
+import com.artista.artista.ui.authentication.FakeGoogleCredentialProvider
 import com.artista.artista.ui.map.MapScreenTestTags
 import com.artista.artista.ui.navigation.NavigationTestTags
 import com.artista.artista.ui.navigation.Tab
@@ -53,6 +57,14 @@ class CurrentAppUserJourneyTest {
 
   private val timeoutMillis = 5_000L
 
+  // The journey signs in and out for real, so it goes through the real AuthViewModel; only the two
+  // seams behind it are faked, since no test can drive Credential Manager's account chooser and
+  // Firebase would need a network. Both are built outside the composition, as the application root
+  // only needs the state the ViewModel exposes.
+  private val authViewModel = AuthViewModel(FakeAuthRepository())
+
+  private val credentialProvider = FakeGoogleCredentialProvider()
+
   @Before
   fun setUp() {
     val mockRepository = ArtworkRepositoryProvider.mockRepository
@@ -62,6 +74,8 @@ class CurrentAppUserJourneyTest {
 
     composeTestRule.setContent {
       ArtistaApp(
+          authViewModel = authViewModel,
+          credentialProvider = credentialProvider,
           wikiDataRepository = mockRepository,
           savedArtworksRepository = mockRepository,
       )
@@ -78,10 +92,13 @@ class CurrentAppUserJourneyTest {
    */
   @Test
   fun currentUserJourney_signsInReachesEveryScreen() {
-    // Start on authentication and verify that signing in opens Overview.
+    // Start on authentication and verify that signing in opens Overview. Signing in is asynchronous
+    // now that it goes through the repository, so the assertion waits for the gate to swap screens.
     composeTestRule.onNodeWithTag(C.Tag.auth_screen_container).assertIsDisplayed()
     composeTestRule.onNodeWithTag(C.Tag.auth_google_sign_in_button).performClick()
-    composeTestRule.waitForIdle()
+    composeTestRule.waitUntil(timeoutMillis) {
+      composeTestRule.onAllNodesWithTag(OverviewTestTags.SCREEN).fetchSemanticsNodes().isNotEmpty()
+    }
     composeTestRule.onNodeWithTag(OverviewTestTags.SCREEN).assertIsDisplayed()
 
     // Visit the screens reachable from Overview and verify each return path.
@@ -110,10 +127,17 @@ class CurrentAppUserJourneyTest {
     composeTestRule.onNodeWithTag(UserProfileTestTags.SCREEN).assertIsDisplayed()
     composeTestRule.onNodeWithTag(NavigationTestTags.getTabTestTag(Tab.Profile)).assertIsSelected()
 
-    // Log-out through profile screen and check that it returns to log-in screen
+    // Log-out through profile screen and check that it returns to log-in screen. The logout signs
+    // out through the repository, so the gate, not a navigation action, brings the sign-in screen
+    // back.
     composeTestRule.onNodeWithTag(UserProfileTestTags.LOGOUT_BUTTON).assertIsDisplayed()
     composeTestRule.onNodeWithTag(UserProfileTestTags.LOGOUT_BUTTON).performClick()
-    composeTestRule.waitForIdle()
+    composeTestRule.waitUntil(timeoutMillis) {
+      composeTestRule
+          .onAllNodesWithTag(C.Tag.auth_screen_container)
+          .fetchSemanticsNodes()
+          .isNotEmpty()
+    }
     composeTestRule.onNodeWithTag(C.Tag.auth_screen_container).assertIsDisplayed()
   }
 

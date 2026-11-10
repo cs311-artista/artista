@@ -1,5 +1,6 @@
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+// Co-authored-by: DeepSeek Flash
 package com.artista.artista
 
 import android.os.Bundle
@@ -9,10 +10,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
+import androidx.lifecycle.viewmodel.compose.rememberViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -34,8 +39,11 @@ import com.artista.artista.ui.artwork.ArtworkScreen
 import com.artista.artista.ui.artwork.ArtworkScreenViewModel
 import com.artista.artista.ui.artwork.SavedArtworksScreen
 import com.artista.artista.ui.artwork.SavedArtworksViewModel
-import com.artista.artista.ui.authentication.AuthScreenContent
-import com.artista.artista.ui.authentication.AuthUiState
+import com.artista.artista.ui.authentication.AuthScreen
+import com.artista.artista.ui.authentication.AuthSession
+import com.artista.artista.ui.authentication.AuthViewModel
+import com.artista.artista.ui.authentication.GoogleCredentialProvider
+import com.artista.artista.ui.authentication.rememberGoogleCredentialProvider
 import com.artista.artista.ui.map.MapScreen
 import com.artista.artista.ui.map.MapViewModel
 import com.artista.artista.ui.navigation.NavigationActions
@@ -51,7 +59,7 @@ import com.artista.artista.ui.search.SearchScreenViewModel
 import com.artista.artista.ui.theme.ArtistaTheme
 
 /**
- * Hosts the Artista app's root navigation graph.
+ * Hosts the Artista app's root composition, and through it the navigation graph.
  *
  * @author hixeum
  */
@@ -82,48 +90,111 @@ class MainActivity : ComponentActivity() {
 }
 
 /**
- * Displays the root navigation graph, starting with authentication.
+ * Root of the application: gates the navigation graph on the authentication session.
  *
- * @param navController Controller used to manage destinations in the root graph.
- * @param startDestination Route displayed when the graph is first opened.
+ * The session, not a destination of the graph, decides what is displayed, so the three situations
+ * it can be in map to three compositions instead of three entries in a back stack:
+ *
+ * - [AuthSession.Restoring]: the repository has not reported the persisted session yet, so nothing
+ *   is drawn. The [Surface] of [MainActivity] already paints the app background, so the handover
+ *   from the system splash screen stays invisible, and a user who is signed in already is never
+ *   offered a sign-in.
+ * - [AuthSession.SignedOut]: the sign-in screen. It reports nothing when a sign-in succeeds; the
+ *   session turning [AuthSession.SignedIn] replaces the composition.
+ * - [AuthSession.SignedIn]: the navigation graph.
+ *
+ * Because the graph is only composed while a user is signed in, signing out - from the profile
+ * screen, or because Firebase revoked the session - removes it along with its back stack. The next
+ * sign-in therefore starts from Overview instead of restoring whichever screen the previous user
+ * had left open.
+ *
+ * Removing the graph is not enough to remove what it holds: [NavHost] keeps the destinations'
+ * ViewModels in a store owned by the nearest [LocalViewModelStoreOwner], which is the activity
+ * here. Dropping the graph pops nothing, and a back stack entry's ViewModel is only cleared when it
+ * is popped, so those ViewModels - and the collectors they run - would outlive the sign-out that
+ * made them useless, and would keep reacting to the next user's session. The graph is therefore
+ * given a store of its own, scoped to this branch, which is cleared with it.
+ *
+ * @param authViewModel the authentication ViewModel holding the session; injectable so a test can
+ *   drive the gate with a fake repository
+ * @param credentialProvider the seam used to obtain a Google ID token; injectable so a test never
+ *   reaches the real account chooser
+ * @param wikiDataRepository source of the artworks
+ * @param savedArtworksRepository storage of the saved artworks
  * @author hixeum
  */
 @Composable
 fun ArtistaApp(
+    authViewModel: AuthViewModel =
+        viewModel(factory = AuthViewModel.provideFactory(AuthRepositoryProvider.repository)),
+    credentialProvider: GoogleCredentialProvider = rememberGoogleCredentialProvider(),
+    wikiDataRepository: WikiDataRepository = ArtworkRepositoryProvider.wikiDataRepository,
+    savedArtworksRepository: SavedArtworksRepository =
+        ArtworkRepositoryProvider.savedArtworksRepository,
+) {
+  val state by authViewModel.uiState.collectAsStateWithLifecycle()
+
+  when (state.session) {
+    // Nothing yet: the background of the activity is all this state should show.
+    AuthSession.Restoring -> Unit
+    AuthSession.SignedOut ->
+        AuthScreen(viewModel = authViewModel, credentialProvider = credentialProvider)
+    is AuthSession.SignedIn -> {
+      // Scoping the graph's ViewModelStore to this composition is what makes dropping the graph
+      // clear it: it is cleared when the owner leaves, whereas the activity's store would keep the
+      // destinations' ViewModels (and their running collectors) until the activity dies.
+      val graphViewModelStoreOwner = rememberViewModelStoreOwner()
+      CompositionLocalProvider(LocalViewModelStoreOwner provides graphViewModelStoreOwner) {
+        ArtistaNavHost(
+            onLogout = authViewModel::signOut,
+            wikiDataRepository = wikiDataRepository,
+            savedArtworksRepository = savedArtworksRepository,
+        )
+      }
+    }
+  }
+}
+
+/**
+ * Displays the navigation graph of the signed-in application.
+ *
+ * Composed only by [ArtistaApp], once a user is signed in: it holds no authentication logic of its
+ * own, and reports the logout intent through [onLogout] instead of navigating to a sign-in
+ * destination, because there is no such destination to return to.
+ *
+ * @param onLogout invoked when the user asks to sign out
+ * @param navController Controller used to manage destinations in the root graph.
+ * @param startDestination Route displayed when the graph is first opened.
+ * @param wikiDataRepository source of the artworks
+ * @param savedArtworksRepository storage of the saved artworks
+ * @author hixeum
+ */
+@Composable
+fun ArtistaNavHost(
+    onLogout: () -> Unit,
     navController: NavHostController = rememberNavController(),
-    startDestination: String = Screen.Auth.route,
+    // The start destination has to be a direct child of the root graph, and Overview lives in the
+    // nested graph of its tab, so the graph route is used rather than Screen.Overview.route.
+    startDestination: String = OVERVIEW_GRAPH_ROUTE,
     wikiDataRepository: WikiDataRepository = ArtworkRepositoryProvider.wikiDataRepository,
     savedArtworksRepository: SavedArtworksRepository =
         ArtworkRepositoryProvider.savedArtworksRepository,
 ) {
   val navigationActions = remember { NavigationActions(navController) }
-  // Read here, outside the NavHost, where the owner is the Activity: inside a destination it is the
-  // navigation entry, which the bottom bar discards on every tab change.
-  val activityViewModelOwner =
-      checkNotNull(LocalViewModelStoreOwner.current) { "ArtistaApp needs a ViewModelStoreOwner" }
+  // Read here, outside the NavHost, where the owner is the store [ArtistaApp] scopes to the graph:
+  // inside a destination it is the navigation entry, which the bottom bar discards on every tab
+  // change.
+  val graphViewModelStoreOwner =
+      checkNotNull(LocalViewModelStoreOwner.current) {
+        "ArtistaNavHost needs a ViewModelStoreOwner"
+      }
 
   NavHost(navController = navController, startDestination = startDestination) {
 
-    // 1. Auth Flow
-    composable(Screen.Auth.route) {
-      AuthScreenContent(
-          state = AuthUiState(),
-          // This placeholder renders nothing from the credential seam, so it has no outcome to
-          // show.
-          credentialErrorMessageRes = null,
-          onSignInClick = {
-            navController.navigate(Screen.Overview.route) {
-              popUpTo(Screen.Auth.route) { inclusive = true }
-            }
-          },
-          onSignedIn = {},
-      )
-    }
-
-    // 2. Overview Tab Flow
+    // 1. Overview Tab Flow
     navigation(
         startDestination = Screen.Overview.route,
-        route = "overview_graph",
+        route = OVERVIEW_GRAPH_ROUTE,
     ) {
       composable(Screen.Overview.route) {
         OverviewScreen(
@@ -190,10 +261,10 @@ fun ArtistaApp(
         UserProfileScreen(
             userProfileViewModel =
                 viewModel(
-                    // Outlives the tab changes: until the Google sign-in is wired, nobody is signed
-                    // in, so the ViewModel is the only place holding a renamed username. Once
-                    // signed in, it also avoids reading the profile again on every return.
-                    viewModelStoreOwner = activityViewModelOwner,
+                    // Outlives the tab changes: the ViewModel is where a username renamed in the
+                    // profile screens is held, and keeping it also avoids reading the profile again
+                    // on every return.
+                    viewModelStoreOwner = graphViewModelStoreOwner,
                     factory =
                         UserProfileViewModel.provideFactory(
                             authRepository = AuthRepositoryProvider.repository,
@@ -204,12 +275,7 @@ fun ArtistaApp(
                                 ),
                         ),
                 ),
-            onLogoutClick = {
-              navController.navigate(Screen.Auth.route) {
-                popUpTo(0) { inclusive = true }
-                launchSingleTop = true
-              }
-            },
+            onLogoutClick = onLogout,
             onPreferencesClick = { navController.navigate(Screen.ArtistPreferences.route) },
             onSavedArtworkClick = { navController.navigate(Screen.SavedArtworks.route) },
             onTabSelected = { tab -> navigationActions.navigateTo(tab.destination) },
@@ -269,3 +335,11 @@ fun ArtistaApp(
     }
   }
 }
+
+/**
+ * Route of the nested graph holding the Overview tab and the screens opened from it.
+ *
+ * Named rather than repeated as a literal because it is both the route of that graph and the
+ * destination the signed-in application starts on.
+ */
+private const val OVERVIEW_GRAPH_ROUTE = "overview_graph"

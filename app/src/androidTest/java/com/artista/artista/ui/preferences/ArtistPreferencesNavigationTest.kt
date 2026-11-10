@@ -8,7 +8,7 @@ import androidx.compose.ui.test.performClick
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.artista.artista.ArtistaApp
+import com.artista.artista.ArtistaNavHost
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.ui.navigation.Screen
 import com.artista.artista.ui.profile.UserProfileTestTags
@@ -18,6 +18,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+// Co-authored-by: DeepSeek Flash
 /**
  * Verifies navigation to and from the artist preferences screen.
  *
@@ -38,7 +39,8 @@ class ArtistPreferencesNavigationTest {
     lateinit var navController: NavHostController
     composeTestRule.setContent {
       navController = rememberNavController()
-      ArtistaApp(
+      ArtistaNavHost(
+          onLogout = {},
           navController = navController,
           startDestination = PROFILE_GRAPH_ROUTE,
           wikiDataRepository = ArtworkRepositoryProvider.mockRepository,

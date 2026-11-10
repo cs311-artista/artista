@@ -14,7 +14,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.artista.artista.ArtistaApp
+import com.artista.artista.ArtistaNavHost
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
 import com.artista.artista.model.artwork.mockArtworks
 import com.artista.artista.ui.artwork.ArtworkCardTestTag
@@ -29,6 +29,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+// Co-authored-by: DeepSeek Flash
 /**
  * Verifies navigation actions originating from the Overview screen.
  *
@@ -64,7 +65,8 @@ class OverviewScreenNavigationTest {
     lateinit var navController: NavHostController
     composeTestRule.setContent {
       navController = rememberNavController()
-      ArtistaApp(
+      ArtistaNavHost(
+          onLogout = {},
           navController = navController,
           startDestination = OVERVIEW_GRAPH_ROUTE,
           wikiDataRepository = repository,
@@ -100,7 +102,8 @@ class OverviewScreenNavigationTest {
       lateinit var navController: NavHostController
       composeTestRule.setContent {
         navController = rememberNavController()
-        ArtistaApp(
+        ArtistaNavHost(
+            onLogout = {},
             navController = navController,
             startDestination = OVERVIEW_GRAPH_ROUTE,
             wikiDataRepository = repository,
@@ -134,7 +137,8 @@ class OverviewScreenNavigationTest {
     lateinit var navController: NavHostController
     composeTestRule.setContent {
       navController = rememberNavController()
-      ArtistaApp(
+      ArtistaNavHost(
+          onLogout = {},
           navController = navController,
           startDestination = OVERVIEW_GRAPH_ROUTE,
           wikiDataRepository = repository,

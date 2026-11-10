@@ -229,11 +229,7 @@ class AuthScreenTest {
 
   private fun showScreen() {
     composeTestRule.setContent {
-      AuthScreen(
-          viewModel = viewModel,
-          credentialProvider = credentialProvider,
-          onSignedIn = {},
-      )
+      AuthScreen(viewModel = viewModel, credentialProvider = credentialProvider)
     }
   }
 

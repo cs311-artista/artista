@@ -4,6 +4,7 @@ package com.artista.artista.ui.authentication
 
 import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.artista.artista.model.authentication.AuthRepository
 import com.artista.artista.model.authentication.AuthUser
@@ -214,8 +215,32 @@ class AuthViewModel(private val repository: AuthRepository) : ViewModel() {
     _uiState.update { it.copy(repositoryErrorMessageRes = error.toMessageRes()) }
   }
 
+  /** Holds the log tag and the factory that creates [AuthViewModel]. */
   companion object {
     /** Log tag identifying messages emitted by [AuthViewModel]. */
     private const val TAG = "AuthViewModel"
+
+    /**
+     * Creates a factory for an [AuthViewModel] with its repository dependency.
+     *
+     * The application builds the ViewModel from
+     * [com.artista.artista.model.authentication.AuthRepositoryProvider.repository], the same way
+     * the other screens are given their repositories; the factory is what keeps that choice in the
+     * composition root, so the UI layer only ever names the [AuthRepository] interface.
+     *
+     * @param repository the authentication repository
+     * @return a factory that creates [AuthViewModel] instances
+     * @author timo-by
+     */
+    fun provideFactory(repository: AuthRepository): ViewModelProvider.Factory =
+        object : ViewModelProvider.Factory {
+          @Suppress("UNCHECKED_CAST")
+          override fun <T : ViewModel> create(modelClass: Class<T>): T {
+            if (modelClass.isAssignableFrom(AuthViewModel::class.java)) {
+              return AuthViewModel(repository) as T
+            }
+            throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
+          }
+        }
   }
 }
