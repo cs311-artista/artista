@@ -13,6 +13,7 @@ import com.artista.artista.model.artwork.ArtworkType
 import com.artista.artista.model.artwork.SavedArtworksRepository
 import com.artista.artista.model.artwork.SearchArea
 import com.artista.artista.model.artwork.WikiDataRepository
+import com.artista.artista.model.error.AppException
 import com.artista.artista.model.map.UserLocation
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.tasks.Tasks
@@ -42,7 +43,7 @@ class MapViewModelTest {
   @Test
   fun updateUserLocation_storesLocationAndClearsError() {
     val viewModel = createViewModel()
-    viewModel.setLocationError(R.string.map_location_acquisition_error)
+    viewModel.setLocationError(AppException.UserLocationError())
 
     val location = UserLocation(latitude = 46.5201, longitude = 6.6332)
     viewModel.updateUserLocation(location)
@@ -62,10 +63,10 @@ class MapViewModelTest {
     val location = UserLocation(latitude = 46.5201, longitude = 6.6332)
     viewModel.updateUserLocation(location)
 
-    viewModel.setLocationError(R.string.map_location_unavailable_error)
+    viewModel.setLocationError(AppException.UserLocationError())
 
     assertEquals(location, viewModel.uiState.userLocation)
-    assertEquals(R.string.map_location_unavailable_error, viewModel.uiState.errorMsg)
+    assertEquals(R.string.error_user_location, viewModel.uiState.errorMsg)
   }
 
   /** Verifies that a successful location request stores the acquired coordinates. */
@@ -91,7 +92,7 @@ class MapViewModelTest {
 
     viewModel.acquireLocation(locationClient)
 
-    assertEquals(R.string.map_location_unavailable_error, viewModel.uiState.errorMsg)
+    assertEquals(R.string.error_user_location, viewModel.uiState.errorMsg)
   }
 
   /** Verifies that a failed location request exposes the acquisition error. */
@@ -102,7 +103,7 @@ class MapViewModelTest {
 
     viewModel.acquireLocation(locationClient)
 
-    assertEquals(R.string.map_location_acquisition_error, viewModel.uiState.errorMsg)
+    assertEquals(R.string.error_user_location, viewModel.uiState.errorMsg)
   }
 
   @Test

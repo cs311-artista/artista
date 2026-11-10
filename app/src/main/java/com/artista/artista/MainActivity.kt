@@ -174,6 +174,8 @@ fun ArtistaApp(
             mapViewModel =
                 viewModel(
                     factory =
+                        // Leave locationProvider unset in production; MapViewModel uses the
+                        // fused-location client. Tests inject a LocationProvider instead.
                         MapViewModel.provideFactory(wikiDataRepository, savedArtworksRepository)
                 ),
             onNavigationBarTabSelected = { tab -> navigationActions.navigateTo(tab.destination) },

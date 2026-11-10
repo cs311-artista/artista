@@ -12,6 +12,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.map.UserLocation
+import com.artista.artista.ui.location.USER_LOCATION_PERMISSIONS
 import com.artista.artista.ui.navigation.NavigationTestTags
 import com.artista.artista.ui.theme.ArtistaTheme
 import org.junit.After
@@ -37,7 +38,7 @@ class MapScreenTest {
   @Before
   fun grantLocationPermissions() {
     instrumentation.uiAutomation.adoptShellPermissionIdentity()
-    REQUIRED_LOCATION_PERMISSIONS.forEach { permission ->
+    USER_LOCATION_PERMISSIONS.forEach { permission ->
       instrumentation.uiAutomation.grantRuntimePermission(
           instrumentation.targetContext.packageName,
           permission,
