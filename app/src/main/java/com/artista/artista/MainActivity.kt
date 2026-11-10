@@ -162,23 +162,27 @@ fun ArtistaApp(
  * own, and reports the logout intent through [onLogout] instead of navigating to a sign-in
  * destination, because there is no such destination to return to.
  *
+ * The repositories are required rather than defaulted, unlike those of [ArtistaApp]: the graph is
+ * then a function of its arguments only, so a test composes it without reading - or having to
+ * initialise - the repositories of the application. The root keeps the defaults, because it is the
+ * single place that chooses the application's implementations.
+ *
  * @param onLogout invoked when the user asks to sign out
- * @param navController Controller used to manage destinations in the root graph.
- * @param startDestination Route displayed when the graph is first opened.
  * @param wikiDataRepository source of the artworks
  * @param savedArtworksRepository storage of the saved artworks
+ * @param navController Controller used to manage destinations in the root graph.
+ * @param startDestination Route displayed when the graph is first opened.
  * @author hixeum
  */
 @Composable
 fun ArtistaNavHost(
     onLogout: () -> Unit,
+    wikiDataRepository: WikiDataRepository,
+    savedArtworksRepository: SavedArtworksRepository,
     navController: NavHostController = rememberNavController(),
     // The start destination has to be a direct child of the root graph, and Overview lives in the
     // nested graph of its tab, so the graph route is used rather than Screen.Overview.route.
     startDestination: String = OVERVIEW_GRAPH_ROUTE,
-    wikiDataRepository: WikiDataRepository = ArtworkRepositoryProvider.wikiDataRepository,
-    savedArtworksRepository: SavedArtworksRepository =
-        ArtworkRepositoryProvider.savedArtworksRepository,
 ) {
   val navigationActions = remember { NavigationActions(navController) }
   // Read here, outside the NavHost, where the owner is the store [ArtistaApp] scopes to the graph:

@@ -38,6 +38,10 @@ class UserProfileScreenNavigationTest {
 
   @get:Rule val composeTestRule = createAndroidComposeRule<ComponentActivity>()
 
+  // Owned by the test rather than read from the application: the graph now takes its repositories
+  // as arguments, so nothing here touches the providers the application configures.
+  private val artworkRepository = ArtworkRepositoryLocal()
+
   /**
    * Verifies that tapping the profile logout button reports the logout intent to the caller.
    *
@@ -56,6 +60,8 @@ class UserProfileScreenNavigationTest {
       navController = rememberNavController()
       ArtistaNavHost(
           onLogout = { logoutCount++ },
+          wikiDataRepository = artworkRepository,
+          savedArtworksRepository = artworkRepository,
           navController = navController,
           startDestination = PROFILE_GRAPH_ROUTE,
       )
@@ -82,6 +88,8 @@ class UserProfileScreenNavigationTest {
       navController = rememberNavController()
       ArtistaNavHost(
           onLogout = {},
+          wikiDataRepository = artworkRepository,
+          savedArtworksRepository = artworkRepository,
           navController = navController,
           startDestination = PROFILE_GRAPH_ROUTE,
       )

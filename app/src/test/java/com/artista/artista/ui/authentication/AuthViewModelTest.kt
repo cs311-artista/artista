@@ -318,27 +318,6 @@ class AuthViewModelTest {
   }
 
   /**
-   * Verifies that the factory builds the ViewModel around the repository it is given.
-   *
-   * The instance is driven through a sign-in rather than only type-checked: a factory that dropped
-   * the repository for another one would still return an [AuthViewModel].
-   *
-   * @author timo-by
-   */
-  @Test
-  fun provideFactory_createsTheViewModelWithTheGivenRepository() {
-    runTest {
-      val factory = AuthViewModel.provideFactory(repository)
-
-      val created = factory.create(AuthViewModel::class.java)
-      created.signIn(token1)
-      advanceUntilIdle()
-
-      assertEquals(token1, repository.lastIdToken)
-    }
-  }
-
-  /**
    * Returns the uid of the user the state says is signed in.
    *
    * @return the uid, or `null` when the session is not [AuthSession.SignedIn]

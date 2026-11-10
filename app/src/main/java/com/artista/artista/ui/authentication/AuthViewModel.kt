@@ -6,6 +6,8 @@ import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import com.artista.artista.model.authentication.AuthRepository
 import com.artista.artista.model.authentication.AuthUser
 import com.artista.artista.model.error.AppException
@@ -232,15 +234,8 @@ class AuthViewModel(private val repository: AuthRepository) : ViewModel() {
      * @return a factory that creates [AuthViewModel] instances
      * @author timo-by
      */
-    fun provideFactory(repository: AuthRepository): ViewModelProvider.Factory =
-        object : ViewModelProvider.Factory {
-          @Suppress("UNCHECKED_CAST")
-          override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            if (modelClass.isAssignableFrom(AuthViewModel::class.java)) {
-              return AuthViewModel(repository) as T
-            }
-            throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
-          }
-        }
+    fun provideFactory(repository: AuthRepository): ViewModelProvider.Factory = viewModelFactory {
+      initializer { AuthViewModel(repository) }
+    }
   }
 }
