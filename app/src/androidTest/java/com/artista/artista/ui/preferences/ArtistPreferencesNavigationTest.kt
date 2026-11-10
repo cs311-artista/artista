@@ -10,6 +10,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.artista.artista.ArtistaNavHost
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
+import com.artista.artista.resources.C
 import com.artista.artista.ui.navigation.Screen
 import com.artista.artista.ui.profile.UserProfileTestTags
 import org.junit.Assert.assertEquals
@@ -42,7 +43,7 @@ class ArtistPreferencesNavigationTest {
       ArtistaNavHost(
           onLogout = {},
           navController = navController,
-          startDestination = PROFILE_GRAPH_ROUTE,
+          startDestination = C.Constants.PROFILE_GRAPH_ROUTE,
           wikiDataRepository = ArtworkRepositoryProvider.mockRepository,
           savedArtworksRepository = ArtworkRepositoryProvider.mockRepository,
       )
@@ -57,9 +58,5 @@ class ArtistPreferencesNavigationTest {
     composeTestRule.runOnIdle {
       assertEquals(Screen.Profile.route, navController.currentDestination?.route)
     }
-  }
-
-  private companion object {
-    const val PROFILE_GRAPH_ROUTE = "profile_graph"
   }
 }

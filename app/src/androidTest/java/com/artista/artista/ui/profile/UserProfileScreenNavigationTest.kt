@@ -18,6 +18,7 @@ import com.artista.artista.ArtistaNavHost
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
 import com.artista.artista.model.authentication.AuthRepositoryProvider
 import com.artista.artista.model.authentication.FakeAuthRepository
+import com.artista.artista.resources.C
 import com.artista.artista.ui.artwork.SavedArtworksTestTags
 import com.artista.artista.ui.navigation.NavigationTestTags
 import com.artista.artista.ui.navigation.Screen
@@ -63,7 +64,7 @@ class UserProfileScreenNavigationTest {
           wikiDataRepository = artworkRepository,
           savedArtworksRepository = artworkRepository,
           navController = navController,
-          startDestination = PROFILE_GRAPH_ROUTE,
+          startDestination = C.Constants.PROFILE_GRAPH_ROUTE,
       )
     }
 
@@ -91,7 +92,7 @@ class UserProfileScreenNavigationTest {
           wikiDataRepository = artworkRepository,
           savedArtworksRepository = artworkRepository,
           navController = navController,
-          startDestination = PROFILE_GRAPH_ROUTE,
+          startDestination = C.Constants.PROFILE_GRAPH_ROUTE,
       )
     }
 
@@ -120,7 +121,6 @@ class UserProfileScreenNavigationTest {
    */
   @Test
   fun renamedUsername_isStillDisplayedAfterSwitchingTabs() {
-    val realAuthRepository = AuthRepositoryProvider.repository
     // Signed out, so the profile ViewModel has no stored name to read back: the name only lives in
     // the ViewModel, and is lost as soon as the ViewModel is.
     AuthRepositoryProvider.repository = FakeAuthRepository()
@@ -131,7 +131,7 @@ class UserProfileScreenNavigationTest {
         // would show the sign-in screen instead of the profile this test drives.
         ArtistaNavHost(
             onLogout = {},
-            startDestination = PROFILE_GRAPH_ROUTE,
+            startDestination = C.Constants.PROFILE_GRAPH_ROUTE,
             wikiDataRepository = artworkRepository,
             savedArtworksRepository = artworkRepository,
         )
@@ -150,13 +150,11 @@ class UserProfileScreenNavigationTest {
 
       composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME).assertTextEquals(NEW_USERNAME)
     } finally {
-      AuthRepositoryProvider.repository = realAuthRepository
+      AuthRepositoryProvider.resetToApplicationRepository()
     }
   }
 
   private companion object {
-    const val PROFILE_GRAPH_ROUTE = "profile_graph"
-
     /** Name entered in the edit dialog, different from the placeholder shown by default. */
     const val NEW_USERNAME = "Claude Monet"
   }

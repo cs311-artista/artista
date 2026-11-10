@@ -35,6 +35,7 @@ import com.artista.artista.model.authentication.AuthRepositoryProvider
 import com.artista.artista.model.user.UserRepositoryProvider
 import com.artista.artista.model.user.UsernameCacheDataStore
 import com.artista.artista.model.user.usernameDataStore
+import com.artista.artista.resources.C
 import com.artista.artista.ui.artwork.ArtworkScreen
 import com.artista.artista.ui.artwork.ArtworkScreenViewModel
 import com.artista.artista.ui.artwork.SavedArtworksScreen
@@ -182,7 +183,7 @@ fun ArtistaNavHost(
     navController: NavHostController = rememberNavController(),
     // The start destination has to be a direct child of the root graph, and Overview lives in the
     // nested graph of its tab, so the graph route is used rather than Screen.Overview.route.
-    startDestination: String = OVERVIEW_GRAPH_ROUTE,
+    startDestination: String = C.Constants.OVERVIEW_GRAPH_ROUTE,
 ) {
   val navigationActions = remember { NavigationActions(navController) }
   // Read here, outside the NavHost, where the owner is the store [ArtistaApp] scopes to the graph:
@@ -198,7 +199,7 @@ fun ArtistaNavHost(
     // 1. Overview Tab Flow
     navigation(
         startDestination = Screen.Overview.route,
-        route = OVERVIEW_GRAPH_ROUTE,
+        route = C.Constants.OVERVIEW_GRAPH_ROUTE,
     ) {
       composable(Screen.Overview.route) {
         OverviewScreen(
@@ -242,7 +243,7 @@ fun ArtistaNavHost(
     // 3. Map Tab Flow
     navigation(
         startDestination = Screen.Map.route,
-        route = "map_graph",
+        route = C.Constants.MAP_GRAPH_ROUTE,
     ) {
       composable(Screen.Map.route) {
         MapScreen(
@@ -259,7 +260,7 @@ fun ArtistaNavHost(
     // 4. Profile Tab Flow
     navigation(
         startDestination = Screen.Profile.route,
-        route = "profile_graph",
+        route = C.Constants.PROFILE_GRAPH_ROUTE,
     ) {
       composable(Screen.Profile.route) {
         UserProfileScreen(
@@ -339,11 +340,3 @@ fun ArtistaNavHost(
     }
   }
 }
-
-/**
- * Route of the nested graph holding the Overview tab and the screens opened from it.
- *
- * Named rather than repeated as a literal because it is both the route of that graph and the
- * destination the signed-in application starts on.
- */
-private const val OVERVIEW_GRAPH_ROUTE = "overview_graph"

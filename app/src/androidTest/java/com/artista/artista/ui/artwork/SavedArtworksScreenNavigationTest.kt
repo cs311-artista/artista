@@ -14,6 +14,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.artista.artista.ArtistaNavHost
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
 import com.artista.artista.model.artwork.mockArtworks
+import com.artista.artista.resources.C
 import com.artista.artista.ui.navigation.Screen
 import com.artista.artista.ui.profile.UserProfileTestTags
 import kotlinx.coroutines.runBlocking
@@ -37,7 +38,6 @@ class SavedArtworksScreenNavigationTest {
 
   private companion object {
     const val NAVIGATION_TIMEOUT_MILLIS = 5_000L
-    const val PROFILE_GRAPH_ROUTE = "profile_graph"
   }
 
   private lateinit var repository: ArtworkRepositoryLocal
@@ -64,7 +64,7 @@ class SavedArtworksScreenNavigationTest {
       ArtistaNavHost(
           onLogout = {},
           navController = navController,
-          startDestination = PROFILE_GRAPH_ROUTE,
+          startDestination = C.Constants.PROFILE_GRAPH_ROUTE,
           wikiDataRepository = repository,
           savedArtworksRepository = repository,
       )
@@ -102,7 +102,7 @@ class SavedArtworksScreenNavigationTest {
       ArtistaNavHost(
           onLogout = {},
           navController = navController,
-          startDestination = PROFILE_GRAPH_ROUTE,
+          startDestination = C.Constants.PROFILE_GRAPH_ROUTE,
           wikiDataRepository = repository,
           savedArtworksRepository = repository,
       )

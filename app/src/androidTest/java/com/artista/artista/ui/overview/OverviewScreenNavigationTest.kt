@@ -17,6 +17,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.artista.artista.ArtistaNavHost
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
 import com.artista.artista.model.artwork.mockArtworks
+import com.artista.artista.resources.C
 import com.artista.artista.ui.artwork.ArtworkCardTestTag
 import com.artista.artista.ui.artwork.ArtworkTestTags
 import com.artista.artista.ui.map.MapScreenTestTags
@@ -68,7 +69,7 @@ class OverviewScreenNavigationTest {
       ArtistaNavHost(
           onLogout = {},
           navController = navController,
-          startDestination = OVERVIEW_GRAPH_ROUTE,
+          startDestination = C.Constants.OVERVIEW_GRAPH_ROUTE,
           wikiDataRepository = repository,
           savedArtworksRepository = repository,
       )
@@ -105,7 +106,7 @@ class OverviewScreenNavigationTest {
         ArtistaNavHost(
             onLogout = {},
             navController = navController,
-            startDestination = OVERVIEW_GRAPH_ROUTE,
+            startDestination = C.Constants.OVERVIEW_GRAPH_ROUTE,
             wikiDataRepository = repository,
             savedArtworksRepository = repository,
         )
@@ -140,7 +141,7 @@ class OverviewScreenNavigationTest {
       ArtistaNavHost(
           onLogout = {},
           navController = navController,
-          startDestination = OVERVIEW_GRAPH_ROUTE,
+          startDestination = C.Constants.OVERVIEW_GRAPH_ROUTE,
           wikiDataRepository = repository,
           savedArtworksRepository = repository,
       )
@@ -162,9 +163,5 @@ class OverviewScreenNavigationTest {
           navController.currentBackStackEntry?.arguments?.getString("artworkId"),
       )
     }
-  }
-
-  private companion object {
-    const val OVERVIEW_GRAPH_ROUTE = "overview_graph"
   }
 }
