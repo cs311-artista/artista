@@ -29,7 +29,7 @@ import org.junit.runner.RunWith
  * no test can drive. Everything else - the real [ArtistaApp] gate, the real graph - is exercised as
  * shipped.
  *
- * @author hixeum
+ * @author hixeum, timo-by
  */
 @RunWith(AndroidJUnit4::class)
 class AuthScreenNavigationTest {
