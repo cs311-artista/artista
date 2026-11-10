@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import com.artista.artista.MainDispatcherRule
 import com.artista.artista.R
 import com.artista.artista.model.artist.Artist
+import com.artista.artista.model.artist.failingWikiDataRepository
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkFilter
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
@@ -70,7 +71,7 @@ class OverviewScreenViewModelTest {
   fun overviewViewModel_whenLoadingFailsUnexpectedly_exposesUnknownError() = runTest {
     val viewModel =
         OverviewViewModel(
-            repositoryFailingWith(IllegalStateException("Artwork provider failure")),
+            failingWikiDataRepository(IllegalStateException("Artwork provider failure")),
             ArtworkRepositoryLocal(),
         )
 
@@ -88,7 +89,10 @@ class OverviewScreenViewModelTest {
   @Test
   fun overviewViewModel_whenLoadingFailsWithNetworkError_exposesNetworkError() = runTest {
     val viewModel =
-        OverviewViewModel(repositoryFailingWith(AppException.Network()), ArtworkRepositoryLocal())
+        OverviewViewModel(
+            failingWikiDataRepository(AppException.Network()),
+            ArtworkRepositoryLocal(),
+        )
 
     advanceUntilIdle()
 
@@ -106,7 +110,7 @@ class OverviewScreenViewModelTest {
     // Cancellation is how a coroutine stops (e.g. leaving the screen), so it is not a failure.
     val viewModel =
         OverviewViewModel(
-            repositoryFailingWith(CancellationException("Load cancelled")),
+            failingWikiDataRepository(CancellationException("Load cancelled")),
             ArtworkRepositoryLocal(),
         )
 
@@ -265,15 +269,7 @@ class OverviewScreenViewModelTest {
    */
   @Test
   fun clearErrorMessage_removesTheCurrentError() = runTest {
-    val failing =
-        object : WikiDataRepository by ArtworkRepositoryLocal() {
-          override suspend fun getArtworksNearLocation(
-              searchArea: SearchArea,
-              typeValues: List<ArtworkType>,
-              limit: Int,
-          ): List<Artwork> = error("Artwork provider failure")
-        }
-    val viewModel = OverviewViewModel(failing, ArtworkRepositoryLocal())
+    val viewModel = OverviewViewModel(failingWikiDataRepository(), ArtworkRepositoryLocal())
 
     advanceUntilIdle()
     viewModel.clearErrorMessage()
@@ -335,19 +331,3 @@ class OverviewScreenViewModelTest {
           dimension = null,
       )
 }
-
-/**
- * Builds a repository whose nearby-artworks query always fails.
- *
- * @param failure exception thrown by the query
- * @return the failing repository
- * @author Timz3rr
- */
-internal fun repositoryFailingWith(failure: Exception): WikiDataRepository =
-    object : WikiDataRepository by ArtworkRepositoryLocal() {
-      override suspend fun getArtworksNearLocation(
-          searchArea: SearchArea,
-          typeValues: List<ArtworkType>,
-          limit: Int,
-      ): List<Artwork> = throw failure
-    }

@@ -6,6 +6,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.test.core.app.ApplicationProvider
 import com.artista.artista.R
+import com.artista.artista.model.artist.failingWikiDataRepository
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
 import com.artista.artista.model.error.AppException
 import org.junit.Assert.assertEquals
@@ -35,7 +36,10 @@ class OverviewScreenErrorTest {
   @Test
   fun overviewScreen_whenLoadFailsWithNetworkError_showsNetworkErrorToast() {
     val viewModel =
-        OverviewViewModel(repositoryFailingWith(AppException.Network()), ArtworkRepositoryLocal())
+        OverviewViewModel(
+            failingWikiDataRepository(AppException.Network()),
+            ArtworkRepositoryLocal(),
+        )
 
     composeTestRule.setContent { MaterialTheme { OverviewScreen(viewModel = viewModel) } }
     composeTestRule.waitForIdle()
