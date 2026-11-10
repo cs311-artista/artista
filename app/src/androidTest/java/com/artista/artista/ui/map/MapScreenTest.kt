@@ -12,6 +12,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.map.UserLocation
+import com.artista.artista.model.walking.WalkingRouteRepositoryRemote
 import com.artista.artista.ui.navigation.NavigationTestTags
 import com.artista.artista.ui.theme.ArtistaTheme
 import org.junit.After
@@ -83,6 +84,7 @@ class MapScreenTest {
         MapViewModel(
             ArtworkRepositoryProvider.mockRepository,
             ArtworkRepositoryProvider.mockRepository,
+            WalkingRouteRepositoryRemote(),
             locationProvider = LocationProvider { callback -> callback(mockDeviceLocation()) },
         )
     composeTestRule.setContent { ArtistaTheme { MapScreen(mapViewModel = mapViewModel) } }
@@ -103,6 +105,7 @@ class MapScreenTest {
         MapViewModel(
             ArtworkRepositoryProvider.mockRepository,
             ArtworkRepositoryProvider.mockRepository,
+            WalkingRouteRepositoryRemote(),
             locationProvider = LocationProvider { callback -> callback(null) },
         )
     composeTestRule.setContent { ArtistaTheme { MapScreen(mapViewModel = mapViewModel) } }
@@ -123,6 +126,7 @@ class MapScreenTest {
                         MapViewModel.provideFactory(
                             ArtworkRepositoryProvider.mockRepository,
                             ArtworkRepositoryProvider.mockRepository,
+                            WalkingRouteRepositoryRemote(),
                         )
                 )
         )
