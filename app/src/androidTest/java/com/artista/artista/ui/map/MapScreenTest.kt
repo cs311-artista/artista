@@ -4,12 +4,19 @@ package com.artista.artista.ui.map
 
 import android.location.Location
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.LocalActivityResultRegistryOwner
+import androidx.activity.result.ActivityResultRegistry
+import androidx.activity.result.ActivityResultRegistryOwner
+import androidx.activity.result.contract.ActivityResultContract
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.core.app.ActivityOptionsCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.artista.artista.R
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.map.UserLocation
 import com.artista.artista.ui.location.USER_LOCATION_PERMISSIONS
@@ -97,6 +104,35 @@ class MapScreenTest {
     )
   }
 
+  /** Verifies that denying location permission exposes the location error message. */
+  @Test
+  fun mapScreen_setsLocationPermissionError_whenPermissionIsDenied() {
+    USER_LOCATION_PERMISSIONS.forEach { permission ->
+      instrumentation.uiAutomation.revokeRuntimePermission(
+          instrumentation.targetContext.packageName,
+          permission,
+      )
+    }
+    val mapViewModel =
+        MapViewModel(
+            ArtworkRepositoryProvider.mockRepository,
+            ArtworkRepositoryProvider.mockRepository,
+            locationProvider = LocationProvider { callback -> callback(mockDeviceLocation()) },
+        )
+
+    composeTestRule.setContent {
+      CompositionLocalProvider(
+          LocalActivityResultRegistryOwner provides FakeActivityResultRegistryOwner(emptyMap())
+      ) {
+        ArtistaTheme { MapScreen(mapViewModel = mapViewModel) }
+      }
+    }
+
+    composeTestRule.waitForIdle()
+
+    assertEquals(R.string.error_user_location, mapViewModel.uiState.errorMsg)
+  }
+
   /** Verifies that the marker is not positioned when the mocked device has no location. */
   @Test
   fun mapScreen_doesNotDisplayMarkerWhenDeviceLocationIsUnavailable() {
@@ -141,4 +177,21 @@ class MapScreenTest {
         latitude = MOCK_LATITUDE
         longitude = MOCK_LONGITUDE
       }
+
+  private class FakeActivityResultRegistryOwner(
+      private val permissionResult: Map<String, Boolean>
+  ) : ActivityResultRegistryOwner {
+    override val activityResultRegistry: ActivityResultRegistry =
+        object : ActivityResultRegistry() {
+          @Suppress("UNCHECKED_CAST")
+          override fun <I, O> onLaunch(
+              requestCode: Int,
+              contract: ActivityResultContract<I, O>,
+              input: I,
+              options: ActivityOptionsCompat?,
+          ) {
+            dispatchResult(requestCode, permissionResult as O)
+          }
+        }
+  }
 }
