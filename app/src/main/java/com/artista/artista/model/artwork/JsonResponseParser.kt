@@ -161,11 +161,13 @@ open class JsonResponseParser {
   }
 
   /**
-   * Parses the location of an artwork from its coordinates and label.
+   * Parses the location of an artwork from its coordinates and label. Locations without coordinates
+   * are useless for us, therefore we set location to null if only a label is provided by the JSON
+   * object.
    *
    * @param coordinates the coordinates of the location, in the format "Point(longitude latitude)"
    * @param label the label of the location
-   * @return the parsed location, or null if the coordinates are invalid or the label is null
+   * @return the parsed location, or null if the coordinates are invalid or malformed.
    * @author 5kyPhy
    */
   private fun parseLocation(coordinates: String?, label: String?): Location? {
