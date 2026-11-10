@@ -168,6 +168,13 @@ fun ArtistaApp(
  * initialise - the repositories of the application. The root keeps the defaults, because it is the
  * single place that chooses the application's implementations.
  *
+ * Every destination takes its ViewModel from the owner of its own back stack entry, which is
+ * cleared when it is popped, with one exception: the profile screen's ViewModel is taken from the
+ * store [ArtistaApp] scopes to this composition. It is read once per session rather than on every
+ * return to its tab, so it does not reload the profile nor blank the name it displays; and it must
+ * not outlive the session either, so it cannot be held by the activity, which is what it was while
+ * nothing could sign out.
+ *
  * @param onLogout invoked when the user asks to sign out
  * @param wikiDataRepository source of the artworks
  * @param savedArtworksRepository storage of the saved artworks
@@ -266,9 +273,9 @@ fun ArtistaNavHost(
         UserProfileScreen(
             userProfileViewModel =
                 viewModel(
-                    // Outlives the tab changes: the ViewModel is where a username renamed in the
-                    // profile screens is held, and keeping it also avoids reading the profile again
-                    // on every return.
+                    // Read once per session, so returning to the tab does not read the profile
+                    // again nor blank the name being displayed. Scoped to the graph rather than to
+                    // the activity: signing out has to take this ViewModel with it.
                     viewModelStoreOwner = graphViewModelStoreOwner,
                     factory =
                         UserProfileViewModel.provideFactory(
