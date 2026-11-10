@@ -60,8 +60,8 @@ internal object Dimensions {
   /** Height of artwork images in artwork cards. */
   val artworkCardImageHeight = 160.dp
 
-  /** Size of the icon shown in an artwork card while its image is missing or loading. */
-  val artworkCardImageFallbackIconSize = 48.dp
+  /** Size of the icon shown while an artwork image is missing or loading, on cards and details. */
+  val artworkImageFallbackIconSize = 48.dp
 
   /** Height of the artwork image on the artwork details screen. */
   val artworkDetailsImageHeight = 220.dp
