@@ -1,5 +1,6 @@
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.model.artwork
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -19,6 +20,7 @@ import kotlinx.coroutines.tasks.await
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -96,6 +98,29 @@ class SavedArtworksRepositoryFirestoreTest {
     repository.saveArtwork(artwork)
 
     assertEquals(listOf(artwork), repository.getSavedArtworks())
+  }
+
+  /** Checks that the image link of a saved artwork is still there when it is read back. */
+  @Test
+  fun saveArtworkThenReadPreservesImageUrl() = runBlocking {
+    val artwork =
+        completeArtwork()
+            .copy(
+                imageUrl =
+                    "https://commons.wikimedia.org/wiki/Special:FilePath/The%20Thinker.jpg?width=800"
+            )
+
+    repository.saveArtwork(artwork)
+
+    assertEquals(listOf(artwork), repository.getSavedArtworks())
+  }
+
+  /** Checks that a document stored before image links were saved loads without an image. */
+  @Test
+  fun getSavedArtworksLoadsDocumentWithoutImageUrlAsNull() = runBlocking {
+    seedDocument("artwork-1", artworkData("artwork-1"))
+
+    assertNull(repository.getSavedArtworks().single().imageUrl)
   }
 
   @Test
