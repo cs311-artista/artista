@@ -194,7 +194,8 @@ class WalkingRouteRepositoryRemote(
       """{"coordinates":[[${origin.longitude},${origin.latitude}],[${destination.longitude},${destination.latitude}]], "instructions":false}"""
 
   private companion object {
-    val ENDPOINT = "https://api.openrouteservice.org/v2/directions/foot-walking/geojson".toHttpUrl()
+    val ENDPOINT =
+        "https://api.heigit.org/openrouteservice/v2/directions/foot-walking/geojson".toHttpUrl()
     val JSON_MEDIA_TYPE = "application/json".toMediaType()
 
     // Error codes that mean "nothing to walk" rather than a failure: 2009 no route between the two

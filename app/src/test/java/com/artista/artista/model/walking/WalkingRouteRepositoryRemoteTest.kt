@@ -51,12 +51,12 @@ class WalkingRouteRepositoryRemoteTest {
     val request = requireNotNull(client.lastRequest)
     assertEquals("POST", request.method)
     assertEquals(
-        "https://api.openrouteservice.org/v2/directions/foot-walking/geojson",
+        "https://api.heigit.org/openrouteservice/v2/directions/foot-walking/geojson",
         request.url.toString(),
     )
     assertEquals("test-key", request.header("Authorization"))
     assertEquals(
-        """{"coordinates":[[6.629,46.517],[6.627,46.507]]}""",
+        """{"coordinates":[[6.629,46.517],[6.627,46.507]], "instructions":false}""",
         request.body?.let { body -> Buffer().also { buffer -> body.writeTo(buffer) }.readUtf8() },
     )
   }
