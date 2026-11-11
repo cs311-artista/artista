@@ -150,6 +150,22 @@ class MapViewModelTest {
     assertNull(viewModel.uiState.errorMsg)
   }
 
+  @Test
+  fun setLocationPermissionError_correctlyExposes_LocationPermissionError() = runTest {
+    val viewModel =
+        MapViewModel(
+            FakeWikiDataRepository(emptyList()),
+            EmptySavedArtworksRepository(),
+            FakeWalkingRouteRepository(),
+        )
+
+    assertNull(viewModel.uiState.errorMsg)
+
+    viewModel.setLocationPermissionError(AppException.UserLocationError())
+
+    assertEquals(R.string.error_user_location, viewModel.uiState.errorMsg)
+  }
+
   private fun createViewModel(locationProvider: LocationProvider? = null): MapViewModel =
       MapViewModel(
           ArtworkRepositoryProvider.mockRepository,
