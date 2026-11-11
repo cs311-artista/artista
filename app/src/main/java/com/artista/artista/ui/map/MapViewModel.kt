@@ -85,9 +85,10 @@ sealed interface RouteUiState {
    * A route request failed.
    *
    * @property kind category of failure exposed to the UI
+   * @property messageRes resource ID for the error message to display
    * @author patrickmcdan
    */
-  data class Error(val kind: RouteErrorKind) : RouteUiState
+  data class Error(val kind: RouteErrorKind, @StringRes val messageRes: Int) : RouteUiState
 }
 
 /**
@@ -101,7 +102,6 @@ enum class RouteErrorKind(
      *
      * @author patrickmcdan
      */
-    // TODO(#179): Functionality to retry a route request is not yet implemented in the UI.
     val canRetry: Boolean
 ) {
   /** The route service could not be reached. */
@@ -132,13 +132,15 @@ class MapViewModel(
   private val _uiState = MutableStateFlow(MapViewUiState())
   private val _routeUiState = MutableStateFlow<RouteUiState>(RouteUiState.Idle)
   private var routeRequestJob: Job? = null
+  private var lastRouteArtwork: Artwork? = null
+  private var pendingRouteArtwork: Artwork? = null
+  private var locationFailed = false
   private var artworkLoadJob: Job? = null
 
   /** Exposes the latest map state for reactive UI rendering. */
   val uiStateFlow: StateFlow<MapViewUiState> = _uiState.asStateFlow()
 
   /** Exposes the current walking route request state. */
-  // TODO(#179): Collect the walking route state in the UI and display its route or error.
   val routeUiStateFlow: StateFlow<RouteUiState> = _routeUiState.asStateFlow()
 
   /** Returns the current map state for synchronous consumers such as tests. */
@@ -167,11 +169,16 @@ class MapViewModel(
    * Updates the location shown on the map.
    *
    * @param location Latest location reported by the device.
-   * @author Felix Burchardt
+   * @author Felix Burchardt, patrickmcdan
    */
   fun updateUserLocation(location: UserLocation) {
     _uiState.update { it.copy(userLocation = location, errorMsg = null) }
     loadRemoteArtworks(location)
+    locationFailed = false
+    pendingRouteArtwork?.let { artwork ->
+      pendingRouteArtwork = null
+      startRouteRequest(artwork, location)
+    }
   }
 
   /**
@@ -219,6 +226,7 @@ class MapViewModel(
    * @author Felix Burchardt
    */
   fun setLocationError(@StringRes messageResId: Int) {
+    locationFailed = true
     _uiState.update { it.copy(errorMsg = messageResId) }
   }
 
@@ -232,27 +240,83 @@ class MapViewModel(
   }
 
   /**
+   * Completes a pending route request when location permission is denied.
+   *
+   * @author patrickmcdan
+   */
+  fun onLocationPermissionDenied() {
+    setLocationPermissionError()
+    finishPendingRouteWithoutLocation()
+  }
+
+  /**
    * Loads a walking route from the user's current location to an artwork.
    *
    * @param artwork destination artwork
    * @author patrickmcdan
    */
   fun loadRouteTo(artwork: Artwork) {
+    if (isRoutingTo(artwork)) return
+    requestRoute(artwork)
+  }
+
+  private fun isRoutingTo(artwork: Artwork): Boolean =
+      when (val state = _routeUiState.value) {
+        is RouteUiState.Success -> state.destination.uid == artwork.uid
+        RouteUiState.Loading -> lastRouteArtwork?.uid == artwork.uid
+        else -> false
+      }
+
+  private fun requestRoute(artwork: Artwork) {
+    lastRouteArtwork = artwork
     routeRequestJob?.cancel()
+    pendingRouteArtwork = null
     _routeUiState.value = RouteUiState.Loading
+    val userLocation = uiState.userLocation
+    when {
+      userLocation != null -> startRouteRequest(artwork, userLocation)
+      locationFailed -> _routeUiState.value = RouteUiState.LocationUnavailable
+      else -> pendingRouteArtwork = artwork
+    }
+  }
+
+  /**
+   * Re-requests the last artwork passed to [requestRoute], when one exists.
+   *
+   * @author patrickmcdan
+   */
+  fun retryRoute() {
+    lastRouteArtwork?.let(::requestRoute)
+  }
+
+  /**
+   * Cancels any active walking route request and clears its state.
+   *
+   * @author patrickmcdan
+   */
+  fun clearRoute() {
+    routeRequestJob?.cancel()
+    routeRequestJob = null
+    pendingRouteArtwork = null
+    lastRouteArtwork = null
+    _routeUiState.value = RouteUiState.Idle
+  }
+
+  private fun finishPendingRouteWithoutLocation() {
+    if (pendingRouteArtwork != null) {
+      pendingRouteArtwork = null
+      _routeUiState.value = RouteUiState.LocationUnavailable
+    }
+  }
+
+  private fun startRouteRequest(artwork: Artwork, userLocation: UserLocation) {
     routeRequestJob =
         viewModelScope.launchCatching(
             tag = MapViewModel::class.java.simpleName,
             onError = ::setRouteError,
         ) {
-          val userLocation = uiState.userLocation
-          if (userLocation == null) {
-            _routeUiState.value = RouteUiState.LocationUnavailable
-            return@launchCatching
-          }
-
           // Safety net only: entry points should never pass an artwork without a
-          // location If it happens anyway, "no route" is accurate and there is
+          // location. If it happens anyway, "no route" is accurate and there is
           // nothing for the user to retry.
           val destination =
               artwork.location
@@ -269,24 +333,19 @@ class MapViewModel(
         }
   }
 
-  /** Cancels any active walking route request and clears its state. */
-  fun clearRoute() {
-    routeRequestJob?.cancel()
-    routeRequestJob = null
-    _routeUiState.value = RouteUiState.Idle
-  }
-
   private fun setRouteError(error: AppException) {
     _routeUiState.value =
         when (error) {
           is AppException.NotFound -> RouteUiState.NoRoute
-          is AppException.Network -> RouteUiState.Error(RouteErrorKind.NETWORK)
+          is AppException.Network ->
+              RouteUiState.Error(RouteErrorKind.NETWORK, messageRes = error.toMessageRes())
           is AppException.RateLimited ->
               RouteUiState.Error(
                   if (error.isTransient) RouteErrorKind.TEMPORARY_RATE_LIMIT
-                  else RouteErrorKind.DAILY_RATE_LIMIT
+                  else RouteErrorKind.DAILY_RATE_LIMIT,
+                  messageRes = error.toMessageRes(),
               )
-          else -> RouteUiState.Error(RouteErrorKind.GENERIC)
+          else -> RouteUiState.Error(RouteErrorKind.GENERIC, messageRes = error.toMessageRes())
         }
   }
 
@@ -299,6 +358,7 @@ class MapViewModel(
   fun acquireLocation(
       locationClient: FusedLocationProviderClient,
   ) {
+    locationFailed = false
     if (locationProvider != null) {
       locationProvider.getCurrentLocation { updateFromLocation(it) }
       return
@@ -308,7 +368,10 @@ class MapViewModel(
 
   private fun updateFromLocation(location: Location?) {
     if (location != null) updateUserLocation(UserLocation(location.latitude, location.longitude))
-    else setLocationError(R.string.map_location_unavailable_error)
+    else {
+      setLocationError(R.string.map_location_unavailable_error)
+      finishPendingRouteWithoutLocation()
+    }
   }
 
   private fun acquireLocationFromGoogle(locationClient: FusedLocationProviderClient) {
@@ -318,9 +381,11 @@ class MapViewModel(
           .addOnSuccessListener(DIRECT_EXECUTOR) { updateFromLocation(it) }
           .addOnFailureListener(DIRECT_EXECUTOR) {
             setLocationError(R.string.map_location_acquisition_error)
+            finishPendingRouteWithoutLocation()
           }
     } catch (_: SecurityException) {
       setLocationPermissionError()
+      finishPendingRouteWithoutLocation()
     }
   }
 
