@@ -25,7 +25,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -63,9 +62,14 @@ import com.artista.artista.ui.theme.Dimensions
  * interaction outcome with something to say, so it gets its own message. Every genuine failure goes
  * to [launchCatching], which logs it and classifies it.
  *
+ * A successful sign-in reports nothing: the caller observes [AuthUiState.session], which turns into
+ * [AuthSession.SignedIn] as soon as the repository reports the user, and it is then the caller's
+ * job to stop composing this screen. There is deliberately no callback for it, because a callback
+ * firing from a screen that is about to leave the composition can only race with the caller's own
+ * reaction to the same state change.
+ *
  * @param viewModel the authentication ViewModel
  * @param credentialProvider the seam used to obtain a Google ID token
- * @param onSignedIn invoked once a user is signed in
  * @param modifier the modifier applied to the root container
  * @author timo-by
  */
@@ -73,7 +77,6 @@ import com.artista.artista.ui.theme.Dimensions
 fun AuthScreen(
     viewModel: AuthViewModel,
     credentialProvider: GoogleCredentialProvider,
-    onSignedIn: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
   val state by viewModel.uiState.collectAsState()
@@ -110,7 +113,6 @@ fun AuthScreen(
           }
         }
       },
-      onSignedIn = onSignedIn,
       modifier = modifier,
   )
 }
@@ -131,7 +133,6 @@ fun AuthScreen(
  * @param credentialErrorMessageRes message of the failed credential interaction, or `null` when the
  *   user dismissed the chooser, the attempt failed for another reason, or it did not fail at all
  * @param onSignInClick invoked when the user asks to sign in
- * @param onSignedIn invoked once when [state] transitions to a signed-in session
  * @param modifier the modifier applied to the root container
  * @author timo-by
  */
@@ -140,13 +141,8 @@ fun AuthScreenContent(
     state: AuthUiState,
     @StringRes credentialErrorMessageRes: Int?,
     onSignInClick: () -> Unit,
-    onSignedIn: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-  // Keyed on the session so the callback fires exactly once per sign-in transition, and not again
-  // when unrelated parts of the state (e.g. isLoading) change.
-  LaunchedEffect(state.session) { if (state.session is AuthSession.SignedIn) onSignedIn() }
-
   // One message at a time, and a repository failure wins: it means the attempt reached the backend,
   // so it is the more specific of the two. The callers clear both slots when an attempt starts, so
   // the two can never describe different attempts.
@@ -267,7 +263,6 @@ internal fun AuthScreenContentPreview() {
         state = AuthUiState(session = AuthSession.SignedOut),
         credentialErrorMessageRes = null,
         onSignInClick = {},
-        onSignedIn = {},
     )
   }
 }
