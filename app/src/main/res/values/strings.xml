@@ -46,6 +46,7 @@
     <string name="artist_preferences_save">Save Preferences</string>
     <string name="artist_preferences_saved">Your favorite artists have been saved.</string>
     <!-- Map screen -->
+    <string name="map_location_marker_text">Your location</string>
     <!-- Saved artworks screen -->
     <string name="saved_artworks_title">Saved Artworks</string>
     <string name="saved_artworks_empty">You have no saved artworks yet.</string>

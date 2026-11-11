@@ -23,6 +23,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.graphics.createBitmap
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.error.AppException
@@ -34,7 +35,6 @@ import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaColors
 import com.artista.artista.ui.theme.ArtistaTheme
-import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
@@ -118,14 +118,13 @@ fun MapScreen(
 ) {
   val uiState by mapViewModel.uiStateFlow.collectAsStateWithLifecycle()
   val context = LocalContext.current
-  val locationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
   val errorMessageResId = mapViewModel.uiState.errorMsg
   val errorMessage = errorMessageResId?.let { stringResource(it) }
 
   UserLocationPermission { granted ->
     mapViewModel.handleLocationPermissionResult(granted)
     if (granted && mapViewModel.uiState.userLocation == null) {
-      mapViewModel.acquireLocation(locationClient)
+      mapViewModel.acquireLocation(context)
     } else if (!granted) {
       mapViewModel.setLocationPermissionError(AppException.UserLocationError())
     }
@@ -154,6 +153,13 @@ fun MapScreen(
         modifier = Modifier.fillMaxSize().testTag(MapScreenTestTags.MAP),
         cameraPositionState = cameraPositionState,
     ) {
+      userLocation?.let {
+        Marker(
+            tag = MapScreenTestTags.USER_LOCATION_MARKER,
+            state = markerState,
+            title = stringResource(R.string.map_location_marker_text),
+        )
+      }
       uiState.savedArtworks.forEach { artwork ->
         DisplayArtworkMarker(artwork, onArtworkMarkerClick, MarkerType.SavedArtwork)
       }

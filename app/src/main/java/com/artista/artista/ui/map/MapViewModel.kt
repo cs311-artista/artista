@@ -8,7 +8,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.artista.artista.model.artwork.Artwork
-import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.SavedArtworksRepository
 import com.artista.artista.model.artwork.SearchArea
 import com.artista.artista.model.artwork.WikiDataRepository
@@ -19,9 +18,10 @@ import com.artista.artista.model.walking.WalkingRoute
 import com.artista.artista.model.walking.WalkingRouteRepository
 import com.artista.artista.ui.error.launchCatching
 import com.artista.artista.ui.error.toMessageRes
-import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
+import com.google.api.Context
 import java.util.concurrent.Executor
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -135,8 +135,6 @@ enum class RouteErrorKind(
  * @param savedArtworksRepository repository used to load saved artworks
  * @param locationProvider optional test seam; when null, the production fused-location client is
  *   used
- * @param artworkId optional artwork identifier associated with the map
- *
  * @author Felix Burchardt, patrickmcdan
  */
 class MapViewModel(
@@ -145,7 +143,6 @@ class MapViewModel(
     private val walkingRouteRepository: WalkingRouteRepository,
     // Null selects the production fused-location client; tests inject a deterministic provider.
     private val locationProvider: LocationProvider? = null,
-    private val artworkId: ArtworkId? = null,
 ) : ViewModel() {
 
   private val _uiState = MutableStateFlow(MapViewUiState())
@@ -325,12 +322,11 @@ class MapViewModel(
   /**
    * Acquires the current device location and updates the map state.
    *
-   * @param locationClient Provider used to access the device location.
+   * @param context the local context used for the location services
    * @author 5kyPhy
    */
-  fun acquireLocation(
-      locationClient: FusedLocationProviderClient,
-  ) {
+  fun acquireLocation(context: android.content.Context) {
+    val locationClient = LocationServices.getFusedLocationProviderClient(context)
     locationProvider?.let { provider ->
       provider.getCurrentLocation { location ->
         if (location != null) {
@@ -375,7 +371,6 @@ class MapViewModel(
     fun provideFactory(
         wikiDataRepository: WikiDataRepository,
         savedArtworksRepository: SavedArtworksRepository,
-        artworkId: ArtworkId? = null,
         walkingRouteRepository: WalkingRouteRepository,
     ): ViewModelProvider.Factory =
         object : ViewModelProvider.Factory {
@@ -387,7 +382,6 @@ class MapViewModel(
                   savedArtworksRepository,
                   walkingRouteRepository,
                   locationProvider = null,
-                  artworkId = artworkId,
               )
                   as T
             }
