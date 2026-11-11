@@ -1,8 +1,6 @@
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.map
 
-import android.content.Context
-import android.content.pm.PackageManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.LocalActivityResultRegistryOwner
 import androidx.activity.result.ActivityResultRegistry
@@ -11,15 +9,12 @@ import androidx.activity.result.contract.ActivityResultContract
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.core.app.ActivityOptionsCompat
-import androidx.core.content.ContextCompat
-import androidx.test.core.app.ApplicationProvider
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.error.AppException
 import com.artista.artista.model.walking.WalkingRouteRepositoryRemote
 import com.artista.artista.ui.error.toMessageRes
 import com.artista.artista.ui.location.USER_LOCATION_PERMISSIONS
 import org.junit.Assert
-import org.junit.Assume
 import org.junit.Rule
 import org.junit.Test
 
@@ -32,8 +27,6 @@ import org.junit.Test
 class MapScreenPermissionDeniedTest {
 
   @get:Rule val composeTestRule = createAndroidComposeRule<ComponentActivity>()
-
-  private val context: Context = ApplicationProvider.getApplicationContext()
 
   /** Activity-result registry that answers every location permission request with a denial. */
   private val denyingOwner =
@@ -58,12 +51,6 @@ class MapScreenPermissionDeniedTest {
   /** Verifies that denying location access updates the map screen state with the expected error. */
   @Test
   fun deniedPermission_setsLocationPermissionError() {
-    // The callback reads the real permission state, so this needs a device without the grant.
-    Assume.assumeFalse(
-        USER_LOCATION_PERMISSIONS.all {
-          ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
-        }
-    )
     val viewModel =
         MapViewModel(
             wikiDataRepository = ArtworkRepositoryProvider.mockRepository,
@@ -73,12 +60,11 @@ class MapScreenPermissionDeniedTest {
 
     composeTestRule.setContent {
       CompositionLocalProvider(LocalActivityResultRegistryOwner provides denyingOwner) {
-        MapScreen(mapViewModel = viewModel)
+        MapScreen(mapViewModel = viewModel, hasLocationPermissions = { false })
       }
     }
     composeTestRule.waitForIdle()
 
-    // Covers MapScreen.kt line 129.
     Assert.assertFalse(viewModel.uiState.hasLocationPermission)
     Assert.assertEquals(AppException.UserLocationError().toMessageRes(), viewModel.uiState.errorMsg)
   }

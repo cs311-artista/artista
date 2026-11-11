@@ -2,6 +2,7 @@
 package com.artista.artista.ui.location
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -29,16 +30,17 @@ internal val USER_LOCATION_PERMISSIONS =
  * @author 5kyPhy
  */
 @Composable
-fun UserLocationPermission(onPermissionResult: (Boolean) -> Unit) {
+fun UserLocationPermission(
+    onPermissionResult: (Boolean) -> Unit,
+    hasPermissions: (Context) -> Boolean = ::hasUserLocationPermissions,
+) {
   val context = LocalContext.current
   val lifecycleOwner = LocalLifecycleOwner.current
   val currentPermissionResult by rememberUpdatedState(onPermissionResult)
-  val hasAllPermissions = hasUserLocationPermissions(context)
+  val hasAllPermissions = hasPermissions(context)
   val permissionLauncher =
-      rememberLauncherForActivityResult(
-          contract = ActivityResultContracts.RequestMultiplePermissions()
-      ) {
-        currentPermissionResult(hasUserLocationPermissions(context))
+      rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+        currentPermissionResult(hasPermissions(context))
       }
 
   LaunchedEffect(Unit) {
@@ -52,7 +54,7 @@ fun UserLocationPermission(onPermissionResult: (Boolean) -> Unit) {
   DisposableEffect(lifecycleOwner) {
     val observer = LifecycleEventObserver { _, event ->
       if (event == Lifecycle.Event.ON_RESUME) {
-        currentPermissionResult(hasUserLocationPermissions(context))
+        currentPermissionResult(hasPermissions(context))
       }
     }
     lifecycleOwner.lifecycle.addObserver(observer)
@@ -60,7 +62,6 @@ fun UserLocationPermission(onPermissionResult: (Boolean) -> Unit) {
   }
 }
 
-private fun hasUserLocationPermissions(context: android.content.Context): Boolean =
-    USER_LOCATION_PERMISSIONS.all {
-      ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
-    }
+internal fun hasUserLocationPermissions(context: Context): Boolean = USER_LOCATION_PERMISSIONS.all {
+  ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
+}

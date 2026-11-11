@@ -2,6 +2,7 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 package com.artista.artista.ui.map
 
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
@@ -31,6 +32,7 @@ import com.artista.artista.model.map.UserLocation
 import com.artista.artista.model.walking.WalkingRouteRepositoryRemote
 import com.artista.artista.resources.C
 import com.artista.artista.ui.location.UserLocationPermission
+import com.artista.artista.ui.location.hasUserLocationPermissions
 import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaColors
@@ -115,20 +117,24 @@ fun MapScreen(
     mapViewModel: MapViewModel,
     onNavigationBarTabSelected: (Tab) -> Unit = {},
     onArtworkMarkerClick: (Artwork) -> Unit = {},
+    hasLocationPermissions: (Context) -> Boolean = ::hasUserLocationPermissions,
 ) {
   val uiState by mapViewModel.uiStateFlow.collectAsStateWithLifecycle()
   val context = LocalContext.current
   val errorMessageResId = mapViewModel.uiState.errorMsg
   val errorMessage = errorMessageResId?.let { stringResource(it) }
 
-  UserLocationPermission { granted ->
-    mapViewModel.handleLocationPermissionResult(granted)
-    if (granted && mapViewModel.uiState.userLocation == null) {
-      mapViewModel.acquireLocation(context)
-    } else if (!granted) {
-      mapViewModel.setLocationPermissionError(AppException.UserLocationError())
-    }
-  }
+  UserLocationPermission(
+      onPermissionResult = { granted ->
+        mapViewModel.handleLocationPermissionResult(granted)
+        if (granted && mapViewModel.uiState.userLocation == null) {
+          mapViewModel.acquireLocation(context)
+        } else if (!granted) {
+          mapViewModel.setLocationPermissionError(AppException.UserLocationError())
+        }
+      },
+      hasPermissions = hasLocationPermissions,
+  )
 
   LaunchedEffect(errorMessage) {
     errorMessage?.let { Toast.makeText(context, it, Toast.LENGTH_LONG).show() }
