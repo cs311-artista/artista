@@ -32,7 +32,7 @@ import org.json.JSONObject
  * - HTTP 429 (per-minute limit) or a 403 naming the quota (daily limit) is
  *   [AppException.RateLimited], transient only for the per-minute limit;
  * - a blank API key, HTTP 401 or any other 403 is [AppException.Unauthorized];
- * - a transport failure or an HTTP 502/503/504 is [AppException.Network];
+ * - a transport failure or an HTTP 503 is [AppException.Network];
  * - a successful response that cannot be read is [AppException.InvalidData];
  * - anything else (e.g. an internal ORS error, HTTP 500) is [AppException.Unknown].
  *
@@ -188,8 +188,10 @@ class WalkingRouteRepositoryRemote(
   }
 
   // OpenRouteService expects longitude first, the reverse of Coordinate's order.
+  // The instructions flag is set to false because turn-by-turn directions are not needed, just the
+  // path.
   private fun coordinatesBody(origin: Coordinate, destination: Coordinate): String =
-      """{"coordinates":[[${origin.longitude},${origin.latitude}],[${destination.longitude},${destination.latitude}]]}"""
+      """{"coordinates":[[${origin.longitude},${origin.latitude}],[${destination.longitude},${destination.latitude}]], "instructions":false}"""
 
   private companion object {
     val ENDPOINT = "https://api.openrouteservice.org/v2/directions/foot-walking/geojson".toHttpUrl()
