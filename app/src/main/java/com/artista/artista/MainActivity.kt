@@ -130,7 +130,13 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun ArtistaApp(
     authViewModel: AuthViewModel =
-        viewModel(factory = AuthViewModel.provideFactory(AuthRepositoryProvider.repository)),
+        viewModel(
+            factory =
+                AuthViewModel.provideFactory(
+                    AuthRepositoryProvider.repository,
+                    UserRepositoryProvider.repository,
+                )
+        ),
     credentialProvider: GoogleCredentialProvider = rememberGoogleCredentialProvider(),
     wikiDataRepository: WikiDataRepository = ArtworkRepositoryProvider.wikiDataRepository,
     savedArtworksRepository: SavedArtworksRepository =
