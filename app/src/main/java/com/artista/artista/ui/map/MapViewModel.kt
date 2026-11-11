@@ -2,6 +2,7 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 package com.artista.artista.ui.map
 
+import android.content.Context
 import android.location.Location
 import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
@@ -21,7 +22,6 @@ import com.artista.artista.ui.error.toMessageRes
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
-import com.google.api.Context
 import java.util.concurrent.Executor
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -325,8 +325,7 @@ class MapViewModel(
    * @param context the local context used for the location services
    * @author 5kyPhy
    */
-  fun acquireLocation(context: android.content.Context) {
-    val locationClient = LocationServices.getFusedLocationProviderClient(context)
+  fun acquireLocation(context: Context) {
     locationProvider?.let { provider ->
       provider.getCurrentLocation { location ->
         if (location != null) {
@@ -338,6 +337,7 @@ class MapViewModel(
       return
     }
 
+    val locationClient = LocationServices.getFusedLocationProviderClient(context)
     try {
       locationClient
           .getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, CancellationTokenSource().token)
