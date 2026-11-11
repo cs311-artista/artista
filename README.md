@@ -25,7 +25,7 @@ The Wikidata Action API will be used for retrieving individual entities and thei
 
 In terms of the architectural structure of the app itself, it follows the [MVVM design](https://github.com/cs311-artista/artista/wiki/Application-Architectural-Design#design-philosophy) philosophy. The diagram bellow shows the currently intended design, as well as the interactions between modules. This diagram is representative of the *current* state and currently *intended* future state of the application. It is not final. **It may change**, for example when new screens and features get added by the team. For more detailed information, [click here](https://github.com/cs311-artista/artista/wiki/Application-Architectural-Design#Current-Architecture).
 
-![Architecture diagram](resources/architecture_v1.jpg)
+![Architecture diagram](resources/architecture_v2.png)
 
 ---
 
