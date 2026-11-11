@@ -62,6 +62,12 @@ fun UserLocationPermission(
   }
 }
 
+/**
+ * Verifies whether all required permissions location are provided by the user.
+ *
+ * @param context the current activities [Context]
+ * @author 5kyPhy
+ */
 internal fun hasUserLocationPermissions(context: Context): Boolean = USER_LOCATION_PERMISSIONS.all {
   ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
 }

@@ -184,7 +184,6 @@ class MapViewModel(
    * update ViewModel state.
    *
    * @param granted whether the location permissions were granted by the user or not.
-   *
    * @author 5kyPhy
    */
   fun handleLocationPermissionResult(granted: Boolean) {
