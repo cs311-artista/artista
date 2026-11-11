@@ -7,6 +7,9 @@ import com.artista.artista.R
 import com.artista.artista.model.authentication.FakeAuthRepository
 import com.artista.artista.model.authentication.FakeAuthUser
 import com.artista.artista.model.error.AppException
+import com.artista.artista.model.user.FakeUserRepository
+import com.artista.artista.model.user.User
+import com.artista.artista.model.user.UserPreference
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -40,19 +43,21 @@ class AuthViewModelTest {
   private val signOutErrorMessage = "sign-out failed"
 
   private lateinit var repository: FakeAuthRepository
+  private lateinit var userRepository: FakeUserRepository
   private lateinit var viewModel: AuthViewModel
 
   @Before
   fun setUp() {
     repository = FakeAuthRepository()
-    viewModel = AuthViewModel(repository)
+    userRepository = FakeUserRepository()
+    viewModel = AuthViewModel(repository, userRepository)
   }
 
   @Test
   fun initialStateIsRestoring() {
     runTest {
       repository = FakeAuthRepository().apply { authStateIsPending = true }
-      viewModel = AuthViewModel(repository)
+      viewModel = AuthViewModel(repository, userRepository)
 
       advanceUntilIdle()
       // Nothing has been reported yet, so nothing can be decided: offering a sign-in would
@@ -87,7 +92,7 @@ class AuthViewModelTest {
   fun authStateFailureIsReportedAndFailsClosedToSignedOut() {
     runTest {
       repository = FakeAuthRepository().apply { authStateError = IllegalStateException("stream") }
-      viewModel = AuthViewModel(repository)
+      viewModel = AuthViewModel(repository, userRepository)
       advanceUntilIdle()
 
       // Reported even though no collector was listening: the message is state, not an event.
@@ -317,6 +322,51 @@ class AuthViewModelTest {
     }
   }
 
+  @Test
+  fun signInOnFirstSignInCreatesDefaultProfile() {
+    runTest {
+      repository.user = FakeAuthUser(userId)
+      viewModel.signIn(token1)
+      advanceUntilIdle()
+
+      val expectedProfile = User(uid = userId, preference = UserPreference())
+      assertEquals(expectedProfile, userRepository.storedUser(userId))
+    }
+  }
+
+  @Test
+  fun signInOnExistingUserLeavesProfileUnchanged() {
+    runTest {
+      val existingProfile =
+          User(
+              uid = userId,
+              userName = "Alice",
+              preference = UserPreference(artists = listOf("artist-1")),
+          )
+      userRepository.store(existingProfile)
+
+      repository.user = FakeAuthUser(userId)
+      viewModel.signIn(token1)
+      advanceUntilIdle()
+
+      assertEquals(existingProfile, userRepository.storedUser(userId))
+    }
+  }
+
+  @Test
+  fun signInWhenProfileCreationFailsDoesNotBlockSignIn() {
+    runTest {
+      repository.user = FakeAuthUser(userId)
+      userRepository.writeFailure = AppException.Network("offline")
+
+      viewModel.signIn(token1)
+      advanceUntilIdle()
+
+      assertEquals(userId, viewModel.signedInUid())
+      assertNull(viewModel.uiState.value.repositoryErrorMessageRes)
+    }
+  }
+
   /**
    * Returns the uid of the user the state says is signed in.
    *
@@ -335,7 +385,7 @@ class AuthViewModelTest {
    */
   private fun TestScope.givenSignedInUser(uid: String = userId) {
     repository = FakeAuthRepository(FakeAuthUser(uid))
-    viewModel = AuthViewModel(repository)
+    viewModel = AuthViewModel(repository, userRepository)
     advanceUntilIdle()
   }
 }

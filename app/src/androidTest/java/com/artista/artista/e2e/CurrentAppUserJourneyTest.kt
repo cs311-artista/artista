@@ -21,6 +21,7 @@ import com.artista.artista.ArtistaApp
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.artwork.mockArtworks
 import com.artista.artista.model.authentication.FakeAuthRepository
+import com.artista.artista.model.user.UserRepositoryLocal
 import com.artista.artista.resources.C
 import com.artista.artista.ui.artwork.ArtworkTestTags
 import com.artista.artista.ui.artwork.SavedArtworksTestTags
@@ -61,7 +62,7 @@ class CurrentAppUserJourneyTest {
   // seams behind it are faked, since no test can drive Credential Manager's account chooser and
   // Firebase would need a network. Both are built outside the composition, as the application root
   // only needs the state the ViewModel exposes.
-  private val authViewModel = AuthViewModel(FakeAuthRepository())
+  private val authViewModel = AuthViewModel(FakeAuthRepository(), UserRepositoryLocal())
 
   private val credentialProvider = FakeGoogleCredentialProvider()
 

@@ -10,6 +10,7 @@ import com.artista.artista.model.artwork.ArtworkRepositoryLocal
 import com.artista.artista.model.authentication.AuthRepositoryProvider
 import com.artista.artista.model.authentication.FakeAuthRepository
 import com.artista.artista.model.authentication.FakeAuthUser
+import com.artista.artista.model.user.UserRepositoryLocal
 import com.artista.artista.model.user.UserRepositoryProvider
 import com.artista.artista.resources.C
 import com.artista.artista.ui.authentication.AuthViewModel
@@ -195,7 +196,7 @@ class ArtistaAppSessionGateTest {
     // built outside the composition, a ViewModel belonging to a ViewModelStoreOwner rather than to
     // a
     // composable.
-    val viewModel = AuthViewModel(repository)
+    val viewModel = AuthViewModel(repository, UserRepositoryLocal())
     composeTestRule.setContent {
       ArtistaApp(
           authViewModel = viewModel,
