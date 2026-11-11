@@ -239,8 +239,12 @@ class WikiDataRepositoryRemote(
     private val UNSUPPORTED_SEARCH_CHARACTERS = Regex("[^\\p{L}\\p{M}\\p{N}\\s]+")
 
     const val MAX_LIMIT = 200
+    const val ROW_FAN_OUT = 10 // generous: observed fan-out is ~1-2 rows per artwork
+    const val MAX_ROWS = 2_000 // absolute ceiling against runaway queries
 
-    // Relevance scoring: lower score = more relevant. Title matches weigh more than artist matches
+    internal fun rowGuard(limit: Int): Int = minOf(limit * ROW_FAN_OUT, MAX_ROWS)
+
+    // Relevance scoring: lower score = more relevant. Artist matches weigh more than title matches
     // so that searching a title is not outranked by an artist whose name merely resembles a term.
     private const val MIN_TOKEN_LENGTH = 2
     private const val TITLE_TOKEN_BONUS = 10
@@ -286,10 +290,10 @@ class WikiDataRepositoryRemote(
   /**
    * Runs [query] (or serves it from cache) and post-processes the rows.
    *
-   * The outer SPARQL LIMIT is [MAX_LIMIT] so that the DETAILS fan-out rows (multiple labels,
-   * widths, collections) are not truncated before parsing. Rows are therefore deduplicated by uid,
-   * optionally ordered by relevance, and capped to [limit] here. The processed list is what gets
-   * cached.
+   * The outer SPARQL LIMIT is [${rowGuard(limit)}] so that the DETAILS fan-out rows (multiple
+   * labels, widths, collections) are not truncated before parsing. Rows are therefore deduplicated
+   * by uid, optionally ordered by relevance, and capped to [limit] here. The processed list is what
+   * gets cached.
    */
   private suspend fun fetchArtworks(
       query: String,
@@ -428,7 +432,7 @@ class WikiDataRepositoryRemote(
     }
     $DETAILS
   }
-  LIMIT $MAX_LIMIT
+  LIMIT ${rowGuard(limit)}
     """
         .trimIndent()
   }
@@ -473,7 +477,7 @@ class WikiDataRepositoryRemote(
         }
         $DETAILS
       }
-      LIMIT $MAX_LIMIT
+      LIMIT ${rowGuard(limit)}
     """
         .trimIndent()
   }

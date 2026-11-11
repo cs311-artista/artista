@@ -204,21 +204,20 @@ class WikiDataRepositoryRemoteTest {
 
   @Test
   fun searchArtworks_matchesAccentedAndUnaccentedQueryAndArtworkNames() = runTest {
-    val queryAndArtworkNames = listOf("monet" to "Monét", "Monét" to "Monet")
-
-    queryAndArtworkNames.forEachIndexed { index, (query, artworkName) ->
+    listOf("monet" to "Monét", "Monét" to "Monet").forEach { (query, matchingName) ->
       val repository =
           WikiDataRepositoryRemote(
               testClient(),
               jsonResponseParser =
                   ArtworkListParser(
                       listOf(
-                          Artwork("Q${index + 1}", artworkName, null, null, null, null, null, null)
+                          Artwork("Q1", "Unrelated", null, null, null, null, null, null),
+                          Artwork("Q2", matchingName, null, null, null, null, null, null),
                       )
                   ),
           )
 
-      assertEquals(listOf("Q${index + 1}"), repository.searchArtworks(query).map { it.uid })
+      assertEquals("Q2", repository.searchArtworks(query).first().uid)
     }
   }
 
@@ -814,7 +813,7 @@ class WikiDataRepositoryRemoteTest {
     assertTrue(sparql.contains("LIMIT 25"))
     assertTrue(
         "the outer query should respect the repository maximum",
-        sparql.trimEnd().endsWith("LIMIT ${WikiDataRepositoryRemote.MAX_LIMIT}"),
+        sparql.trimEnd().endsWith("LIMIT ${WikiDataRepositoryRemote.rowGuard(25)}"),
     )
   }
 
