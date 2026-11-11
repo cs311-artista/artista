@@ -182,6 +182,10 @@ class MapViewModel(
   /**
    * Handles permission result callback from the UI layer. Call this when activity result returns to
    * update ViewModel state.
+   *
+   * @param granted whether the location permissions were granted by the user or not.
+   *
+   * @author 5kyPhy
    */
   fun handleLocationPermissionResult(granted: Boolean) {
     viewModelScope.launchCatching(
