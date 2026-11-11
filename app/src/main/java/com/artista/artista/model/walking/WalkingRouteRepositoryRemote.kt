@@ -15,7 +15,6 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import okhttp3.Call
 import okhttp3.Callback
-import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -73,7 +72,7 @@ class WalkingRouteRepositoryRemote(
 
   private fun buildRequest(origin: Coordinate, destination: Coordinate): Request =
       Request.Builder()
-          .url(ENDPOINT)
+          .url(URL)
           .header("Authorization", apiKey)
           .post(coordinatesBody(origin, destination).toRequestBody(JSON_MEDIA_TYPE))
           .build()
@@ -194,8 +193,7 @@ class WalkingRouteRepositoryRemote(
       """{"coordinates":[[${origin.longitude},${origin.latitude}],[${destination.longitude},${destination.latitude}]], "instructions":false}"""
 
   private companion object {
-    val ENDPOINT =
-        "https://api.heigit.org/openrouteservice/v2/directions/foot-walking/geojson".toHttpUrl()
+    const val URL = "https://api.heigit.org/openrouteservice/v2/directions/foot-walking/geojson"
     val JSON_MEDIA_TYPE = "application/json".toMediaType()
 
     // Error codes that mean "nothing to walk" rather than a failure: 2009 no route between the two
