@@ -218,6 +218,9 @@ class ArtistPreferencesViewModelTest {
         )
     userRepository.store(User(uid = UID, userName = "Artista Fan", preference = storedPreference))
     signIn()
+    // Klimt is pre-selected from the stored profile; replacing him checks that the stored list is
+    // replaced, not appended to.
+    viewModel.toggleArtist(KLIMT.uid)
     viewModel.toggleArtist(PICASSO.uid)
 
     viewModel.saveSelectedArtists()
@@ -265,9 +268,10 @@ class ArtistPreferencesViewModelTest {
     val state = viewModel.uiState.value
     assertEquals(R.string.error_network, state.messageResId)
     assertFalse(state.isSaving)
-    assertTrue(state.savedArtists.isEmpty())
+    // The saved selection is still the loaded one, so the new one stays unsaved.
+    assertEquals(setOf(KLIMT.uid), state.savedArtists)
     // The selection is kept so the user can try again.
-    assertEquals(setOf(PICASSO.uid), state.selectedArtists)
+    assertEquals(setOf(KLIMT.uid, PICASSO.uid), state.selectedArtists)
     assertEquals(listOf(KLIMT.uid), userRepository.storedUser(UID)?.preference?.artists)
   }
 
@@ -450,6 +454,186 @@ class ArtistPreferencesViewModelTest {
     assertNull(viewModel.uiState.value.messageResId)
   }
 
+  /** Verifies that the stored artists are pre-selected and count as saved, so Save is disabled. */
+  @Test
+  fun signIn_savedArtists_preselectsThem() = runTest {
+    userRepository.store(userWithArtists(listOf(MONET.uid, KLIMT.uid)))
+
+    signIn()
+
+    val state = viewModel.uiState.value
+    assertEquals(setOf(MONET.uid, KLIMT.uid), state.selectedArtists)
+    assertEquals(setOf(MONET.uid, KLIMT.uid), state.savedArtists)
+    assertFalse(state.canSave)
+  }
+
+  /** Verifies that a user without a profile starts with an empty selection and no error. */
+  @Test
+  fun signIn_noProfile_startsWithEmptySelection() = runTest {
+    signIn()
+
+    val state = viewModel.uiState.value
+    assertTrue(state.selectedArtists.isEmpty())
+    assertTrue(state.savedArtists.isEmpty())
+    assertNull(state.messageResId)
+  }
+
+  /** Verifies that a profile without saved artists gives an empty selection. */
+  @Test
+  fun signIn_profileWithoutArtists_startsWithEmptySelection() = runTest {
+    userRepository.store(userWithArtists(emptyList()))
+
+    signIn()
+
+    assertTrue(viewModel.uiState.value.selectedArtists.isEmpty())
+    assertNull(viewModel.uiState.value.messageResId)
+  }
+
+  /**
+   * Verifies that a failed load exposes an error, leaves the selection empty, and that the user can
+   * still select artists and save them once the backend answers again.
+   */
+  @Test
+  fun signIn_loadFails_keepsScreenUsableAndExposesError() = runTest {
+    userRepository.readFailure = AppException.Network()
+
+    signIn()
+
+    assertEquals(R.string.error_network, viewModel.uiState.value.messageResId)
+    assertTrue(viewModel.uiState.value.selectedArtists.isEmpty())
+    assertFalse(viewModel.uiState.value.isLoadingSavedArtists)
+
+    // The backend is reachable again, as when the user retries after the error.
+    userRepository.readFailure = null
+    viewModel.toggleArtist(PICASSO.uid)
+    viewModel.saveSelectedArtists()
+    advanceUntilIdle()
+
+    assertEquals(listOf(PICASSO.uid), userRepository.storedUser(UID)?.preference?.artists)
+  }
+
+  /** Verifies that a saved artist missing from the popular artists is still selected. */
+  @Test
+  fun signIn_nonPopularSavedArtist_staysSelected() = runTest {
+    userRepository.store(userWithArtists(listOf(NON_POPULAR_ARTIST_ID)))
+
+    signIn()
+
+    assertEquals(setOf(NON_POPULAR_ARTIST_ID), viewModel.uiState.value.selectedArtists)
+  }
+
+  /**
+   * Verifies that saving after reopening the screen keeps the earlier choices the user did not
+   * change, in their order, including those that are not popular artists.
+   */
+  @Test
+  fun save_afterReopening_keepsUnchangedEarlierChoices() = runTest {
+    userRepository.store(userWithArtists(listOf(KLIMT.uid, NON_POPULAR_ARTIST_ID)))
+    signIn()
+
+    viewModel.toggleArtist(PICASSO.uid)
+    viewModel.saveSelectedArtists()
+    advanceUntilIdle()
+
+    assertEquals(
+        listOf(KLIMT.uid, NON_POPULAR_ARTIST_ID, PICASSO.uid),
+        userRepository.storedUser(UID)?.preference?.artists,
+    )
+  }
+
+  /** Verifies that another user signing in replaces the previous user's selection with theirs. */
+  @Test
+  fun signIn_otherUser_replacesPreviousUsersSelection() = runTest {
+    userRepository.store(userWithArtists(listOf(KLIMT.uid)))
+    userRepository.store(userWithArtists(listOf(MONET.uid), uid = OTHER_UID))
+    signIn()
+
+    authRepository.setAuthState(FakeAuthUser(OTHER_UID))
+    advanceUntilIdle()
+
+    assertEquals(setOf(MONET.uid), viewModel.uiState.value.selectedArtists)
+    assertEquals(setOf(MONET.uid), viewModel.uiState.value.savedArtists)
+  }
+
+  /**
+   * Verifies that a slow load of the previous user, ending after another user signed in, does not
+   * replace the new user's selection.
+   */
+  @Test
+  fun signIn_slowLoadOfPreviousUser_doesNotOverwriteNewUser() = runTest {
+    userRepository.store(userWithArtists(listOf(KLIMT.uid)))
+    userRepository.store(userWithArtists(listOf(MONET.uid), uid = OTHER_UID))
+    userRepository.readDelays[UID] = 1_000
+    authRepository.setAuthState(FakeAuthUser(UID))
+    // runCurrent starts the first load without letting time pass, so it is still running.
+    runCurrent()
+
+    authRepository.setAuthState(FakeAuthUser(OTHER_UID))
+    advanceUntilIdle()
+
+    assertEquals(setOf(MONET.uid), viewModel.uiState.value.selectedArtists)
+  }
+
+  /** Verifies that signing out clears the selection of the user who left. */
+  @Test
+  fun signOut_clearsSelection() = runTest {
+    userRepository.store(userWithArtists(listOf(KLIMT.uid)))
+    signIn()
+
+    authRepository.setAuthState(null)
+    advanceUntilIdle()
+
+    assertTrue(viewModel.uiState.value.selectedArtists.isEmpty())
+    assertTrue(viewModel.uiState.value.savedArtists.isEmpty())
+  }
+
+  /** Verifies that the loading flag is set while the stored artists load, and reset after. */
+  @Test
+  fun signIn_whileLoading_isLoadingSavedArtists() = runTest {
+    userRepository.store(userWithArtists(listOf(KLIMT.uid)))
+    userRepository.readDelays[UID] = 1_000
+    authRepository.setAuthState(FakeAuthUser(UID))
+    // runCurrent starts the load without letting time pass, so it is still waiting on the read.
+    runCurrent()
+
+    assertTrue(viewModel.uiState.value.isLoadingSavedArtists)
+
+    advanceUntilIdle()
+
+    assertFalse(viewModel.uiState.value.isLoadingSavedArtists)
+  }
+
+  /**
+   * Verifies that a tap made while the stored artists load is ignored, and that the loaded artists
+   * are selected once the load ends.
+   */
+  @Test
+  fun toggleArtist_whileLoading_isIgnored() = runTest {
+    userRepository.store(userWithArtists(listOf(KLIMT.uid)))
+    userRepository.readDelays[UID] = 1_000
+    authRepository.setAuthState(FakeAuthUser(UID))
+    runCurrent()
+
+    viewModel.toggleArtist(PICASSO.uid)
+
+    assertTrue(viewModel.uiState.value.selectedArtists.isEmpty())
+    advanceUntilIdle()
+    assertEquals(setOf(KLIMT.uid), viewModel.uiState.value.selectedArtists)
+  }
+
+  /** Verifies that signing out during a load resets the flag, so the screen is not stuck. */
+  @Test
+  fun signOut_whileLoading_stopsLoading() = runTest {
+    userRepository.readDelays[UID] = 1_000
+    authRepository.setAuthState(FakeAuthUser(UID))
+    runCurrent()
+
+    authRepository.setAuthState(null)
+    advanceUntilIdle()
+
+    assertFalse(viewModel.uiState.value.isLoadingSavedArtists)
+  }
+
   /**
    * Signs [UID] in and lets [viewModel] receive it before the test acts.
    *
@@ -461,13 +645,14 @@ class ArtistPreferencesViewModelTest {
   }
 
   /**
-   * Builds the profile of the signed-in user with the given favorite artists.
+   * Builds the profile of a user with the given favorite artists.
    *
    * @param artists the favorite artists of the user
+   * @param uid the identifier of the user, the signed-in [UID] by default
    * @return the user profile
    */
-  private fun userWithArtists(artists: List<String>): User =
-      User(uid = UID, userName = "Artista Fan", preference = UserPreference(artists = artists))
+  private fun userWithArtists(artists: List<String>, uid: String = UID): User =
+      User(uid = uid, userName = "Artista Fan", preference = UserPreference(artists = artists))
 
   /**
    * Computes the artists displayed for a query, among all the mock artists.
@@ -480,6 +665,9 @@ class ArtistPreferencesViewModelTest {
 
   private companion object {
     const val UID = "uid-1"
+    const val OTHER_UID = "uid-2"
+    // Saved from a search, so it is not among the popular artists of the screen.
+    const val NON_POPULAR_ARTIST_ID = "non-popular-artist"
     val PICASSO = Artist("mock-artist-001", "Pablo Picasso")
     val VAN_GOGH = Artist("mock-artist-002", "Vincent van Gogh")
     val RENOIR = Artist("mock-artist-003", "Pierre-Auguste Renoir")

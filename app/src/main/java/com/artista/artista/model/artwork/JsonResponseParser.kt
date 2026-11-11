@@ -63,10 +63,8 @@ open class JsonResponseParser {
       val artistLabel = binding.optJSONObject("artistLabel")
       val inception = binding.optJSONObject("inception")
       val collectionLabel = binding.optJSONObject("collectionLabel")
-      val locationLabel = binding.optJSONObject("locationLabel")
-      val width = binding.optJSONObject("width")
-      val height = binding.optJSONObject("height")
       val description = binding.optJSONObject("description")
+
       // Many artworks have no image on Wikidata, and the binding is then missing, null or an
       // empty string: optJSONObject returns null in all three cases instead of throwing.
       val image = binding.optJSONObject("image")
@@ -84,8 +82,15 @@ open class JsonResponseParser {
       val descriptionText = description?.getString("value")
       val conceptionDate = inception?.getString("value")?.let(::parseDate)
       val museum = collectionLabel?.getString("value")
+
+      val locationLabel = binding.optJSONObject("locationLabel")
       val coordinates = binding.optJSONObject("locationCoordinates")?.optString("value")
       val location = parseLocation(coordinates, locationLabel?.getString("value"))
+
+      // Dimension handling: Ignore incomplete data, setting to null if either width or height was
+      // not provided
+      val width = binding.optJSONObject("width")
+      val height = binding.optJSONObject("height")
       val dimension: Dimension? =
           if (width != null && height != null) {
             Dimension(
@@ -133,9 +138,7 @@ open class JsonResponseParser {
    * Scores how much of an item one row carries, so the rows of the same item can be compared.
    *
    * Coordinates weigh the most because the map button, the map marker and the location filter all
-   * depend on them, while a row without them still yields a location - at (0, 0), see
-   * [parseLocation] - so collapsing onto that row would put an artwork in the Gulf of Guinea even
-   * though the response knew where it really is.
+   * depend on them.
    *
    * @param hasCoordinates whether the row bound coordinates, for the artwork or for its location
    * @return a bit per piece of data the row carries
@@ -157,6 +160,16 @@ open class JsonResponseParser {
         .getOrNull()
   }
 
+  /**
+   * Parses the location of an artwork from its coordinates and label. Locations without coordinates
+   * are useless for us, therefore we set location to null if only a label is provided by the JSON
+   * object.
+   *
+   * @param coordinates the coordinates of the location, in the format "Point(longitude latitude)"
+   * @param label the label of the location
+   * @return the parsed location, or null if the coordinates are invalid or malformed.
+   * @author 5kyPhy
+   */
   private fun parseLocation(coordinates: String?, label: String?): Location? {
     val match = coordinates?.let { POINT_PATTERN.find(it) }
     return when {
@@ -166,8 +179,6 @@ open class JsonResponseParser {
               latitude = match.groupValues[2].toDouble(),
               name = label,
           )
-
-      label != null -> Location(0.0, 0.0, label)
       else -> null
     }
   }

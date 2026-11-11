@@ -30,6 +30,8 @@ import com.artista.artista.model.authentication.AuthRepositoryProvider
 import com.artista.artista.model.user.UserRepositoryProvider
 import com.artista.artista.model.user.UsernameCacheDataStore
 import com.artista.artista.model.user.usernameDataStore
+import com.artista.artista.model.walking.WalkingRouteRepository
+import com.artista.artista.model.walking.WalkingRouteRepositoryRemote
 import com.artista.artista.ui.artwork.ArtworkScreen
 import com.artista.artista.ui.artwork.ArtworkScreenViewModel
 import com.artista.artista.ui.artwork.SavedArtworksScreen
@@ -53,7 +55,7 @@ import com.artista.artista.ui.theme.ArtistaTheme
 /**
  * Hosts the Artista app's root navigation graph.
  *
- * @author hixeum
+ * @author hixeum, patrickmcdan
  */
 class MainActivity : ComponentActivity() {
   /**
@@ -95,6 +97,7 @@ fun ArtistaApp(
     wikiDataRepository: WikiDataRepository = ArtworkRepositoryProvider.wikiDataRepository,
     savedArtworksRepository: SavedArtworksRepository =
         ArtworkRepositoryProvider.savedArtworksRepository,
+    walkingRouteRepository: WalkingRouteRepository = WalkingRouteRepositoryRemote(),
 ) {
   val navigationActions = remember { NavigationActions(navController) }
   // Read here, outside the NavHost, where the owner is the Activity: inside a destination it is the
@@ -174,9 +177,11 @@ fun ArtistaApp(
             mapViewModel =
                 viewModel(
                     factory =
-                        // Leave locationProvider unset in production; MapViewModel uses the
-                        // fused-location client. Tests inject a LocationProvider instead.
-                        MapViewModel.provideFactory(wikiDataRepository, savedArtworksRepository)
+                        MapViewModel.provideFactory(
+                            wikiDataRepository,
+                            savedArtworksRepository,
+                            walkingRouteRepository,
+                        )
                 ),
             onNavigationBarTabSelected = { tab -> navigationActions.navigateTo(tab.destination) },
         )
