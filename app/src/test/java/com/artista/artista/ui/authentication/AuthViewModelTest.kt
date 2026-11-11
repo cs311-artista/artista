@@ -2,6 +2,8 @@
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.authentication
 
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.ViewModelStore
 import com.artista.artista.MainDispatcherRule
 import com.artista.artista.R
 import com.artista.artista.model.authentication.FakeAuthRepository
@@ -10,6 +12,7 @@ import com.artista.artista.model.error.AppException
 import com.artista.artista.model.user.FakeUserRepository
 import com.artista.artista.model.user.User
 import com.artista.artista.model.user.UserPreference
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -364,6 +367,57 @@ class AuthViewModelTest {
 
       assertEquals(userId, viewModel.signedInUid())
       assertNull(viewModel.uiState.value.repositoryErrorMessageRes)
+    }
+  }
+
+  /**
+   * Checks that cancellation during profile creation is propagated without becoming a sign-in
+   * error.
+   *
+   * @author hixeum
+   */
+  @Test
+  fun signInWhenProfileCreationIsCancelledPropagatesCancellation() {
+    runTest {
+      repository.user = FakeAuthUser(userId)
+      userRepository.writeFailure = CancellationException("profile creation cancelled")
+
+      viewModel.signIn(token1)
+      advanceUntilIdle()
+
+      assertEquals(userId, viewModel.signedInUid())
+      assertFalse(viewModel.uiState.value.isLoading)
+      assertNull(viewModel.uiState.value.repositoryErrorMessageRes)
+    }
+  }
+
+  /**
+   * Checks that the factory uses the user repository supplied by its caller.
+   *
+   * @author hixeum
+   */
+  @Test
+  fun provideFactoryUsesThePassedUserRepository() {
+    runTest {
+      val providedUserRepository = FakeUserRepository()
+      val viewModelStore = ViewModelStore()
+      val factory =
+          AuthViewModel.provideFactory(
+              repository = repository,
+              userRepository = providedUserRepository,
+          )
+      val factoryViewModel = ViewModelProvider(viewModelStore, factory)[AuthViewModel::class.java]
+
+      repository.user = FakeAuthUser(userId)
+      factoryViewModel.signIn(token1)
+      advanceUntilIdle()
+
+      assertEquals(
+          User(uid = userId, preference = UserPreference()),
+          providedUserRepository.storedUser(userId),
+      )
+      assertNull(userRepository.storedUser(userId))
+      viewModelStore.clear()
     }
   }
 

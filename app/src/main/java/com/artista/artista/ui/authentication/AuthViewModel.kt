@@ -16,7 +16,6 @@ import com.artista.artista.model.user.User
 import com.artista.artista.model.user.UserId
 import com.artista.artista.model.user.UserPreference
 import com.artista.artista.model.user.UserRepository
-import com.artista.artista.model.user.UserRepositoryProvider
 import com.artista.artista.ui.error.launchCatching
 import com.artista.artista.ui.error.toMessageRes
 import kotlinx.coroutines.CancellationException
@@ -275,7 +274,7 @@ class AuthViewModel(
      */
     fun provideFactory(
         repository: AuthRepository,
-        userRepository: UserRepository = UserRepositoryProvider.repository,
+        userRepository: UserRepository,
     ): ViewModelProvider.Factory = viewModelFactory {
       initializer { AuthViewModel(repository, userRepository) }
     }
