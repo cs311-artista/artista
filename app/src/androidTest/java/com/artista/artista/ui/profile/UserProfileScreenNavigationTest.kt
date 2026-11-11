@@ -18,6 +18,7 @@ import com.artista.artista.ArtistaNavHost
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
 import com.artista.artista.model.authentication.AuthRepositoryProvider
 import com.artista.artista.model.authentication.FakeAuthRepository
+import com.artista.artista.model.walking.WalkingRouteRepositoryRemote
 import com.artista.artista.resources.C
 import com.artista.artista.ui.artwork.SavedArtworksTestTags
 import com.artista.artista.ui.navigation.NavigationTestTags
@@ -63,6 +64,7 @@ class UserProfileScreenNavigationTest {
           onLogout = { logoutCount++ },
           wikiDataRepository = artworkRepository,
           savedArtworksRepository = artworkRepository,
+          walkingRouteRepository = WalkingRouteRepositoryRemote(),
           navController = navController,
           startDestination = C.Constants.PROFILE_GRAPH_ROUTE,
       )
@@ -91,6 +93,7 @@ class UserProfileScreenNavigationTest {
           onLogout = {},
           wikiDataRepository = artworkRepository,
           savedArtworksRepository = artworkRepository,
+          walkingRouteRepository = WalkingRouteRepositoryRemote(),
           navController = navController,
           startDestination = C.Constants.PROFILE_GRAPH_ROUTE,
       )
@@ -134,6 +137,7 @@ class UserProfileScreenNavigationTest {
             startDestination = C.Constants.PROFILE_GRAPH_ROUTE,
             wikiDataRepository = artworkRepository,
             savedArtworksRepository = artworkRepository,
+            walkingRouteRepository = WalkingRouteRepositoryRemote(),
         )
       }
 

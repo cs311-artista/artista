@@ -17,6 +17,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.artista.artista.ArtistaNavHost
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
 import com.artista.artista.model.artwork.mockArtworks
+import com.artista.artista.model.walking.WalkingRouteRepositoryRemote
 import com.artista.artista.resources.C
 import com.artista.artista.ui.artwork.ArtworkCardTestTag
 import com.artista.artista.ui.artwork.ArtworkTestTags
@@ -72,6 +73,7 @@ class OverviewScreenNavigationTest {
           startDestination = C.Constants.OVERVIEW_GRAPH_ROUTE,
           wikiDataRepository = repository,
           savedArtworksRepository = repository,
+          walkingRouteRepository = WalkingRouteRepositoryRemote(),
       )
     }
 
@@ -109,6 +111,7 @@ class OverviewScreenNavigationTest {
             startDestination = C.Constants.OVERVIEW_GRAPH_ROUTE,
             wikiDataRepository = repository,
             savedArtworksRepository = repository,
+            walkingRouteRepository = WalkingRouteRepositoryRemote(),
         )
       }
 
@@ -144,6 +147,7 @@ class OverviewScreenNavigationTest {
           startDestination = C.Constants.OVERVIEW_GRAPH_ROUTE,
           wikiDataRepository = repository,
           savedArtworksRepository = repository,
+          walkingRouteRepository = WalkingRouteRepositoryRemote(),
       )
     }
 

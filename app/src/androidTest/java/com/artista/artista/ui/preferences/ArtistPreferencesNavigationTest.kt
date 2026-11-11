@@ -12,6 +12,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.artista.artista.ArtistaNavHost
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
+import com.artista.artista.model.walking.WalkingRouteRepositoryRemote
 import com.artista.artista.resources.C
 import com.artista.artista.ui.navigation.Screen
 import com.artista.artista.ui.profile.UserProfileTestTags
@@ -46,6 +47,7 @@ class ArtistPreferencesNavigationTest {
           startDestination = C.Constants.PROFILE_GRAPH_ROUTE,
           wikiDataRepository = ArtworkRepositoryProvider.mockRepository,
           savedArtworksRepository = ArtworkRepositoryProvider.mockRepository,
+          walkingRouteRepository = WalkingRouteRepositoryRemote(),
       )
     }
 

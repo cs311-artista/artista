@@ -35,6 +35,8 @@ import com.artista.artista.model.authentication.AuthRepositoryProvider
 import com.artista.artista.model.user.UserRepositoryProvider
 import com.artista.artista.model.user.UsernameCacheDataStore
 import com.artista.artista.model.user.usernameDataStore
+import com.artista.artista.model.walking.WalkingRouteRepository
+import com.artista.artista.model.walking.WalkingRouteRepositoryRemote
 import com.artista.artista.resources.C
 import com.artista.artista.ui.artwork.ArtworkScreen
 import com.artista.artista.ui.artwork.ArtworkScreenViewModel
@@ -62,7 +64,7 @@ import com.artista.artista.ui.theme.ArtistaTheme
 /**
  * Hosts the Artista app's root composition, and through it the navigation graph.
  *
- * @author hixeum
+ * @author hixeum, patrickmcdan
  */
 class MainActivity : ComponentActivity() {
   /**
@@ -122,6 +124,7 @@ class MainActivity : ComponentActivity() {
  *   reaches the real account chooser
  * @param wikiDataRepository source of the artworks
  * @param savedArtworksRepository storage of the saved artworks
+ * @param walkingRouteRepository source of the walking routes between artworks
  * @author hixeum
  */
 @Composable
@@ -132,6 +135,7 @@ fun ArtistaApp(
     wikiDataRepository: WikiDataRepository = ArtworkRepositoryProvider.wikiDataRepository,
     savedArtworksRepository: SavedArtworksRepository =
         ArtworkRepositoryProvider.savedArtworksRepository,
+    walkingRouteRepository: WalkingRouteRepository = WalkingRouteRepositoryRemote(),
 ) {
   val state by authViewModel.uiState.collectAsStateWithLifecycle()
 
@@ -150,6 +154,7 @@ fun ArtistaApp(
             onLogout = authViewModel::signOut,
             wikiDataRepository = wikiDataRepository,
             savedArtworksRepository = savedArtworksRepository,
+            walkingRouteRepository = walkingRouteRepository,
         )
       }
     }
@@ -178,6 +183,7 @@ fun ArtistaApp(
  * @param onLogout invoked when the user asks to sign out
  * @param wikiDataRepository source of the artworks
  * @param savedArtworksRepository storage of the saved artworks
+ * @param walkingRouteRepository source of the walking routes between artworks
  * @param navController Controller used to manage destinations in the root graph.
  * @param startDestination Route displayed when the graph is first opened.
  * @author hixeum
@@ -187,6 +193,7 @@ fun ArtistaNavHost(
     onLogout: () -> Unit,
     wikiDataRepository: WikiDataRepository,
     savedArtworksRepository: SavedArtworksRepository,
+    walkingRouteRepository: WalkingRouteRepository,
     navController: NavHostController = rememberNavController(),
     // The start destination has to be a direct child of the root graph, and Overview lives in the
     // nested graph of its tab, so the graph route is used rather than Screen.Overview.route.
@@ -257,7 +264,11 @@ fun ArtistaNavHost(
             mapViewModel =
                 viewModel(
                     factory =
-                        MapViewModel.provideFactory(wikiDataRepository, savedArtworksRepository)
+                        MapViewModel.provideFactory(
+                            wikiDataRepository,
+                            savedArtworksRepository,
+                            walkingRouteRepository,
+                        )
                 ),
             onNavigationBarTabSelected = { tab -> navigationActions.navigateTo(tab.destination) },
         )

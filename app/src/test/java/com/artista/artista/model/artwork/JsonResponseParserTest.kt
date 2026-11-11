@@ -105,8 +105,8 @@ class JsonResponseParserTest {
     assertEquals(Date.from(Instant.parse("1503-01-01T00:00:00Z")), artwork.conceptionDate)
     assertEquals("Department of Paintings of the Louvre", artwork.museum)
     assertEquals("Salle des États, Louvre", artwork.location?.name)
-    assertEquals(0.0, artwork.location?.longitude ?: 0.0, 0.01)
-    assertEquals(0.0, artwork.location?.latitude ?: 0.0, 0.01)
+    assertEquals(2.3354, artwork.location?.longitude ?: 0.0, 0.01)
+    assertEquals(48.8601, artwork.location?.latitude ?: 0.0, 0.01)
     assertEquals(53.4, artwork.dimension?.width ?: 0.0, 0.01)
     assertEquals(79.4, artwork.dimension?.height ?: 0.0, 0.01)
     assertEquals(MONA_LISA_IMAGE_URL, artwork.imageUrl)
@@ -137,8 +137,8 @@ class JsonResponseParserTest {
     assertEquals(Date.from(Instant.parse("1503-01-01T00:00:00Z")), artwork.conceptionDate)
     assertEquals("Department of Paintings of the Louvre", artwork.museum)
     assertEquals("Salle des États, Louvre", artwork.location?.name)
-    assertEquals(0.0, artwork.location?.longitude ?: 0.0, 0.01)
-    assertEquals(0.0, artwork.location?.latitude ?: 0.0, 0.01)
+    assertEquals(2.3354, artwork.location?.longitude ?: 0.0, 0.01)
+    assertEquals(48.8601, artwork.location?.latitude ?: 0.0, 0.01)
     assertEquals(53.4, artwork.dimension?.width ?: 0.0, 0.01)
     assertEquals(79.4, artwork.dimension?.height ?: 0.0, 0.01)
     assertEquals(MONA_LISA_IMAGE_URL, artwork.imageUrl)
@@ -354,10 +354,7 @@ class JsonResponseParserTest {
   @Test
   fun testParseLocation_withLabelNoCoordinates() {
     val location = invokePrivateMethod<Location?>(parser, "parseLocation", null, "Test Location")
-    assertNotNull(location)
-    assertEquals(0.0, location!!.longitude, 0.0)
-    assertEquals(0.0, location.latitude, 0.0)
-    assertEquals("Test Location", location.name)
+    assertNull(location)
   }
 
   @Test

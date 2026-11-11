@@ -2,7 +2,6 @@
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.artwork
 
-import android.content.Context
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -13,21 +12,16 @@ import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
-import androidx.test.core.app.ApplicationProvider
-import coil3.ImageLoader
 import coil3.SingletonImageLoader
 import coil3.annotation.DelicateCoilApi
 import coil3.annotation.ExperimentalCoilApi
-import coil3.request.ErrorResult
 import coil3.test.FakeImage
 import coil3.test.FakeImageLoaderEngine
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.map.Location
-import java.io.IOException
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -45,14 +39,6 @@ import org.robolectric.RobolectricTestRunner
 class ArtworkCardTest {
 
   @get:Rule val composeTestRule = createComposeRule()
-
-  private companion object {
-    const val IMAGE_URL =
-        "https://commons.wikimedia.org/wiki/Special:FilePath/Mona%20Lisa.jpg?width=800"
-    const val BROKEN_IMAGE_URL =
-        "https://commons.wikimedia.org/wiki/Special:FilePath/Missing.jpg?width=800"
-    const val IMAGE_TIMEOUT_MS = 5_000L
-  }
 
   // The image loader is a process-wide singleton, so each test that replaces it must restore it.
   @After
@@ -217,15 +203,12 @@ class ArtworkCardTest {
    */
   @Test
   fun artworkCard_withLoadedImage_displaysImageWithoutFallback() {
-    installImageLoader(FakeImageLoaderEngine.Builder().intercept(IMAGE_URL, FakeImage()).build())
+    installFakeImageLoader(
+        FakeImageLoaderEngine.Builder().intercept(IMAGE_URL, FakeImage()).build()
+    )
 
     setCardContent(artworkWithImage(IMAGE_URL))
-    composeTestRule.waitUntil(IMAGE_TIMEOUT_MS) {
-      composeTestRule
-          .onAllNodesWithTag(ArtworkCardTestTag.ARTWORK_CARD_IMAGE_FALLBACK, useUnmergedTree = true)
-          .fetchSemanticsNodes()
-          .isEmpty()
-    }
+    composeTestRule.waitUntilFallbackDisappears(ArtworkCardTestTag.ARTWORK_CARD_IMAGE_FALLBACK)
 
     composeTestRule
         .onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD_THUMBNAIL, useUnmergedTree = true)
@@ -250,14 +233,7 @@ class ArtworkCardTest {
   @Test
   fun artworkCard_whenImageFailsToLoad_keepsFallback() {
     var imageRequested = false
-    installImageLoader(
-        FakeImageLoaderEngine.Builder()
-            .intercept({ it == BROKEN_IMAGE_URL }) { chain ->
-              imageRequested = true
-              ErrorResult(image = null, request = chain.request, throwable = IOException("404"))
-            }
-            .build()
-    )
+    installFakeImageLoader(failingImageEngine(BROKEN_IMAGE_URL) { imageRequested = true })
 
     setCardContent(artworkWithImage(BROKEN_IMAGE_URL))
     composeTestRule.waitUntil(IMAGE_TIMEOUT_MS) { imageRequested }
@@ -271,7 +247,9 @@ class ArtworkCardTest {
   /** Checks that the image and fallback tags take the suffix, so repeated cards stay distinct. */
   @Test
   fun artworkCard_withTestTagSuffix_suffixesImageTags() {
-    installImageLoader(FakeImageLoaderEngine.Builder().intercept(IMAGE_URL, FakeImage()).build())
+    installFakeImageLoader(
+        FakeImageLoaderEngine.Builder().intercept(IMAGE_URL, FakeImage()).build()
+    )
 
     // One card with an image and one without, so each tag is checked in a state that cannot
     // change while the test runs.
@@ -293,11 +271,6 @@ class ArtworkCardTest {
             useUnmergedTree = true,
         )
         .assertIsDisplayed()
-  }
-
-  private fun installImageLoader(engine: FakeImageLoaderEngine) {
-    val context = ApplicationProvider.getApplicationContext<Context>()
-    SingletonImageLoader.setUnsafe(ImageLoader.Builder(context).components { add(engine) }.build())
   }
 
   private fun setCardContent(artwork: Artwork) {
