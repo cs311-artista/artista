@@ -1,3 +1,4 @@
+// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 // Co-authored-by: DeepSeek Flash
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.authentication
@@ -69,12 +70,16 @@ sealed interface AuthSession {
  * @property isLoading whether an authentication operation is in progress
  * @property repositoryErrorMessageRes localized message of the last failed repository operation, or
  *   `null` when there is nothing to report
+ * @property isProfileInitializationInProgress whether the profile is being checked or initialized
+ * @property profileInitializationFailed whether profile initialization needs to be retried
  * @author timo-by
  */
 data class AuthUiState(
     val session: AuthSession = AuthSession.Restoring,
     val isLoading: Boolean = false,
     @param:StringRes val repositoryErrorMessageRes: Int? = null,
+    val isProfileInitializationInProgress: Boolean = false,
+    val profileInitializationFailed: Boolean = false,
 )
 
 /**
@@ -154,25 +159,48 @@ class AuthViewModel(
    * Ensures that a user profile document exists in [userRepository] for the given [uid].
    *
    * If no profile exists for [uid], a default user profile with empty preferences is created. If a
-   * profile already exists, it is left untouched. Any failure during profile retrieval or creation
-   * is caught so that profile creation issues never block the sign-in flow.
+   * profile already exists, it is left untouched. Only [AppException.NotFound] means that the
+   * profile is absent; other failures keep the user signed in and expose a retry action.
    *
    * @param uid identifier of the signed-in user
    * @author hixeum
    */
   private suspend fun ensureProfileExists(uid: UserId) {
+    _uiState.update { it.copy(isProfileInitializationInProgress = true) }
     try {
       try {
         userRepository.getUser(uid)
       } catch (_: AppException.NotFound) {
+        // A missing profile is the only lookup result that justifies creating a default one.
         userRepository.createUser(User(uid = uid, preference = UserPreference()))
       }
+      _uiState.update { it.copy(profileInitializationFailed = false) }
     } catch (exception: CancellationException) {
       // Keep lifecycle cancellation observable to the parent coroutine.
       throw exception
     } catch (exception: Exception) {
-      // Log profile failures for diagnosis without turning a successful sign-in into a failure.
+      // Authentication already succeeded; keep the user signed in and make profile recovery
+      // visible.
       Log.e(TAG, "Failed to initialize the signed-in user's profile.", exception)
+      _uiState.update { it.copy(profileInitializationFailed = true) }
+    } finally {
+      _uiState.update { it.copy(isProfileInitializationInProgress = false) }
+    }
+  }
+
+  /**
+   * Retries checking or creating the profile for the currently signed-in user.
+   *
+   * @author hixeum
+   */
+  fun retryProfileInitialization() {
+    val session = _uiState.value.session as? AuthSession.SignedIn ?: return
+    if (_uiState.value.isProfileInitializationInProgress) return
+
+    // Let a later failed attempt transition back to true and display a fresh snackbar.
+    _uiState.update { it.copy(profileInitializationFailed = false) }
+    viewModelScope.launchCatching(tag = TAG, onError = ::report) {
+      ensureProfileExists(session.user.uid)
     }
   }
 

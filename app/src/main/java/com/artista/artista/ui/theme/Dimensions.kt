@@ -122,6 +122,7 @@ internal object Dimensions {
   val logoutButtonVerticalPadding = 10.dp
   val logoutButtonIconLabelSpacing = 8.dp
   val profileFieldHorizontalPadding = 24.dp
+  val profileInitializationWarningPadding = 16.dp
   /** Height of each profile field. */
   val profileFieldHeight = 70.dp
 

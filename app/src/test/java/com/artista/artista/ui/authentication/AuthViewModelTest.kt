@@ -367,6 +367,22 @@ class AuthViewModelTest {
 
       assertEquals(userId, viewModel.signedInUid())
       assertNull(viewModel.uiState.value.repositoryErrorMessageRes)
+      assertTrue(viewModel.uiState.value.profileInitializationFailed)
+    }
+  }
+
+  @Test
+  fun signInWhenProfileLookupFailsDoesNotAttemptCreation() {
+    runTest {
+      repository.user = FakeAuthUser(userId)
+      userRepository.readFailure = AppException.Network("offline")
+
+      viewModel.signIn(token1)
+      advanceUntilIdle()
+
+      assertEquals(userId, viewModel.signedInUid())
+      assertEquals(0, userRepository.writeCount)
+      assertTrue(viewModel.uiState.value.profileInitializationFailed)
     }
   }
 
