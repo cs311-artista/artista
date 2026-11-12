@@ -18,11 +18,14 @@ import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.map.Coordinate
+import com.artista.artista.model.map.Location as ArtworkLocation
 import com.artista.artista.model.map.UserLocation
 import com.artista.artista.model.walking.WalkingRoute
+import com.artista.artista.model.walking.WalkingRouteRepository
 import com.artista.artista.model.walking.WalkingRouteRepositoryRemote
 import com.artista.artista.ui.navigation.NavigationTestTags
 import com.artista.artista.ui.theme.ArtistaTheme
+import java.lang.reflect.Proxy
 import kotlin.time.Duration.Companion.minutes
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -216,6 +219,42 @@ class MapScreenTest {
 
     composeTestRule.onNodeWithTag(MapScreenTestTags.ROUTE_SUMMARY_CARD).assertDoesNotExist()
     composeTestRule.onNodeWithTag(MapScreenTestTags.ROUTE_LOADING).assertDoesNotExist()
+  }
+
+  /**
+   * Verifies that [MapScreen] composes the route polyline and destination marker without crashing.
+   * The polyline itself can't be asserted because map content isn't in the semantics tree.
+   */
+  @Test
+  fun mapScreen_withSuccessfulRoute_composesPolylineWithoutCrashing() {
+    val route = WalkingRoute(listOf(Coordinate(MOCK_LATITUDE, MOCK_LONGITUDE)), 12.minutes, 850)
+    val destination = routeArtwork().copy(location = ArtworkLocation(46.523, 6.636, "Museum"))
+    val walkingRepository =
+        Proxy.newProxyInstance(
+            WalkingRouteRepository::class.java.classLoader,
+            arrayOf(WalkingRouteRepository::class.java),
+        ) { _, _, _ ->
+          route
+        } as WalkingRouteRepository
+    lateinit var viewModel: MapViewModel
+    composeTestRule.runOnUiThread {
+      viewModel =
+          MapViewModel(
+              ArtworkRepositoryProvider.mockRepository,
+              ArtworkRepositoryProvider.mockRepository,
+              walkingRepository,
+          )
+      viewModel.updateUserLocation(UserLocation(MOCK_LATITUDE, MOCK_LONGITUDE))
+      viewModel.loadRouteTo(destination)
+    }
+    composeTestRule.waitUntil(10_000) { viewModel.routeUiState is RouteUiState.Success }
+
+    composeTestRule.setContent { ArtistaTheme { MapScreen(mapViewModel = viewModel) } }
+
+    composeTestRule.onNodeWithTag(MapScreenTestTags.MAP).assertIsDisplayed()
+    composeTestRule
+        .onNodeWithTag(MapScreenTestTags.ROUTE_SUMMARY)
+        .assertTextEquals("12 min · 850 m")
   }
 
   private fun setMapScreenContent() {
