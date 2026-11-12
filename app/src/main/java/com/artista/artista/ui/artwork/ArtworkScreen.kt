@@ -122,25 +122,6 @@ fun ArtworkScreen(
   val dateFormatter = remember(locale) { DateFormat.getDateInstance(DateFormat.MEDIUM, locale) }
   var isMapPressed by remember { mutableStateOf(false) }
 
-  // Set the camera position and marker position of the artwork, if the [artwork.location] is
-  // specified. This only needs to be done once, as the artwork is not going to be moving around.
-  val mapTileCameraPositionState = rememberCameraPositionState {
-    position =
-        artwork?.location?.let {
-          CameraPosition.fromLatLngZoom(
-              LatLng(it.latitude, it.longitude),
-              C.Constants.DEFAULT_MAP_ZOOM,
-          )
-        } ?: C.Constants.DEFAULT_MAP_POSITION
-  }
-  val mapTileMarkerState = remember {
-    MarkerState(
-        position =
-            artwork?.location?.let { LatLng(it.latitude, it.longitude) }
-                ?: LatLng(C.Constants.DEFAULT_MAP_LAT, C.Constants.DEFAULT_MAP_LONG)
-    )
-  }
-
   Scaffold(
       modifier = modifier.testTag(ArtworkTestTags.ARTWORK_SCREEN),
       topBar = {
@@ -292,6 +273,21 @@ fun ArtworkScreen(
 
       // Only show the map-tile if the location of the artwork is actually specified
       if (artwork.location != null) {
+        // Set the camera position and marker position of the artwork, if the [artwork.location] is
+        // provided
+        val mapTileCameraPositionState = rememberCameraPositionState {
+          position =
+              artwork.location.let {
+                CameraPosition.fromLatLngZoom(
+                    LatLng(it.latitude, it.longitude),
+                    C.Constants.DEFAULT_MAP_ZOOM,
+                )
+              }
+        }
+        val mapTileMarkerState = remember {
+          MarkerState(position = artwork.location.let { LatLng(it.latitude, it.longitude) })
+        }
+
         MapTile(
             modifier,
             mapTileCameraPositionState,
