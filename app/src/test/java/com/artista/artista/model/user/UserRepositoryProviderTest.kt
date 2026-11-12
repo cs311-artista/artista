@@ -5,6 +5,7 @@ import com.artista.artista.model.error.AppException
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -23,7 +24,7 @@ class UserRepositoryProviderTest {
 
   @After
   fun tearDown() {
-    UserRepositoryProvider.resetFakeRepository()
+    UserRepositoryProvider.resetToApplicationRepository()
   }
 
   /** Verifies that fake mode selects the in-memory repository implementation. */
@@ -52,6 +53,16 @@ class UserRepositoryProviderTest {
     mockUsers.forEach { expected ->
       assertEquals(expected, UserRepositoryProvider.repository.getUser(expected.uid))
     }
+  }
+
+  /** Verifies that resetting to the application's repository discards the installed one. */
+  @Test
+  fun resetToApplicationRepository_discardsTheOverride() {
+    UserRepositoryProvider.resetFakeRepository()
+
+    UserRepositoryProvider.resetToApplicationRepository()
+
+    assertFalse(UserRepositoryProvider.isOverridden)
   }
 
   /** Verifies that resetting the fake repository removes users from the previous instance. */

@@ -2,8 +2,10 @@
 // Co-authored-by: Claude Sonnet 5.5 <noreply@anthropic.com>
 package com.artista.artista.model.walking
 
+import com.artista.artista.R
 import com.artista.artista.model.error.AppException
 import com.artista.artista.model.map.Coordinate
+import com.artista.artista.ui.error.toMessageRes
 import java.io.IOException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -51,12 +53,12 @@ class WalkingRouteRepositoryRemoteTest {
     val request = requireNotNull(client.lastRequest)
     assertEquals("POST", request.method)
     assertEquals(
-        "https://api.openrouteservice.org/v2/directions/foot-walking/geojson",
+        "https://api.heigit.org/openrouteservice/v2/directions/foot-walking/geojson",
         request.url.toString(),
     )
     assertEquals("test-key", request.header("Authorization"))
     assertEquals(
-        """{"coordinates":[[6.629,46.517],[6.627,46.507]]}""",
+        """{"coordinates":[[6.629,46.517],[6.627,46.507]], "instructions":false}""",
         request.body?.let { body -> Buffer().also { buffer -> body.writeTo(buffer) }.readUtf8() },
     )
   }
@@ -141,6 +143,23 @@ class WalkingRouteRepositoryRemoteTest {
           repository.getWalkingRoute(ORIGIN, DESTINATION)
         }
     assertFalse(exception.isTransient)
+  }
+
+  @Test
+  fun rateLimitVariantsMapToTheirOwnMessages() {
+    val exceptionNotTransient = AppException.RateLimited(isTransient = false)
+
+    assertEquals(
+        R.string.error_rate_limited_daily,
+        exceptionNotTransient.toMessageRes(),
+    )
+
+    val exceptionTransient = AppException.RateLimited(isTransient = true)
+
+    assertEquals(
+        R.string.error_rate_limited_minute,
+        exceptionTransient.toMessageRes(),
+    )
   }
 
   @Test

@@ -4,6 +4,7 @@
 package com.artista.artista.ui.artwork
 
 import androidx.activity.ComponentActivity
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
@@ -11,6 +12,7 @@ import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTouchInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.artista.artista.R
 import com.artista.artista.model.artist.Artist
@@ -113,6 +115,38 @@ class ArtworkScreenTest {
   }
 
   @Test
+  fun artworkScreen_whenMapIsPressed_disablesDetailsColumnScrolling() {
+    setScreenContent(artwork = sampleArtworkWithLocation)
+
+    val map = composeTestRule.onNodeWithTag(ArtworkTestTags.ARTWORK_MAP_TILE)
+    map.performScrollTo()
+    assertTrue(detailsColumnHasScrollAction())
+
+    map.performTouchInput { down(center) }
+    composeTestRule.waitForIdle()
+
+    assertFalse(detailsColumnHasScrollAction())
+
+    map.performTouchInput { up() }
+  }
+
+  @Test
+  fun artworkScreen_whenMapIsReleased_reenablesDetailsColumnScrolling() {
+    setScreenContent(artwork = sampleArtworkWithLocation)
+
+    val map = composeTestRule.onNodeWithTag(ArtworkTestTags.ARTWORK_MAP_TILE)
+    map.performScrollTo()
+    map.performTouchInput { down(center) }
+    composeTestRule.waitForIdle()
+    assertFalse(detailsColumnHasScrollAction())
+
+    map.performTouchInput { up() }
+    composeTestRule.waitForIdle()
+
+    assertTrue(detailsColumnHasScrollAction())
+  }
+
+  @Test
   fun artworkScreen_whenLocationIsNotProvided_mapTileIsNotDisplayed() {
     setScreenContent()
 
@@ -173,6 +207,13 @@ class ArtworkScreenTest {
       }
     }
   }
+
+  private fun detailsColumnHasScrollAction(): Boolean =
+      composeTestRule
+          .onNodeWithTag(ArtworkTestTags.ARTWORK_DETAILS_COLUMN)
+          .fetchSemanticsNode()
+          .config
+          .contains(SemanticsActions.ScrollBy)
 
   @Test
   fun testArtworkPreview() {

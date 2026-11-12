@@ -49,6 +49,19 @@ jobs:
 
           printf 'MAPS_API_KEY=%s\n' "$MAPS_API_KEY" > local.properties
 
+      # Signs the APK with a fixed key registered in Firebase. Without it, the runner generates a
+      # random debug key on every run, and Google Sign-In fails in the published APK.
+      - name: Install fixed debug keystore
+        env:
+          DEBUG_KEYSTORE: ${{ secrets.DEBUG_KEYSTORE }}
+        run: |
+          if [ -z "$DEBUG_KEYSTORE" ]; then
+            echo "::error::DEBUG_KEYSTORE secret is required to build a release APK that can sign in."
+            exit 1
+          fi
+          mkdir -p ~/.android
+          echo "$DEBUG_KEYSTORE" | base64 --decode > ~/.android/debug.keystore
+
       - name: Build debug APK
         run: ./gradlew assembleDebug --no-daemon
 

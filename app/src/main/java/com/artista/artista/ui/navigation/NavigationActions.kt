@@ -1,10 +1,15 @@
+// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+// Co-authored-by: DeepSeek Flash
 package com.artista.artista.ui.navigation
 
 import androidx.navigation.NavHostController
 
-// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 /**
  * Represents a screen route used by the application's navigation layer.
+ *
+ * Authentication is deliberately not one of them: the sign-in screen is not reachable from the
+ * graph, because [com.artista.artista.ArtistaApp] gates the whole graph on the authentication
+ * session instead of routing to a sign-in destination and popping the back stack on sign-out.
  *
  * @param route Stable route identifier used when connecting the screen to a navigation host.
  * @param name Human-readable screen name.
@@ -16,9 +21,6 @@ sealed class Screen(
     val name: String,
     val isTopLevelDestination: Boolean = false,
 ) {
-
-  /** The auth screen. */
-  data object Auth : Screen("auth", "Auth")
 
   /** The overview screen. */
   data object Overview : Screen("overview", "Overview", true)

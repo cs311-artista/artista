@@ -60,8 +60,8 @@ internal object Dimensions {
   /** Height of artwork images in artwork cards. */
   val artworkCardImageHeight = 160.dp
 
-  /** Size of the icon shown in an artwork card while its image is missing or loading. */
-  val artworkCardImageFallbackIconSize = 48.dp
+  /** Size of the icon shown while an artwork image is missing or loading, on cards and details. */
+  val artworkImageFallbackIconSize = 48.dp
 
   /** Height of the artwork image on the artwork details screen. */
   val artworkDetailsImageHeight = 220.dp
@@ -137,6 +137,14 @@ internal object Dimensions {
   // Bottom navigation.
   val navigationBarHorizontalPadding = 16.dp
   val navigationBarVerticalPadding = 16.dp
+
+  // Map route overlays.
+  val mapRouteOverlayHorizontalPadding = 16.dp
+  val mapRouteOverlayTopPadding = 60.dp
+  val mapRouteOverlayContentPadding = 16.dp
+  val mapRouteOverlaySpacing = 8.dp
+  const val MAP_ROUTE_CAMERA_PADDING = 180
+  const val POLY_LINE_WIDTH = 10f
 }
 
 /**

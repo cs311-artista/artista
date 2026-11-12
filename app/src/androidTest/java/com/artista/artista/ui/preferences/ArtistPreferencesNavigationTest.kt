@@ -1,3 +1,5 @@
+// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+// Co-authored-by: DeepSeek Flash
 package com.artista.artista.ui.preferences
 
 import androidx.activity.ComponentActivity
@@ -8,8 +10,10 @@ import androidx.compose.ui.test.performClick
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.artista.artista.ArtistaApp
+import com.artista.artista.ArtistaNavHost
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
+import com.artista.artista.model.walking.WalkingRouteRepositoryRemote
+import com.artista.artista.resources.C
 import com.artista.artista.ui.navigation.Screen
 import com.artista.artista.ui.profile.UserProfileTestTags
 import org.junit.Assert.assertEquals
@@ -17,7 +21,6 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
-// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 /**
  * Verifies navigation to and from the artist preferences screen.
  *
@@ -38,11 +41,13 @@ class ArtistPreferencesNavigationTest {
     lateinit var navController: NavHostController
     composeTestRule.setContent {
       navController = rememberNavController()
-      ArtistaApp(
+      ArtistaNavHost(
+          onLogout = {},
           navController = navController,
-          startDestination = PROFILE_GRAPH_ROUTE,
+          startDestination = C.Constants.PROFILE_GRAPH_ROUTE,
           wikiDataRepository = ArtworkRepositoryProvider.mockRepository,
           savedArtworksRepository = ArtworkRepositoryProvider.mockRepository,
+          walkingRouteRepository = WalkingRouteRepositoryRemote(),
       )
     }
 
@@ -55,9 +60,5 @@ class ArtistPreferencesNavigationTest {
     composeTestRule.runOnIdle {
       assertEquals(Screen.Profile.route, navController.currentDestination?.route)
     }
-  }
-
-  private companion object {
-    const val PROFILE_GRAPH_ROUTE = "profile_graph"
   }
 }

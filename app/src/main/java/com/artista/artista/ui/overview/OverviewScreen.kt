@@ -85,6 +85,7 @@ object OverviewTestTags {
  * @param onTabSelected callback invoked when a bottom-navigation destination is selected
  * @param onSavedArtworksClick callback invoked when the user chooses saved artworks after an
  *   overview loading error
+ * @param onMapClick callback invoked when the user selects the map action for an artwork
  * @param viewModel ViewModel supplying the artwork entries
  * @param onSearchClick callback invoked when the search control is selected
  * @author patrickmcdan
@@ -103,6 +104,7 @@ fun OverviewScreen(
     onArtworkClick: (Artwork) -> Unit = {},
     onSavedArtworksClick: () -> Unit = {},
     onSearchClick: () -> Unit = {},
+    onMapClick: (Artwork) -> Unit = {},
 ) {
   val uiState by viewModel.uiState.collectAsState()
   val lifecycleOwner = LocalLifecycleOwner.current
@@ -225,10 +227,7 @@ fun OverviewScreen(
               artwork = artwork,
               isSaved = artwork.uid in uiState.savedArtworkIds,
               onArtworkClick = onArtworkClick,
-              onMapClick = {
-                // TODO Implement navigate to map with artwork location
-                onTabSelected(Tab.Map)
-              },
+              onMapClick = onMapClick,
               onSaveClick = viewModel::toggleSavedArtwork,
               modifier = Modifier.testTag(OverviewTestTags.ARTWORK_ITEM),
           )

@@ -1,3 +1,5 @@
+// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+// Co-authored-by: DeepSeek Flash
 package com.artista.artista.ui.artwork
 
 import androidx.activity.ComponentActivity
@@ -11,9 +13,11 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.artista.artista.ArtistaApp
+import com.artista.artista.ArtistaNavHost
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
 import com.artista.artista.model.artwork.mockArtworks
+import com.artista.artista.model.walking.WalkingRouteRepositoryRemote
+import com.artista.artista.resources.C
 import com.artista.artista.ui.navigation.Screen
 import com.artista.artista.ui.profile.UserProfileTestTags
 import kotlinx.coroutines.runBlocking
@@ -23,7 +27,6 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
-// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 /**
  * Verifies navigation from Saved Artworks back to the screen that opened it.
  *
@@ -36,7 +39,6 @@ class SavedArtworksScreenNavigationTest {
 
   private companion object {
     const val NAVIGATION_TIMEOUT_MILLIS = 5_000L
-    const val PROFILE_GRAPH_ROUTE = "profile_graph"
   }
 
   private lateinit var repository: ArtworkRepositoryLocal
@@ -60,11 +62,13 @@ class SavedArtworksScreenNavigationTest {
     lateinit var navController: NavHostController
     composeTestRule.setContent {
       navController = rememberNavController()
-      ArtistaApp(
+      ArtistaNavHost(
+          onLogout = {},
           navController = navController,
-          startDestination = PROFILE_GRAPH_ROUTE,
+          startDestination = C.Constants.PROFILE_GRAPH_ROUTE,
           wikiDataRepository = repository,
           savedArtworksRepository = repository,
+          walkingRouteRepository = WalkingRouteRepositoryRemote(),
       )
     }
 
@@ -97,11 +101,13 @@ class SavedArtworksScreenNavigationTest {
     lateinit var navController: NavHostController
     composeTestRule.setContent {
       navController = rememberNavController()
-      ArtistaApp(
+      ArtistaNavHost(
+          onLogout = {},
           navController = navController,
-          startDestination = PROFILE_GRAPH_ROUTE,
+          startDestination = C.Constants.PROFILE_GRAPH_ROUTE,
           wikiDataRepository = repository,
           savedArtworksRepository = repository,
+          walkingRouteRepository = WalkingRouteRepositoryRemote(),
       )
     }
 

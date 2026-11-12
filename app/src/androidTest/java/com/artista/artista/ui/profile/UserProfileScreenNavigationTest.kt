@@ -1,3 +1,6 @@
+// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
+// Co-authored-by: DeepSeek Flash
 package com.artista.artista.ui.profile
 
 import androidx.activity.ComponentActivity
@@ -11,10 +14,11 @@ import androidx.compose.ui.test.performTextReplacement
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.artista.artista.ArtistaApp
+import com.artista.artista.ArtistaNavHost
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
 import com.artista.artista.model.authentication.AuthRepositoryProvider
 import com.artista.artista.model.authentication.FakeAuthRepository
+import com.artista.artista.model.walking.WalkingRouteRepositoryRemote
 import com.artista.artista.resources.C
 import com.artista.artista.ui.artwork.SavedArtworksTestTags
 import com.artista.artista.ui.navigation.NavigationTestTags
@@ -22,13 +26,10 @@ import com.artista.artista.ui.navigation.Screen
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.overview.OverviewTestTags
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
-// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
-// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 /**
  * Verifies navigation actions originating from the profile screen.
  *
@@ -39,29 +40,42 @@ class UserProfileScreenNavigationTest {
 
   @get:Rule val composeTestRule = createAndroidComposeRule<ComponentActivity>()
 
+  // Owned by the test rather than read from the application: the graph now takes its repositories
+  // as arguments, so nothing here touches the providers the application configures.
+  private val artworkRepository = ArtworkRepositoryLocal()
+
   /**
-   * Verifies that tapping the profile logout button navigates to and displays authentication.
+   * Verifies that tapping the profile logout button reports the logout intent to the caller.
+   *
+   * The graph has no sign-in destination to navigate to: signing out replaces the whole graph from
+   * the session gate of the application root, so the button reports the intent and the graph stays
+   * where it is. What the gate then displays is covered by the local session-gate test and by the
+   * end-to-end journey test.
    *
    * @author hixeum
    */
   @Test
-  fun logout_navigatesToAuthScreen() {
+  fun logout_invokesTheLogoutCallback() {
+    var logoutCount = 0
     lateinit var navController: NavHostController
     composeTestRule.setContent {
       navController = rememberNavController()
-      ArtistaApp(
+      ArtistaNavHost(
+          onLogout = { logoutCount++ },
+          wikiDataRepository = artworkRepository,
+          savedArtworksRepository = artworkRepository,
+          walkingRouteRepository = WalkingRouteRepositoryRemote(),
           navController = navController,
-          startDestination = PROFILE_GRAPH_ROUTE,
+          startDestination = C.Constants.PROFILE_GRAPH_ROUTE,
       )
     }
 
     composeTestRule.onNodeWithTag(UserProfileTestTags.SCREEN).assertIsDisplayed()
     composeTestRule.onNodeWithTag(UserProfileTestTags.LOGOUT_BUTTON).performClick()
 
-    composeTestRule.onNodeWithTag(C.Tag.auth_screen_container).assertIsDisplayed()
     composeTestRule.runOnIdle {
-      assertEquals(Screen.Auth.route, navController.currentDestination?.route)
-      assertNull(navController.previousBackStackEntry)
+      assertEquals(1, logoutCount)
+      assertEquals(Screen.Profile.route, navController.currentDestination?.route)
     }
   }
 
@@ -75,9 +89,13 @@ class UserProfileScreenNavigationTest {
     lateinit var navController: NavHostController
     composeTestRule.setContent {
       navController = rememberNavController()
-      ArtistaApp(
+      ArtistaNavHost(
+          onLogout = {},
+          wikiDataRepository = artworkRepository,
+          savedArtworksRepository = artworkRepository,
+          walkingRouteRepository = WalkingRouteRepositoryRemote(),
           navController = navController,
-          startDestination = PROFILE_GRAPH_ROUTE,
+          startDestination = C.Constants.PROFILE_GRAPH_ROUTE,
       )
     }
 
@@ -106,17 +124,20 @@ class UserProfileScreenNavigationTest {
    */
   @Test
   fun renamedUsername_isStillDisplayedAfterSwitchingTabs() {
-    val realAuthRepository = AuthRepositoryProvider.repository
-    // Signed out, as in the app until the Google sign-in is wired: the name only lives in the
-    // ViewModel, so it is lost as soon as the ViewModel is.
+    // Signed out, so the profile ViewModel has no stored name to read back: the name only lives in
+    // the ViewModel, and is lost as soon as the ViewModel is.
     AuthRepositoryProvider.repository = FakeAuthRepository()
     try {
       val artworkRepository = ArtworkRepositoryLocal()
       composeTestRule.setContent {
-        ArtistaApp(
-            startDestination = PROFILE_GRAPH_ROUTE,
+        // The graph rather than the application root: the root gates on a signed-out session, so it
+        // would show the sign-in screen instead of the profile this test drives.
+        ArtistaNavHost(
+            onLogout = {},
+            startDestination = C.Constants.PROFILE_GRAPH_ROUTE,
             wikiDataRepository = artworkRepository,
             savedArtworksRepository = artworkRepository,
+            walkingRouteRepository = WalkingRouteRepositoryRemote(),
         )
       }
 
@@ -133,13 +154,11 @@ class UserProfileScreenNavigationTest {
 
       composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME).assertTextEquals(NEW_USERNAME)
     } finally {
-      AuthRepositoryProvider.repository = realAuthRepository
+      AuthRepositoryProvider.resetToApplicationRepository()
     }
   }
 
   private companion object {
-    const val PROFILE_GRAPH_ROUTE = "profile_graph"
-
     /** Name entered in the edit dialog, different from the placeholder shown by default. */
     const val NEW_USERNAME = "Claude Monet"
   }

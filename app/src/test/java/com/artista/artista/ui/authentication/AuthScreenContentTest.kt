@@ -4,9 +4,6 @@
 package com.artista.artista.ui.authentication
 
 import android.content.Context
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -17,7 +14,6 @@ import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.artista.artista.R
-import com.artista.artista.model.authentication.FakeAuthUser
 import com.artista.artista.resources.C
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -151,33 +147,6 @@ class AuthScreenContentTest {
     assertEquals(0, clicks)
   }
 
-  /**
-   * Verifies that the content invokes the hoisted signed-in callback exactly once when the state
-   * transitions to a signed-in user, and not again on unrelated recompositions.
-   */
-  @Test
-  fun signedInInvokesOnSignedInOnce() {
-    var signedInCount = 0
-    var uiState by mutableStateOf(AuthUiState(session = AuthSession.SignedOut))
-    setContent(state = { uiState }, onSignedIn = { signedInCount++ })
-
-    composeTestRule.waitForIdle()
-    assertEquals(0, signedInCount)
-
-    uiState = AuthUiState(session = AuthSession.SignedIn(FakeAuthUser(uid = USER_ID)))
-    composeTestRule.waitForIdle()
-    assertEquals(1, signedInCount)
-
-    // Recomposition driven by an unrelated field must not invoke the callback a second time.
-    uiState =
-        AuthUiState(session = AuthSession.SignedIn(FakeAuthUser(uid = USER_ID)), isLoading = true)
-    composeTestRule.waitForIdle()
-    uiState =
-        AuthUiState(session = AuthSession.SignedIn(FakeAuthUser(uid = USER_ID)), isLoading = false)
-    composeTestRule.waitForIdle()
-    assertEquals(1, signedInCount)
-  }
-
   /** The sign-in label rendered by the button, read from the shared string resource. */
   private val signInLabel: String
     get() =
@@ -195,19 +164,13 @@ class AuthScreenContentTest {
       state: () -> AuthUiState,
       credentialErrorMessageRes: Int? = null,
       onSignInClick: () -> Unit = {},
-      onSignedIn: () -> Unit = {},
   ) {
     composeTestRule.setContent {
       AuthScreenContent(
           state = state(),
           credentialErrorMessageRes = credentialErrorMessageRes,
           onSignInClick = onSignInClick,
-          onSignedIn = onSignedIn,
       )
     }
-  }
-
-  private companion object {
-    const val USER_ID = "user-1"
   }
 }

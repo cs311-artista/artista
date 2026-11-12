@@ -16,6 +16,20 @@ object C {
   }
 
   object Constants {
+    /**
+     * Route of the nested graph holding the Overview tab and the screens opened from it.
+     *
+     * Named rather than repeated as a literal because it is both the route of that graph and the
+     * destination the signed-in application starts on.
+     */
+    const val OVERVIEW_GRAPH_ROUTE = "overview_graph"
+
+    /** Route of the nested graph holding the Map tab. */
+    const val MAP_GRAPH_ROUTE = "map_graph"
+
+    /** Route of the nested graph holding the Profile tab and the screens opened from it. */
+    const val PROFILE_GRAPH_ROUTE = "profile_graph"
+
     const val DEFAULT_MAP_ZOOM = 12f
     const val DEFAULT_MAP_LAT = 46.5197
     const val DEFAULT_MAP_LONG = 6.6323

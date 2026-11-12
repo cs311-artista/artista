@@ -46,10 +46,12 @@
     <string name="artist_preferences_save">Save Preferences</string>
     <string name="artist_preferences_saved">Your favorite artists have been saved.</string>
     <!-- Map screen -->
-    <string name="map_location_permission_error">Location permission is required to show your position.</string>
-    <string name="map_location_unavailable_error">Current location is unavailable.</string>
-    <string name="map_location_acquisition_error">Unable to read current location.</string>
     <string name="map_location_marker_text">Your location</string>
+    <string name="map_marker_navigate_to">Navigate to</string>
+    <string name="map_route_loading">Finding a walking route...</string>
+    <string name="map_route_close">Close route</string>
+    <string name="map_route_no_route">No route found.</string>
+    <string name="map_route_retry">Try again</string>
     <!-- Saved artworks screen -->
     <string name="saved_artworks_title">Saved Artworks</string>
     <string name="saved_artworks_empty">You have no saved artworks yet.</string>
@@ -110,6 +112,7 @@
     <string name="navigation_overview">Overview</string>
     <string name="navigation_map">Map</string>
     <string name="navigation_profile">Profile</string>
+    <string name="error_user_location">We\'re unable to acquire your location. Please make sure location permissions are granted.</string>
     <string name="arrow_back_description">Back</string>
     <string name="search_icon_description">Search</string>
 </resources>
