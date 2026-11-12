@@ -300,6 +300,8 @@ class UserProfileViewModel(
     // preferences, are written back unchanged instead of being reset.
     val storedUser = findUser(uid)
     if (storedUser == null) {
+      // Kept as a fallback for accounts created before initial profile creation was added at
+      // sign-in or in case initial profile creation at sign-in failed.
       userRepository.createUser(User(uid = uid, userName = username, preference = UserPreference()))
     } else {
       userRepository.updateUser(uid, storedUser.copy(userName = username))

@@ -93,11 +93,20 @@ internal object Dimensions {
   val overviewSearchBarElevation = shallowElevation
 
   // Search screen.
-  val searchInputHorizontalPadding = 16.dp
-  val searchInputVerticalPadding = 8.dp
+  val searchRecommendationVerticalPadding = 8.dp
+  val searchRecommendationHorizontalPadding = 8.dp
+  val searchRecommendationIconContainerSize = 40.dp
+  val searchRecommendationsMaxHeight = 320.dp
+  val searchTypeFilterMaxHeight = 400.dp
+  val searchTypeFilterHorizontalPadding = 16.dp
+  val searchTypeFilterTitleVerticalPadding = 8.dp
   val searchResultsHorizontalPadding = 16.dp
   val searchResultsVerticalPadding = 8.dp
   val searchResultItemSpacing = 8.dp
+  val searchEmptyStateHorizontalPadding = 32.dp
+  val searchEmptyStateSpacing = 12.dp
+  val searchEmptyStateIconContainerSize = 64.dp
+  val searchEmptyStateMessageMaxWidth = 280.dp
 
   // Artist preferences screen.
   val artistPreferencesScreenHorizontalPadding = 24.dp
@@ -122,6 +131,7 @@ internal object Dimensions {
   val logoutButtonVerticalPadding = 10.dp
   val logoutButtonIconLabelSpacing = 8.dp
   val profileFieldHorizontalPadding = 24.dp
+  val profileInitializationWarningPadding = 16.dp
   /** Height of each profile field. */
   val profileFieldHeight = 70.dp
 

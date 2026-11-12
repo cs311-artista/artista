@@ -13,6 +13,7 @@ object C {
     const val auth_google_sign_in_button = "auth_google_sign_in_button"
     const val auth_loading_indicator = "auth_loading_indicator"
     const val auth_error_message = "auth_error_message"
+    const val profile_initialization_warning = "profile_initialization_warning"
   }
 
   object Constants {

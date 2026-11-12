@@ -1,3 +1,4 @@
+<!-- Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com> -->
 <!-- Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com> -->
 <resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name">Artista</string>
@@ -64,6 +65,8 @@
     <string name="auth_tagline">Discover art around you</string>
     <string name="sign_in_failed">Sign in failed</string>
     <string name="sign_in_no_account">No Google account available</string>
+    <string name="profile_initialization_failed">Your profile could not be set up. You can continue using the app and retry.</string>
+    <string name="profile_initialization_retry">Retry</string>
 
     <!-- Overview screen -->
     <string name="overview_load_error">Unable to load nearby artworks.</string>
@@ -81,8 +84,21 @@
     <string name="overview_filter_apply">Apply</string>
     <string name="overview_filter_clear">Clear all</string>
     <string name="overview_filter_empty_results">No artworks match the selected filters.</string>
-    <string name="search_placeholder">Search artworks or artists</string>
+    <string name="search_placeholder">Search artworks</string>
     <string name="search_loading">Loading artworks</string>
+    <string name="search_empty_results_title">No artworks found</string>
+    <string name="search_empty_results_message">Try another search or change the artwork type filters.</string>
+    <string name="search_filter_title">Artwork types</string>
+    <string name="search_filter_scroll_hint">Scroll down to see more artwork types</string>
+    <string name="search_filter_type_painting">Painting</string>
+    <string name="search_filter_type_drawing">Drawing</string>
+    <string name="search_filter_type_sculpture">Sculpture</string>
+    <string name="search_filter_type_print">Print</string>
+    <string name="search_filter_type_photograph">Photograph</string>
+    <string name="search_filter_type_mural">Mural</string>
+    <string name="search_filter_type_oil_painting">Oil painting</string>
+    <string name="search_filter_type_watercolor_painting">Watercolor painting</string>
+    <string name="search_filter_type_mosaic">Mosaic</string>
 
     <!-- Default error messages, one per AppException type (RateLimit has 2 variants) -->
     <string name="error_not_found">This item no longer exists.</string>
@@ -100,4 +116,6 @@
     <string name="navigation_map">Map</string>
     <string name="navigation_profile">Profile</string>
     <string name="error_user_location">We\'re unable to acquire your location. Please make sure location permissions are granted.</string>
+    <string name="arrow_back_description">Back</string>
+    <string name="search_icon_description">Search</string>
 </resources>

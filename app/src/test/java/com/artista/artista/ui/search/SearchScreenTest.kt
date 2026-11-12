@@ -14,7 +14,10 @@ import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextClearance
@@ -86,6 +89,27 @@ class SearchScreenTest {
   }
 
   @Test
+  fun searchFilter_opensTypePopupAndUpdatesSelection() = runTest {
+    val viewModel = createViewModel()
+
+    composeTestRule.setContent {
+      MaterialTheme { SearchScreen(onTabSelected = {}, viewModel = viewModel) }
+    }
+
+    composeTestRule.waitForIdle()
+    composeTestRule.onNodeWithContentDescription("Filter artworks").performClick()
+    composeTestRule
+        .onNodeWithTag(SearchScreenTestTags.filterType(ArtworkType.PAINTING))
+        .assertIsDisplayed()
+        .performClick()
+
+    composeTestRule.runOnIdle {
+      assertTrue(ArtworkType.PAINTING !in viewModel.uiState.value.typeValues)
+      assertTrue(viewModel.uiState.value.typeValues.isNotEmpty())
+    }
+  }
+
+  @Test
   fun searchBar_restoresCursorPositionWhenScreenIsRecreated() = runTest {
     val viewModel = createViewModel()
     val showSearchScreen = mutableStateOf(true)
@@ -128,8 +152,21 @@ class SearchScreenTest {
 
     composeTestRule.waitForIdle()
     advanceUntilIdle()
+    val collapsedSearchBounds =
+        composeTestRule
+            .onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT)
+            .fetchSemanticsNode()
+            .boundsInRoot
     composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT).performTextInput("star")
     advanceUntilIdle()
+    val expandedSearchBounds =
+        composeTestRule
+            .onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT)
+            .fetchSemanticsNode()
+            .boundsInRoot
+
+    assertEquals(collapsedSearchBounds.top, expandedSearchBounds.top, 0f)
+    assertEquals(collapsedSearchBounds.height, expandedSearchBounds.height, 0f)
 
     composeTestRule
         .onAllNodesWithTag(SearchScreenTestTags.SEARCH_RECOMMENDATION)
@@ -244,6 +281,23 @@ class SearchScreenTest {
   }
 
   @Test
+  fun searchResults_showsHelpfulEmptyStateWhenNoArtworksMatch() = runTest {
+    val viewModel = createViewModel()
+    viewModel.onSearchSubmitted("no matching artwork")
+    advanceUntilIdle()
+
+    composeTestRule.setContent {
+      MaterialTheme { SearchScreen(onTabSelected = {}, viewModel = viewModel) }
+    }
+
+    composeTestRule.onNodeWithTag(SearchScreenTestTags.EMPTY_RESULTS).assertIsDisplayed()
+    composeTestRule.onNodeWithText("No artworks found").assertIsDisplayed()
+    composeTestRule
+        .onNodeWithText("Try another search or change the artwork type filters.")
+        .assertIsDisplayed()
+  }
+
+  @Test
   fun searchResults_displayFallbackArtistWhenArtistIsMissing() = runTest {
     val viewModel = createViewModel()
 
@@ -264,8 +318,8 @@ class SearchScreenTest {
   }
 
   @Test
-  fun toggleSavedArtwork_usesSavedArtworkListToSaveOrRemoveArtwork() = runTest {
-    val artwork = SearchTestData.girlWithPearlEarring.copy(uid = "savedId", name = "Saved artwork")
+  fun toggleSavedArtwork_updatesRepositoryAndUiState() = runTest {
+    val artwork = SearchTestData.girlWithPearlEarring
     val repository = SearchTestData.savedArtworksRepository(listOf(artwork))
     val viewModel = SearchScreenViewModel(repository, SearchTestData.wikiDataRepository())
     advanceUntilIdle()
