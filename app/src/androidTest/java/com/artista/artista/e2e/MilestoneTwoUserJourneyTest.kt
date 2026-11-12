@@ -122,7 +122,8 @@ class MilestoneTwoUserJourneyTest {
   private fun AppContent(offline: Boolean) {
     val mockRepository = ArtworkRepositoryProvider.mockRepository
     ArtistaApp(
-        authViewModel = AuthViewModel(authRepository),
+        authViewModel =
+            AuthViewModel(authRepository, userRepository = UserRepositoryProvider.repository),
         credentialProvider = credentialProvider,
         wikiDataRepository = if (offline) failingWikiDataRepository() else mockRepository,
         savedArtworksRepository = mockRepository,
