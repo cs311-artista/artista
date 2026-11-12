@@ -321,7 +321,13 @@ fun ArtistaNavHost(
                 viewModel(
                     factory =
                         ArtistPreferencesViewModel.provideFactory(
-                            wikiDataRepository = wikiDataRepository,
+                            // TODO: getPopularArtists(), used by the artist preferences ViewModel,
+                            //  is not implemented in the remote repository yet (it crashes the
+                            //  screen), and implementing it raises an important design question.
+                            //  Because we want to demo saving and loading artist preferences to
+                            //  Firestore, which does work, this screen uses mock data for now.
+                            //  This will be fixed in a future sprint as a priority.
+                            wikiDataRepository = ArtworkRepositoryProvider.mockRepository,
                             authRepository = AuthRepositoryProvider.repository,
                             userRepository = UserRepositoryProvider.repository,
                         )
