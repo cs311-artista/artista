@@ -128,6 +128,14 @@ internal object Dimensions {
   // Bottom navigation.
   val navigationBarHorizontalPadding = 16.dp
   val navigationBarVerticalPadding = 16.dp
+
+  // Map route overlays.
+  val mapRouteOverlayHorizontalPadding = 16.dp
+  val mapRouteOverlayTopPadding = 60.dp
+  val mapRouteOverlayContentPadding = 16.dp
+  val mapRouteOverlaySpacing = 8.dp
+  const val MAP_ROUTE_CAMERA_PADDING = 180
+  const val POLY_LINE_WIDTH = 10f
 }
 
 /**

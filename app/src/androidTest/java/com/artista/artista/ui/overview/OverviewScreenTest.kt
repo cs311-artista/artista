@@ -24,12 +24,14 @@ import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artist.failingWikiDataRepository
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
+import com.artista.artista.model.map.Location
 import com.artista.artista.ui.artwork.ArtworkCardTestTag
 import com.artista.artista.ui.artwork.ArtworkFilterTestTags
 import com.artista.artista.ui.navigation.NavigationTestTags
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaTheme
 import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -93,6 +95,20 @@ class OverviewScreenTest {
         .onNodeWithTag(OverviewTestTags.ARTWORK_ITEM)
         .assertTextContains("The Starry Night")
         .assertTextContains("Vincent van Gogh")
+  }
+
+  /** Verifies that the overview map action reports the tapped artwork. */
+  @Test
+  fun overviewScreen_whenMapButtonIsClicked_callsOnMapClickWithTappedArtwork() {
+    val artwork =
+        artwork(name = "The Starry Night", artistName = "Vincent van Gogh")
+            .copy(location = Location(48.8606, 2.3376, "Louvre"))
+    var mappedArtwork: Artwork? = null
+    setOverviewContent(listOf(artwork), onMapClick = { mappedArtwork = it })
+
+    composeTestRule.onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD_MAP_BUTTON).performClick()
+
+    assertEquals(artwork, mappedArtwork)
   }
 
   /**
@@ -309,18 +325,24 @@ class OverviewScreenTest {
     composeTestRule.onNodeWithTag(ArtworkFilterTestTags.APPLY_BUTTON).assertIsEnabled()
   }
 
-  private fun setOverviewContent(artworks: List<Artwork>) {
+  private fun setOverviewContent(
+      artworks: List<Artwork>,
+      onMapClick: (Artwork) -> Unit = {},
+      onTabSelected: (Tab) -> Unit = {},
+  ) {
     val repository = ArtworkRepositoryLocal()
     artworks.forEach { repository.putArtworkInRepositoryUnsavedSection(it) }
     val viewModel = OverviewViewModel(repository, repository)
 
-    setOverviewContent(viewModel)
+    setOverviewContent(viewModel, onMapClick = onMapClick, onTabSelected = onTabSelected)
   }
 
   private fun setOverviewContent(
       viewModel: OverviewViewModel,
       onSavedArtworksClick: () -> Unit = {},
       onSearchClick: () -> Unit = {},
+      onMapClick: (Artwork) -> Unit = {},
+      onTabSelected: (Tab) -> Unit = {},
   ) {
     composeTestRule.setContent {
       ArtistaTheme {
@@ -328,7 +350,8 @@ class OverviewScreenTest {
             viewModel = viewModel,
             onSavedArtworksClick = onSavedArtworksClick,
             onSearchClick = onSearchClick,
-            onTabSelected = {},
+            onMapClick = onMapClick,
+            onTabSelected = onTabSelected,
         )
       }
     }
