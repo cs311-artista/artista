@@ -97,24 +97,18 @@ class OverviewScreenTest {
         .assertTextContains("Vincent van Gogh")
   }
 
-  /** Verifies that the overview map action requests the route and selects the map tab. */
+  /** Verifies that the overview map action reports the tapped artwork. */
   @Test
-  fun overviewScreen_whenMapButtonIsClicked_loadsRouteAndSelectsMapTab() {
+  fun overviewScreen_whenMapButtonIsClicked_callsOnMapClickWithTappedArtwork() {
     val artwork =
         artwork(name = "The Starry Night", artistName = "Vincent van Gogh")
             .copy(location = Location(48.8606, 2.3376, "Louvre"))
     var mappedArtwork: Artwork? = null
-    var selectedTab: Tab? = null
-    setOverviewContent(
-        listOf(artwork),
-        onMapClick = { mappedArtwork = it },
-        onTabSelected = { selectedTab = it },
-    )
+    setOverviewContent(listOf(artwork), onMapClick = { mappedArtwork = it })
 
     composeTestRule.onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD_MAP_BUTTON).performClick()
 
     assertEquals(artwork, mappedArtwork)
-    assertEquals(Tab.Map, selectedTab)
   }
 
   /**

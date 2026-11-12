@@ -29,7 +29,6 @@ import com.artista.artista.model.artwork.SearchArea
 import com.artista.artista.model.artwork.WikiDataRepository
 import com.artista.artista.model.map.Location
 import com.artista.artista.ui.artwork.ArtworkCardTestTag
-import com.artista.artista.ui.navigation.Tab
 import kotlin.NotImplementedError
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
@@ -286,7 +285,7 @@ class SearchScreenTest {
   }
 
   @Test
-  fun searchResults_whenMapButtonIsClicked_loadsRouteThenSelectsMapTab() = runTest {
+  fun searchResults_whenMapButtonIsClicked_callsOnMapClickWithTappedArtwork() = runTest {
     val artwork = SearchTestData.starryNight.copy(location = Location(48.8606, 2.3376, "Louvre"))
     val viewModel =
         SearchScreenViewModel(
@@ -296,13 +295,15 @@ class SearchScreenTest {
     viewModel.onSearchSubmitted("star")
     advanceUntilIdle()
     var mappedArtwork: Artwork? = null
-    var selectedTab: Tab? = null
+
     composeTestRule.setContent {
       MaterialTheme {
         SearchScreen(
-            onTabSelected = { selectedTab = it },
             onMapClick = { mappedArtwork = it },
             viewModel = viewModel,
+            onTabSelected = {},
+            onArtworkClick = {},
+            onRecommendationSelected = {},
         )
       }
     }
@@ -313,7 +314,6 @@ class SearchScreenTest {
         .performSemanticsAction(SemanticsActions.OnClick)
 
     assertEquals(artwork, mappedArtwork)
-    assertEquals(Tab.Map, selectedTab)
   }
 
   private fun createViewModel() =

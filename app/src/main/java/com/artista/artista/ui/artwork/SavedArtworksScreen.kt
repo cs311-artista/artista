@@ -82,10 +82,7 @@ fun SavedArtworksScreen(
       onRetry = viewModel::refreshSavedArtworks,
       onLoadErrorHandled = viewModel::clearLoadError,
       onUnsaveErrorHandled = viewModel::clearUnsaveError,
-      onMapClick = { artwork ->
-        onMapClick(artwork)
-        onTabSelected(Tab.Map)
-      },
+      onMapClick = onMapClick,
       onTabSelected = onTabSelected,
       modifier = modifier,
   )

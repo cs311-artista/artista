@@ -220,10 +220,7 @@ fun OverviewScreen(
               artwork = artwork,
               isSaved = artwork.uid in uiState.savedArtworkIds,
               onArtworkClick = onArtworkClick,
-              onMapClick = { artwork ->
-                onMapClick(artwork)
-                onTabSelected(Tab.Map)
-              },
+              onMapClick = onMapClick,
               onSaveClick = viewModel::toggleSavedArtwork,
               modifier = Modifier.testTag(OverviewTestTags.ARTWORK_ITEM),
           )
