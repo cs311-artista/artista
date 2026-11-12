@@ -33,7 +33,7 @@ import kotlinx.coroutines.flow.update
  * @property isLoading whether submitted search results are being fetched
  * @property hasInvalidSearchInput whether the last search failed because its input was invalid
  * @property hasAlreadySearched whether a search as already been submitted
- * @property searchErrorMessageResId string resource of the message shown when submitting a query
+ * @property fetchErrorMessageResId string resource of the message shown when fetching an artwork
  *   fails
  * @property saveErrorMessageResId string resource of the message shown when saving or unsaving an
  *   artwork fails
@@ -49,7 +49,7 @@ data class SearchScreenUiState(
     val isLoading: Boolean = false,
     val hasInvalidSearchInput: Boolean = false,
     val hasAlreadySearched: Boolean = false,
-    @param:StringRes val searchErrorMessageResId: Int? = null,
+    @param:StringRes val fetchErrorMessageResId: Int? = null,
     @param:StringRes val saveErrorMessageResId: Int? = null,
 )
 
@@ -80,7 +80,7 @@ class SearchScreenViewModel(
             // Signed-out users can still search; they just have no saved-artwork recommendations.
             _uiState.update { it.copy(savedArtworks = emptyList(), recommendations = emptyList()) }
           } else {
-            _uiState.update { it.copy(searchErrorMessageResId = error.toMessageRes()) }
+            _uiState.update { it.copy(fetchErrorMessageResId = error.toMessageRes()) }
           }
         },
     ) {
@@ -115,7 +115,7 @@ class SearchScreenViewModel(
             recommendations = recommendationsFor(query, currentState.savedArtworks),
             artworks = currentState.artworks,
             isLoading = if (queryChanged) false else currentState.isLoading,
-            searchErrorMessageResId = null,
+            fetchErrorMessageResId = null,
             hasInvalidSearchInput = false,
         )
   }
@@ -127,6 +127,7 @@ class SearchScreenViewModel(
    * @author IJJA3141
    */
   fun onSearchSubmitted(query: String) {
+    if (query.isBlank()) return
     searchRequestId++
     val requestId = searchRequestId
     searchJob?.cancel()
@@ -137,11 +138,10 @@ class SearchScreenViewModel(
             recommendations = emptyList(),
             artworks = if (query.isBlank()) emptyList() else _uiState.value.artworks,
             isLoading = query.isNotBlank(),
-            searchErrorMessageResId = null,
+            fetchErrorMessageResId = null,
             hasInvalidSearchInput = false,
-            hasAlreadySearched = query.isNotBlank(),
+            hasAlreadySearched = true,
         )
-    if (query.isBlank()) return
     val typeValues = _uiState.value.typeValues
 
     searchJob =
@@ -153,7 +153,7 @@ class SearchScreenViewModel(
                   it.copy(
                       artworks = emptyList(),
                       isLoading = false,
-                      searchErrorMessageResId = error.toMessageRes(),
+                      fetchErrorMessageResId = error.toMessageRes(),
                       hasInvalidSearchInput = error is AppException.InvalidInput,
                   )
                 }
@@ -166,7 +166,7 @@ class SearchScreenViewModel(
               it.copy(
                   artworks = results,
                   isLoading = false,
-                  searchErrorMessageResId = null,
+                  fetchErrorMessageResId = null,
                   hasInvalidSearchInput = false,
               )
             }
@@ -235,7 +235,7 @@ class SearchScreenViewModel(
 
   /** Clears the search error after the UI has shown it. */
   fun clearSearchError() {
-    _uiState.update { it.copy(searchErrorMessageResId = null) }
+    _uiState.update { it.copy(fetchErrorMessageResId = null) }
   }
 
   /** Clears the save-toggle error after the UI has shown it. */

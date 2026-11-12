@@ -116,7 +116,7 @@ class SearchScreenViewModelTest {
 
     advanceUntilIdle()
 
-    assertEquals(R.string.error_network, viewModel.uiState.value.searchErrorMessageResId)
+    assertEquals(R.string.error_network, viewModel.uiState.value.fetchErrorMessageResId)
   }
 
   @Test
@@ -150,14 +150,14 @@ class SearchScreenViewModelTest {
     viewModel.onSearchSubmitted("van gogh")
     advanceUntilIdle()
 
-    assertEquals(R.string.error_network, viewModel.uiState.value.searchErrorMessageResId)
+    assertEquals(R.string.error_network, viewModel.uiState.value.fetchErrorMessageResId)
     assertFalse(viewModel.uiState.value.hasInvalidSearchInput)
     assertFalse(viewModel.uiState.value.isLoading)
     assertTrue(viewModel.uiState.value.artworks.isEmpty())
 
     viewModel.clearSearchError()
 
-    assertEquals(null, viewModel.uiState.value.searchErrorMessageResId)
+    assertEquals(null, viewModel.uiState.value.fetchErrorMessageResId)
   }
 
   @Test

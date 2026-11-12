@@ -126,7 +126,7 @@ fun SearchScreen(
   val uiState by viewModel.uiState.collectAsState()
   val loadingDescription = stringResource(R.string.search_loading)
   val context = LocalContext.current
-  val searchErrorMessage = uiState.searchErrorMessageResId?.let { stringResource(it) }
+  val searchErrorMessage = uiState.fetchErrorMessageResId?.let { stringResource(it) }
   val saveErrorMessage = uiState.saveErrorMessageResId?.let { stringResource(it) }
   val textFieldState =
       remember(viewModel) {
