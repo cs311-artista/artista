@@ -289,10 +289,21 @@ class CurrentAppUserJourneyTest {
   /**
    * Waits until the node with [tag] is displayed, then asserts it.
    *
-   * CI's emulator is still settling right after boot and can briefly have no Compose root, so that
-   * state is polled like a missing node instead of failing the journey at once.
+   * [waitUntil][androidx.compose.ui.test.junit4.ComposeTestRule.waitUntil] checks again and again
+   * whether a node with [tag] exists, letting the app run between checks, until one appears or
+   * [timeoutMillis] runs out. A single check right after `waitForIdle()` was too early on CI's
+   * slow, freshly booted emulator and failed the whole journey.
+   *
+   * While the Activity briefly has no Compose content, the check throws `IllegalStateException: No
+   * compose hierarchies found`. That case is caught and treated as "not ready yet", so polling
+   * continues instead of failing the test at once.
+   *
+   * Once the node exists, it is asserted to be displayed, so the check is as strict as before.
    *
    * @param tag test tag of the node to wait for
+   * @throws androidx.compose.ui.test.ComposeTimeoutException if no node with [tag] appears within
+   *   [timeoutMillis]
+   * @throws AssertionError if the node exists but is not displayed
    * @author krfpn
    */
   private fun waitUntilDisplayed(tag: String) {
