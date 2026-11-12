@@ -244,13 +244,16 @@ class WikiDataRepositoryRemote(
 
     internal fun rowGuard(limit: Int): Int = minOf(limit * ROW_FAN_OUT, MAX_ROWS)
 
-    // Relevance scoring: lower score = more relevant. Artist matches weigh more than title matches
-    // so that searching a title is not outranked by an artist whose name merely resembles a term.
     private const val MIN_TOKEN_LENGTH = 2
+
+    // Relevance scoring: higher token bonus = more relevant
+    // Bonus (more bonus better)
     private const val TITLE_TOKEN_BONUS = 10
     private const val ARTIST_TOKEN_BONUS = 20
     private const val EXACT_TITLE_BONUS = 100
     private const val TITLE_PREFIX_BONUS = 30
+
+    // Malus (less malus better)
     private const val NO_TITLE_PENALTY = 150
     private const val NO_ARTIST_PENALTY = 100
     private const val NO_LOCATION_PENALTY = 5
