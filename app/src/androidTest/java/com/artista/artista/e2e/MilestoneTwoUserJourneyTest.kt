@@ -1,4 +1,5 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+// Co-authored-by: Claude Sonnet 5.5
 package com.artista.artista.e2e
 
 import android.annotation.SuppressLint
@@ -6,13 +7,15 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.ComposeTimeoutException
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
-import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.filter
 import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.isNotEnabled
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
@@ -21,6 +24,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTextReplacement
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.artista.artista.ArtistaApp
@@ -156,7 +160,7 @@ class MilestoneTwoUserJourneyTest {
             .config[SemanticsProperties.Text]
             .first()
             .text
-    onDisplayed(ArtworkCardTestTag.ARTWORK_CARD_SAVE_BUTTON).performClick()
+    onDisplayed(ArtworkCardTestTag.ARTWORK_CARD_SAVE_BUTTON, scrollTo = true).performClick()
   }
 
   /** Recreates the activity with failing network-backed repositories. */
@@ -184,7 +188,7 @@ class MilestoneTwoUserJourneyTest {
     onDisplayed("${ArtworkFilterTestTags.ARTIST}-option-Auguste Rodin").performClick()
     onDisplayed(ArtworkFilterTestTags.APPLY_BUTTON).performClick()
 
-    waitUntil {
+    waitUntil("Filtered artwork to be displayed") {
       composeTestRule.onAllNodesWithTag(OverviewTestTags.ARTWORK_ITEM).fetchSemanticsNodes().size ==
           1
     }
@@ -200,7 +204,7 @@ class MilestoneTwoUserJourneyTest {
     composeTestRule.waitForIdle()
     waitForDisplayed(ArtworkTestTags.ARTWORK_MAP_TILE, scrollTo = true)
     composeTestRule.waitForIdle()
-    waitUntil {
+    waitUntil("Artwork image to be displayed") {
       composeTestRule
           .onAllNodesWithTag(ArtworkTestTags.ARTWORK_IMAGE)
           .fetchSemanticsNodes()
@@ -228,8 +232,8 @@ class MilestoneTwoUserJourneyTest {
   /** Starts a route from the filtered artwork card and verifies the started route state. */
   private fun startWalkingRoute() {
     scrollOverviewToArtwork()
-    onDisplayed(ArtworkCardTestTag.ARTWORK_CARD_MAP_BUTTON).performClick()
-    waitUntil {
+    onDisplayed(ArtworkCardTestTag.ARTWORK_CARD_MAP_BUTTON, scrollTo = true).performClick()
+    waitUntil("Map to be displayed") {
       composeTestRule
           .onAllNodesWithTag(MapScreenTestTags.ROUTE_SUMMARY_CARD)
           .fetchSemanticsNodes()
@@ -247,7 +251,7 @@ class MilestoneTwoUserJourneyTest {
     onDisplayed(UserProfileTestTags.USERNAME, scrollTo = true).performClick()
     onDisplayed(UserProfileTestTags.USERNAME_FIELD).performTextInput("MilestoneTwo")
     onDisplayed(UserProfileTestTags.USERNAME_SAVE).performClick()
-    waitUntil {
+    waitUntil("Username to be saved") {
       composeTestRule
           .onAllNodesWithTag(UserProfileTestTags.USERNAME)
           .fetchSemanticsNodes()
@@ -257,7 +261,7 @@ class MilestoneTwoUserJourneyTest {
     // The UI shows the new username before the Firestore write completes. Wait until the backend
     // really holds it, otherwise signing out right after could race with (or cancel) the save and
     // make the persistence check flaky.
-    waitUntil {
+    waitUntil("Username to be persisted in the backend") {
       runCatching {
             runBlocking {
               UserRepositoryProvider.repository.getUser(userId).userName == "MilestoneTwo"
@@ -271,19 +275,27 @@ class MilestoneTwoUserJourneyTest {
   private fun saveArtistPreference() {
     onDisplayed(UserProfileTestTags.PREFERENCES_BUTTON, scrollTo = true).performClick()
     waitForDisplayed(ArtistPreferencesTestTags.SCREEN)
-    onDisplayed(ArtistPreferencesTestTags.SEARCH_BAR).performTextInput("Monet")
+    // Sets the text directly instead of simulating keystrokes, which hangs on small screens.
+    onDisplayed(ArtistPreferencesTestTags.SEARCH_BAR).performTextReplacement("Monet")
 
     val monetTag = ArtistPreferencesTestTags.getArtistCardTestTag("mock-artist-004")
-    onDisplayed(ArtistPreferencesTestTags.ARTISTS_GRID).performScrollToNode(hasTestTag(monetTag))
+    waitUntil("Monet card to appear in the results") {
+      composeTestRule.onAllNodesWithTag(monetTag).fetchSemanticsNodes().isNotEmpty()
+    }
+    composeTestRule
+        .onNodeWithTag(ArtistPreferencesTestTags.ARTISTS_GRID)
+        .assertExists()
+        .performScrollToNode(hasTestTag(monetTag))
     onDisplayed(monetTag).performClick()
+
     onDisplayed(ArtistPreferencesTestTags.SAVE_BUTTON).assertIsEnabled().performClick()
-    waitUntil {
+    waitUntil("Save button to be disabled after saving") {
       composeTestRule
           .onAllNodesWithTag(ArtistPreferencesTestTags.SAVE_BUTTON)
+          .filter(isNotEnabled())
           .fetchSemanticsNodes()
           .isNotEmpty()
     }
-    onDisplayed(ArtistPreferencesTestTags.SAVE_BUTTON).assertIsNotEnabled()
   }
 
   /** Reopens preferences and verifies that the saved artist is selected. */
@@ -328,7 +340,7 @@ class MilestoneTwoUserJourneyTest {
   private fun verifySavedArtworkAvailableWithFailingWikiData() {
     onDisplayed(OverviewTestTags.SAVED_ARTWORKS_BUTTON).performClick()
     waitForDisplayed(SavedArtworksTestTags.SCREEN)
-    waitUntil {
+    waitUntil("$savedArtworkTitle to be displayed in Saved Artworks") {
       composeTestRule
           .onAllNodesWithText(savedArtworkTitle, useUnmergedTree = true)
           .fetchSemanticsNodes()
@@ -357,13 +369,27 @@ class MilestoneTwoUserJourneyTest {
 
   /** Waits for an asynchronous UI state to expose the requested tag. */
   private fun waitForDisplayed(tag: String, scrollTo: Boolean = false) {
-    waitUntil { composeTestRule.onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty() }
+    waitUntil("$tag to be displayed") {
+      composeTestRule.onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty()
+    }
     onDisplayed(tag, scrollTo = scrollTo)
   }
 
-  /** Waits for an asynchronous condition without sleeping the test thread. */
-  private fun waitUntil(condition: () -> Boolean) {
-    composeTestRule.waitUntil(timeoutMillis = timeoutMillis, condition = condition)
+  /** Waits for an asynchronous condition; the description makes CI timeouts self-explanatory. */
+  private fun waitUntil(description: String, condition: () -> Boolean) {
+    try {
+      composeTestRule.waitUntil(timeoutMillis) {
+        try {
+          condition()
+        } catch (e: IllegalStateException) {
+          // "No compose hierarchies found" while the root is not attached yet (fresh emulator,
+          // activity recreation).
+          false
+        }
+      }
+    } catch (e: ComposeTimeoutException) {
+      throw AssertionError("Timed out waiting for: $description", e)
+    }
   }
 
   /** Grants location permissions before the map destination is composed. */
