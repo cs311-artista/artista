@@ -30,10 +30,12 @@ import com.artista.artista.model.walking.WalkingRouteRepositoryRemote
 import com.artista.artista.ui.location.USER_LOCATION_PERMISSIONS
 import com.artista.artista.ui.navigation.NavigationTestTags
 import com.artista.artista.ui.theme.ArtistaTheme
+import com.google.android.gms.maps.model.LatLng
 import java.lang.reflect.Proxy
 import kotlin.time.Duration.Companion.minutes
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -131,6 +133,28 @@ class MapScreenTest {
 
     composeTestRule.onNodeWithTag(MapScreenTestTags.MAP).assertIsDisplayed()
     assertEquals(null, mapViewModel.uiState.userLocation)
+  }
+
+  @Test
+  fun routeBounds_includesPathUserLocationAndDestination() {
+    val path = listOf(Coordinate(46.0, 6.0), Coordinate(46.5, 6.5))
+    val user = UserLocation(45.5, 5.5) // beyond the path's south-west corner
+    val destination =
+        routeArtwork()
+            .copy(
+                location = ArtworkLocation(longitude = 7.0, latitude = 47.0, null)
+            ) // beyond the path's north-east corner
+
+    val bounds = routeBounds(path, user, destination)
+
+    assertEquals(LatLng(45.5, 5.5), bounds?.southwest)
+    assertEquals(LatLng(47.0, 7.0), bounds?.northeast)
+  }
+
+  @Test
+  fun routeBounds_returnsNull_whenNoPointsAvailable() {
+    // This is the case where the LaunchedEffect returns early instead of animating the camera.
+    assertNull(routeBounds(emptyList(), userLocation = null, destination = routeArtwork()))
   }
 
   @Test
