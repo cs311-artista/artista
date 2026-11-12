@@ -2,12 +2,12 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 package com.artista.artista.ui.map
 
+import android.content.Context
 import android.location.Location
 import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.SavedArtworksRepository
 import com.artista.artista.model.artwork.SearchArea
@@ -19,7 +19,7 @@ import com.artista.artista.model.walking.WalkingRoute
 import com.artista.artista.model.walking.WalkingRouteRepository
 import com.artista.artista.ui.error.launchCatching
 import com.artista.artista.ui.error.toMessageRes
-import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
 import java.util.concurrent.Executor
@@ -29,13 +29,20 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
-/** Provides the current device location to the map ViewModel. */
+/**
+ * Provides a controllable location source to the map ViewModel.
+ *
+ * Production callers should leave this provider null so the ViewModel uses the fused-location
+ * client. Tests can inject a provider to avoid depending on device location services.
+ *
+ * @author 5kyPhy
+ */
 fun interface LocationProvider {
 
   /**
    * Reads the current device location.
    *
-   * @param onLocation Callback receiving the location, or null when unavailable.
+   * @param onLocation callback receiving the location, or null when unavailable
    */
   fun getCurrentLocation(onLocation: (Location?) -> Unit)
 }
@@ -44,6 +51,9 @@ fun interface LocationProvider {
  * Stores the location state displayed by the map.
  *
  * @property userLocation Latest known user location, or null while location is unavailable.
+ * @property savedArtworks List of artworks saved by the user.
+ * @property remoteArtworks List of artworks fetched from remote sources.
+ * @property hasLocationPermission Indicates whether the app has location permissions.
  * @property errorMsg Resource ID for the error message, or null when no error exists.
  * @author Felix Burchardt
  */
@@ -51,6 +61,7 @@ data class MapViewUiState(
     val userLocation: UserLocation? = null,
     val savedArtworks: List<Artwork> = listOf(),
     val remoteArtworks: List<Artwork> = listOf(),
+    val hasLocationPermission: Boolean = false,
     @param:StringRes val errorMsg: Int? = null,
 )
 
@@ -120,12 +131,17 @@ enum class RouteErrorKind(
 /**
  * Provides the user location to the map screen.
  *
+ * @param wikiDataRepository repository used to load nearby artworks
+ * @param savedArtworksRepository repository used to load saved artworks
+ * @param locationProvider optional test seam; when null, the production fused-location client is
+ *   used
  * @author Felix Burchardt, patrickmcdan
  */
 class MapViewModel(
     private val wikiDataRepository: WikiDataRepository,
     private val savedArtworksRepository: SavedArtworksRepository,
     private val walkingRouteRepository: WalkingRouteRepository,
+    // Null selects the production fused-location client; tests inject a deterministic provider.
     private val locationProvider: LocationProvider? = null,
 ) : ViewModel() {
 
@@ -151,7 +167,7 @@ class MapViewModel(
 
   init {
     viewModelScope.launchCatching(
-        tag = MapViewModel::class.java.simpleName,
+        tag = TAG,
         onError = ::setSavedArtworksError,
     ) {
       val savedArtworks = savedArtworksRepository.getSavedArtworks()
@@ -160,6 +176,22 @@ class MapViewModel(
             savedArtworks = savedArtworks,
         )
       }
+    }
+  }
+
+  /**
+   * Handles permission result callback from the UI layer. Call this when activity result returns to
+   * update ViewModel state.
+   *
+   * @param granted whether the location permissions were granted by the user or not.
+   * @author 5kyPhy
+   */
+  fun handleLocationPermissionResult(granted: Boolean) {
+    viewModelScope.launchCatching(
+        tag = TAG,
+        onError = ::setLocationPermissionError,
+    ) {
+      _uiState.update { it.copy(hasLocationPermission = granted) }
     }
   }
 
@@ -215,20 +247,20 @@ class MapViewModel(
   /**
    * Records an error encountered while reading the device location.
    *
-   * @param messageResId Resource ID for the error message.
-   * @author Felix Burchardt
+   * @param error location failure classified by the AppException framework.
+   * @author 5kyPhy
    */
-  fun setLocationError(@StringRes messageResId: Int) {
-    _uiState.update { it.copy(errorMsg = messageResId) }
+  fun setLocationError(error: AppException) {
+    _uiState.update { it.copy(errorMsg = error.toMessageRes()) }
   }
 
   /**
    * Records that location permission is unavailable.
    *
-   * @author @Felix Burchardt
+   * @author 5kyPhy
    */
-  fun setLocationPermissionError() {
-    setLocationError(R.string.map_location_permission_error)
+  fun setLocationPermissionError(error: AppException) {
+    _uiState.update { it.copy(errorMsg = error.toMessageRes()) }
   }
 
   /**
@@ -293,39 +325,43 @@ class MapViewModel(
   /**
    * Acquires the current device location and updates the map state.
    *
-   * @param locationClient Provider used to access the device location.
-   * @author @Felix Burchardt
+   * @param context the local context used for the location services
+   * @author 5kyPhy
    */
-  fun acquireLocation(
-      locationClient: FusedLocationProviderClient,
-  ) {
-    if (locationProvider != null) {
-      locationProvider.getCurrentLocation { updateFromLocation(it) }
+  fun acquireLocation(context: Context) {
+    locationProvider?.let { provider ->
+      provider.getCurrentLocation { location ->
+        if (location != null) {
+          updateUserLocation(UserLocation(location.latitude, location.longitude))
+        } else {
+          setLocationError(AppException.UserLocationError("Location was unavailable."))
+        }
+      }
       return
     }
-    acquireLocationFromGoogle(locationClient)
-  }
 
-  private fun updateFromLocation(location: Location?) {
-    if (location != null) updateUserLocation(UserLocation(location.latitude, location.longitude))
-    else setLocationError(R.string.map_location_unavailable_error)
-  }
-
-  private fun acquireLocationFromGoogle(locationClient: FusedLocationProviderClient) {
+    val locationClient = LocationServices.getFusedLocationProviderClient(context)
     try {
       locationClient
           .getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, CancellationTokenSource().token)
-          .addOnSuccessListener(DIRECT_EXECUTOR) { updateFromLocation(it) }
-          .addOnFailureListener(DIRECT_EXECUTOR) {
-            setLocationError(R.string.map_location_acquisition_error)
+          .addOnSuccessListener(DIRECT_EXECUTOR) { location ->
+            if (location != null) {
+              updateUserLocation(UserLocation(location.latitude, location.longitude))
+            } else {
+              setLocationError(AppException.UserLocationError("Location was unavailable."))
+            }
+          }
+          .addOnFailureListener(DIRECT_EXECUTOR) { e ->
+            setLocationError(AppException.UserLocationError(cause = e))
           }
     } catch (_: SecurityException) {
-      setLocationPermissionError()
+      setLocationPermissionError(AppException.UserLocationError())
     }
   }
 
   companion object {
     private const val ARTWORK_SEARCH_RADIUS_KM = 50.0
+    private var TAG = MapViewModel::class.java.simpleName
 
     /**
      * Creates a factory for a map ViewModel with its repository dependencies.
@@ -333,7 +369,7 @@ class MapViewModel(
      * @param wikiDataRepository repository used for artwork data
      * @param savedArtworksRepository repository used for saved artworks
      * @return factory that creates [MapViewModel] instances
-     * @author Felix Burchardt
+     * @author 5kyPhy
      */
     fun provideFactory(
         wikiDataRepository: WikiDataRepository,
@@ -348,6 +384,7 @@ class MapViewModel(
                   wikiDataRepository,
                   savedArtworksRepository,
                   walkingRouteRepository,
+                  locationProvider = null,
               )
                   as T
             }

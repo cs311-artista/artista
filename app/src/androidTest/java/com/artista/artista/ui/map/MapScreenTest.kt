@@ -4,15 +4,20 @@ package com.artista.artista.ui.map
 
 import android.location.Location
 import androidx.activity.ComponentActivity
+import androidx.activity.result.ActivityResultRegistry
+import androidx.activity.result.ActivityResultRegistryOwner
+import androidx.activity.result.contract.ActivityResultContract
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.core.app.ActivityOptionsCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.map.UserLocation
 import com.artista.artista.model.walking.WalkingRouteRepositoryRemote
+import com.artista.artista.ui.location.USER_LOCATION_PERMISSIONS
 import com.artista.artista.ui.navigation.NavigationTestTags
 import com.artista.artista.ui.theme.ArtistaTheme
 import org.junit.After
@@ -38,7 +43,7 @@ class MapScreenTest {
   @Before
   fun grantLocationPermissions() {
     instrumentation.uiAutomation.adoptShellPermissionIdentity()
-    REQUIRED_LOCATION_PERMISSIONS.forEach { permission ->
+    USER_LOCATION_PERMISSIONS.forEach { permission ->
       instrumentation.uiAutomation.grantRuntimePermission(
           instrumentation.targetContext.packageName,
           permission,
@@ -144,4 +149,22 @@ class MapScreenTest {
         latitude = MOCK_LATITUDE
         longitude = MOCK_LONGITUDE
       }
+
+  /** A fake implementation of [ActivityResultRegistryOwner] for testing purposes. */
+  private class FakeActivityResultRegistryOwner(
+      private val permissionResult: Map<String, Boolean>
+  ) : ActivityResultRegistryOwner {
+    override val activityResultRegistry: ActivityResultRegistry =
+        object : ActivityResultRegistry() {
+          @Suppress("UNCHECKED_CAST")
+          override fun <I, O> onLaunch(
+              requestCode: Int,
+              contract: ActivityResultContract<I, O>,
+              input: I,
+              options: ActivityOptionsCompat?,
+          ) {
+            dispatchResult(requestCode, permissionResult as O)
+          }
+        }
+  }
 }

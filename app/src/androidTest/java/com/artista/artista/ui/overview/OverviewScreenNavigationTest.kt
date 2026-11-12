@@ -21,8 +21,8 @@ import com.artista.artista.model.walking.WalkingRouteRepositoryRemote
 import com.artista.artista.resources.C
 import com.artista.artista.ui.artwork.ArtworkCardTestTag
 import com.artista.artista.ui.artwork.ArtworkTestTags
+import com.artista.artista.ui.location.USER_LOCATION_PERMISSIONS
 import com.artista.artista.ui.map.MapScreenTestTags
-import com.artista.artista.ui.map.REQUIRED_LOCATION_PERMISSIONS
 import com.artista.artista.ui.navigation.Screen
 import org.junit.Assert.assertEquals
 import org.junit.Before
@@ -95,7 +95,7 @@ class OverviewScreenNavigationTest {
     val instrumentation = InstrumentationRegistry.getInstrumentation()
     instrumentation.uiAutomation.adoptShellPermissionIdentity()
     try {
-      REQUIRED_LOCATION_PERMISSIONS.forEach { permission ->
+      USER_LOCATION_PERMISSIONS.forEach { permission ->
         instrumentation.uiAutomation.grantRuntimePermission(
             instrumentation.targetContext.packageName,
             permission,

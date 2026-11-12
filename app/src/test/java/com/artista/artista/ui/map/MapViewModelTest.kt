@@ -2,6 +2,7 @@
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.map
 
+import android.content.ContextWrapper
 import android.location.Location
 import com.artista.artista.MainDispatcherRule
 import com.artista.artista.R
@@ -19,9 +20,6 @@ import com.artista.artista.model.map.Location as ArtworkLocation
 import com.artista.artista.model.map.UserLocation
 import com.artista.artista.model.walking.WalkingRoute
 import com.artista.artista.model.walking.WalkingRouteRepository
-import com.google.android.gms.location.FusedLocationProviderClient
-import com.google.android.gms.tasks.Tasks
-import java.lang.reflect.Proxy
 import kotlin.time.Duration.Companion.minutes
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -50,7 +48,7 @@ class MapViewModelTest {
   @Test
   fun updateUserLocation_storesLocationAndClearsError() {
     val viewModel = createViewModel()
-    viewModel.setLocationError(R.string.map_location_acquisition_error)
+    viewModel.setLocationError(AppException.UserLocationError())
 
     val location = UserLocation(latitude = 46.5201, longitude = 6.6332)
     viewModel.updateUserLocation(location)
@@ -70,19 +68,18 @@ class MapViewModelTest {
     val location = UserLocation(latitude = 46.5201, longitude = 6.6332)
     viewModel.updateUserLocation(location)
 
-    viewModel.setLocationError(R.string.map_location_unavailable_error)
+    viewModel.setLocationError(AppException.UserLocationError())
 
     assertEquals(location, viewModel.uiState.userLocation)
-    assertEquals(R.string.map_location_unavailable_error, viewModel.uiState.errorMsg)
+    assertEquals(R.string.error_user_location, viewModel.uiState.errorMsg)
   }
 
   /** Verifies that a successful location request stores the acquired coordinates. */
   @Test
   fun acquireLocation_withPermission_storesAcquiredLocation() {
-    val viewModel = createViewModel()
-    val locationClient = fakeLocationClient(LOCATION)
+    val viewModel = createViewModel(locationProvider = fakeLocationProvider(LOCATION))
 
-    viewModel.acquireLocation(locationClient)
+    viewModel.acquireLocation(ContextWrapper(null))
 
     assertEquals(
         UserLocation(LOCATION.latitude, LOCATION.longitude),
@@ -94,23 +91,21 @@ class MapViewModelTest {
   /** Verifies that a null location exposes the unavailable-location error. */
   @Test
   fun acquireLocation_withNoLocation_exposesUnavailableError() {
-    val viewModel = createViewModel()
-    val locationClient = fakeLocationClient(null)
+    val viewModel = createViewModel(locationProvider = fakeLocationProvider(null))
 
-    viewModel.acquireLocation(locationClient)
+    viewModel.acquireLocation(ContextWrapper(null))
 
-    assertEquals(R.string.map_location_unavailable_error, viewModel.uiState.errorMsg)
+    assertEquals(R.string.error_user_location, viewModel.uiState.errorMsg)
   }
 
   /** Verifies that a failed location request exposes the acquisition error. */
   @Test
   fun acquireLocation_whenRequestFails_exposesAcquisitionError() {
-    val viewModel = createViewModel()
-    val locationClient = fakeLocationClientFailure()
+    val viewModel = createViewModel(locationProvider = fakeLocationProviderFailure())
 
-    viewModel.acquireLocation(locationClient)
+    viewModel.acquireLocation(ContextWrapper(null))
 
-    assertEquals(R.string.map_location_acquisition_error, viewModel.uiState.errorMsg)
+    assertEquals(R.string.error_user_location, viewModel.uiState.errorMsg)
   }
 
   @Test
@@ -155,11 +150,28 @@ class MapViewModelTest {
     assertNull(viewModel.uiState.errorMsg)
   }
 
-  private fun createViewModel(): MapViewModel =
+  @Test
+  fun setLocationPermissionError_correctlyExposes_LocationPermissionError() = runTest {
+    val viewModel =
+        MapViewModel(
+            FakeWikiDataRepository(emptyList()),
+            EmptySavedArtworksRepository(),
+            FakeWalkingRouteRepository(),
+        )
+
+    assertNull(viewModel.uiState.errorMsg)
+
+    viewModel.setLocationPermissionError(AppException.UserLocationError())
+
+    assertEquals(R.string.error_user_location, viewModel.uiState.errorMsg)
+  }
+
+  private fun createViewModel(locationProvider: LocationProvider? = null): MapViewModel =
       MapViewModel(
           ArtworkRepositoryProvider.mockRepository,
           ArtworkRepositoryProvider.mockRepository,
           FakeWalkingRouteRepository(),
+          locationProvider,
       )
 
   @Test
@@ -309,26 +321,14 @@ class MapViewModelTest {
     assertEquals(RouteUiState.Success(route, second), viewModel.routeUiState)
   }
 
-  private fun fakeLocationClient(location: Location?): FusedLocationProviderClient =
-      Proxy.newProxyInstance(
-          FusedLocationProviderClient::class.java.classLoader,
-          arrayOf(FusedLocationProviderClient::class.java),
-      ) { _, method, _ ->
-        if (method.name == "getCurrentLocation") Tasks.forResult(location)
-        else throw UnsupportedOperationException(method.name)
-      } as FusedLocationProviderClient
+  private fun fakeLocationProvider(location: Location?): LocationProvider =
+      LocationProvider { callback ->
+        callback(location)
+      }
 
-  private fun fakeLocationClientFailure(): FusedLocationProviderClient =
-      Proxy.newProxyInstance(
-          FusedLocationProviderClient::class.java.classLoader,
-          arrayOf(FusedLocationProviderClient::class.java),
-      ) { _, method, _ ->
-        if (method.name == "getCurrentLocation") {
-          Tasks.forException<Location>(LOCATION_EXCEPTION)
-        } else {
-          throw UnsupportedOperationException(method.name)
-        }
-      } as FusedLocationProviderClient
+  private fun fakeLocationProviderFailure(): LocationProvider = LocationProvider { callback ->
+    callback(null)
+  }
 
   private companion object {
     val LOCATION =
@@ -336,7 +336,6 @@ class MapViewModelTest {
           latitude = 46.5201
           longitude = 6.6332
         }
-    val LOCATION_EXCEPTION = IllegalStateException("location failure")
 
     fun sampleArtwork(uid: ArtworkId) =
         Artwork(uid, "Artwork $uid", Artist("artist", "Artist"), null, null, null, null, null)
