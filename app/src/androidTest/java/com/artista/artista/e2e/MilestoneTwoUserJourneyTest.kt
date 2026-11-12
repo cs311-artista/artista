@@ -197,7 +197,9 @@ class MilestoneTwoUserJourneyTest {
     scrollOverviewToArtwork()
     onDisplayed(OverviewTestTags.ARTWORK_ITEM).performClick()
     waitForDisplayed(ArtworkTestTags.ARTWORK_SCREEN)
+    composeTestRule.waitForIdle()
     waitForDisplayed(ArtworkTestTags.ARTWORK_MAP_TILE, scrollTo = true)
+    composeTestRule.waitForIdle()
     waitUntil {
       composeTestRule
           .onAllNodesWithTag(ArtworkTestTags.ARTWORK_IMAGE)
@@ -208,6 +210,7 @@ class MilestoneTwoUserJourneyTest {
               .fetchSemanticsNodes()
               .isNotEmpty()
     }
+    composeTestRule.waitForIdle()
     if (
         composeTestRule
             .onAllNodesWithTag(ArtworkTestTags.ARTWORK_IMAGE)
