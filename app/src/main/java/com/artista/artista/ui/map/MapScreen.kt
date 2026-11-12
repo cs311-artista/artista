@@ -37,10 +37,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.IntSize
 import androidx.core.graphics.createBitmap
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -216,18 +218,24 @@ fun MapScreen(
     }
   }
 
-  Box(modifier = Modifier.fillMaxSize()) {
+  var mapSize by remember { mutableStateOf(IntSize.Zero) }
+
+  Box(modifier = Modifier.fillMaxSize().onSizeChanged { mapSize = it }) {
     var mapLoaded by remember { mutableStateOf(false) }
 
-    LaunchedEffect(mapLoaded, routeUiState) {
+    LaunchedEffect(mapLoaded, mapSize, routeUiState) {
       val success = routeUiState as? RouteUiState.Success
-      if (mapLoaded && success != null) {
-        routeBounds(success.route.path, uiState.userLocation, success.destination)?.let { bounds ->
-          cameraPositionState.animate(
-              CameraUpdateFactory.newLatLngBounds(bounds, Dimensions.MAP_ROUTE_CAMERA_PADDING)
-          )
-        }
+      // Google Maps throws if the view is smaller than twice the padding, which happens
+      // when the route arrives before the map has been laid out.
+      if (!mapLoaded || success == null || mapSize.width <= 0 || mapSize.height <= 0) {
+        return@LaunchedEffect
       }
+      val bounds =
+          routeBounds(success.route.path, uiState.userLocation, success.destination)
+              ?: return@LaunchedEffect
+      val padding =
+          minOf(Dimensions.MAP_ROUTE_CAMERA_PADDING, minOf(mapSize.width, mapSize.height) / 4)
+      cameraPositionState.animate(CameraUpdateFactory.newLatLngBounds(bounds, padding))
     }
 
     GoogleMap(
