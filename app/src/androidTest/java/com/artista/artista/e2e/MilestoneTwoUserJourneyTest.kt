@@ -6,7 +6,6 @@ import android.annotation.SuppressLint
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.ComposeTimeoutException
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
@@ -14,13 +13,16 @@ import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.filter
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isNotEnabled
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
-import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
@@ -75,7 +77,9 @@ class MilestoneTwoUserJourneyTest {
 
   private val credentialProvider = FakeGoogleCredentialProvider()
   /** Title of the artwork saved before going offline, so it can be looked up afterwards. */
-  private var savedArtworkTitle: String = ""
+  private val savedArtworkTitles = mutableListOf<String>()
+  private val firstArtworkTitle = "The Thinker"
+  private val secondArtworkTitle = "Nighthawks"
   private val walkingRouteRepository =
       object : WalkingRouteRepository {
         override suspend fun getWalkingRoute(
@@ -137,9 +141,12 @@ class MilestoneTwoUserJourneyTest {
   @Test
   fun milestoneTwoJourney_persistsProfileAndArtistPreference() {
     signIn()
+    searchForArtwork()
+    openArtworkAndVerifyDetails(firstArtworkTitle)
+    openArtworkAndVerifyDetails(secondArtworkTitle)
+    saveArtwork(firstArtworkTitle)
+    saveArtwork(secondArtworkTitle)
     applyOverviewFilter()
-    saveAnArtwork()
-    openArtworkAndVerifyDetails()
     startWalkingRoute()
     editUsername()
     saveArtistPreference()
@@ -148,19 +155,7 @@ class MilestoneTwoUserJourneyTest {
     verifyPersistedProfileAndArtistPreference()
     // "Offline" phase
     reopenActivityOffline()
-    verifySavedArtworkAvailableWithFailingWikiData()
-  }
-
-  private fun saveAnArtwork() {
-    scrollOverviewToArtwork()
-    savedArtworkTitle =
-        composeTestRule
-            .onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD_TITLE, useUnmergedTree = true)
-            .fetchSemanticsNode()
-            .config[SemanticsProperties.Text]
-            .first()
-            .text
-    onDisplayed(ArtworkCardTestTag.ARTWORK_CARD_SAVE_BUTTON, scrollTo = true).performClick()
+    verifySavedArtworksListed()
   }
 
   /** Recreates the activity with failing network-backed repositories. */
@@ -196,10 +191,14 @@ class MilestoneTwoUserJourneyTest {
     composeTestRule.onAllNodesWithTag(OverviewTestTags.ARTWORK_ITEM).assertCountEquals(1)
   }
 
-  /** Opens the filtered artwork and verifies its map tile and image state. */
-  private fun openArtworkAndVerifyDetails() {
-    scrollOverviewToArtwork()
-    onDisplayed(OverviewTestTags.ARTWORK_ITEM).performClick()
+  /**
+   * Opens the artwork titled [title] from the Overview and verifies its map tile and image state.
+   */
+  private fun openArtworkAndVerifyDetails(title: String) {
+    goToOverview()
+    val card = hasTestTag(OverviewTestTags.ARTWORK_ITEM) and hasText(title, ignoreCase = true)
+    onDisplayed(OverviewTestTags.ARTWORK_LIST).performScrollToNode(card)
+    composeTestRule.onNode(card).performClick()
     waitForDisplayed(ArtworkTestTags.ARTWORK_SCREEN)
     composeTestRule.waitForIdle()
     waitForDisplayed(ArtworkTestTags.ARTWORK_MAP_TILE, scrollTo = true)
@@ -227,6 +226,61 @@ class MilestoneTwoUserJourneyTest {
     }
     onDisplayed(ArtworkTestTags.BACK_BUTTON).performClick()
     waitForDisplayed(OverviewTestTags.SCREEN)
+  }
+
+  /** Goes to the Overview tab and waits for it, whatever screen the test is on. */
+  private fun goToOverview() {
+    onDisplayed(NavigationTestTags.getTabTestTag(Tab.Overview)).performClick()
+    waitForDisplayed(OverviewTestTags.SCREEN)
+  }
+
+  /** Searches for `firstArtworkTitle` and checks it appears in the results. */
+  private fun searchForArtwork() {
+    goToOverview()
+    waitForDisplayed(OverviewTestTags.SCREEN)
+    composeTestRule.onNodeWithTag(OverviewTestTags.SEARCH_BAR).performClick()
+    waitForDisplayed("search_input")
+
+    val title = firstArtworkTitle
+    onDisplayed("search_input").performTextReplacement(title)
+    onDisplayed("search_input").performImeAction()
+    // Ignore the search field itself, which also contains the title.
+    waitUntil("search result '$title' to be displayed") {
+      composeTestRule
+          .onAllNodes(
+              hasText(title, ignoreCase = true) and !hasSetTextAction(),
+              useUnmergedTree = true,
+          )
+          .fetchSemanticsNodes()
+          .isNotEmpty()
+    }
+  }
+
+  /** Saves the artwork titled [title] from the Overview and remembers it for later checks. */
+  private fun saveArtwork(title: String) {
+    goToOverview()
+    val card = hasTestTag(OverviewTestTags.ARTWORK_ITEM) and hasText(title, ignoreCase = true)
+    onDisplayed(OverviewTestTags.ARTWORK_LIST).performScrollToNode(card)
+    composeTestRule
+        .onNode(hasTestTag(ArtworkCardTestTag.ARTWORK_CARD_SAVE_BUTTON) and hasAnyAncestor(card))
+        .performScrollTo()
+        .performClick()
+    savedArtworkTitles += title
+  }
+
+  /** Verifies both saved artworks are listed in Saved Artworks */
+  private fun verifySavedArtworksListed() {
+    goToOverview()
+    onDisplayed(OverviewTestTags.SAVED_ARTWORKS_BUTTON).performClick()
+    waitForDisplayed(SavedArtworksTestTags.SCREEN)
+    savedArtworkTitles.forEach { title ->
+      waitUntil("saved artwork '$title' to be listed") {
+        composeTestRule
+            .onAllNodes(hasText(title), useUnmergedTree = true)
+            .fetchSemanticsNodes()
+            .isNotEmpty()
+      }
+    }
   }
 
   /** Starts a route from the filtered artwork card and verifies the started route state. */
@@ -331,21 +385,6 @@ class MilestoneTwoUserJourneyTest {
     val monetTag = ArtistPreferencesTestTags.getArtistCardTestTag("mock-artist-004")
     waitForDisplayed(monetTag)
     onDisplayed(monetTag).assertIsOn()
-  }
-
-  /**
-   * Verifies the saved artwork is still listed in Saved Artworks when the WikiData repository
-   * fails.
-   */
-  private fun verifySavedArtworkAvailableWithFailingWikiData() {
-    onDisplayed(OverviewTestTags.SAVED_ARTWORKS_BUTTON).performClick()
-    waitForDisplayed(SavedArtworksTestTags.SCREEN)
-    waitUntil("$savedArtworkTitle to be displayed in Saved Artworks") {
-      composeTestRule
-          .onAllNodesWithText(savedArtworkTitle, useUnmergedTree = true)
-          .fetchSemanticsNodes()
-          .isNotEmpty()
-    }
   }
 
   /** Scrolls the Overview list until its single filtered artwork is displayed. */
