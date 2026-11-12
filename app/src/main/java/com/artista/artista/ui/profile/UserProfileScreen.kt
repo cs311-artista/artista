@@ -208,7 +208,10 @@ private fun ProfileContent(
       ProfileField(
           text = stringResource(R.string.profile_preferences),
           modifier = Modifier.testTag(UserProfileTestTags.PREFERENCES_BUTTON),
-          onClick = onPreferencesClick,
+          // todo: This disables the "Artist Preferences" button, as it calls a not-yet-implemented
+          // function.
+          // onClick = onPreferencesClick,
+          onClick = {},
       )
       ProfileField(
           text = stringResource(R.string.profile_saved_artwork),
