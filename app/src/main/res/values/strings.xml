@@ -1,3 +1,4 @@
+<!-- Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com> -->
 <!-- Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com> -->
 <resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name">Artista</string>
@@ -64,6 +65,8 @@
     <string name="auth_tagline">Discover art around you</string>
     <string name="sign_in_failed">Sign in failed</string>
     <string name="sign_in_no_account">No Google account available</string>
+    <string name="profile_initialization_failed">Your profile could not be set up. You can continue using the app and retry.</string>
+    <string name="profile_initialization_retry">Retry</string>
 
     <!-- Overview screen -->
     <string name="overview_load_error">Unable to load nearby artworks.</string>

@@ -1,7 +1,9 @@
+// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 // Co-authored-by: DeepSeek Flash
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.authentication
 
+import android.util.Log
 import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -11,8 +13,13 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.artista.artista.model.authentication.AuthRepository
 import com.artista.artista.model.authentication.AuthUser
 import com.artista.artista.model.error.AppException
+import com.artista.artista.model.user.User
+import com.artista.artista.model.user.UserId
+import com.artista.artista.model.user.UserPreference
+import com.artista.artista.model.user.UserRepository
 import com.artista.artista.ui.error.launchCatching
 import com.artista.artista.ui.error.toMessageRes
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -63,12 +70,16 @@ sealed interface AuthSession {
  * @property isLoading whether an authentication operation is in progress
  * @property repositoryErrorMessageRes localized message of the last failed repository operation, or
  *   `null` when there is nothing to report
+ * @property isProfileInitializationInProgress whether the profile is being checked or initialized
+ * @property profileInitializationFailed whether profile initialization needs to be retried
  * @author timo-by
  */
 data class AuthUiState(
     val session: AuthSession = AuthSession.Restoring,
     val isLoading: Boolean = false,
     @param:StringRes val repositoryErrorMessageRes: Int? = null,
+    val isProfileInitializationInProgress: Boolean = false,
+    val profileInitializationFailed: Boolean = false,
 )
 
 /**
@@ -83,9 +94,13 @@ data class AuthUiState(
  * which reports its own outcome (see [AuthScreen]).
  *
  * @param repository the authentication repository
- * @author timo-by
+ * @param userRepository storage of the user profiles
+ * @author timo-by, hixeum
  */
-class AuthViewModel(private val repository: AuthRepository) : ViewModel() {
+class AuthViewModel(
+    private val repository: AuthRepository,
+    private val userRepository: UserRepository,
+) : ViewModel() {
 
   private val _uiState = MutableStateFlow(AuthUiState())
 
@@ -131,11 +146,61 @@ class AuthViewModel(private val repository: AuthRepository) : ViewModel() {
         // Throwing is what lets launchCatching classify the failure: an AppException from the
         // repository is reported as is, anything else becomes AppException.Unknown, and both are
         // logged.
-        repository.signIn(idToken).getOrThrow()
+        val authUser = repository.signIn(idToken).getOrThrow()
+        ensureProfileExists(authUser.uid)
       } finally {
         // Reset however the operation ends, so a failure does not leave the button spinning.
         _uiState.update { it.copy(isLoading = false) }
       }
+    }
+  }
+
+  /**
+   * Ensures that a user profile document exists in [userRepository] for the given [uid].
+   *
+   * If no profile exists for [uid], a default user profile with empty preferences is created. If a
+   * profile already exists, it is left untouched. Only [AppException.NotFound] means that the
+   * profile is absent; other failures keep the user signed in and expose a retry action.
+   *
+   * @param uid identifier of the signed-in user
+   * @author hixeum
+   */
+  private suspend fun ensureProfileExists(uid: UserId) {
+    _uiState.update { it.copy(isProfileInitializationInProgress = true) }
+    try {
+      try {
+        userRepository.getUser(uid)
+      } catch (_: AppException.NotFound) {
+        // A missing profile is the only lookup result that justifies creating a default one.
+        userRepository.createUser(User(uid = uid, preference = UserPreference()))
+      }
+      _uiState.update { it.copy(profileInitializationFailed = false) }
+    } catch (exception: CancellationException) {
+      // Keep lifecycle cancellation observable to the parent coroutine.
+      throw exception
+    } catch (exception: Exception) {
+      // Authentication already succeeded; keep the user signed in and make profile recovery
+      // visible.
+      Log.e(TAG, "Failed to initialize the signed-in user's profile.", exception)
+      _uiState.update { it.copy(profileInitializationFailed = true) }
+    } finally {
+      _uiState.update { it.copy(isProfileInitializationInProgress = false) }
+    }
+  }
+
+  /**
+   * Retries checking or creating the profile for the currently signed-in user.
+   *
+   * @author hixeum
+   */
+  fun retryProfileInitialization() {
+    val session = _uiState.value.session as? AuthSession.SignedIn ?: return
+    if (_uiState.value.isProfileInitializationInProgress) return
+
+    // Let a later failed attempt transition back to true and display a fresh snackbar.
+    _uiState.update { it.copy(profileInitializationFailed = false) }
+    viewModelScope.launchCatching(tag = TAG, onError = ::report) {
+      ensureProfileExists(session.user.uid)
     }
   }
 
@@ -223,7 +288,7 @@ class AuthViewModel(private val repository: AuthRepository) : ViewModel() {
     private const val TAG = "AuthViewModel"
 
     /**
-     * Creates a factory for an [AuthViewModel] with its repository dependency.
+     * Creates a factory for an [AuthViewModel] with its repository dependencies.
      *
      * The application builds the ViewModel from
      * [com.artista.artista.model.authentication.AuthRepositoryProvider.repository], the same way
@@ -231,11 +296,15 @@ class AuthViewModel(private val repository: AuthRepository) : ViewModel() {
      * composition root, so the UI layer only ever names the [AuthRepository] interface.
      *
      * @param repository the authentication repository
+     * @param userRepository storage of the user profiles
      * @return a factory that creates [AuthViewModel] instances
-     * @author timo-by
+     * @author timo-by, hixeum
      */
-    fun provideFactory(repository: AuthRepository): ViewModelProvider.Factory = viewModelFactory {
-      initializer { AuthViewModel(repository) }
+    fun provideFactory(
+        repository: AuthRepository,
+        userRepository: UserRepository,
+    ): ViewModelProvider.Factory = viewModelFactory {
+      initializer { AuthViewModel(repository, userRepository) }
     }
   }
 }

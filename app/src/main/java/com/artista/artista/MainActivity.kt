@@ -6,15 +6,26 @@ package com.artista.artista
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.rememberViewModelStoreOwner
@@ -62,6 +73,7 @@ import com.artista.artista.ui.profile.UserProfileViewModel
 import com.artista.artista.ui.search.SearchScreen
 import com.artista.artista.ui.search.SearchScreenViewModel
 import com.artista.artista.ui.theme.ArtistaTheme
+import com.artista.artista.ui.theme.Dimensions
 
 /**
  * Hosts the Artista app's root composition, and through it the navigation graph.
@@ -132,7 +144,13 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun ArtistaApp(
     authViewModel: AuthViewModel =
-        viewModel(factory = AuthViewModel.provideFactory(AuthRepositoryProvider.repository)),
+        viewModel(
+            factory =
+                AuthViewModel.provideFactory(
+                    AuthRepositoryProvider.repository,
+                    UserRepositoryProvider.repository,
+                )
+        ),
     credentialProvider: GoogleCredentialProvider = rememberGoogleCredentialProvider(),
     wikiDataRepository: WikiDataRepository = ArtworkRepositoryProvider.wikiDataRepository,
     savedArtworksRepository: SavedArtworksRepository =
@@ -140,6 +158,23 @@ fun ArtistaApp(
     walkingRouteRepository: WalkingRouteRepository = WalkingRouteRepositoryRemote(),
 ) {
   val state by authViewModel.uiState.collectAsStateWithLifecycle()
+  val profileInitializationFailedMessage = stringResource(R.string.profile_initialization_failed)
+  val profileInitializationRetryLabel = stringResource(R.string.profile_initialization_retry)
+  val snackbarHostState = remember { SnackbarHostState() }
+
+  LaunchedEffect(state.profileInitializationFailed) {
+    if (state.profileInitializationFailed) {
+      val result =
+          snackbarHostState.showSnackbar(
+              message = profileInitializationFailedMessage,
+              actionLabel = profileInitializationRetryLabel,
+              duration = SnackbarDuration.Long,
+          )
+      if (result == SnackbarResult.ActionPerformed) {
+        authViewModel.retryProfileInitialization()
+      }
+    }
+  }
 
   when (state.session) {
     // Nothing yet: the background of the activity is all this state should show.
@@ -151,13 +186,26 @@ fun ArtistaApp(
       // clear it: it is cleared when the owner leaves, whereas the activity's store would keep the
       // destinations' ViewModels (and their running collectors) until the activity dies.
       val graphViewModelStoreOwner = rememberViewModelStoreOwner()
-      CompositionLocalProvider(LocalViewModelStoreOwner provides graphViewModelStoreOwner) {
-        ArtistaNavHost(
-            onLogout = authViewModel::signOut,
-            wikiDataRepository = wikiDataRepository,
-            savedArtworksRepository = savedArtworksRepository,
-            walkingRouteRepository = walkingRouteRepository,
-        )
+      Box(Modifier.fillMaxSize()) {
+        CompositionLocalProvider(LocalViewModelStoreOwner provides graphViewModelStoreOwner) {
+          ArtistaNavHost(
+              onLogout = authViewModel::signOut,
+              wikiDataRepository = wikiDataRepository,
+              savedArtworksRepository = savedArtworksRepository,
+              walkingRouteRepository = walkingRouteRepository,
+          )
+        }
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier =
+                Modifier.align(Alignment.TopCenter)
+                    .padding(Dimensions.profileInitializationWarningPadding),
+        ) { snackbarData ->
+          Snackbar(
+              snackbarData = snackbarData,
+              modifier = Modifier.testTag(C.Tag.profile_initialization_warning),
+          )
+        }
       }
     }
   }

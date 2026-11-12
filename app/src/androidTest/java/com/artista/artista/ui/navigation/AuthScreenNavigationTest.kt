@@ -12,6 +12,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.artista.artista.ArtistaApp
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.authentication.FakeAuthRepository
+import com.artista.artista.model.user.UserRepositoryLocal
 import com.artista.artista.resources.C
 import com.artista.artista.ui.authentication.AuthViewModel
 import com.artista.artista.ui.authentication.FakeGoogleCredentialProvider
@@ -38,7 +39,7 @@ class AuthScreenNavigationTest {
 
   // Built outside the composition: a ViewModel belongs to a ViewModelStoreOwner, and the root only
   // needs the state it exposes.
-  private val authViewModel = AuthViewModel(FakeAuthRepository())
+  private val authViewModel = AuthViewModel(FakeAuthRepository(), UserRepositoryLocal())
 
   private val credentialProvider = FakeGoogleCredentialProvider()
 

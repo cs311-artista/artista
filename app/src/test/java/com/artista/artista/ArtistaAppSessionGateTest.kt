@@ -1,15 +1,22 @@
+// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 // Co-authored-by: DeepSeek Flash
 package com.artista.artista
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
 import com.artista.artista.model.authentication.AuthRepositoryProvider
 import com.artista.artista.model.authentication.FakeAuthRepository
 import com.artista.artista.model.authentication.FakeAuthUser
+import com.artista.artista.model.error.AppException
+import com.artista.artista.model.user.FakeUserRepository
+import com.artista.artista.model.user.UserRepository
+import com.artista.artista.model.user.UserRepositoryLocal
 import com.artista.artista.model.user.UserRepositoryProvider
 import com.artista.artista.resources.C
 import com.artista.artista.ui.authentication.AuthViewModel
@@ -123,6 +130,38 @@ class ArtistaAppSessionGateTest {
   }
 
   /**
+   * Verifies that a profile creation failure is visible after sign-in and can be retried.
+   *
+   * @author hixeum
+   */
+  @Test
+  fun profileInitializationFailureDisplaysRetryAndCanRecover() {
+    val userRepository =
+        FakeUserRepository().apply { writeFailure = AppException.Network("offline") }
+    repository.user = FakeAuthUser(uid = UID)
+    showApp(userRepository)
+
+    composeTestRule.onNodeWithTag(C.Tag.auth_google_sign_in_button).performClick()
+    composeTestRule.waitForIdle()
+
+    composeTestRule.onNodeWithTag(OverviewTestTags.SCREEN).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(C.Tag.profile_initialization_warning).assertIsDisplayed()
+
+    userRepository.writeFailure = null
+    composeTestRule
+        .onNodeWithText(
+            InstrumentationRegistry.getInstrumentation()
+                .targetContext
+                .getString(R.string.profile_initialization_retry)
+        )
+        .performClick()
+    composeTestRule.waitForIdle()
+
+    composeTestRule.onNodeWithTag(C.Tag.profile_initialization_warning).assertDoesNotExist()
+    assertEquals(UID, userRepository.storedUser(UID)?.uid)
+  }
+
+  /**
    * Verifies that a session the repository drops behind the application's back - the way Firebase
    * reports a revoked or expired session - returns the user to the sign-in screen.
    */
@@ -187,7 +226,7 @@ class ArtistaAppSessionGateTest {
   }
 
   /** Composes [ArtistaApp] with the fakes and no Firebase. */
-  private fun showApp() {
+  private fun showApp(userRepository: UserRepository = UserRepositoryLocal()) {
     // Built once the test has configured the repository: the ViewModel starts collecting the
     // session
     // at construction, so a repository configured afterwards would have reported already. It is
@@ -195,7 +234,7 @@ class ArtistaAppSessionGateTest {
     // built outside the composition, a ViewModel belonging to a ViewModelStoreOwner rather than to
     // a
     // composable.
-    val viewModel = AuthViewModel(repository)
+    val viewModel = AuthViewModel(repository, userRepository)
     composeTestRule.setContent {
       ArtistaApp(
           authViewModel = viewModel,

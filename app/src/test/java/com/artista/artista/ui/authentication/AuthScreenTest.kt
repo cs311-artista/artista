@@ -15,6 +15,7 @@ import com.artista.artista.R
 import com.artista.artista.model.authentication.FakeAuthRepository
 import com.artista.artista.model.authentication.FakeAuthUser
 import com.artista.artista.model.error.AppException
+import com.artista.artista.model.user.UserRepositoryLocal
 import com.artista.artista.resources.C
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -51,7 +52,7 @@ class AuthScreenTest {
   @Before
   fun setUp() {
     repository = FakeAuthRepository()
-    viewModel = AuthViewModel(repository)
+    viewModel = AuthViewModel(repository, UserRepositoryLocal())
     credentialProvider = FakeGoogleCredentialProvider()
   }
 
