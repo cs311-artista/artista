@@ -184,6 +184,9 @@ jobs:
           exit 1
 
       # Run connected tests on the emulator
+      # E2E runs first in the same emulator session: if it fails, the runner stops
+      # before the rest of the suite. Its coverage is copied aside because the
+      # second run writes to the same coverage file.
       - name: Run Connected tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -193,7 +196,10 @@ jobs:
           force-avd-creation: false
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
-          script: ./gradlew connectedCheck --build-cache
+          script: |
+            ./gradlew connectedDebugAndroidTest --build-cache -Pandroid.testInstrumentationRunnerArguments.package=com.artista.artista.e2e
+            mkdir -p app/build/outputs/code_coverage/e2e && cp -r app/build/outputs/code_coverage/debugAndroidTest/connected/. app/build/outputs/code_coverage/e2e/
+            ./gradlew connectedDebugAndroidTest --build-cache -Pandroid.testInstrumentationRunnerArguments.notPackage=com.artista.artista.e2e
 
       # Stop Firebase emulator
       - name: Stop Firebase emulator

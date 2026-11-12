@@ -279,6 +279,8 @@ tasks.register("jacocoTestReport", JacocoReport::class) {
       fileTree(project.layout.buildDirectory.get()) {
         include("outputs/unit_test_code_coverage/debugUnitTest/testDebugUnitTest.exec")
         include("outputs/code_coverage/debugAndroidTest/connected/*/coverage.ec")
+        // E2E coverage copied aside by CI before the second connected run overwrites it
+        include("outputs/code_coverage/e2e/*/coverage.ec")
       }
   )
 }
