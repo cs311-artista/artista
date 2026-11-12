@@ -56,10 +56,13 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
+import com.artista.artista.model.error.AppException
 import com.artista.artista.model.map.Coordinate
 import com.artista.artista.model.map.UserLocation
 import com.artista.artista.model.walking.WalkingRouteRepositoryRemote
 import com.artista.artista.resources.C
+import com.artista.artista.ui.location.UserLocationPermission
+import com.artista.artista.ui.location.hasUserLocationPermissions
 import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaColors
@@ -161,8 +164,6 @@ internal fun remoteArtworksNotSaved(
 }
 
 internal const val USER_LOCATION_ZOOM = 15f
-internal val REQUIRED_LOCATION_PERMISSIONS =
-    setOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
 
 /**
  * Displays a map centered on the user's current position.
@@ -175,6 +176,7 @@ fun MapScreen(
     mapViewModel: MapViewModel,
     onNavigationBarTabSelected: (Tab) -> Unit = {},
     onArtworkMarkerClick: (Artwork) -> Unit = {},
+    hasLocationPermissions: (Context) -> Boolean = ::hasUserLocationPermissions,
 ) {
   val uiState by mapViewModel.uiStateFlow.collectAsStateWithLifecycle()
   val routeUiState by mapViewModel.routeUiStateFlow.collectAsStateWithLifecycle()
@@ -231,8 +233,27 @@ fun MapScreen(
   // Show location errors after permission or acquisition failures.
   val errorMessageResId = mapViewModel.uiState.errorMsg
   val errorMessage = errorMessageResId?.let { stringResource(it) }
+
+  UserLocationPermission(
+      onPermissionResult = { granted ->
+        mapViewModel.handleLocationPermissionResult(granted)
+        if (granted && mapViewModel.uiState.userLocation == null) {
+          mapViewModel.acquireLocation(context)
+        } else if (!granted) {
+          mapViewModel.setLocationPermissionError(AppException.UserLocationError())
+        }
+      },
+      hasPermissions = hasLocationPermissions,
+  )
+
   LaunchedEffect(errorMessage) {
     errorMessage?.let { Toast.makeText(context, it, Toast.LENGTH_LONG).show() }
+  }
+
+  val userLocation = uiState.userLocation
+  val cameraPositionState = rememberCameraPositionState { position = cameraPositionFor(null) }
+  val markerState = remember {
+    MarkerState(position = LatLng(C.Constants.DEFAULT_MAP_LAT, C.Constants.DEFAULT_MAP_LONG))
   }
 
   // Recenter map and move marker when user location changes.
@@ -558,11 +579,6 @@ private fun artworkMarkerBitmap(color: Int): Bitmap =
             Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = android.graphics.Color.WHITE },
         )
       }
-    }
-
-private fun hasAllLocationPermissions(context: Context): Boolean =
-    REQUIRED_LOCATION_PERMISSIONS.all {
-      ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
     }
 
 /**

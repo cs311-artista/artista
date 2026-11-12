@@ -4,15 +4,21 @@ package com.artista.artista.ui.map
 
 import android.location.Location
 import androidx.activity.ComponentActivity
+import androidx.activity.result.ActivityResultRegistry
+import androidx.activity.result.ActivityResultRegistryOwner
+import androidx.activity.result.contract.ActivityResultContract
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.core.app.ActivityOptionsCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.artista.artista.model.artist.Artist
+import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.R
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.Artwork
@@ -23,6 +29,7 @@ import com.artista.artista.model.map.UserLocation
 import com.artista.artista.model.walking.WalkingRoute
 import com.artista.artista.model.walking.WalkingRouteRepository
 import com.artista.artista.model.walking.WalkingRouteRepositoryRemote
+import com.artista.artista.ui.location.USER_LOCATION_PERMISSIONS
 import com.artista.artista.ui.navigation.NavigationTestTags
 import com.artista.artista.ui.theme.ArtistaTheme
 import java.lang.reflect.Proxy
@@ -50,7 +57,7 @@ class MapScreenTest {
   @Before
   fun grantLocationPermissions() {
     instrumentation.uiAutomation.adoptShellPermissionIdentity()
-    REQUIRED_LOCATION_PERMISSIONS.forEach { permission ->
+    USER_LOCATION_PERMISSIONS.forEach { permission ->
       instrumentation.uiAutomation.grantRuntimePermission(
           instrumentation.targetContext.packageName,
           permission,
@@ -291,6 +298,18 @@ class MapScreenTest {
     }
   }
 
+  private fun routeArtwork(): Artwork =
+    Artwork(
+      uid = "destination",
+      name = "Artwork destination",
+      artist = Artist("artist", "Artist"),
+      description = null,
+      conceptionDate = null,
+      museum = null,
+      location = null,
+      dimension = null,
+    )
+
   private companion object {
     const val MOCK_LATITUDE = 46.5201
     const val MOCK_LONGITUDE = 6.6332
@@ -302,15 +321,21 @@ class MapScreenTest {
         longitude = MOCK_LONGITUDE
       }
 
-  private fun routeArtwork(): Artwork =
-      Artwork(
-          uid = "destination",
-          name = "Artwork destination",
-          artist = Artist("artist", "Artist"),
-          description = null,
-          conceptionDate = null,
-          museum = null,
-          location = null,
-          dimension = null,
-      )
+  /** A fake implementation of [ActivityResultRegistryOwner] for testing purposes. */
+  private class FakeActivityResultRegistryOwner(
+      private val permissionResult: Map<String, Boolean>
+  ) : ActivityResultRegistryOwner {
+    override val activityResultRegistry: ActivityResultRegistry =
+        object : ActivityResultRegistry() {
+          @Suppress("UNCHECKED_CAST")
+          override fun <I, O> onLaunch(
+              requestCode: Int,
+              contract: ActivityResultContract<I, O>,
+              input: I,
+              options: ActivityOptionsCompat?,
+          ) {
+            dispatchResult(requestCode, permissionResult as O)
+          }
+        }
+  }
 }
