@@ -5,6 +5,7 @@ package com.artista.artista.ui.search
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertCountEquals
@@ -15,6 +16,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performImeAction
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextInputSelection
@@ -25,6 +27,7 @@ import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.ArtworkType
 import com.artista.artista.model.artwork.SearchArea
 import com.artista.artista.model.artwork.WikiDataRepository
+import com.artista.artista.model.map.Location
 import com.artista.artista.ui.artwork.ArtworkCardTestTag
 import kotlin.NotImplementedError
 import kotlinx.coroutines.CompletableDeferred
@@ -279,6 +282,38 @@ class SearchScreenTest {
 
     assertEquals(listOf(artwork), repository.savedArtworks)
     assertEquals(listOf(artwork), viewModel.uiState.value.savedArtworks)
+  }
+
+  @Test
+  fun searchResults_whenMapButtonIsClicked_callsOnMapClickWithTappedArtwork() = runTest {
+    val artwork = SearchTestData.starryNight.copy(location = Location(48.8606, 2.3376, "Louvre"))
+    val viewModel =
+        SearchScreenViewModel(
+            SearchTestData.savedArtworksRepository(emptyList()),
+            FakeWikiDataRepository(listOf(artwork)),
+        )
+    viewModel.onSearchSubmitted("star")
+    advanceUntilIdle()
+    var mappedArtwork: Artwork? = null
+
+    composeTestRule.setContent {
+      MaterialTheme {
+        SearchScreen(
+            onMapClick = { mappedArtwork = it },
+            viewModel = viewModel,
+            onTabSelected = {},
+            onArtworkClick = {},
+            onRecommendationSelected = {},
+        )
+      }
+    }
+
+    // Semantic click: performClick() does not reach the button in this Robolectric window.
+    composeTestRule
+        .onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD_MAP_BUTTON)
+        .performSemanticsAction(SemanticsActions.OnClick)
+
+    assertEquals(artwork, mappedArtwork)
   }
 
   private fun createViewModel() =

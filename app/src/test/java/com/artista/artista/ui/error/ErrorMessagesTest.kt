@@ -47,4 +47,9 @@ class ErrorMessagesTest {
   fun toMessageRes_forUnknown_returnsUnknownMessage() {
     assertEquals(R.string.error_unknown, AppException.Unknown().toMessageRes())
   }
+
+  @Test
+  fun toMessageRes_forUserLocationError_returnsUserLocationMessage() {
+    assertEquals(R.string.error_user_location, AppException.UserLocationError().toMessageRes())
+  }
 }

@@ -38,6 +38,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.navigation.navigation
 import coil3.compose.setSingletonImageLoaderFactory
+import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.artwork.SavedArtworksRepository
 import com.artista.artista.model.artwork.WikiDataRepository
@@ -62,6 +63,7 @@ import com.artista.artista.ui.map.MapScreen
 import com.artista.artista.ui.map.MapViewModel
 import com.artista.artista.ui.navigation.NavigationActions
 import com.artista.artista.ui.navigation.Screen
+import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.overview.OverviewScreen
 import com.artista.artista.ui.overview.OverviewViewModel
 import com.artista.artista.ui.preferences.ArtistPreferencesScreen
@@ -255,6 +257,20 @@ fun ArtistaNavHost(
       checkNotNull(LocalViewModelStoreOwner.current) {
         "ArtistaNavHost needs a ViewModelStoreOwner"
       }
+  val mapViewModel =
+      viewModel<MapViewModel>(
+          viewModelStoreOwner = graphViewModelStoreOwner,
+          factory =
+              MapViewModel.provideFactory(
+                  wikiDataRepository,
+                  savedArtworksRepository,
+                  walkingRouteRepository,
+              ),
+      )
+  val showRouteOnMap: (Artwork) -> Unit = { artwork ->
+    mapViewModel.loadRouteTo(artwork)
+    navigationActions.navigateTo(Tab.Map.destination)
+  }
 
   NavHost(navController = navController, startDestination = startDestination) {
 
@@ -279,6 +295,7 @@ fun ArtistaNavHost(
             },
             onSavedArtworksClick = { navController.navigate(Screen.SavedArtworks.route) },
             onSearchClick = { navController.navigate(Screen.Search.route) },
+            onMapClick = showRouteOnMap,
         )
       }
       composable(Screen.Search.route) {
@@ -295,6 +312,7 @@ fun ArtistaNavHost(
             onArtworkClick = { artwork ->
               navController.navigate(Screen.ArtworkDetails.createRoute(artwork.uid))
             },
+            onMapClick = showRouteOnMap,
             onRecommendationSelected = { recommendation ->
               navController.navigate(Screen.ArtworkDetails.createRoute(recommendation.uid))
             },
@@ -309,15 +327,8 @@ fun ArtistaNavHost(
     ) {
       composable(Screen.Map.route) {
         MapScreen(
-            mapViewModel =
-                viewModel(
-                    factory =
-                        MapViewModel.provideFactory(
-                            wikiDataRepository,
-                            savedArtworksRepository,
-                            walkingRouteRepository,
-                        )
-                ),
+            mapViewModel = mapViewModel,
+            onArtworkMarkerClick = showRouteOnMap,
             onNavigationBarTabSelected = { tab -> navigationActions.navigateTo(tab.destination) },
         )
       }
@@ -358,7 +369,13 @@ fun ArtistaNavHost(
                 viewModel(
                     factory =
                         ArtistPreferencesViewModel.provideFactory(
-                            wikiDataRepository = wikiDataRepository,
+                            // TODO: getPopularArtists(), used by the artist preferences ViewModel,
+                            //  is not implemented in the remote repository yet (it crashes the
+                            //  screen), and implementing it raises an important design question.
+                            //  Because we want to demo saving and loading artist preferences to
+                            //  Firestore, which does work, this screen uses mock data for now.
+                            //  This will be fixed in a future sprint as a priority.
+                            wikiDataRepository = ArtworkRepositoryProvider.mockRepository,
                             authRepository = AuthRepositoryProvider.repository,
                             userRepository = UserRepositoryProvider.repository,
                         )
@@ -379,7 +396,7 @@ fun ArtistaNavHost(
             navController.navigate(Screen.ArtworkDetails.createRoute(artwork.uid))
           },
           onTabSelected = { tab -> navigationActions.navigateTo(tab.destination) },
-          onMapClick = { /* TODO: Implement map click functionality */ },
+          onMapClick = showRouteOnMap,
       )
     }
 
