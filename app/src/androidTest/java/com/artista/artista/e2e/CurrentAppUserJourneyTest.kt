@@ -1,5 +1,6 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 // Co-authored-by: DeepSeek Flash
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.e2e
 
 import androidx.activity.ComponentActivity
@@ -55,7 +56,7 @@ class CurrentAppUserJourneyTest {
 
   private val instrumentation = InstrumentationRegistry.getInstrumentation()
 
-  private val timeoutMillis = 5_000L
+  private val timeoutMillis = 10_000L
 
   // The journey signs in and out for real, so it goes through the real AuthViewModel; only the two
   // seams behind it are faked, since no test can drive Credential Manager's account chooser and
@@ -96,10 +97,7 @@ class CurrentAppUserJourneyTest {
     // now that it goes through the repository, so the assertion waits for the gate to swap screens.
     composeTestRule.onNodeWithTag(C.Tag.auth_screen_container).assertIsDisplayed()
     composeTestRule.onNodeWithTag(C.Tag.auth_google_sign_in_button).performClick()
-    composeTestRule.waitUntil(timeoutMillis) {
-      composeTestRule.onAllNodesWithTag(OverviewTestTags.SCREEN).fetchSemanticsNodes().isNotEmpty()
-    }
-    composeTestRule.onNodeWithTag(OverviewTestTags.SCREEN).assertIsDisplayed()
+    waitUntilDisplayed(OverviewTestTags.SCREEN)
 
     // Visit the screens reachable from Overview and verify each return path.
     openSearch()
@@ -132,13 +130,7 @@ class CurrentAppUserJourneyTest {
     // back.
     composeTestRule.onNodeWithTag(UserProfileTestTags.LOGOUT_BUTTON).assertIsDisplayed()
     composeTestRule.onNodeWithTag(UserProfileTestTags.LOGOUT_BUTTON).performClick()
-    composeTestRule.waitUntil(timeoutMillis) {
-      composeTestRule
-          .onAllNodesWithTag(C.Tag.auth_screen_container)
-          .fetchSemanticsNodes()
-          .isNotEmpty()
-    }
-    composeTestRule.onNodeWithTag(C.Tag.auth_screen_container).assertIsDisplayed()
+    waitUntilDisplayed(C.Tag.auth_screen_container)
   }
 
   /**
@@ -147,11 +139,9 @@ class CurrentAppUserJourneyTest {
    */
   private fun openSearch() {
     composeTestRule.onNodeWithTag(OverviewTestTags.SEARCH_BAR).performClick()
-    composeTestRule.waitForIdle()
-    composeTestRule.onNodeWithTag("search_input").assertIsDisplayed()
+    waitUntilDisplayed("search_input")
     composeTestRule.onNodeWithTag(NavigationTestTags.getTabTestTag(Tab.Overview)).performClick()
-    composeTestRule.waitForIdle()
-    composeTestRule.onNodeWithTag(OverviewTestTags.SCREEN).assertIsDisplayed()
+    waitUntilDisplayed(OverviewTestTags.SCREEN)
     composeTestRule.onNodeWithTag(NavigationTestTags.getTabTestTag(Tab.Overview)).assertIsSelected()
   }
 
@@ -162,12 +152,10 @@ class CurrentAppUserJourneyTest {
   private fun openMap() {
     grantLocationPermissions()
     composeTestRule.onNodeWithTag(NavigationTestTags.getTabTestTag(Tab.Map)).performClick()
-    composeTestRule.waitForIdle()
-    composeTestRule.onNodeWithTag(MapScreenTestTags.MAP).assertIsDisplayed()
+    waitUntilDisplayed(MapScreenTestTags.MAP)
     composeTestRule.onNodeWithTag(NavigationTestTags.getTabTestTag(Tab.Map)).assertIsSelected()
     composeTestRule.onNodeWithTag(NavigationTestTags.getTabTestTag(Tab.Overview)).performClick()
-    composeTestRule.waitForIdle()
-    composeTestRule.onNodeWithTag(OverviewTestTags.SCREEN).assertIsDisplayed()
+    waitUntilDisplayed(OverviewTestTags.SCREEN)
   }
 
   /**
@@ -179,11 +167,9 @@ class CurrentAppUserJourneyTest {
         .onNodeWithTag(OverviewTestTags.ARTWORK_LIST)
         .performScrollToNode(hasTestTag(OverviewTestTags.ARTWORK_ITEM))
     composeTestRule.onAllNodesWithTag(OverviewTestTags.ARTWORK_ITEM)[0].performClick()
-    composeTestRule.waitForIdle()
-    composeTestRule.onNodeWithTag(ArtworkTestTags.ARTWORK_SCREEN).assertIsDisplayed()
+    waitUntilDisplayed(ArtworkTestTags.ARTWORK_SCREEN)
     composeTestRule.onNodeWithTag(ArtworkTestTags.BACK_BUTTON).performClick()
-    composeTestRule.waitForIdle()
-    composeTestRule.onNodeWithTag(OverviewTestTags.SCREEN).assertIsDisplayed()
+    waitUntilDisplayed(OverviewTestTags.SCREEN)
   }
 
   /**
@@ -196,43 +182,29 @@ class CurrentAppUserJourneyTest {
         .onNodeWithTag(OverviewTestTags.ARTWORK_LIST)
         .performScrollToNode(hasTestTag(OverviewTestTags.ARTWORK_ITEM))
     composeTestRule.onAllNodesWithTag(OverviewTestTags.ARTWORK_ITEM)[index].performClick()
-    composeTestRule.waitForIdle()
-    composeTestRule.onNodeWithTag(ArtworkTestTags.ARTWORK_SCREEN).assertIsDisplayed()
+    waitUntilDisplayed(ArtworkTestTags.ARTWORK_SCREEN)
     composeTestRule.onNodeWithTag(ArtworkTestTags.SAVE_BUTTON).performClick()
     composeTestRule.waitForIdle()
     composeTestRule.onNodeWithTag(ArtworkTestTags.BACK_BUTTON).performClick()
-    composeTestRule.waitForIdle()
-    composeTestRule.onNodeWithTag(OverviewTestTags.SCREEN).assertIsDisplayed()
+    waitUntilDisplayed(OverviewTestTags.SCREEN)
   }
 
   /** Opens Saved Artworks and verifies that every artwork saved by the journey is displayed. */
   private fun openSavedArtworks() {
     composeTestRule.onNodeWithTag(NavigationTestTags.getTabTestTag(Tab.Profile)).performClick()
-    composeTestRule.waitForIdle()
-    composeTestRule.onNodeWithTag(UserProfileTestTags.SCREEN).assertIsDisplayed()
+    waitUntilDisplayed(UserProfileTestTags.SCREEN)
     composeTestRule
         .onNodeWithTag(UserProfileTestTags.SAVED_ARTWORK_BUTTON)
         .performScrollTo()
         .assertIsDisplayed()
     composeTestRule.onNodeWithTag(UserProfileTestTags.SAVED_ARTWORK_BUTTON).performClick()
-    composeTestRule.waitForIdle()
-    composeTestRule.waitUntil(timeoutMillis) {
-      composeTestRule
-          .onAllNodesWithTag(SavedArtworksTestTags.SCREEN)
-          .fetchSemanticsNodes()
-          .isNotEmpty()
-    }
+    waitUntilDisplayed(SavedArtworksTestTags.SCREEN)
 
     mockArtworks.take(2).forEach { artwork ->
-      val savedArtworkCard = SavedArtworksTestTags.card(artwork)
-      composeTestRule.waitUntil(timeoutMillis = timeoutMillis) {
-        composeTestRule.onAllNodesWithTag(savedArtworkCard).fetchSemanticsNodes().isNotEmpty()
-      }
-      composeTestRule.onNodeWithTag(savedArtworkCard).assertIsDisplayed()
+      waitUntilDisplayed(SavedArtworksTestTags.card(artwork))
     }
     composeTestRule.onNodeWithTag(SavedArtworksTestTags.BACK_BUTTON).performClick()
-    composeTestRule.waitForIdle()
-    composeTestRule.onNodeWithTag(UserProfileTestTags.SCREEN).assertIsDisplayed()
+    waitUntilDisplayed(UserProfileTestTags.SCREEN)
   }
 
   /** Removes the first artwork from Saved Artworks and verifies that its card disappears. */
@@ -242,8 +214,7 @@ class CurrentAppUserJourneyTest {
         .performScrollTo()
         .assertIsDisplayed()
     composeTestRule.onNodeWithTag(UserProfileTestTags.SAVED_ARTWORK_BUTTON).performClick()
-    composeTestRule.waitForIdle()
-    composeTestRule.onNodeWithTag(SavedArtworksTestTags.SCREEN).assertIsDisplayed()
+    waitUntilDisplayed(SavedArtworksTestTags.SCREEN)
     val savedArtworkCard = SavedArtworksTestTags.card(mockArtworks.first())
     composeTestRule
         .onNodeWithTag(SavedArtworksTestTags.unsaveButton(mockArtworks.first()))
@@ -253,8 +224,7 @@ class CurrentAppUserJourneyTest {
       composeTestRule.onAllNodesWithTag(savedArtworkCard).fetchSemanticsNodes().isEmpty()
     }
     composeTestRule.onNodeWithTag(SavedArtworksTestTags.BACK_BUTTON).performClick()
-    composeTestRule.waitForIdle()
-    composeTestRule.onNodeWithTag(UserProfileTestTags.SCREEN).assertIsDisplayed()
+    waitUntilDisplayed(UserProfileTestTags.SCREEN)
   }
 
   /**
@@ -267,22 +237,19 @@ class CurrentAppUserJourneyTest {
         .onNodeWithTag(OverviewTestTags.ARTWORK_LIST)
         .performScrollToNode(hasTestTag(OverviewTestTags.ARTWORK_ITEM))
     composeTestRule.onAllNodesWithTag(OverviewTestTags.ARTWORK_ITEM)[0].performClick()
-    composeTestRule.waitForIdle()
-    composeTestRule.onNodeWithTag(ArtworkTestTags.ARTWORK_SCREEN).assertIsDisplayed()
+    waitUntilDisplayed(ArtworkTestTags.ARTWORK_SCREEN)
     composeTestRule.onNodeWithTag(ArtworkTestTags.SAVE_BUTTON).performClick()
     composeTestRule.waitForIdle()
     composeTestRule.onNodeWithTag(ArtworkTestTags.BACK_BUTTON).performClick()
     composeTestRule.waitForIdle()
     composeTestRule.onNodeWithTag(NavigationTestTags.getTabTestTag(Tab.Profile)).performClick()
-    composeTestRule.waitForIdle()
-    composeTestRule.onNodeWithTag(UserProfileTestTags.SCREEN).assertIsDisplayed()
+    waitUntilDisplayed(UserProfileTestTags.SCREEN)
     composeTestRule
         .onNodeWithTag(UserProfileTestTags.SAVED_ARTWORK_BUTTON)
         .performScrollTo()
         .assertIsDisplayed()
     composeTestRule.onNodeWithTag(UserProfileTestTags.SAVED_ARTWORK_BUTTON).performClick()
-    composeTestRule.waitForIdle()
-    composeTestRule.onNodeWithTag(SavedArtworksTestTags.SCREEN).assertIsDisplayed()
+    waitUntilDisplayed(SavedArtworksTestTags.SCREEN)
 
     mockArtworks.forEach { artwork ->
       if (composeTestRule.onNodeWithTag(SavedArtworksTestTags.card(artwork)).isDisplayed()) {
@@ -293,8 +260,7 @@ class CurrentAppUserJourneyTest {
     }
 
     composeTestRule.onNodeWithTag(SavedArtworksTestTags.BACK_BUTTON).performClick()
-    composeTestRule.waitForIdle()
-    composeTestRule.onNodeWithTag(UserProfileTestTags.SCREEN).assertIsDisplayed()
+    waitUntilDisplayed(UserProfileTestTags.SCREEN)
   }
 
   /**
@@ -303,8 +269,7 @@ class CurrentAppUserJourneyTest {
    */
   private fun openPreferences() {
     composeTestRule.onNodeWithTag(UserProfileTestTags.PREFERENCES_BUTTON).performClick()
-    composeTestRule.waitForIdle()
-    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SCREEN).assertIsDisplayed()
+    waitUntilDisplayed(ArtistPreferencesTestTags.SCREEN)
 
     val artistCard = ArtistPreferencesTestTags.getArtistCardTestTag("mock-artist-001")
     composeTestRule
@@ -318,8 +283,39 @@ class CurrentAppUserJourneyTest {
     composeTestRule.onNodeWithTag(artistCard).assertIsOff()
 
     composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.BACK_BUTTON).performClick()
-    composeTestRule.waitForIdle()
-    composeTestRule.onNodeWithTag(UserProfileTestTags.SCREEN).assertIsDisplayed()
+    waitUntilDisplayed(UserProfileTestTags.SCREEN)
+  }
+
+  /**
+   * Waits until the node with [tag] is displayed, then asserts it.
+   *
+   * [waitUntil][androidx.compose.ui.test.junit4.ComposeTestRule.waitUntil] checks again and again
+   * whether a node with [tag] exists, letting the app run between checks, until one appears or
+   * [timeoutMillis] runs out. A single check right after `waitForIdle()` was too early on CI's
+   * slow, freshly booted emulator and failed the whole journey.
+   *
+   * While the Activity briefly has no Compose content, the check throws `IllegalStateException: No
+   * compose hierarchies found`. That case is caught and treated as "not ready yet", so polling
+   * continues instead of failing the test at once.
+   *
+   * Once the node exists, it is asserted to be displayed, so the check is as strict as before.
+   *
+   * @param tag test tag of the node to wait for
+   * @throws androidx.compose.ui.test.ComposeTimeoutException if no node with [tag] appears within
+   *   [timeoutMillis]
+   * @throws AssertionError if the node exists but is not displayed
+   * @author krfpn
+   */
+  private fun waitUntilDisplayed(tag: String) {
+    composeTestRule.waitUntil(timeoutMillis) {
+      try {
+        composeTestRule.onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty()
+      } catch (e: IllegalStateException) {
+        // Thrown as "No compose hierarchies found" while no root is attached
+        false
+      }
+    }
+    composeTestRule.onNodeWithTag(tag).assertIsDisplayed()
   }
 
   /**
