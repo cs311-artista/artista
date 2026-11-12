@@ -271,12 +271,17 @@ class SavedArtworksScreenTest {
         )
     fakeRepository.savedArtworks.add(artwork)
     var mappedArtwork: Artwork? = null
-    setScreenContent(onMapClick = { mappedArtwork = it })
+    var selectedTab: Tab? = null
+    setScreenContent(
+        onMapClick = { mappedArtwork = it },
+        onTabSelected = { selectedTab = it },
+    )
 
     composeTestRule.waitForIdle()
     composeTestRule.onNodeWithTag(SavedArtworksTestTags.mapButton(savedArtwork)).performClick()
 
     assertEquals(artwork, mappedArtwork)
+    assertEquals(Tab.Map, selectedTab)
   }
 
   /** Verifies that unsaving removes the artwork from both the repository and the UI. */

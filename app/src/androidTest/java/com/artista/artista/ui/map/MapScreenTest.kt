@@ -5,16 +5,25 @@ package com.artista.artista.ui.map
 import android.location.Location
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.artista.artista.R
+import com.artista.artista.model.artist.Artist
+import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
+import com.artista.artista.model.map.Coordinate
 import com.artista.artista.model.map.UserLocation
+import com.artista.artista.model.walking.WalkingRoute
 import com.artista.artista.model.walking.WalkingRouteRepositoryRemote
 import com.artista.artista.ui.navigation.NavigationTestTags
 import com.artista.artista.ui.theme.ArtistaTheme
+import kotlin.time.Duration.Companion.minutes
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
@@ -116,6 +125,99 @@ class MapScreenTest {
     assertEquals(null, mapViewModel.uiState.userLocation)
   }
 
+  @Test
+  fun routeOverlay_success_displaysSummaryAndCloseCallsCallback() {
+    var cleared = false
+    val artwork = routeArtwork()
+    val route = WalkingRoute(listOf(Coordinate(MOCK_LATITUDE, MOCK_LONGITUDE)), 12.minutes, 850)
+
+    setRouteOverlay(RouteUiState.Success(route, artwork), onClearRoute = { cleared = true })
+
+    composeTestRule.onNodeWithTag(MapScreenTestTags.ROUTE_SUMMARY_CARD).assertIsDisplayed()
+    composeTestRule.onNodeWithText("Artwork destination").assertIsDisplayed()
+    composeTestRule
+        .onNodeWithTag(MapScreenTestTags.ROUTE_SUMMARY)
+        .assertTextEquals("12 min · 850 m")
+    composeTestRule.onNodeWithTag(MapScreenTestTags.ROUTE_CLOSE_BUTTON).performClick()
+    assertEquals(true, cleared)
+  }
+
+  @Test
+  fun routeOverlay_loading_displaysProgressMessage() {
+    setRouteOverlay(RouteUiState.Loading)
+
+    composeTestRule.onNodeWithTag(MapScreenTestTags.ROUTE_LOADING).assertIsDisplayed()
+    composeTestRule.onNodeWithText("Finding a walking route...").assertIsDisplayed()
+  }
+
+  @Test
+  fun routeOverlay_noRoute_displaysInformationalMessage() {
+    setRouteOverlay(RouteUiState.NoRoute)
+
+    composeTestRule.onNodeWithTag(MapScreenTestTags.ROUTE_NO_ROUTE).assertIsDisplayed()
+    composeTestRule.onNodeWithText("No route found.").assertIsDisplayed()
+  }
+
+  @Test
+  fun routeOverlay_noRoute_closeCallsCallback() {
+    var cleared = false
+
+    setRouteOverlay(RouteUiState.NoRoute, onClearRoute = { cleared = true })
+
+    composeTestRule.onNodeWithTag(MapScreenTestTags.ROUTE_CLOSE_BUTTON).performClick()
+    assertEquals(true, cleared)
+  }
+
+  @Test
+  fun routeOverlay_locationUnavailable_displaysMessage() {
+    setRouteOverlay(RouteUiState.LocationUnavailable)
+
+    composeTestRule.onNodeWithTag(MapScreenTestTags.ROUTE_LOCATION_UNAVAILABLE).assertIsDisplayed()
+    composeTestRule.onNodeWithText("Current location is unavailable.").assertIsDisplayed()
+  }
+
+  @Test
+  fun routeOverlay_error_withRetry_callsRetryCallback() {
+    var retried = false
+
+    setRouteOverlay(
+        RouteUiState.Error(RouteErrorKind.NETWORK, R.string.error_network),
+        onRetryRoute = { retried = true },
+    )
+
+    composeTestRule.onNodeWithTag(MapScreenTestTags.ROUTE_ERROR).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(MapScreenTestTags.ROUTE_RETRY_BUTTON).performClick()
+    assertEquals(true, retried)
+  }
+
+  @Test
+  fun routeOverlay_error_withoutRetry_hidesRetryButton() {
+    setRouteOverlay(
+        RouteUiState.Error(RouteErrorKind.DAILY_RATE_LIMIT, R.string.error_rate_limited_daily)
+    )
+
+    composeTestRule.onNodeWithTag(MapScreenTestTags.ROUTE_ERROR).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(MapScreenTestTags.ROUTE_RETRY_BUTTON).assertDoesNotExist()
+  }
+
+  @Test
+  fun routeOverlay_error_temporaryRateLimit_showsRetryButton() {
+    setRouteOverlay(
+        RouteUiState.Error(RouteErrorKind.TEMPORARY_RATE_LIMIT, R.string.error_rate_limited_minute)
+    )
+
+    composeTestRule.onNodeWithTag(MapScreenTestTags.ROUTE_ERROR).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(MapScreenTestTags.ROUTE_RETRY_BUTTON).assertIsDisplayed()
+  }
+
+  @Test
+  fun routeOverlay_idle_displaysNothing() {
+    setRouteOverlay(RouteUiState.Idle)
+
+    composeTestRule.onNodeWithTag(MapScreenTestTags.ROUTE_SUMMARY_CARD).assertDoesNotExist()
+    composeTestRule.onNodeWithTag(MapScreenTestTags.ROUTE_LOADING).assertDoesNotExist()
+  }
+
   private fun setMapScreenContent() {
     composeTestRule.setContent {
       ArtistaTheme {
@@ -134,6 +236,22 @@ class MapScreenTest {
     }
   }
 
+  private fun setRouteOverlay(
+      routeUiState: RouteUiState,
+      onClearRoute: () -> Unit = {},
+      onRetryRoute: () -> Unit = {},
+  ) {
+    composeTestRule.setContent {
+      ArtistaTheme {
+        RouteOverlay(
+            routeUiState = routeUiState,
+            onClearRoute = onClearRoute,
+            onRetryRoute = onRetryRoute,
+        )
+      }
+    }
+  }
+
   private companion object {
     const val MOCK_LATITUDE = 46.5201
     const val MOCK_LONGITUDE = 6.6332
@@ -144,4 +262,16 @@ class MapScreenTest {
         latitude = MOCK_LATITUDE
         longitude = MOCK_LONGITUDE
       }
+
+  private fun routeArtwork(): Artwork =
+      Artwork(
+          uid = "destination",
+          name = "Artwork destination",
+          artist = Artist("artist", "Artist"),
+          description = null,
+          conceptionDate = null,
+          museum = null,
+          location = null,
+          dimension = null,
+      )
 }
