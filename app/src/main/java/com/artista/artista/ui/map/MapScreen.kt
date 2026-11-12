@@ -13,13 +13,31 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,6 +56,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
+import com.artista.artista.model.map.Coordinate
 import com.artista.artista.model.map.UserLocation
 import com.artista.artista.model.walking.WalkingRouteRepositoryRemote
 import com.artista.artista.resources.C
@@ -45,19 +64,23 @@ import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaColors
 import com.artista.artista.ui.theme.ArtistaTheme
+import com.artista.artista.ui.theme.Dimensions
 import com.google.android.gms.location.LocationServices
+import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.LatLngBounds
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.MarkerState
+import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberCameraPositionState
 
 /**
  * Contains test tags used by the map screen.
  *
- * @author Felix Burchardt
+ * @author Felix Burchardt, patrickmcdan
  */
 object MapScreenTestTags {
   /** Tag identifying the Google Map surface. */
@@ -71,6 +94,30 @@ object MapScreenTestTags {
 
   /** Tag identifying markers for artworks saved locally by the user. */
   const val SAVED_ARTWORK_MARKER = "map_saved_artwork_marker"
+
+  /** Tag identifying the walking route summary card. */
+  const val ROUTE_SUMMARY_CARD = "map_route_summary_card"
+
+  /** Tag identifying the walking route summary text. */
+  const val ROUTE_SUMMARY = "map_route_summary"
+
+  /** Tag identifying the walking route close button. */
+  const val ROUTE_CLOSE_BUTTON = "map_route_close_button"
+
+  /** Tag identifying the walking route loading state. */
+  const val ROUTE_LOADING = "map_route_loading"
+
+  /** Tag identifying the no-route informational state. */
+  const val ROUTE_NO_ROUTE = "map_route_no_route"
+
+  /** Tag identifying the unavailable-location state. */
+  const val ROUTE_LOCATION_UNAVAILABLE = "map_route_location_unavailable"
+
+  /** Tag identifying the walking route error state. */
+  const val ROUTE_ERROR = "map_route_error"
+
+  /** Tag identifying the walking route retry button. */
+  const val ROUTE_RETRY_BUTTON = "map_route_retry_button"
 }
 
 /**
@@ -121,7 +168,7 @@ internal val REQUIRED_LOCATION_PERMISSIONS =
  * Displays a map centered on the user's current position.
  *
  * @param mapViewModel ViewModel containing the latest user location.
- * @author 5kyPhy
+ * @author 5kyPhy, patrickmcdan
  */
 @Composable
 fun MapScreen(
@@ -130,6 +177,7 @@ fun MapScreen(
     onArtworkMarkerClick: (Artwork) -> Unit = {},
 ) {
   val uiState by mapViewModel.uiStateFlow.collectAsStateWithLifecycle()
+  val routeUiState by mapViewModel.routeUiStateFlow.collectAsStateWithLifecycle()
   val context = LocalContext.current
   val locationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
   val permissions = REQUIRED_LOCATION_PERMISSIONS.toTypedArray()
@@ -143,10 +191,11 @@ fun MapScreen(
       rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
         refreshLocationPermission()
         if (!hasLocationPermission) {
-          mapViewModel.setLocationPermissionError()
+          mapViewModel.onLocationPermissionDenied()
         }
       }
   val userLocation = uiState.userLocation
+  val latestRouteUiState by rememberUpdatedState(routeUiState)
   val cameraPositionState = rememberCameraPositionState { position = cameraPositionFor(null) }
   val markerState = remember {
     MarkerState(position = LatLng(C.Constants.DEFAULT_MAP_LAT, C.Constants.DEFAULT_MAP_LONG))
@@ -187,19 +236,37 @@ fun MapScreen(
   }
 
   // Recenter map and move marker when user location changes.
+  // Only recenter when no route is currently displayed, so the user can explore the map without
+  // being interrupted by the camera moving back to their location.
   LaunchedEffect(userLocation) {
     userLocation?.let {
-      cameraPositionState.position = cameraPositionFor(it)
       markerState.position = LatLng(it.latitude, it.longitude)
+      if (latestRouteUiState !is RouteUiState.Success) {
+        cameraPositionState.position = cameraPositionFor(it)
+      }
     }
   }
 
   Box(modifier = Modifier.fillMaxSize()) {
+    var mapLoaded by remember { mutableStateOf(false) }
+
+    LaunchedEffect(mapLoaded, routeUiState) {
+      val success = routeUiState as? RouteUiState.Success
+      if (mapLoaded && success != null) {
+        routeBounds(success.route.path, uiState.userLocation, success.destination)?.let { bounds ->
+          cameraPositionState.animate(
+              CameraUpdateFactory.newLatLngBounds(bounds, Dimensions.MAP_ROUTE_CAMERA_PADDING)
+          )
+        }
+      }
+    }
+
     GoogleMap(
         modifier = Modifier.fillMaxSize().testTag(MapScreenTestTags.MAP),
         cameraPositionState = cameraPositionState,
+        onMapLoaded = { mapLoaded = true },
     ) {
-      userLocation?.let {
+      uiState.userLocation?.let {
         Marker(
             tag = MapScreenTestTags.USER_LOCATION_MARKER,
             state = markerState,
@@ -209,20 +276,221 @@ fun MapScreen(
       uiState.savedArtworks.forEach { artwork ->
         DisplayArtworkMarker(artwork, onArtworkMarkerClick, MarkerType.SavedArtwork)
       }
-      remoteArtworksNotSaved(uiState.savedArtworks, uiState.remoteArtworks).forEach { artwork ->
-        DisplayArtworkMarker(
-            artwork,
-            onArtworkMarkerClick,
-            MarkerType.RemoteArtwork,
-        )
+      val remoteArtworks = remoteArtworksNotSaved(uiState.savedArtworks, uiState.remoteArtworks)
+      remoteArtworks.forEach { artwork ->
+        DisplayArtworkMarker(artwork, onArtworkMarkerClick, MarkerType.RemoteArtwork)
+      }
+
+      val success = routeUiState as? RouteUiState.Success
+      success?.let { routeState ->
+        if (routeState.route.path.isNotEmpty()) {
+          Polyline(
+              points = routeState.route.path.map { LatLng(it.latitude, it.longitude) },
+              color = ArtistaColors.Primary,
+              width = Dimensions.POLY_LINE_WIDTH,
+          )
+        }
+        // Ensure the destination artwork is displayed if it's not already shown
+        val displayedArtworkIds = (uiState.savedArtworks + remoteArtworks).map { it.uid }.toSet()
+        if (
+            routeState.destination.uid !in displayedArtworkIds &&
+                routeState.destination.location != null
+        ) {
+          DisplayArtworkMarker(
+              routeState.destination,
+              onArtworkMarkerClick,
+              MarkerType.RemoteArtwork,
+          )
+        }
       }
     }
+
+    RouteOverlay(
+        routeUiState = routeUiState,
+        onClearRoute = mapViewModel::clearRoute,
+        onRetryRoute = mapViewModel::retryRoute,
+        modifier =
+            Modifier.align(Alignment.TopCenter)
+                .padding(
+                    horizontal = Dimensions.mapRouteOverlayHorizontalPadding,
+                    vertical = Dimensions.mapRouteOverlayTopPadding,
+                ),
+    )
 
     BottomNavigationMenu(
         modifier = Modifier.align(Alignment.BottomCenter),
         selectedTab = Tab.Map,
         onTabSelected = { tab -> onNavigationBarTabSelected(tab) },
     )
+  }
+}
+
+/**
+ * Computes bounds containing the route, current user location and destination.
+ *
+ * @param path route coordinates
+ * @param userLocation current user location, when available
+ * @param destination route destination artwork
+ * @return bounds containing all available points, or null when no points exist
+ * @author patrickmcdan
+ */
+internal fun routeBounds(
+    path: List<Coordinate>,
+    userLocation: UserLocation?,
+    destination: Artwork,
+): LatLngBounds? {
+  val points = buildList {
+    addAll(path.map { LatLng(it.latitude, it.longitude) })
+    userLocation?.let { add(LatLng(it.latitude, it.longitude)) }
+    destination.location?.let { add(LatLng(it.latitude, it.longitude)) }
+  }
+  if (points.isEmpty()) return null
+  return LatLngBounds.builder().apply { points.forEach(::include) }.build()
+}
+
+/**
+ * Displays the route summary or the current route request state.
+ *
+ * @param routeUiState current walking route state
+ * @param onClearRoute called when the route is dismissed
+ * @param onRetryRoute called when a retry is requested
+ * @param modifier modifier applied to the overlay
+ * @author patrickmcdan
+ */
+@Composable
+internal fun RouteOverlay(
+    routeUiState: RouteUiState,
+    onClearRoute: () -> Unit,
+    onRetryRoute: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+  when (routeUiState) {
+    RouteUiState.Idle -> Unit
+    RouteUiState.Loading -> {
+      RouteMessageCard(
+          modifier = modifier.testTag(MapScreenTestTags.ROUTE_LOADING),
+          message = stringResource(R.string.map_route_loading),
+          showProgress = true,
+      )
+    }
+    is RouteUiState.Success -> {
+      Card(
+          modifier = modifier.fillMaxWidth().testTag(MapScreenTestTags.ROUTE_SUMMARY_CARD),
+          colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+      ) {
+        Row(
+            modifier = Modifier.padding(Dimensions.mapRouteOverlayContentPadding),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+          Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text =
+                    routeUiState.destination.name ?: stringResource(R.string.artwork_unknown_title),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Spacer(modifier = Modifier.height(Dimensions.mapRouteOverlaySpacing))
+            Text(
+                modifier = Modifier.testTag(MapScreenTestTags.ROUTE_SUMMARY),
+                text =
+                    formatWalkingRouteSummary(
+                        routeUiState.route.duration,
+                        routeUiState.route.distanceMeters,
+                    ),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+          }
+          IconButton(
+              modifier = Modifier.testTag(MapScreenTestTags.ROUTE_CLOSE_BUTTON),
+              onClick = onClearRoute,
+          ) {
+            Icon(
+                imageVector = Icons.Default.Close,
+                contentDescription = stringResource(R.string.map_route_close),
+            )
+          }
+        }
+      }
+    }
+    RouteUiState.NoRoute -> {
+      RouteMessageCard(
+          modifier = modifier.testTag(MapScreenTestTags.ROUTE_NO_ROUTE),
+          message = stringResource(R.string.map_route_no_route),
+          onDismiss = onClearRoute,
+          informational = true,
+      )
+    }
+    RouteUiState.LocationUnavailable -> {
+      RouteMessageCard(
+          modifier = modifier.testTag(MapScreenTestTags.ROUTE_LOCATION_UNAVAILABLE),
+          message = stringResource(R.string.map_location_unavailable_error),
+          onDismiss = onClearRoute,
+      )
+    }
+    is RouteUiState.Error -> {
+      RouteMessageCard(
+          modifier = modifier.testTag(MapScreenTestTags.ROUTE_ERROR),
+          message = stringResource(routeUiState.messageRes),
+          onDismiss = onClearRoute,
+          onRetry = if (routeUiState.kind.canRetry) onRetryRoute else null,
+      )
+    }
+  }
+}
+
+@Composable
+private fun RouteMessageCard(
+    message: String,
+    modifier: Modifier = Modifier,
+    showProgress: Boolean = false,
+    onDismiss: (() -> Unit)? = null,
+    onRetry: (() -> Unit)? = null,
+    informational: Boolean = false,
+) {
+  Card(
+      modifier = modifier.fillMaxWidth(),
+      colors =
+          CardDefaults.cardColors(
+              containerColor =
+                  if (informational) MaterialTheme.colorScheme.secondaryContainer
+                  else MaterialTheme.colorScheme.errorContainer
+          ),
+  ) {
+    Row(
+        modifier = Modifier.padding(Dimensions.mapRouteOverlayContentPadding),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+      if (showProgress) {
+        CircularProgressIndicator(modifier = Modifier.size(Dimensions.iconSizeMedium))
+        Spacer(modifier = Modifier.size(Dimensions.mapRouteOverlaySpacing))
+      }
+      Text(
+          modifier = Modifier.weight(1f),
+          text = message,
+          color =
+              if (informational) MaterialTheme.colorScheme.onSecondaryContainer
+              else MaterialTheme.colorScheme.onErrorContainer,
+          style = MaterialTheme.typography.bodyLarge,
+      )
+      onRetry?.let {
+        Button(
+            modifier = Modifier.testTag(MapScreenTestTags.ROUTE_RETRY_BUTTON),
+            onClick = it,
+        ) {
+          Text(text = stringResource(R.string.map_route_retry))
+        }
+      }
+      onDismiss?.let {
+        IconButton(
+            modifier = Modifier.testTag(MapScreenTestTags.ROUTE_CLOSE_BUTTON),
+            onClick = it,
+        ) {
+          Icon(
+              imageVector = Icons.Default.Close,
+              contentDescription = stringResource(R.string.map_route_close),
+          )
+        }
+      }
+    }
   }
 }
 
@@ -241,6 +509,7 @@ private fun DisplayArtworkMarker(
         tag = markerTag(markerType),
         state = artworkMarkerState,
         title = artwork.name,
+        snippet = stringResource(R.string.map_marker_navigate_to),
         onInfoWindowClick = { onArtworkMarkerClick(artwork) },
         icon = artworkMarkerIcon(markerType.color),
     )

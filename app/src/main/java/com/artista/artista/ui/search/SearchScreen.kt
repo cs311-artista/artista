@@ -128,7 +128,10 @@ fun SearchScreen(
           artworks = uiState.artworks,
           savedArtworkIds = uiState.savedArtworks.map { it.uid }.toSet(),
           onArtworkClick = onArtworkClick,
-          onMapClick = onMapClick,
+          onMapClick = { artwork ->
+            onMapClick(artwork)
+            onTabSelected(Tab.Map)
+          },
           onSaveClick = viewModel::toggleSavedArtwork,
           modifier = Modifier.fillMaxSize().padding(contentPadding),
       )

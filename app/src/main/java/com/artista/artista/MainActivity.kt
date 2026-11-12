@@ -207,6 +207,16 @@ fun ArtistaNavHost(
       checkNotNull(LocalViewModelStoreOwner.current) {
         "ArtistaNavHost needs a ViewModelStoreOwner"
       }
+  val mapViewModel =
+      viewModel<MapViewModel>(
+          viewModelStoreOwner = graphViewModelStoreOwner,
+          factory =
+              MapViewModel.provideFactory(
+                  wikiDataRepository,
+                  savedArtworksRepository,
+                  walkingRouteRepository,
+              ),
+      )
 
   NavHost(navController = navController, startDestination = startDestination) {
 
@@ -231,6 +241,7 @@ fun ArtistaNavHost(
             },
             onSavedArtworksClick = { navController.navigate(Screen.SavedArtworks.route) },
             onSearchClick = { navController.navigate(Screen.Search.route) },
+            onMapClick = mapViewModel::loadRouteTo,
         )
       }
       composable(Screen.Search.route) {
@@ -247,6 +258,7 @@ fun ArtistaNavHost(
             onArtworkClick = { artwork ->
               navController.navigate(Screen.ArtworkDetails.createRoute(artwork.uid))
             },
+            onMapClick = mapViewModel::loadRouteTo,
             onRecommendationSelected = { recommendation ->
               navController.navigate(Screen.ArtworkDetails.createRoute(recommendation.uid))
             },
@@ -261,15 +273,8 @@ fun ArtistaNavHost(
     ) {
       composable(Screen.Map.route) {
         MapScreen(
-            mapViewModel =
-                viewModel(
-                    factory =
-                        MapViewModel.provideFactory(
-                            wikiDataRepository,
-                            savedArtworksRepository,
-                            walkingRouteRepository,
-                        )
-                ),
+            mapViewModel = mapViewModel,
+            onArtworkMarkerClick = mapViewModel::loadRouteTo,
             onNavigationBarTabSelected = { tab -> navigationActions.navigateTo(tab.destination) },
         )
       }
@@ -331,7 +336,7 @@ fun ArtistaNavHost(
             navController.navigate(Screen.ArtworkDetails.createRoute(artwork.uid))
           },
           onTabSelected = { tab -> navigationActions.navigateTo(tab.destination) },
-          onMapClick = { /* TODO: Implement map click functionality */ },
+          onMapClick = mapViewModel::loadRouteTo,
       )
     }
 
