@@ -1,4 +1,6 @@
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.model.artwork
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -18,6 +20,7 @@ import kotlinx.coroutines.tasks.await
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -28,7 +31,7 @@ import org.junit.runner.RunWith
 /**
  * Verifies the Firestore repository against the local Firebase emulators.
  *
- * @author Copilot
+ * @author hixeum
  */
 @RunWith(AndroidJUnit4::class)
 class SavedArtworksRepositoryFirestoreTest {
@@ -40,7 +43,6 @@ class SavedArtworksRepositoryFirestoreTest {
   private lateinit var repository: SavedArtworksRepositoryFirestore
   private lateinit var userId: String
   private lateinit var userEmail: String
-  private val userIds = mutableSetOf<String>()
 
   @Before
   fun setUp() = runBlocking {
@@ -50,17 +52,15 @@ class SavedArtworksRepositoryFirestoreTest {
     userEmail = "saved-artworks-${UUID.randomUUID()}@example.com"
     userId =
         checkNotNull(auth.createUserWithEmailAndPassword(userEmail, TEST_PASSWORD).await().user).uid
-    userIds += userId
     repository = SavedArtworksRepositoryFirestore(firestore, auth)
   }
 
   @After
   fun tearDown() = runBlocking {
-    userIds.forEach { id ->
-      savedArtworksCollection(id).get().await().documents.forEach { it.reference.delete().await() }
-    }
+    // The rules only let a user clear their own artworks, and a test may end signed out or as
+    // another user, so the data is wiped through the emulator's admin endpoint.
+    FirebaseEmulator.clearFirestore()
     auth.signOut()
-    userIds.clear()
   }
 
   @Test
@@ -98,6 +98,29 @@ class SavedArtworksRepositoryFirestoreTest {
     repository.saveArtwork(artwork)
 
     assertEquals(listOf(artwork), repository.getSavedArtworks())
+  }
+
+  /** Checks that the image link of a saved artwork is still there when it is read back. */
+  @Test
+  fun saveArtworkThenReadPreservesImageUrl() = runBlocking {
+    val artwork =
+        completeArtwork()
+            .copy(
+                imageUrl =
+                    "https://commons.wikimedia.org/wiki/Special:FilePath/The%20Thinker.jpg?width=800"
+            )
+
+    repository.saveArtwork(artwork)
+
+    assertEquals(listOf(artwork), repository.getSavedArtworks())
+  }
+
+  /** Checks that a document stored before image links were saved loads without an image. */
+  @Test
+  fun getSavedArtworksLoadsDocumentWithoutImageUrlAsNull() = runBlocking {
+    seedDocument("artwork-1", artworkData("artwork-1"))
+
+    assertNull(repository.getSavedArtworks().single().imageUrl)
   }
 
   @Test
@@ -141,7 +164,6 @@ class SavedArtworksRepositoryFirestoreTest {
                 auth.createUserWithEmailAndPassword(secondUserEmail, TEST_PASSWORD).await().user
             )
             .uid
-    userIds += secondUserId
     val secondUserRepository = SavedArtworksRepositoryFirestore(firestore, auth)
     assertFalse(secondUserRepository.isArtworkSaved("artwork-1"))
 

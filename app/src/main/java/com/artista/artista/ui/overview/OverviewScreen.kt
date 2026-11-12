@@ -60,6 +60,7 @@ import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaTheme
 import com.artista.artista.ui.theme.Dimensions
+import com.artista.artista.ui.theme.SearchBarPalette
 
 /**
  * Provides stable semantics tags for Overview screen UI tests.
@@ -84,6 +85,7 @@ object OverviewTestTags {
  * @param onTabSelected callback invoked when a bottom-navigation destination is selected
  * @param onSavedArtworksClick callback invoked when the user chooses saved artworks after an
  *   overview loading error
+ * @param onMapClick callback invoked when the user selects the map action for an artwork
  * @param viewModel ViewModel supplying the artwork entries
  * @param onSearchClick callback invoked when the search control is selected
  * @author patrickmcdan
@@ -102,6 +104,7 @@ fun OverviewScreen(
     onArtworkClick: (Artwork) -> Unit = {},
     onSavedArtworksClick: () -> Unit = {},
     onSearchClick: () -> Unit = {},
+    onMapClick: (Artwork) -> Unit = {},
 ) {
   val uiState by viewModel.uiState.collectAsState()
   val lifecycleOwner = LocalLifecycleOwner.current
@@ -137,7 +140,13 @@ fun OverviewScreen(
       modifier = Modifier.fillMaxSize().testTag(OverviewTestTags.SCREEN),
       topBar = {
         Row(
-            modifier = Modifier.fillMaxWidth().statusBarsPadding(),
+            modifier =
+                Modifier.fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(
+                        horizontal = Dimensions.overviewSearchBarHorizontalPadding,
+                        vertical = Dimensions.overviewSearchBarVerticalPadding,
+                    ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
           OverviewSearchBar(
@@ -218,10 +227,7 @@ fun OverviewScreen(
               artwork = artwork,
               isSaved = artwork.uid in uiState.savedArtworkIds,
               onArtworkClick = onArtworkClick,
-              onMapClick = {
-                // TODO Implement navigate to map with artwork location
-                onTabSelected(Tab.Map)
-              },
+              onMapClick = onMapClick,
               onSaveClick = viewModel::toggleSavedArtwork,
               modifier = Modifier.testTag(OverviewTestTags.ARTWORK_ITEM),
           )
@@ -247,16 +253,12 @@ private fun OverviewSearchBar(
       modifier =
           modifier
               .fillMaxWidth()
-              .padding(
-                  horizontal = Dimensions.overviewSearchBarHorizontalPadding,
-                  vertical = Dimensions.overviewSearchBarVerticalPadding,
-              )
               .height(Dimensions.overviewSearchBarHeight)
               .clickable(role = Role.Button, onClick = onClick)
               .semantics(mergeDescendants = true) {}
               .testTag(OverviewTestTags.SEARCH_BAR),
       shape = MaterialTheme.shapes.extraLarge,
-      color = MaterialTheme.colorScheme.surface,
+      color = SearchBarPalette.container,
       tonalElevation = Dimensions.overviewSearchBarElevation,
   ) {
     Row(
@@ -268,12 +270,12 @@ private fun OverviewSearchBar(
       Icon(
           imageVector = Icons.Outlined.Search,
           contentDescription = null,
-          tint = MaterialTheme.colorScheme.onSurfaceVariant,
+          tint = SearchBarPalette.content,
       )
       Text(
           text = stringResource(R.string.overview_search_placeholder),
           modifier = Modifier.padding(start = Dimensions.overviewSearchBarIconTextSpacing),
-          color = MaterialTheme.colorScheme.onSurfaceVariant,
+          color = SearchBarPalette.content,
       )
     }
   }

@@ -4,16 +4,34 @@ package com.artista.artista.ui.map
 
 import android.location.Location
 import androidx.activity.ComponentActivity
+import androidx.activity.result.ActivityResultRegistry
+import androidx.activity.result.ActivityResultRegistryOwner
+import androidx.activity.result.contract.ActivityResultContract
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import androidx.core.app.ActivityOptionsCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.artista.artista.R
+import com.artista.artista.model.artist.Artist
+import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
+import com.artista.artista.model.map.Coordinate
+import com.artista.artista.model.map.Location as ArtworkLocation
 import com.artista.artista.model.map.UserLocation
+import com.artista.artista.model.walking.WalkingRoute
+import com.artista.artista.model.walking.WalkingRouteRepository
+import com.artista.artista.model.walking.WalkingRouteRepositoryRemote
+import com.artista.artista.ui.location.USER_LOCATION_PERMISSIONS
 import com.artista.artista.ui.navigation.NavigationTestTags
 import com.artista.artista.ui.theme.ArtistaTheme
+import java.lang.reflect.Proxy
+import kotlin.time.Duration.Companion.minutes
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
@@ -37,7 +55,7 @@ class MapScreenTest {
   @Before
   fun grantLocationPermissions() {
     instrumentation.uiAutomation.adoptShellPermissionIdentity()
-    REQUIRED_LOCATION_PERMISSIONS.forEach { permission ->
+    USER_LOCATION_PERMISSIONS.forEach { permission ->
       instrumentation.uiAutomation.grantRuntimePermission(
           instrumentation.targetContext.packageName,
           permission,
@@ -83,6 +101,7 @@ class MapScreenTest {
         MapViewModel(
             ArtworkRepositoryProvider.mockRepository,
             ArtworkRepositoryProvider.mockRepository,
+            WalkingRouteRepositoryRemote(),
             locationProvider = LocationProvider { callback -> callback(mockDeviceLocation()) },
         )
     composeTestRule.setContent { ArtistaTheme { MapScreen(mapViewModel = mapViewModel) } }
@@ -103,6 +122,7 @@ class MapScreenTest {
         MapViewModel(
             ArtworkRepositoryProvider.mockRepository,
             ArtworkRepositoryProvider.mockRepository,
+            WalkingRouteRepositoryRemote(),
             locationProvider = LocationProvider { callback -> callback(null) },
         )
     composeTestRule.setContent { ArtistaTheme { MapScreen(mapViewModel = mapViewModel) } }
@@ -111,6 +131,139 @@ class MapScreenTest {
 
     composeTestRule.onNodeWithTag(MapScreenTestTags.MAP).assertIsDisplayed()
     assertEquals(null, mapViewModel.uiState.userLocation)
+  }
+
+  @Test
+  fun routeOverlay_success_displaysSummaryAndCloseCallsCallback() {
+    var cleared = false
+    val artwork = routeArtwork()
+    val route = WalkingRoute(listOf(Coordinate(MOCK_LATITUDE, MOCK_LONGITUDE)), 12.minutes, 850)
+
+    setRouteOverlay(RouteUiState.Success(route, artwork), onClearRoute = { cleared = true })
+
+    composeTestRule.onNodeWithTag(MapScreenTestTags.ROUTE_SUMMARY_CARD).assertIsDisplayed()
+    composeTestRule.onNodeWithText("Artwork destination").assertIsDisplayed()
+    composeTestRule
+        .onNodeWithTag(MapScreenTestTags.ROUTE_SUMMARY)
+        .assertTextEquals("12 min · 850 m")
+    composeTestRule.onNodeWithTag(MapScreenTestTags.ROUTE_CLOSE_BUTTON).performClick()
+    assertEquals(true, cleared)
+  }
+
+  @Test
+  fun routeOverlay_loading_displaysProgressMessage() {
+    setRouteOverlay(RouteUiState.Loading)
+
+    composeTestRule.onNodeWithTag(MapScreenTestTags.ROUTE_LOADING).assertIsDisplayed()
+    composeTestRule.onNodeWithText("Finding a walking route...").assertIsDisplayed()
+  }
+
+  @Test
+  fun routeOverlay_noRoute_displaysInformationalMessage() {
+    setRouteOverlay(RouteUiState.NoRoute)
+
+    composeTestRule.onNodeWithTag(MapScreenTestTags.ROUTE_NO_ROUTE).assertIsDisplayed()
+    composeTestRule.onNodeWithText("No route found.").assertIsDisplayed()
+  }
+
+  @Test
+  fun routeOverlay_noRoute_closeCallsCallback() {
+    var cleared = false
+
+    setRouteOverlay(RouteUiState.NoRoute, onClearRoute = { cleared = true })
+
+    composeTestRule.onNodeWithTag(MapScreenTestTags.ROUTE_CLOSE_BUTTON).performClick()
+    assertEquals(true, cleared)
+  }
+
+  @Test
+  fun routeOverlay_locationUnavailable_displaysMessage() {
+    setRouteOverlay(RouteUiState.LocationUnavailable)
+
+    composeTestRule.onNodeWithTag(MapScreenTestTags.ROUTE_LOCATION_UNAVAILABLE).assertIsDisplayed()
+    composeTestRule
+        .onNodeWithText(
+            "We're unable to acquire your location. Please make sure location permissions are granted."
+        )
+        .assertIsDisplayed()
+  }
+
+  @Test
+  fun routeOverlay_error_withRetry_callsRetryCallback() {
+    var retried = false
+
+    setRouteOverlay(
+        RouteUiState.Error(RouteErrorKind.NETWORK, R.string.error_network),
+        onRetryRoute = { retried = true },
+    )
+
+    composeTestRule.onNodeWithTag(MapScreenTestTags.ROUTE_ERROR).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(MapScreenTestTags.ROUTE_RETRY_BUTTON).performClick()
+    assertEquals(true, retried)
+  }
+
+  @Test
+  fun routeOverlay_error_withoutRetry_hidesRetryButton() {
+    setRouteOverlay(
+        RouteUiState.Error(RouteErrorKind.DAILY_RATE_LIMIT, R.string.error_rate_limited_daily)
+    )
+
+    composeTestRule.onNodeWithTag(MapScreenTestTags.ROUTE_ERROR).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(MapScreenTestTags.ROUTE_RETRY_BUTTON).assertDoesNotExist()
+  }
+
+  @Test
+  fun routeOverlay_error_temporaryRateLimit_showsRetryButton() {
+    setRouteOverlay(
+        RouteUiState.Error(RouteErrorKind.TEMPORARY_RATE_LIMIT, R.string.error_rate_limited_minute)
+    )
+
+    composeTestRule.onNodeWithTag(MapScreenTestTags.ROUTE_ERROR).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(MapScreenTestTags.ROUTE_RETRY_BUTTON).assertIsDisplayed()
+  }
+
+  @Test
+  fun routeOverlay_idle_displaysNothing() {
+    setRouteOverlay(RouteUiState.Idle)
+
+    composeTestRule.onNodeWithTag(MapScreenTestTags.ROUTE_SUMMARY_CARD).assertDoesNotExist()
+    composeTestRule.onNodeWithTag(MapScreenTestTags.ROUTE_LOADING).assertDoesNotExist()
+  }
+
+  /**
+   * Verifies that [MapScreen] composes the route polyline and destination marker without crashing.
+   * The polyline itself can't be asserted because map content isn't in the semantics tree.
+   */
+  @Test
+  fun mapScreen_withSuccessfulRoute_composesPolylineWithoutCrashing() {
+    val route = WalkingRoute(listOf(Coordinate(MOCK_LATITUDE, MOCK_LONGITUDE)), 12.minutes, 850)
+    val destination = routeArtwork().copy(location = ArtworkLocation(46.523, 6.636, "Museum"))
+    val walkingRepository =
+        Proxy.newProxyInstance(
+            WalkingRouteRepository::class.java.classLoader,
+            arrayOf(WalkingRouteRepository::class.java),
+        ) { _, _, _ ->
+          route
+        } as WalkingRouteRepository
+    lateinit var viewModel: MapViewModel
+    composeTestRule.runOnUiThread {
+      viewModel =
+          MapViewModel(
+              ArtworkRepositoryProvider.mockRepository,
+              ArtworkRepositoryProvider.mockRepository,
+              walkingRepository,
+          )
+      viewModel.updateUserLocation(UserLocation(MOCK_LATITUDE, MOCK_LONGITUDE))
+      viewModel.loadRouteTo(destination)
+    }
+    composeTestRule.waitUntil(10_000) { viewModel.routeUiState is RouteUiState.Success }
+
+    composeTestRule.setContent { ArtistaTheme { MapScreen(mapViewModel = viewModel) } }
+
+    composeTestRule.onNodeWithTag(MapScreenTestTags.MAP).assertIsDisplayed()
+    composeTestRule
+        .onNodeWithTag(MapScreenTestTags.ROUTE_SUMMARY)
+        .assertTextEquals("12 min · 850 m")
   }
 
   private fun setMapScreenContent() {
@@ -123,12 +276,41 @@ class MapScreenTest {
                         MapViewModel.provideFactory(
                             ArtworkRepositoryProvider.mockRepository,
                             ArtworkRepositoryProvider.mockRepository,
+                            WalkingRouteRepositoryRemote(),
                         )
                 )
         )
       }
     }
   }
+
+  private fun setRouteOverlay(
+      routeUiState: RouteUiState,
+      onClearRoute: () -> Unit = {},
+      onRetryRoute: () -> Unit = {},
+  ) {
+    composeTestRule.setContent {
+      ArtistaTheme {
+        RouteOverlay(
+            routeUiState = routeUiState,
+            onClearRoute = onClearRoute,
+            onRetryRoute = onRetryRoute,
+        )
+      }
+    }
+  }
+
+  private fun routeArtwork(): Artwork =
+      Artwork(
+          uid = "destination",
+          name = "Artwork destination",
+          artist = Artist("artist", "Artist"),
+          description = null,
+          conceptionDate = null,
+          museum = null,
+          location = null,
+          dimension = null,
+      )
 
   private companion object {
     const val MOCK_LATITUDE = 46.5201
@@ -140,4 +322,22 @@ class MapScreenTest {
         latitude = MOCK_LATITUDE
         longitude = MOCK_LONGITUDE
       }
+
+  /** A fake implementation of [ActivityResultRegistryOwner] for testing purposes. */
+  private class FakeActivityResultRegistryOwner(
+      private val permissionResult: Map<String, Boolean>
+  ) : ActivityResultRegistryOwner {
+    override val activityResultRegistry: ActivityResultRegistry =
+        object : ActivityResultRegistry() {
+          @Suppress("UNCHECKED_CAST")
+          override fun <I, O> onLaunch(
+              requestCode: Int,
+              contract: ActivityResultContract<I, O>,
+              input: I,
+              options: ActivityOptionsCompat?,
+          ) {
+            dispatchResult(requestCode, permissionResult as O)
+          }
+        }
+  }
 }

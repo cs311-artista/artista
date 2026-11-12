@@ -1,3 +1,4 @@
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 import com.ncorti.ktfmt.gradle.tasks.KtfmtCheckTask
 import com.ncorti.ktfmt.gradle.tasks.KtfmtFormatTask
@@ -170,6 +171,7 @@ dependencies {
   // Core AndroidX and Material
   implementation(libs.androidx.core.ktx)
   implementation(libs.androidx.appcompat)
+  implementation(libs.androidx.datastore.preferences)
   implementation(libs.material)
   implementation(libs.androidx.lifecycle.runtime.ktx)
   implementation(libs.kotlinx.coroutines.play.services)
@@ -277,6 +279,8 @@ tasks.register("jacocoTestReport", JacocoReport::class) {
       fileTree(project.layout.buildDirectory.get()) {
         include("outputs/unit_test_code_coverage/debugUnitTest/testDebugUnitTest.exec")
         include("outputs/code_coverage/debugAndroidTest/connected/*/coverage.ec")
+        // E2E coverage copied aside by CI before the second connected run overwrites it
+        include("outputs/code_coverage/e2e/*/coverage.ec")
       }
   )
 }

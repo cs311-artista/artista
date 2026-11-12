@@ -1,5 +1,4 @@
 {
-  "type": "FeatureCollection",
   "bbox": [
     6.627013,
     46.506984,
@@ -14,273 +13,6 @@
         6.629192,
         46.51704
       ],
-      "type": "Feature",
-      "properties": {
-        "segments": [
-          {
-            "distance": 1315.1,
-            "duration": 946.9,
-            "steps": [
-              {
-                "distance": 42.6,
-                "duration": 30.7,
-                "type": 11,
-                "instruction": "Head west",
-                "name": "-",
-                "way_points": [
-                  0,
-                  4
-                ]
-              },
-              {
-                "distance": 84.6,
-                "duration": 60.9,
-                "type": 0,
-                "instruction": "Turn left",
-                "name": "-",
-                "way_points": [
-                  4,
-                  10
-                ]
-              },
-              {
-                "distance": 15.7,
-                "duration": 11.3,
-                "type": 0,
-                "instruction": "Turn left",
-                "name": "-",
-                "way_points": [
-                  10,
-                  13
-                ]
-              },
-              {
-                "distance": 65.1,
-                "duration": 46.9,
-                "type": 0,
-                "instruction": "Turn left onto Rue du Simplon",
-                "name": "Rue du Simplon",
-                "way_points": [
-                  13,
-                  17
-                ]
-              },
-              {
-                "distance": 60.4,
-                "duration": 43.5,
-                "type": 1,
-                "instruction": "Turn right",
-                "name": "-",
-                "way_points": [
-                  17,
-                  19
-                ]
-              },
-              {
-                "distance": 6.1,
-                "duration": 4.4,
-                "type": 0,
-                "instruction": "Turn left",
-                "name": "-",
-                "way_points": [
-                  19,
-                  20
-                ]
-              },
-              {
-                "distance": 13.8,
-                "duration": 9.9,
-                "type": 1,
-                "instruction": "Turn right",
-                "name": "-",
-                "way_points": [
-                  20,
-                  22
-                ]
-              },
-              {
-                "distance": 11,
-                "duration": 7.9,
-                "type": 0,
-                "instruction": "Turn left",
-                "name": "-",
-                "way_points": [
-                  22,
-                  23
-                ]
-              },
-              {
-                "distance": 220,
-                "duration": 158.4,
-                "type": 1,
-                "instruction": "Turn right",
-                "name": "-",
-                "way_points": [
-                  23,
-                  32
-                ]
-              },
-              {
-                "distance": 173,
-                "duration": 124.6,
-                "type": 5,
-                "instruction": "Turn slight right onto Chemin des Délices",
-                "name": "Chemin des Délices",
-                "way_points": [
-                  32,
-                  36
-                ]
-              },
-              {
-                "distance": 4.6,
-                "duration": 3.3,
-                "type": 1,
-                "instruction": "Turn right",
-                "name": "-",
-                "way_points": [
-                  36,
-                  37
-                ]
-              },
-              {
-                "distance": 142.2,
-                "duration": 102.4,
-                "type": 0,
-                "instruction": "Turn left",
-                "name": "-",
-                "way_points": [
-                  37,
-                  44
-                ]
-              },
-              {
-                "distance": 64.8,
-                "duration": 46.6,
-                "type": 6,
-                "instruction": "Continue straight onto Promenade de la Ficelle",
-                "name": "Promenade de la Ficelle",
-                "way_points": [
-                  44,
-                  46
-                ]
-              },
-              {
-                "distance": 4.1,
-                "duration": 3,
-                "type": 0,
-                "instruction": "Turn left",
-                "name": "-",
-                "way_points": [
-                  46,
-                  47
-                ]
-              },
-              {
-                "distance": 29.4,
-                "duration": 21.2,
-                "type": 6,
-                "instruction": "Continue straight onto Rue des Fontenailles",
-                "name": "Rue des Fontenailles",
-                "way_points": [
-                  47,
-                  49
-                ]
-              },
-              {
-                "distance": 20.8,
-                "duration": 15,
-                "type": 5,
-                "instruction": "Turn slight right onto Rue des Fontenailles",
-                "name": "Rue des Fontenailles",
-                "way_points": [
-                  49,
-                  52
-                ]
-              },
-              {
-                "distance": 7.4,
-                "duration": 5.3,
-                "type": 0,
-                "instruction": "Turn left onto Rue des Fontenailles",
-                "name": "Rue des Fontenailles",
-                "way_points": [
-                  52,
-                  53
-                ]
-              },
-              {
-                "distance": 298,
-                "duration": 214.6,
-                "type": 3,
-                "instruction": "Turn sharp right",
-                "name": "-",
-                "way_points": [
-                  53,
-                  64
-                ]
-              },
-              {
-                "distance": 8,
-                "duration": 5.7,
-                "type": 0,
-                "instruction": "Turn left",
-                "name": "-",
-                "way_points": [
-                  64,
-                  66
-                ]
-              },
-              {
-                "distance": 11.3,
-                "duration": 8.1,
-                "type": 1,
-                "instruction": "Turn right onto Avenue d'Ouchy",
-                "name": "Avenue d'Ouchy",
-                "way_points": [
-                  66,
-                  68
-                ]
-              },
-              {
-                "distance": 32.3,
-                "duration": 23.3,
-                "type": 5,
-                "instruction": "Turn slight right onto Avenue d'Ouchy",
-                "name": "Avenue d'Ouchy",
-                "way_points": [
-                  68,
-                  70
-                ]
-              },
-              {
-                "distance": 0,
-                "duration": 0,
-                "type": 10,
-                "instruction": "Arrive at Avenue d'Ouchy, on the right",
-                "name": "-",
-                "way_points": [
-                  70,
-                  70
-                ]
-              }
-            ]
-          }
-        ],
-        "warnings": [
-          {
-            "code": 4,
-            "message": "Extra info requested but not available: roadaccessrestrictions"
-          }
-        ],
-        "way_points": [
-          0,
-          70
-        ],
-        "summary": {
-          "distance": 1315.1,
-          "duration": 946.9
-        }
-      },
       "geometry": {
         "type": "LineString",
         "coordinates": [
@@ -569,13 +301,27 @@
             46.506984
           ]
         ]
-      }
+      },
+      "properties": {
+        "summary": {
+          "distance": 1315.1,
+          "duration": 946.9
+        },
+        "warnings": [
+          {
+            "code": 4,
+            "message": "Extra info requested but not available: roadaccessrestrictions"
+          }
+        ],
+        "way_points": [
+          0,
+          70
+        ]
+      },
+      "type": "Feature"
     }
   ],
   "metadata": {
-    "attribution": "openrouteservice.org | OpenStreetMap contributors",
-    "service": "routing",
-    "timestamp": 1793802053303,
     "query": {
       "coordinates": [
         [
@@ -587,15 +333,20 @@
           46.507
         ]
       ],
+      "format": "geojson",
       "profile": "foot-walking",
-      "profileName": "foot-walking",
-      "format": "geojson"
+      "profileName": "foot-walking"
     },
+    "attribution": "openrouteservice.org | OpenStreetMap contributors",
     "engine": {
-      "version": "9.10.0",
-      "build_date": "2026-08-13T11:53:14Z",
-      "graph_date": "2026-09-20T06:31:34Z",
-      "osm_date": "2026-09-13T23:59:59Z"
-    }
-  }
+      "build_date": "2026-10-14T07:31:58Z",
+      "graph_date": "2026-11-09T17:59:09Z",
+      "osm_date": "2026-11-08T00:00:00Z",
+      "version": "10.1.0"
+    },
+    "service": "routing",
+    "system_message": "Please note that the URL api.openrouteservice.org has been deprecated. All information available at ask.openrouteservice.org",
+    "timestamp": 1794423960983
+  },
+  "type": "FeatureCollection"
 }

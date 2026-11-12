@@ -1,4 +1,5 @@
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
+// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 package com.artista.artista.model.user
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -22,8 +23,7 @@ import org.junit.runner.RunWith
  * Network and permission failures are not tested here because the emulator cannot reliably simulate
  * them; their translation into `AppException` is covered by `FirestoreExceptionsTest`.
  *
- * @author Kaio R. Freitas Pereira Nascimento (krfpn)
- * @author Copilot (223556219+Copilot@users.noreply.github.com)
+ * @author krfpn
  */
 @RunWith(AndroidJUnit4::class)
 class UserRepositoryFirestoreTest : FirebaseEmulatedTest() {
@@ -130,11 +130,13 @@ class UserRepositoryFirestoreTest : FirebaseEmulatedTest() {
   /** Checks that reading a document without a UID throws an exception. */
   @Test
   fun getUserThrowsWhenStoredUserIsMissingUid() = runTest {
-    seedRawUserDocument(
-        mapOf(
-            "userName" to "Malformed User",
-            "preference" to validPreferenceData(),
-        )
+    // The rules reject a profile without its uid, so it is written as an admin.
+    FirebaseEmulator.createDocumentBypassingRules(
+        USER_COLLECTION_PATH,
+        testUserId,
+        """{"userName":{"stringValue":"Malformed User"},""" +
+            """"preference":{"mapValue":{"fields":{"artists":{"arrayValue":""" +
+            """{"values":[{"stringValue":"Van Gogh"}]}}}}}}""",
     )
 
     assertRepositoryThrows(AppException.InvalidData::class) { repository.getUser(testUserId) }

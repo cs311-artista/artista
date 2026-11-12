@@ -4,6 +4,8 @@
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.artwork
 
+import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -17,9 +19,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.outlined.BookmarkBorder
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -32,16 +36,22 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
+import com.artista.artista.BuildConfig
 import com.artista.artista.R
-import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.artwork.mockArtworks
 import com.artista.artista.model.map.Location
@@ -65,20 +75,22 @@ import java.text.DateFormat
  */
 object ArtworkTestTags {
   const val ARTWORK_SCREEN = "artwork_screen"
+  const val ARTWORK_DETAILS_COLUMN = "artwork_details_column"
   const val SAVE_BUTTON = "artwork_save_button"
   const val BACK_BUTTON = "artwork_back_button"
   const val ARTWORK_TITLE = "artwork_title"
   const val ARTWORK_MAP_TILE = "artwork_map_tile"
+  const val ARTWORK_IMAGE = "artwork_image"
+  const val ARTWORK_IMAGE_FALLBACK = "artwork_image_fallback"
+  const val ARTWORK_LOADING_INDICATOR = "artwork_loading_indicator"
+  const val ARTWORK_ERROR_MESSAGE = "artwork_error_message"
+  const val ARTWORK_RETRY_BUTTON = "artwork_retry_button"
 }
 
 /**
- * Displays the detailed view for an artwork, allowing the user to view its metadata and bookmark
- * it.
+ * Displays the detailed view for an artwork, allowing the user to view its image and metadata and
+ * bookmark it.
  *
- * Synchronizes the passed [artwork] instance with the [artworkScreenViewModel] to display and
- * toggle its persistent bookmark status in Firestore/local storage.
- *
- * @param artwork the artwork entity to display
  * @param modifier optional layout modifier for the root container
  * @param artworkScreenViewModel ViewModel managing screen state and persistence actions
  * @param onBackClick callback triggered when navigating back to the previous screen
@@ -87,39 +99,28 @@ object ArtworkTestTags {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ArtworkScreen(
-    artwork: Artwork,
     modifier: Modifier = Modifier,
     artworkScreenViewModel: ArtworkScreenViewModel,
     onBackClick: () -> Unit,
 ) {
-  // uid or name would work the same here; uid is used only for consistency.
-  LaunchedEffect(artwork.uid) { artworkScreenViewModel.setArtwork(artwork) }
-
   val uiState by artworkScreenViewModel.uiState.collectAsState()
   val isSaved = uiState.isSaved
+  val artwork = uiState.artwork
+  val context = LocalContext.current
+  val errorMessage = uiState.errorMessageResId?.let { stringResource(it) }
+  val loadErrorMessage = uiState.loadErrorMessageResId?.let { stringResource(it) }
+
+  LaunchedEffect(errorMessage) {
+    errorMessage?.let { message ->
+      Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+      artworkScreenViewModel.clearErrorMessage()
+    }
+  }
 
   val locale = LocalLocale.current.platformLocale
   // Cache the formatter to prevent re-instantiation across recompositions
   val dateFormatter = remember(locale) { DateFormat.getDateInstance(DateFormat.MEDIUM, locale) }
-
-  // Set the camera position and marker position of the artwork, if the [artwork.location] is
-  // specified. This only needs to be done once, as the artwork is not going to be moving around.
-  val mapTileCameraPositionState = rememberCameraPositionState {
-    position =
-        artwork.location?.let {
-          CameraPosition.fromLatLngZoom(
-              LatLng(it.latitude, it.longitude),
-              C.Constants.DEFAULT_MAP_ZOOM,
-          )
-        } ?: C.Constants.DEFAULT_MAP_POSITION
-  }
-  val mapTileMarkerState = remember {
-    MarkerState(
-        position =
-            artwork.location?.let { LatLng(it.latitude, it.longitude) }
-                ?: LatLng(C.Constants.DEFAULT_MAP_LAT, C.Constants.DEFAULT_MAP_LONG)
-    )
-  }
+  var isMapPressed by remember { mutableStateOf(false) }
 
   Scaffold(
       modifier = modifier.testTag(ArtworkTestTags.ARTWORK_SCREEN),
@@ -127,7 +128,7 @@ fun ArtworkScreen(
         CenterAlignedTopAppBar(
             title = {
               Text(
-                  text = artwork.name ?: stringResource(R.string.artwork_unknown_title),
+                  text = artwork?.name ?: stringResource(R.string.artwork_unknown_title),
                   style = MaterialTheme.typography.titleLarge,
                   fontWeight = FontWeight.Bold,
                   modifier = Modifier.testTag(ArtworkTestTags.ARTWORK_TITLE),
@@ -142,6 +143,7 @@ fun ArtworkScreen(
             actions = {
               IconButton(
                   onClick = { artworkScreenViewModel.toggleSaveArtwork() },
+                  enabled = !uiState.isSaveInProgress,
                   modifier = Modifier.testTag(ArtworkTestTags.SAVE_BUTTON),
               ) {
                 Icon(
@@ -162,36 +164,73 @@ fun ArtworkScreen(
             Modifier.fillMaxSize()
                 .padding(innerPadding)
                 .padding(horizontal = Dimensions.artworkDetailsContentHorizontalPadding)
-                .verticalScroll(rememberScrollState()),
+                .testTag(ArtworkTestTags.ARTWORK_DETAILS_COLUMN)
+                .verticalScroll(rememberScrollState(), enabled = !isMapPressed),
         verticalArrangement = Arrangement.spacedBy(Dimensions.artworkDetailsSectionSpacing),
     ) {
       Spacer(modifier = Modifier.height(Dimensions.artworkDetailsImageVerticalSpacing))
 
-      /**
-       * TODO: This component serves as a placeholder for the image. Remove it, and implement
-       *   component for the image.
-       */
+      if (uiState.isLoading) {
+        CircularProgressIndicator(
+            modifier =
+                Modifier.align(Alignment.CenterHorizontally)
+                    .testTag(ArtworkTestTags.ARTWORK_LOADING_INDICATOR)
+        )
+        return@Column
+      }
+
+      if (artwork == null) {
+        // A null artwork after loading means the repository request failed.
+        if (BuildConfig.DEBUG && loadErrorMessage == null) {
+          Log.w("ArtworkScreen", "Artwork is null but no error message is provided.")
+        }
+
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+          Text(
+              text = loadErrorMessage ?: stringResource(R.string.error_unknown),
+              style = MaterialTheme.typography.bodyMedium,
+              color = MaterialTheme.colorScheme.error,
+              modifier = Modifier.testTag(ArtworkTestTags.ARTWORK_ERROR_MESSAGE),
+          )
+          Spacer(modifier = Modifier.height(Dimensions.artworkDetailsSectionSpacing))
+          Button(
+              onClick = artworkScreenViewModel::retryArtwork,
+              modifier = Modifier.testTag(ArtworkTestTags.ARTWORK_RETRY_BUTTON),
+          ) {
+            Text(text = stringResource(R.string.artwork_try_again))
+          }
+        }
+        return@Column
+      }
+
       Card(
           modifier = Modifier.fillMaxWidth().height(Dimensions.artworkDetailsImageHeight),
           shape = RoundedCornerShape(Dimensions.cornerRadiusMedium),
           elevation =
               CardDefaults.cardElevation(defaultElevation = Dimensions.artworkCardElevation),
       ) {
+        // Same background as the artwork cards, so the bars around a fitted image look intentional.
         Surface(
             modifier = Modifier.fillMaxSize(),
-            color = MaterialTheme.colorScheme.surface,
+            color = MaterialTheme.colorScheme.surfaceVariant,
         ) {
-          Column(
+          // Fit keeps the whole painting visible: unlike the cropped list cards, this screen is
+          // where the user looks at the artwork itself.
+          ArtworkImage(
+              imageUrl = artwork.imageUrl,
+              contentDescription =
+                  stringResource(
+                      R.string.artwork_card_image_description,
+                      artwork.name ?: stringResource(R.string.artwork_unknown_title),
+                  ),
+              contentScale = ContentScale.Fit,
+              imageTestTag = ArtworkTestTags.ARTWORK_IMAGE,
+              fallbackTestTag = ArtworkTestTags.ARTWORK_IMAGE_FALLBACK,
               modifier = Modifier.fillMaxSize(),
-              verticalArrangement = Arrangement.Center,
-              horizontalAlignment = Alignment.CenterHorizontally,
-          ) {
-            Text(
-                text = "Picture/thumbnail",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-          }
+          )
         }
       }
 
@@ -234,12 +273,28 @@ fun ArtworkScreen(
 
       // Only show the map-tile if the location of the artwork is actually specified
       if (artwork.location != null) {
+        // Set the camera position and marker position of the artwork, if the [artwork.location] is
+        // provided
+        val mapTileCameraPositionState = rememberCameraPositionState {
+          position =
+              artwork.location.let {
+                CameraPosition.fromLatLngZoom(
+                    LatLng(it.latitude, it.longitude),
+                    C.Constants.DEFAULT_MAP_ZOOM,
+                )
+              }
+        }
+        val mapTileMarkerState = remember {
+          MarkerState(position = artwork.location.let { LatLng(it.latitude, it.longitude) })
+        }
+
         MapTile(
             modifier,
             mapTileCameraPositionState,
             mapTileMarkerState,
             artwork.location,
             artwork.name,
+            onMapPressChanged = { isMapPressed = it },
         )
       }
     }
@@ -289,6 +344,7 @@ fun ArtworkFieldItem(
  * @param markerState the state of the marker position on the map
  * @param location the location of the artwork which is displayed on the map
  * @param artworkName the name of the artwork which is displayed on the map
+ * @param onMapPressChanged callback invoked when a pointer starts or stops pressing the map
  * @author 5kyPhy
  */
 @Composable
@@ -298,6 +354,7 @@ fun MapTile(
     markerState: MarkerState,
     location: Location,
     artworkName: String?,
+    onMapPressChanged: (Boolean) -> Unit = {},
 ) {
   OutlinedCard(
       modifier = modifier.fillMaxWidth(),
@@ -317,7 +374,17 @@ fun MapTile(
       )
       Spacer(modifier = Modifier.height(Dimensions.artworkMapTileTitleSpacing))
       GoogleMap(
-          modifier = Modifier.fillMaxWidth().height(Dimensions.artworkMapTileHeight),
+          modifier =
+              Modifier.fillMaxWidth().height(Dimensions.artworkMapTileHeight).pointerInput(
+                  onMapPressChanged
+              ) {
+                awaitPointerEventScope {
+                  while (true) {
+                    val event = awaitPointerEvent(PointerEventPass.Initial)
+                    onMapPressChanged(event.changes.any { it.pressed })
+                  }
+                }
+              },
           cameraPositionState = cameraPositionState,
       ) {
         Marker(
@@ -334,12 +401,22 @@ fun MapTile(
 @Composable
 internal fun ArtworkPreview() {
   val sampleArtwork = mockArtworks.first()
+  try {
+    ArtworkRepositoryProvider.populateAPI()
+  } catch (e: Exception) {
+    // Ignore any exceptions during preview population
+  }
 
   ArtistaTheme {
     ArtworkScreen(
-        artwork = sampleArtwork,
         artworkScreenViewModel =
-            remember { ArtworkScreenViewModel(ArtworkRepositoryProvider.mockRepository) },
+            remember {
+              ArtworkScreenViewModel(
+                  sampleArtwork.uid,
+                  ArtworkRepositoryProvider.mockRepository,
+                  ArtworkRepositoryProvider.mockRepository,
+              )
+            },
         modifier = Modifier,
         onBackClick = {},
     )

@@ -2,12 +2,12 @@
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.preferences
 
+import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -25,6 +25,8 @@ import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -33,16 +35,19 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -50,12 +55,17 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.artista.artista.R
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
+import com.artista.artista.model.authentication.AuthRepository
+import com.artista.artista.model.authentication.AuthUser
+import com.artista.artista.model.user.UserRepositoryLocal
 import com.artista.artista.ui.navigation.BackButton
 import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaColors
 import com.artista.artista.ui.theme.ArtistaTheme
 import com.artista.artista.ui.theme.Dimensions
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 
 private val PillShape = RoundedCornerShape(percent = 50)
 
@@ -66,24 +76,56 @@ private val PillShape = RoundedCornerShape(percent = 50)
  * The callbacks have no default value, so that integrating the screen without wiring one of them
  * fails to compile instead of leaving a button that silently does nothing.
  *
+ * Saving keeps the user on the screen: the Save button is enabled only when the selection differs
+ * from the saved one, and a toast tells whether the save succeeded.
+ *
  * @param onBackClick Callback invoked when the user leaves the screen.
- * @param onSaveClick Callback invoked when the user saves their preferences.
  * @param onTabSelected Callback invoked with the destination selected in the bottom navigation.
  * @param artistPreferencesViewModel ViewModel providing the artists and the current selection.
- * @author Timz3rr
+ * @author Timz3rr, krfpn
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ArtistPreferencesScreen(
     onBackClick: () -> Unit,
-    onSaveClick: () -> Unit,
     onTabSelected: (Tab) -> Unit,
     artistPreferencesViewModel: ArtistPreferencesViewModel,
 ) {
   val uiState by artistPreferencesViewModel.uiState.collectAsStateWithLifecycle()
+  val context = LocalContext.current
+  val message = uiState.messageResId?.let { stringResource(it) }
+
+  // A toast does not block the screen, so the user can keep editing or retry at once.
+  // LaunchedEffect runs only when the message changes, so the toast is shown once per save.
+  LaunchedEffect(message) {
+    message?.let {
+      Toast.makeText(context, it, Toast.LENGTH_LONG).show()
+      // Cleared once shown, so a recomposition or a return to the screen does not show it again.
+      artistPreferencesViewModel.clearMessage()
+    }
+  }
 
   Scaffold(
       modifier = Modifier.fillMaxSize().testTag(ArtistPreferencesTestTags.SCREEN),
       containerColor = MaterialTheme.colorScheme.background,
+      topBar = {
+        CenterAlignedTopAppBar(
+            title = {
+              Text(
+                  text = stringResource(R.string.artist_preferences_title),
+                  style = MaterialTheme.typography.titleLarge,
+                  fontWeight = FontWeight.Bold,
+                  modifier = Modifier.testTag(ArtistPreferencesTestTags.TITLE),
+              )
+            },
+            navigationIcon = {
+              BackButton(
+                  onClick = onBackClick,
+                  modifier = Modifier.testTag(ArtistPreferencesTestTags.BACK_BUTTON),
+              )
+            },
+        )
+      },
       bottomBar = {
         BottomNavigationMenu(selectedTab = Tab.Profile, onTabSelected = onTabSelected)
       },
@@ -98,7 +140,12 @@ fun ArtistPreferencesScreen(
                 ),
         verticalArrangement = Arrangement.spacedBy(Dimensions.artistPreferencesSectionSpacing),
     ) {
-      Header(onBackClick = onBackClick)
+      Text(
+          text = stringResource(R.string.artist_preferences_description),
+          modifier = Modifier.testTag(ArtistPreferencesTestTags.DESCRIPTION),
+          style = MaterialTheme.typography.bodyLarge,
+          color = MaterialTheme.colorScheme.primary,
+      )
       SearchField(
           query = uiState.searchQuery,
           onQueryChange = artistPreferencesViewModel::onSearchQueryChange,
@@ -124,15 +171,16 @@ fun ArtistPreferencesScreen(
           ArtistCard(
               artist = artist,
               selected = artist.uid in uiState.selectedArtists,
+              enabled = !uiState.isLoadingSavedArtists,
               onToggle = { artistPreferencesViewModel.toggleArtist(artist.uid) },
           )
         }
       }
-      // Nothing is persisted yet, since saving to Firestore is not implemented. The plan is for the
-      // ViewModel to take the selected artists from its state and store them in the user's
-      // preferences through the user repository; onSaveClick then only handles navigation.
       Button(
-          onClick = onSaveClick,
+          onClick = artistPreferencesViewModel::saveSelectedArtists,
+          // Disabled when there is nothing new to save, and while saving so a double tap does not
+          // start a second write.
+          enabled = uiState.canSave,
           modifier =
               Modifier.fillMaxWidth()
                   .height(Dimensions.preferencesSaveButtonHeight)
@@ -150,39 +198,6 @@ fun ArtistPreferencesScreen(
         )
       }
     }
-  }
-}
-
-/**
- * Back button, title and description at the top of the screen.
- *
- * @param onBackClick Callback invoked when the back button is clicked.
- */
-@Composable
-private fun Header(onBackClick: () -> Unit) {
-  Column {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-      BackButton(
-          onClick = onBackClick,
-          modifier =
-              Modifier.size(Dimensions.standardTouchTargetSize)
-                  .testTag(ArtistPreferencesTestTags.BACK_BUTTON),
-      )
-      Text(
-          text = stringResource(R.string.artist_preferences_title),
-          modifier = Modifier.testTag(ArtistPreferencesTestTags.TITLE),
-          style = MaterialTheme.typography.headlineMedium,
-          color = MaterialTheme.colorScheme.primary,
-      )
-    }
-    Text(
-        text = stringResource(R.string.artist_preferences_description),
-        modifier =
-            Modifier.padding(start = Dimensions.standardTouchTargetSize)
-                .testTag(ArtistPreferencesTestTags.DESCRIPTION),
-        style = MaterialTheme.typography.bodyLarge,
-        color = MaterialTheme.colorScheme.primary,
-    )
   }
 }
 
@@ -222,14 +237,16 @@ private fun SearchField(query: String, onQueryChange: (String) -> Unit) {
  *
  * @param artist Artist displayed by the card.
  * @param selected Whether the artist is currently selected.
+ * @param enabled Whether the card can be clicked; false while the saved artists load.
  * @param onToggle Callback invoked when the card is clicked.
  */
 @Composable
-private fun ArtistCard(artist: Artist, selected: Boolean, onToggle: () -> Unit) {
+private fun ArtistCard(artist: Artist, selected: Boolean, enabled: Boolean, onToggle: () -> Unit) {
   // A checkable Surface, unlike a clickable one, exposes the on/off state used by assertIsOn.
   Surface(
       checked = selected,
       onCheckedChange = { onToggle() },
+      enabled = enabled,
       modifier =
           Modifier.fillMaxWidth()
               // Lets accessibility services announce the card as a checkbox with its state.
@@ -328,17 +345,36 @@ private fun SelectionIndicator(selected: Boolean, modifier: Modifier = Modifier)
 @Composable
 internal fun ArtistPreferencesScreenPreview() {
   val viewModel = remember {
-    ArtistPreferencesViewModel(ArtworkRepositoryProvider.mockRepository).apply {
-      toggleArtist("mock-artist-002")
-      toggleArtist("mock-artist-004")
-    }
+    ArtistPreferencesViewModel(
+            artworkRepository = ArtworkRepositoryProvider.mockRepository,
+            authRepository = PreviewAuthRepository,
+            userRepository = UserRepositoryLocal(),
+        )
+        .apply {
+          toggleArtist("mock-artist-002")
+          toggleArtist("mock-artist-004")
+        }
   }
   ArtistaTheme {
     ArtistPreferencesScreen(
         onBackClick = {},
-        onSaveClick = {},
         onTabSelected = {},
         artistPreferencesViewModel = viewModel,
     )
   }
+}
+
+/**
+ * Signed-out [AuthRepository] for the preview.
+ *
+ * [ArtistPreferencesViewModel] needs an [AuthRepository] to know who is signed in, but the preview
+ * cannot reach Firebase. This one always answers that nobody is signed in, so saves nothing.
+ */
+private object PreviewAuthRepository : AuthRepository {
+  override val authState: Flow<AuthUser?> = flowOf(null)
+
+  override suspend fun signIn(idToken: String): Result<AuthUser> =
+      Result.failure(UnsupportedOperationException("Sign-in is not available in previews"))
+
+  override suspend fun signOut(): Result<Unit> = Result.success(Unit)
 }

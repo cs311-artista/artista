@@ -55,6 +55,29 @@ object UserRepositoryProvider {
     _repositoryLocal = UserRepositoryLocal()
     repository = _repositoryLocal
   }
+
+  /**
+   * Whether a repository is currently installed on top of the application's own.
+   *
+   * Readable so a test can check that [resetToApplicationRepository] cleared the override: reading
+   * [repository] instead would build the Firestore implementation, which needs an initialised app.
+   *
+   * @author timo-by
+   */
+  internal val isOverridden: Boolean
+    get() = _repository != null
+
+  /**
+   * Puts the application's repository back, discarding one installed through [repository].
+   *
+   * What a test calls once it is done with a fake, rather than the other way round: a repository
+   * left in place would be the one every later test - and every later screen - reads.
+   *
+   * @author timo-by
+   */
+  fun resetToApplicationRepository() {
+    _repository = null
+  }
 }
 
 val mockUsers: List<User> =

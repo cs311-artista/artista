@@ -6,6 +6,7 @@ import android.Manifest
 import androidx.compose.ui.graphics.toArgb
 import com.artista.artista.model.map.UserLocation
 import com.artista.artista.resources.C
+import com.artista.artista.ui.location.USER_LOCATION_PERMISSIONS
 import com.artista.artista.ui.theme.ArtistaColors
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -54,9 +55,9 @@ class MapScreenTest {
   /** Verifies that permission requests include fine and coarse location access. */
   @Test
   fun requiredLocationPermissions_includeFineAndCoarseAccess() {
-    assertEquals(2, REQUIRED_LOCATION_PERMISSIONS.size)
-    assertTrue(REQUIRED_LOCATION_PERMISSIONS.contains(Manifest.permission.ACCESS_FINE_LOCATION))
-    assertTrue(REQUIRED_LOCATION_PERMISSIONS.contains(Manifest.permission.ACCESS_COARSE_LOCATION))
+    assertEquals(2, USER_LOCATION_PERMISSIONS.size)
+    assertTrue(USER_LOCATION_PERMISSIONS.contains(Manifest.permission.ACCESS_FINE_LOCATION))
+    assertTrue(USER_LOCATION_PERMISSIONS.contains(Manifest.permission.ACCESS_COARSE_LOCATION))
   }
 
   /** Verifies that saved artwork markers use the shared blue marker color. */

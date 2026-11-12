@@ -60,8 +60,8 @@ internal object Dimensions {
   /** Height of artwork images in artwork cards. */
   val artworkCardImageHeight = 160.dp
 
-  /** Size of the icon shown in an artwork card while its image is missing or loading. */
-  val artworkCardImageFallbackIconSize = 48.dp
+  /** Size of the icon shown while an artwork image is missing or loading, on cards and details. */
+  val artworkImageFallbackIconSize = 48.dp
 
   /** Height of the artwork image on the artwork details screen. */
   val artworkDetailsImageHeight = 220.dp
@@ -93,11 +93,20 @@ internal object Dimensions {
   val overviewSearchBarElevation = shallowElevation
 
   // Search screen.
-  val searchInputHorizontalPadding = 16.dp
-  val searchInputVerticalPadding = 8.dp
+  val searchRecommendationVerticalPadding = 8.dp
+  val searchRecommendationHorizontalPadding = 8.dp
+  val searchRecommendationIconContainerSize = 40.dp
+  val searchRecommendationsMaxHeight = 320.dp
+  val searchTypeFilterMaxHeight = 400.dp
+  val searchTypeFilterHorizontalPadding = 16.dp
+  val searchTypeFilterTitleVerticalPadding = 8.dp
   val searchResultsHorizontalPadding = 16.dp
   val searchResultsVerticalPadding = 8.dp
   val searchResultItemSpacing = 8.dp
+  val searchEmptyStateHorizontalPadding = 32.dp
+  val searchEmptyStateSpacing = 12.dp
+  val searchEmptyStateIconContainerSize = 64.dp
+  val searchEmptyStateMessageMaxWidth = 280.dp
 
   // Artist preferences screen.
   val artistPreferencesScreenHorizontalPadding = 24.dp
@@ -128,6 +137,14 @@ internal object Dimensions {
   // Bottom navigation.
   val navigationBarHorizontalPadding = 16.dp
   val navigationBarVerticalPadding = 16.dp
+
+  // Map route overlays.
+  val mapRouteOverlayHorizontalPadding = 16.dp
+  val mapRouteOverlayTopPadding = 60.dp
+  val mapRouteOverlayContentPadding = 16.dp
+  val mapRouteOverlaySpacing = 8.dp
+  const val MAP_ROUTE_CAMERA_PADDING = 180
+  const val POLY_LINE_WIDTH = 10f
 }
 
 /**

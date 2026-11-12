@@ -1,11 +1,11 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.overview
 
 import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkFilter
 import com.artista.artista.model.artwork.ArtworkId
@@ -23,7 +23,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
 
 /**
  * Immutable state displayed by the Overview screen.
@@ -82,28 +81,26 @@ class OverviewViewModel(
    * @author patrickmcdan
    */
   fun refreshUiState() {
-    viewModelScope.launch {
-      try {
-        val lausanneCenter =
-            SearchArea(
-                latitude = 46.5197,
-                longitude = 6.6323,
-                radiusKm = 5.0,
-            )
-        allArtworks = artworkRepository.getArtworksNearLocation(lausanneCenter)
-        _uiState.update { current ->
-          val activeFilter = current.activeFilter
-          current.copy(
-              artworks = allArtworks.applyFilter(activeFilter),
-              artistOptions = artistOptions(allArtworks),
-              museumOptions = museumOptions(allArtworks),
-              locationOptions = locationOptions(allArtworks),
-              errorMessageRes = null,
+    viewModelScope.launchCatching(
+        tag = TAG,
+        onError = { error -> _uiState.update { it.copy(errorMessageRes = error.toMessageRes()) } },
+    ) {
+      val lausanneCenter =
+          SearchArea(
+              latitude = 46.5197,
+              longitude = 6.6323,
+              radiusKm = 5.0,
           )
-        }
-      } catch (_: Exception) {
-        // Error classification is not defined yet, so keep this failure handling generic.
-        _uiState.update { it.copy(errorMessageRes = R.string.overview_load_error) }
+      allArtworks = artworkRepository.getArtworksNearLocation(lausanneCenter)
+      _uiState.update { current ->
+        val activeFilter = current.activeFilter
+        current.copy(
+            artworks = allArtworks.applyFilter(activeFilter),
+            artistOptions = artistOptions(allArtworks),
+            museumOptions = museumOptions(allArtworks),
+            locationOptions = locationOptions(allArtworks),
+            errorMessageRes = null,
+        )
       }
     }
   }

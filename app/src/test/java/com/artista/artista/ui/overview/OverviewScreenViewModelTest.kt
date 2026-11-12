@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import com.artista.artista.MainDispatcherRule
 import com.artista.artista.R
 import com.artista.artista.model.artist.Artist
+import com.artista.artista.model.artist.failingWikiDataRepository
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkFilter
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
@@ -14,6 +15,7 @@ import com.artista.artista.model.artwork.SavedArtworksRepository
 import com.artista.artista.model.artwork.SearchArea
 import com.artista.artista.model.artwork.WikiDataRepository
 import com.artista.artista.model.error.AppException
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -61,26 +63,95 @@ class OverviewScreenViewModelTest {
   }
 
   /**
-   * Verifies that a provider failure exposes a load error and no stale artwork list.
+   * Checks that an unexpected provider failure exposes the unknown error and no artworks.
    *
    * @author patrickmcdan
    */
   @Test
-  fun overviewViewModel_whenLoadingFails_exposesLoadError() = runTest {
-    val failing =
+  fun overviewViewModel_whenLoadingFailsUnexpectedly_exposesUnknownError() = runTest {
+    val viewModel =
+        OverviewViewModel(
+            failingWikiDataRepository(IllegalStateException("Artwork provider failure")),
+            ArtworkRepositoryLocal(),
+        )
+
+    advanceUntilIdle()
+
+    assertEquals(R.string.error_unknown, viewModel.uiState.value.errorMessageRes)
+    assertTrue(viewModel.uiState.value.artworks.isEmpty())
+  }
+
+  /**
+   * Checks that a network failure while loading exposes the network error and no artworks.
+   *
+   * @author Timz3rr
+   */
+  @Test
+  fun overviewViewModel_whenLoadingFailsWithNetworkError_exposesNetworkError() = runTest {
+    val viewModel =
+        OverviewViewModel(
+            failingWikiDataRepository(AppException.Network()),
+            ArtworkRepositoryLocal(),
+        )
+
+    advanceUntilIdle()
+
+    assertEquals(R.string.error_network, viewModel.uiState.value.errorMessageRes)
+    assertTrue(viewModel.uiState.value.artworks.isEmpty())
+  }
+
+  /**
+   * Checks that a cancelled load does not expose an error.
+   *
+   * @author Timz3rr
+   */
+  @Test
+  fun overviewViewModel_whenLoadingIsCancelled_exposesNoError() = runTest {
+    // Cancellation is how a coroutine stops (e.g. leaving the screen), so it is not a failure.
+    val viewModel =
+        OverviewViewModel(
+            failingWikiDataRepository(CancellationException("Load cancelled")),
+            ArtworkRepositoryLocal(),
+        )
+
+    advanceUntilIdle()
+
+    assertEquals(null, viewModel.uiState.value.errorMessageRes)
+  }
+
+  /**
+   * Checks that a successful reload clears the error left by an earlier failed load.
+   *
+   * @author Timz3rr
+   */
+  @Test
+  fun overviewViewModel_whenReloadSucceedsAfterFailure_clearsError() = runTest {
+    val expectedArtworks =
+        listOf(artwork(name = "The Starry Night", artistName = "Vincent van Gogh"))
+    var loadCount = 0
+    val repository =
         object : WikiDataRepository by ArtworkRepositoryLocal() {
           override suspend fun getArtworksNearLocation(
               searchArea: SearchArea,
               typeValues: List<ArtworkType>,
               limit: Int,
-          ): List<Artwork> = error("Artwork provider failure")
+          ): List<Artwork> {
+            loadCount++
+            if (loadCount == 1) throw AppException.Network()
+            return expectedArtworks
+          }
         }
-    val viewModel = OverviewViewModel(failing, ArtworkRepositoryLocal())
+    val viewModel = OverviewViewModel(repository, ArtworkRepositoryLocal())
 
     advanceUntilIdle()
 
-    assertEquals(R.string.overview_load_error, viewModel.uiState.value.errorMessageRes)
-    assertTrue(viewModel.uiState.value.artworks.isEmpty())
+    assertEquals(R.string.error_network, viewModel.uiState.value.errorMessageRes)
+
+    viewModel.refreshUiState()
+    advanceUntilIdle()
+
+    assertEquals(null, viewModel.uiState.value.errorMessageRes)
+    assertEquals(expectedArtworks, viewModel.uiState.value.artworks)
   }
 
   /** Verifies toggling an artwork saves and removes it while updating bookmark state. */
@@ -198,15 +269,7 @@ class OverviewScreenViewModelTest {
    */
   @Test
   fun clearErrorMessage_removesTheCurrentError() = runTest {
-    val failing =
-        object : WikiDataRepository by ArtworkRepositoryLocal() {
-          override suspend fun getArtworksNearLocation(
-              searchArea: SearchArea,
-              typeValues: List<ArtworkType>,
-              limit: Int,
-          ): List<Artwork> = error("Artwork provider failure")
-        }
-    val viewModel = OverviewViewModel(failing, ArtworkRepositoryLocal())
+    val viewModel = OverviewViewModel(failingWikiDataRepository(), ArtworkRepositoryLocal())
 
     advanceUntilIdle()
     viewModel.clearErrorMessage()

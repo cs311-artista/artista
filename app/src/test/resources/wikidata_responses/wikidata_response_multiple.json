@@ -31,6 +31,11 @@
           "type": "literal",
           "value": "Salle des États, Louvre"
         },
+        "locationCoordinates": {
+          "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+          "type": "literal",
+          "value": "Point(2.3354 48.8601)"
+        },
         "collectionLabel": {
           "xml:lang": "en",
           "type": "literal",
@@ -72,7 +77,11 @@
           "value": "http://www.wikidata.org/entity/Q12419"
         },
         "description": "",
-        "locationLabel": "",
+        "locationLabel": {
+          "xml:lang": "en",
+          "type": "literal",
+          "value": "Salle des États, Louvre"
+        },
         "collectionLabel": {
           "xml:lang": "en",
           "type": "literal",

@@ -7,6 +7,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.onCompletion
+import kotlinx.coroutines.flow.onStart
 
 /**
  * In-memory [AuthRepository] for unit and instrumented tests.
@@ -80,11 +82,23 @@ class FakeAuthRepository(initialUser: AuthUser? = null) : AuthRepository {
    */
   var authStateIsPending: Boolean = false
 
+  /**
+   * Number of collectors currently subscribed to [authState].
+   *
+   * A collector that stops is the only observable sign that the ViewModel holding it was cleared,
+   * so a test uses this to check that a screen's ViewModel died with the screen rather than being
+   * left alive: nothing else would show it, the ViewModel being unreachable by then.
+   */
+  var activeAuthStateCollectors: Int = 0
+    private set
+
   override val authState: Flow<AuthUser?> = flow {
     authStateError?.let { throw it }
     if (authStateIsPending) awaitCancellation()
     emitAll(state)
   }
+      .onStart { activeAuthStateCollectors++ }
+      .onCompletion { activeAuthStateCollectors-- }
 
   override suspend fun signIn(idToken: String): Result<AuthUser> {
     signInCallCount++

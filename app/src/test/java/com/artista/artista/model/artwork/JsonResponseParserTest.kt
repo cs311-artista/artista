@@ -1,5 +1,6 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
+// Co-authored-by: DeepSeek Flash
 package com.artista.artista.model.artwork
 
 import com.artista.artista.model.map.Location
@@ -31,7 +32,59 @@ class JsonResponseParserTest {
         "https://commons.wikimedia.org/wiki/Special:FilePath/" +
             "Mona%20Lisa%2C%20by%20Leonardo%20da%20Vinci%2C%20from%20C2RMF%20retouched.jpg" +
             "?width=800"
+
+    const val FIRST_IMAGE = "http://commons.wikimedia.org/wiki/Special:FilePath/First.JPG"
+    const val SECOND_IMAGE = "http://commons.wikimedia.org/wiki/Special:FilePath/Second.JPG"
   }
+
+  /**
+   * Returns the bindings of one artwork row, for the values a test gives.
+   *
+   * Writing a response as rows rather than as a JSON literal is what keeps a test about the data it
+   * is checking: a row that differs from another by one binding reads as that one difference.
+   *
+   * @param uid Wikidata id of the artwork, e.g. `Q12418`
+   * @param name label of the artwork
+   * @param image raw Commons link of its image, or null when the row carries none
+   * @param locationLabel label of its location, or null when the row carries none
+   * @param locationCoordinates WKT coordinates of its location, or null when the row carries none
+   * @return the bindings of the row, as binding name to value
+   * @author timo-by
+   */
+  private fun artworkRow(
+      uid: String,
+      name: String,
+      image: String? = null,
+      locationLabel: String? = null,
+      locationCoordinates: String? = null,
+  ): Map<String, String> = buildMap {
+    put("item", "http://www.wikidata.org/entity/$uid")
+    put("itemLabel", name)
+    image?.let { put("image", it) }
+    locationLabel?.let { put("locationLabel", it) }
+    locationCoordinates?.let { put("locationCoordinates", it) }
+  }
+
+  /**
+   * Builds the body the endpoint would answer with, from the bindings of each row.
+   *
+   * Every response carries the same `results.bindings` envelope, so the tests spell out only the
+   * bindings they are about.
+   *
+   * @param rows bindings of each row, as [artworkRow] returns them
+   * @return the JSON body, ready to be parsed
+   * @author timo-by
+   */
+  private fun sparqlResponse(vararg rows: Map<String, String>): String =
+      rows.joinToString(
+          prefix = """{"results":{"bindings":[""",
+          postfix = "]}}",
+          separator = ",",
+      ) { bindings ->
+        bindings.entries.joinToString(prefix = "{", postfix = "}") { (name, value) ->
+          "\"$name\": {\"value\": \"$value\"}"
+        }
+      }
 
   /** Checks that every field of a complete Wikidata row, image included, is parsed. */
   @Test
@@ -52,8 +105,8 @@ class JsonResponseParserTest {
     assertEquals(Date.from(Instant.parse("1503-01-01T00:00:00Z")), artwork.conceptionDate)
     assertEquals("Department of Paintings of the Louvre", artwork.museum)
     assertEquals("Salle des États, Louvre", artwork.location?.name)
-    assertEquals(0.0, artwork.location?.longitude ?: 0.0, 0.01)
-    assertEquals(0.0, artwork.location?.latitude ?: 0.0, 0.01)
+    assertEquals(2.3354, artwork.location?.longitude ?: 0.0, 0.01)
+    assertEquals(48.8601, artwork.location?.latitude ?: 0.0, 0.01)
     assertEquals(53.4, artwork.dimension?.width ?: 0.0, 0.01)
     assertEquals(79.4, artwork.dimension?.height ?: 0.0, 0.01)
     assertEquals(MONA_LISA_IMAGE_URL, artwork.imageUrl)
@@ -84,8 +137,8 @@ class JsonResponseParserTest {
     assertEquals(Date.from(Instant.parse("1503-01-01T00:00:00Z")), artwork.conceptionDate)
     assertEquals("Department of Paintings of the Louvre", artwork.museum)
     assertEquals("Salle des États, Louvre", artwork.location?.name)
-    assertEquals(0.0, artwork.location?.longitude ?: 0.0, 0.01)
-    assertEquals(0.0, artwork.location?.latitude ?: 0.0, 0.01)
+    assertEquals(2.3354, artwork.location?.longitude ?: 0.0, 0.01)
+    assertEquals(48.8601, artwork.location?.latitude ?: 0.0, 0.01)
     assertEquals(53.4, artwork.dimension?.width ?: 0.0, 0.01)
     assertEquals(79.4, artwork.dimension?.height ?: 0.0, 0.01)
     assertEquals(MONA_LISA_IMAGE_URL, artwork.imageUrl)
@@ -101,6 +154,60 @@ class JsonResponseParserTest {
     assertEquals(0.0, artwork.dimension?.width ?: 0.0, 0.01)
     assertEquals(0.0, artwork.dimension?.height ?: 0.0, 0.01)
     assertNull(artwork.imageUrl)
+  }
+
+  /**
+   * Checks that two rows describing the same item yield a single artwork, the first of the two when
+   * they are equally rich.
+   *
+   * Wikidata returns one row per value of the optional properties, so an item with two images comes
+   * back twice. Left as is, the repeat reaches the artwork lists of Overview and Saved Artworks,
+   * whose Compose key is the uid, and throws "Key ... was already used".
+   */
+  @Test
+  fun parseArtworkResults_collapsesRepeatedRowsOfTheSameItem() {
+    val response =
+        sparqlResponse(
+            artworkRow(uid = "Q19933946", name = "Skulptur", image = FIRST_IMAGE),
+            artworkRow(uid = "Q19933946", name = "Skulptur", image = SECOND_IMAGE),
+        )
+
+    val artworks = parser.parseArtworkResults(response)
+
+    assertEquals(1, artworks.size)
+    assertEquals("Q19933946", artworks.single().uid)
+    assertEquals(
+        "https://commons.wikimedia.org/wiki/Special:FilePath/First.JPG?width=800",
+        artworks.single().imageUrl,
+    )
+  }
+
+  /**
+   * Checks that the row carrying coordinates wins over one that only names the place.
+   *
+   * A row without coordinates still yields a location, at (0, 0), so keeping the wrong row would
+   * replace a correct pin with one in the Gulf of Guinea.
+   */
+  @Test
+  fun parseArtworkResults_prefersTheRowCarryingCoordinates() {
+    val response =
+        sparqlResponse(
+            artworkRow(uid = "Q12418", name = "Mona Lisa", locationLabel = "Louvre"),
+            artworkRow(
+                uid = "Q12418",
+                name = "Mona Lisa",
+                locationLabel = "Louvre",
+                locationCoordinates = "Point(2.337 48.860)",
+            ),
+        )
+
+    val artworks = parser.parseArtworkResults(response)
+
+    assertEquals(1, artworks.size)
+    val location = artworks.single().location
+    assertNotNull(location)
+    assertEquals(2.337, location?.longitude ?: 0.0, 0.01)
+    assertEquals(48.860, location?.latitude ?: 0.0, 0.01)
   }
 
   /** Checks that optional fields set to JSON null, image included, are parsed as null. */
@@ -247,10 +354,7 @@ class JsonResponseParserTest {
   @Test
   fun testParseLocation_withLabelNoCoordinates() {
     val location = invokePrivateMethod<Location?>(parser, "parseLocation", null, "Test Location")
-    assertNotNull(location)
-    assertEquals(0.0, location!!.longitude, 0.0)
-    assertEquals(0.0, location.latitude, 0.0)
-    assertEquals("Test Location", location.name)
+    assertNull(location)
   }
 
   @Test

@@ -25,7 +25,7 @@ The Wikidata Action API will be used for retrieving individual entities and thei
 
 In terms of the architectural structure of the app itself, it follows the [MVVM design](https://github.com/cs311-artista/artista/wiki/Application-Architectural-Design#design-philosophy) philosophy. The diagram bellow shows the currently intended design, as well as the interactions between modules. This diagram is representative of the *current* state and currently *intended* future state of the application. It is not final. **It may change**, for example when new screens and features get added by the team. For more detailed information, [click here](https://github.com/cs311-artista/artista/wiki/Application-Architectural-Design#Current-Architecture).
 
-![Architecture diagram](resources/architecture_v1.jpg)
+![Architecture diagram](resources/architecture_v2.png)
 
 ---
 
@@ -43,10 +43,10 @@ which artworks they have already visited, together with key information such as 
 GPS is a core part of Artista because the app is designed around the geographical discovery of art. The user’s location is used to identify and prioritize nearby artworks, museums and galleries so the content displayed by the app changes depending on where the user is.
 
 >[!WARNING]
->In order to work on this project, make sure to include the field `MAPS_API_KEY=???` inside the _local.properties_ file of your project. **This file must _not_ be added to git**. 
+>In order to work on this project, make sure to include the fields `MAPS_API_KEY=???` and `ORS_API_KEY=???` inside the _local.properties_ file of your project. **This file must _not_ be added to git.**
 >
->The key can be retrieved by Artista team-members [here](https://console.cloud.google.com/apis/credentials?project=artista-b15e3).
-
+>- `MAPS_API_KEY`: Used for Google Maps integration. The key can be retrieved by Artista team-members [here](https://console.cloud.google.com/apis/credentials?project=artista-b15e3).
+>- `ORS_API_KEY`: Used to compute walking routes to artworks with the OpenRouteService API. Artista team-members should use the API key shared with them privately.
 ---
 
 ## Offline Mode

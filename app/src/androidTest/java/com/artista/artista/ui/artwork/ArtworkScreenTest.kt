@@ -4,18 +4,20 @@
 package com.artista.artista.ui.artwork
 
 import androidx.activity.ComponentActivity
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTouchInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.artista.artista.R
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.Artwork
-import com.artista.artista.model.artwork.ArtworkId
-import com.artista.artista.model.artwork.SavedArtworksRepository
+import com.artista.artista.model.artwork.ArtworkRepositoryLocal
 import com.artista.artista.model.map.Location
 import com.artista.artista.ui.theme.ArtistaTheme
 import kotlinx.coroutines.runBlocking
@@ -36,7 +38,8 @@ class ArtworkScreenTest {
 
   @get:Rule val composeTestRule = createAndroidComposeRule<ComponentActivity>()
 
-  private lateinit var fakeRepository: FakeArtworkRepository
+  private val savedRepository = ArtworkRepositoryLocal()
+  private val wikiDataRepository = ArtworkRepositoryLocal()
   private lateinit var viewModel: ArtworkScreenViewModel
   private val milliseconds = 3000L
 
@@ -64,8 +67,10 @@ class ArtworkScreenTest {
 
   @Before
   fun setUp() {
-    fakeRepository = FakeArtworkRepository()
-    viewModel = ArtworkScreenViewModel(fakeRepository)
+    savedRepository.clear()
+    wikiDataRepository.clear()
+    wikiDataRepository.putArtworkInRepositoryUnsavedSection(sampleArtwork)
+    viewModel = ArtworkScreenViewModel(sampleArtwork.uid, wikiDataRepository, savedRepository)
   }
 
   @Test
@@ -75,36 +80,70 @@ class ArtworkScreenTest {
     composeTestRule.onNodeWithTag(ArtworkTestTags.SAVE_BUTTON).performClick()
 
     composeTestRule.waitUntil(timeoutMillis = milliseconds) {
-      runBlocking { fakeRepository.isArtworkSaved(sampleArtwork.uid) }
+      runBlocking { savedRepository.isArtworkSaved(sampleArtwork.uid) }
     }
 
-    runBlocking { assertTrue(fakeRepository.isArtworkSaved(sampleArtwork.uid)) }
+    runBlocking { assertTrue(savedRepository.isArtworkSaved(sampleArtwork.uid)) }
   }
 
   @Test
   fun artworkScreen_whenAlreadySaved_clickingSaveButtonRemovesArtworkFromRepository() {
-    runBlocking { fakeRepository.saveArtwork(sampleArtwork) }
+    runBlocking { savedRepository.saveArtwork(sampleArtwork) }
 
     setScreenContent()
 
     composeTestRule.onNodeWithTag(ArtworkTestTags.SAVE_BUTTON).performClick()
 
     composeTestRule.waitUntil(timeoutMillis = milliseconds) {
-      runBlocking { !fakeRepository.isArtworkSaved(sampleArtwork.uid) }
+      runBlocking { !savedRepository.isArtworkSaved(sampleArtwork.uid) }
     }
 
-    runBlocking { assertFalse(fakeRepository.isArtworkSaved(sampleArtwork.uid)) }
+    runBlocking { assertFalse(savedRepository.isArtworkSaved(sampleArtwork.uid)) }
   }
 
   @Test
   fun artworkScreen_whenLocationIsProvided_mapTileIsDisplayed() {
     setScreenContent(artwork = sampleArtworkWithLocation)
 
+    composeTestRule.waitForIdle()
+
     composeTestRule.onNodeWithTag(ArtworkTestTags.ARTWORK_MAP_TILE).assertExists()
 
     composeTestRule.onNodeWithTag(ArtworkTestTags.ARTWORK_MAP_TILE).performScrollTo()
 
     composeTestRule.onNodeWithTag(ArtworkTestTags.ARTWORK_MAP_TILE).assertIsDisplayed()
+  }
+
+  @Test
+  fun artworkScreen_whenMapIsPressed_disablesDetailsColumnScrolling() {
+    setScreenContent(artwork = sampleArtworkWithLocation)
+
+    val map = composeTestRule.onNodeWithTag(ArtworkTestTags.ARTWORK_MAP_TILE)
+    map.performScrollTo()
+    assertTrue(detailsColumnHasScrollAction())
+
+    map.performTouchInput { down(center) }
+    composeTestRule.waitForIdle()
+
+    assertFalse(detailsColumnHasScrollAction())
+
+    map.performTouchInput { up() }
+  }
+
+  @Test
+  fun artworkScreen_whenMapIsReleased_reenablesDetailsColumnScrolling() {
+    setScreenContent(artwork = sampleArtworkWithLocation)
+
+    val map = composeTestRule.onNodeWithTag(ArtworkTestTags.ARTWORK_MAP_TILE)
+    map.performScrollTo()
+    map.performTouchInput { down(center) }
+    composeTestRule.waitForIdle()
+    assertFalse(detailsColumnHasScrollAction())
+
+    map.performTouchInput { up() }
+    composeTestRule.waitForIdle()
+
+    assertTrue(detailsColumnHasScrollAction())
   }
 
   @Test
@@ -123,11 +162,45 @@ class ArtworkScreenTest {
         .assertTextEquals(composeTestRule.activity.getString(R.string.artwork_unknown_title))
   }
 
-  private fun setScreenContent(artwork: Artwork = sampleArtwork, onBackClick: () -> Unit = {}) {
+  @Test
+  fun artworkScreen_whenArtworkLookupFails_displaysFallbackErrorAndClearsTransientError() {
+    val invalidArtwork = sampleArtwork.copy(uid = "")
+
+    setScreenContent(artwork = invalidArtwork)
+
+    composeTestRule.waitForIdle()
+
+    composeTestRule.runOnIdle {
+      assertTrue(viewModel.uiState.value.errorMessageResId == null)
+      assertTrue(viewModel.uiState.value.artwork == null)
+    }
+    composeTestRule.onNodeWithTag(ArtworkTestTags.ARTWORK_ERROR_MESSAGE).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(ArtworkTestTags.ARTWORK_RETRY_BUTTON).assertIsDisplayed()
+  }
+
+  @Test
+  fun artworkScreen_whenArtworkIsNull_displaysErrorMessage() {
+    setScreenContent(artwork = null)
+
+    composeTestRule.waitUntil(timeoutMillis = milliseconds) {
+      composeTestRule
+          .onAllNodesWithTag(ArtworkTestTags.ARTWORK_ERROR_MESSAGE)
+          .fetchSemanticsNodes()
+          .isNotEmpty()
+    }
+    composeTestRule.onNodeWithTag(ArtworkTestTags.ARTWORK_ERROR_MESSAGE).assertExists()
+  }
+
+  private fun setScreenContent(
+      artwork: Artwork? = sampleArtwork,
+      onBackClick: () -> Unit = {},
+  ) {
+    wikiDataRepository.clear()
+    artwork?.let { wikiDataRepository.putArtworkInRepositoryUnsavedSection(it) }
+    viewModel = ArtworkScreenViewModel(artwork?.uid ?: "", wikiDataRepository, savedRepository)
     composeTestRule.setContent {
       ArtistaTheme {
         ArtworkScreen(
-            artwork = artwork,
             artworkScreenViewModel = viewModel,
             onBackClick = onBackClick,
         )
@@ -135,43 +208,18 @@ class ArtworkScreenTest {
     }
   }
 
+  private fun detailsColumnHasScrollAction(): Boolean =
+      composeTestRule
+          .onNodeWithTag(ArtworkTestTags.ARTWORK_DETAILS_COLUMN)
+          .fetchSemanticsNode()
+          .config
+          .contains(SemanticsActions.ScrollBy)
+
   @Test
   fun testArtworkPreview() {
     composeTestRule.setContent { ArtworkPreview() }
 
     composeTestRule.onNodeWithTag(ArtworkTestTags.ARTWORK_SCREEN).assertIsDisplayed()
     composeTestRule.onNodeWithTag(ArtworkTestTags.ARTWORK_TITLE).assertIsDisplayed()
-  }
-
-  /** In-memory test double implementing [SavedArtworksRepository]. */
-  private class FakeArtworkRepository : SavedArtworksRepository {
-    private val savedArtworks = mutableListOf<Artwork>()
-
-    override suspend fun isArtworkSaved(uid: ArtworkId): Boolean {
-      return savedArtworks.any { it.uid == uid }
-    }
-
-    override suspend fun saveArtwork(artwork: Artwork) {
-      savedArtworks.removeAll { it.uid == artwork.uid }
-      savedArtworks.add(artwork)
-    }
-
-    override suspend fun removeArtworkFromSaved(uid: ArtworkId) {
-      savedArtworks.removeAll { it.uid == uid }
-    }
-
-    override suspend fun getSavedArtworks(): List<Artwork> =
-        listOf(
-            Artwork(
-                uid = "starryId",
-                name = "The Starry Night",
-                artist = Artist("test-van-gogh", "Vincent van Gogh"),
-                location = null,
-                conceptionDate = null,
-                dimension = null,
-                description = null,
-                museum = null,
-            )
-        )
   }
 }
