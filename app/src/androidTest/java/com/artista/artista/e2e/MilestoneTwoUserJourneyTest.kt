@@ -197,7 +197,7 @@ class MilestoneTwoUserJourneyTest {
     scrollOverviewToArtwork()
     onDisplayed(OverviewTestTags.ARTWORK_ITEM).performClick()
     waitForDisplayed(ArtworkTestTags.ARTWORK_SCREEN)
-    waitForDisplayed(ArtworkTestTags.ARTWORK_MAP_TILE)
+    waitForDisplayed(ArtworkTestTags.ARTWORK_MAP_TILE, scrollTo = true)
     waitUntil {
       composeTestRule
           .onAllNodesWithTag(ArtworkTestTags.ARTWORK_IMAGE)
@@ -214,9 +214,9 @@ class MilestoneTwoUserJourneyTest {
             .fetchSemanticsNodes()
             .isNotEmpty()
     ) {
-      onDisplayed(ArtworkTestTags.ARTWORK_IMAGE)
+      onDisplayed(ArtworkTestTags.ARTWORK_IMAGE, scrollTo = true)
     } else {
-      onDisplayed(ArtworkTestTags.ARTWORK_IMAGE_FALLBACK)
+      onDisplayed(ArtworkTestTags.ARTWORK_IMAGE_FALLBACK, scrollTo = true)
     }
     onDisplayed(ArtworkTestTags.BACK_BUTTON).performClick()
     waitForDisplayed(OverviewTestTags.SCREEN)
@@ -241,12 +241,7 @@ class MilestoneTwoUserJourneyTest {
   private fun editUsername() {
     onDisplayed(NavigationTestTags.getTabTestTag(Tab.Profile)).performClick()
     waitForDisplayed(UserProfileTestTags.SCREEN)
-    composeTestRule
-        .onNodeWithTag(UserProfileTestTags.USERNAME)
-        .performScrollTo()
-        .assertExists()
-        .assertIsDisplayed()
-        .performClick()
+    onDisplayed(UserProfileTestTags.USERNAME, scrollTo = true).performClick()
     onDisplayed(UserProfileTestTags.USERNAME_FIELD).performTextInput("MilestoneTwo")
     onDisplayed(UserProfileTestTags.USERNAME_SAVE).performClick()
     waitUntil {
@@ -255,7 +250,7 @@ class MilestoneTwoUserJourneyTest {
           .fetchSemanticsNodes()
           .isNotEmpty()
     }
-    onDisplayed(UserProfileTestTags.USERNAME).assertTextEquals("MilestoneTwo")
+    onDisplayed(UserProfileTestTags.USERNAME, scrollTo = true).assertTextEquals("MilestoneTwo")
     // The UI shows the new username before the Firestore write completes. Wait until the backend
     // really holds it, otherwise signing out right after could race with (or cancel) the save and
     // make the persistence check flaky.
@@ -271,12 +266,7 @@ class MilestoneTwoUserJourneyTest {
 
   /** Searches for Monet, selects it, and saves the preference. */
   private fun saveArtistPreference() {
-    composeTestRule
-        .onNodeWithTag(UserProfileTestTags.PREFERENCES_BUTTON)
-        .performScrollTo()
-        .assertExists()
-        .assertIsDisplayed()
-        .performClick()
+    onDisplayed(UserProfileTestTags.PREFERENCES_BUTTON, scrollTo = true).performClick()
     waitForDisplayed(ArtistPreferencesTestTags.SCREEN)
     onDisplayed(ArtistPreferencesTestTags.SEARCH_BAR).performTextInput("Monet")
 
@@ -297,12 +287,7 @@ class MilestoneTwoUserJourneyTest {
   private fun verifyArtistPreferenceAfterReopening() {
     onDisplayed(ArtistPreferencesTestTags.BACK_BUTTON).performClick()
     waitForDisplayed(UserProfileTestTags.SCREEN)
-    composeTestRule
-        .onNodeWithTag(UserProfileTestTags.PREFERENCES_BUTTON)
-        .performScrollTo()
-        .assertExists()
-        .assertIsDisplayed()
-        .performClick()
+    onDisplayed(UserProfileTestTags.PREFERENCES_BUTTON, scrollTo = true).performClick()
     waitForDisplayed(ArtistPreferencesTestTags.SCREEN)
 
     val monetTag = ArtistPreferencesTestTags.getArtistCardTestTag("mock-artist-004")
@@ -324,13 +309,8 @@ class MilestoneTwoUserJourneyTest {
   private fun verifyPersistedProfileAndArtistPreference() {
     onDisplayed(NavigationTestTags.getTabTestTag(Tab.Profile)).performClick()
     waitForDisplayed(UserProfileTestTags.SCREEN)
-    onDisplayed(UserProfileTestTags.USERNAME).assertTextEquals("MilestoneTwo")
-    composeTestRule
-        .onNodeWithTag(UserProfileTestTags.PREFERENCES_BUTTON)
-        .performScrollTo()
-        .assertExists()
-        .assertIsDisplayed()
-        .performClick()
+    onDisplayed(UserProfileTestTags.USERNAME, scrollTo = true).assertTextEquals("MilestoneTwo")
+    onDisplayed(UserProfileTestTags.PREFERENCES_BUTTON, scrollTo = true).performClick()
     waitForDisplayed(ArtistPreferencesTestTags.SCREEN)
 
     val monetTag = ArtistPreferencesTestTags.getArtistCardTestTag("mock-artist-004")
@@ -338,7 +318,10 @@ class MilestoneTwoUserJourneyTest {
     onDisplayed(monetTag).assertIsOn()
   }
 
-  /** Verifies the artwork saved online is still listed in Saved Artworks without a network. */
+  /**
+   * Verifies the saved artwork is still listed in Saved Artworks when the WikiData repository
+   * fails.
+   */
   private fun verifySavedArtworkAvailableWithFailingWikiData() {
     onDisplayed(OverviewTestTags.SAVED_ARTWORKS_BUTTON).performClick()
     waitForDisplayed(SavedArtworksTestTags.SCREEN)
@@ -358,13 +341,21 @@ class MilestoneTwoUserJourneyTest {
   }
 
   /** Returns a displayed node after checking that it exists. */
-  private fun onDisplayed(tag: String, useUnmergedTree: Boolean = false) =
-      composeTestRule.onNodeWithTag(tag, useUnmergedTree).assertExists().assertIsDisplayed()
+  private fun onDisplayed(
+      tag: String,
+      useUnmergedTree: Boolean = false,
+      scrollTo: Boolean = false,
+  ) =
+      composeTestRule.onNodeWithTag(tag, useUnmergedTree).apply {
+        assertExists()
+        if (scrollTo) performScrollTo()
+        assertIsDisplayed()
+      }
 
   /** Waits for an asynchronous UI state to expose the requested tag. */
-  private fun waitForDisplayed(tag: String) {
+  private fun waitForDisplayed(tag: String, scrollTo: Boolean = false) {
     waitUntil { composeTestRule.onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty() }
-    onDisplayed(tag)
+    onDisplayed(tag, scrollTo = scrollTo)
   }
 
   /** Waits for an asynchronous condition without sleeping the test thread. */
