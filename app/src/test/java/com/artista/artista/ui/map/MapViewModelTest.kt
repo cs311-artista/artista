@@ -20,10 +20,7 @@ import com.artista.artista.model.map.Location as ArtworkLocation
 import com.artista.artista.model.map.UserLocation
 import com.artista.artista.model.walking.WalkingRoute
 import com.artista.artista.model.walking.WalkingRouteRepository
-import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.maps.model.LatLng
-import com.google.android.gms.tasks.Tasks
-import java.lang.reflect.Proxy
 import kotlin.time.Duration.Companion.minutes
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -225,13 +222,15 @@ class MapViewModelTest {
   fun loadRouteTo_withoutLocation_thenLocationFails_exposesLocationUnavailable() {
     val failures =
         listOf<Pair<String, (MapViewModel) -> Unit>>(
-            "acquisition fails" to { vm -> vm.acquireLocation(fakeLocationClientFailure()) },
-            "no location returned" to { vm -> vm.acquireLocation(fakeLocationClient(null)) },
-            "permission denied" to { vm -> vm.onLocationPermissionDenied() },
+            "no location returned" to { vm -> vm.acquireLocation(ContextWrapper(null)) },
+            "permission denied" to
+                { vm ->
+                  vm.setLocationPermissionError(AppException.UserLocationError())
+                },
         )
 
     failures.forEach { (name, fail) ->
-      val viewModel = createViewModel()
+      val viewModel = createViewModel(locationProvider = fakeLocationProvider(null))
 
       viewModel.loadRouteTo(artworkWithLocation("destination"))
       fail(viewModel)
@@ -325,7 +324,7 @@ class MapViewModelTest {
             EmptySavedArtworksRepository(),
             repository,
         )
-    viewModel.acquireLocation(fakeLocationClientFailure())
+    viewModel.setLocationError(AppException.UserLocationError())
 
     viewModel.loadRouteTo(artwork)
 

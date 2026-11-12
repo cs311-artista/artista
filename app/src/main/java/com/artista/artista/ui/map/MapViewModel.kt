@@ -8,7 +8,6 @@ import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.SavedArtworksRepository
 import com.artista.artista.model.artwork.SearchArea
@@ -255,30 +254,24 @@ class MapViewModel(
    * Records an error encountered while reading the device location.
    *
    * @param error location failure classified by the AppException framework.
-   * @author 5kyPhy
+   * @author 5kyPhy, patrickmcdan
    */
   fun setLocationError(error: AppException) {
     locationFailed = true
     _uiState.update { it.copy(errorMsg = error.toMessageRes()) }
+    if (pendingRouteArtwork != null) {
+      pendingRouteArtwork = null
+      _routeUiState.value = RouteUiState.LocationUnavailable
+    }
   }
 
   /**
    * Records that location permission is unavailable.
    *
-   * @author 5kyPhy
+   * @author 5kyPhy, patrickmcdan
    */
   fun setLocationPermissionError(error: AppException) {
-    _uiState.update { it.copy(errorMsg = error.toMessageRes()) }
-  }
-
-  /**
-   * Completes a pending route request when location permission is denied.
-   *
-   * @author patrickmcdan
-   */
-  fun onLocationPermissionDenied() {
-    setLocationPermissionError()
-    finishPendingRouteWithoutLocation()
+    setLocationError(error)
   }
 
   /**
@@ -332,13 +325,6 @@ class MapViewModel(
     pendingRouteArtwork = null
     lastRouteArtwork = null
     _routeUiState.value = RouteUiState.Idle
-  }
-
-  private fun finishPendingRouteWithoutLocation() {
-    if (pendingRouteArtwork != null) {
-      pendingRouteArtwork = null
-      _routeUiState.value = RouteUiState.LocationUnavailable
-    }
   }
 
   private fun startRouteRequest(artwork: Artwork, userLocation: UserLocation) {

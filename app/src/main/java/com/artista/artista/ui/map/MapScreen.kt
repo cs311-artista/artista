@@ -2,16 +2,12 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 package com.artista.artista.ui.map
 
-import android.Manifest
 import android.content.Context
-import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Path
 import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -32,7 +28,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -46,11 +41,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.core.content.ContextCompat
 import androidx.core.graphics.createBitmap
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.artista.artista.R
@@ -61,6 +52,7 @@ import com.artista.artista.model.map.Coordinate
 import com.artista.artista.model.map.UserLocation
 import com.artista.artista.model.walking.WalkingRouteRepositoryRemote
 import com.artista.artista.resources.C
+import com.artista.artista.ui.error.toMessageRes
 import com.artista.artista.ui.location.UserLocationPermission
 import com.artista.artista.ui.location.hasUserLocationPermissions
 import com.artista.artista.ui.navigation.BottomNavigationMenu
@@ -68,7 +60,6 @@ import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaColors
 import com.artista.artista.ui.theme.ArtistaTheme
 import com.artista.artista.ui.theme.Dimensions
-import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
@@ -181,21 +172,6 @@ fun MapScreen(
   val uiState by mapViewModel.uiStateFlow.collectAsStateWithLifecycle()
   val routeUiState by mapViewModel.routeUiStateFlow.collectAsStateWithLifecycle()
   val context = LocalContext.current
-  val locationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
-  val permissions = REQUIRED_LOCATION_PERMISSIONS.toTypedArray()
-  var hasLocationPermission by remember { mutableStateOf(hasAllLocationPermissions(context)) }
-  val lifecycleOwner = LocalLifecycleOwner.current
-  fun refreshLocationPermission() {
-    hasLocationPermission = hasAllLocationPermissions(context)
-  }
-
-  val permissionLauncher =
-      rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
-        refreshLocationPermission()
-        if (!hasLocationPermission) {
-          mapViewModel.onLocationPermissionDenied()
-        }
-      }
   val userLocation = uiState.userLocation
   val latestRouteUiState by rememberUpdatedState(routeUiState)
   val cameraPositionState = rememberCameraPositionState { position = cameraPositionFor(null) }
@@ -203,32 +179,7 @@ fun MapScreen(
     MarkerState(position = LatLng(C.Constants.DEFAULT_MAP_LAT, C.Constants.DEFAULT_MAP_LONG))
   }
 
-  // Request location permission once when screen opens.
-  LaunchedEffect(Unit) {
-    if (!hasLocationPermission) {
-      permissionLauncher.launch(permissions)
-    }
-  }
-
-  // Refresh permission state when returning from system settings.
-  DisposableEffect(lifecycleOwner) {
-    val observer = LifecycleEventObserver { _, event ->
-      if (event == Lifecycle.Event.ON_RESUME) {
-        refreshLocationPermission()
-      }
-    }
-    lifecycleOwner.lifecycle.addObserver(observer)
-    onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
-  }
-
-  // Acquire location only after permission is confirmed.
-  LaunchedEffect(hasLocationPermission) {
-    if (hasLocationPermission) {
-      mapViewModel.acquireLocation(locationClient)
-    } else {
-      mapViewModel.setLocationPermissionError()
-    }
-  }
+  var locationAcquisitionRequested by remember { mutableStateOf(false) }
 
   // Show location errors after permission or acquisition failures.
   val errorMessageResId = mapViewModel.uiState.errorMsg
@@ -237,7 +188,10 @@ fun MapScreen(
   UserLocationPermission(
       onPermissionResult = { granted ->
         mapViewModel.handleLocationPermissionResult(granted)
-        if (granted && mapViewModel.uiState.userLocation == null) {
+        if (
+            granted && (!locationAcquisitionRequested || mapViewModel.uiState.userLocation == null)
+        ) {
+          locationAcquisitionRequested = true
           mapViewModel.acquireLocation(context)
         } else if (!granted) {
           mapViewModel.setLocationPermissionError(AppException.UserLocationError())
@@ -248,12 +202,6 @@ fun MapScreen(
 
   LaunchedEffect(errorMessage) {
     errorMessage?.let { Toast.makeText(context, it, Toast.LENGTH_LONG).show() }
-  }
-
-  val userLocation = uiState.userLocation
-  val cameraPositionState = rememberCameraPositionState { position = cameraPositionFor(null) }
-  val markerState = remember {
-    MarkerState(position = LatLng(C.Constants.DEFAULT_MAP_LAT, C.Constants.DEFAULT_MAP_LONG))
   }
 
   // Recenter map and move marker when user location changes.
@@ -443,7 +391,7 @@ internal fun RouteOverlay(
     RouteUiState.LocationUnavailable -> {
       RouteMessageCard(
           modifier = modifier.testTag(MapScreenTestTags.ROUTE_LOCATION_UNAVAILABLE),
-          message = stringResource(R.string.map_location_unavailable_error),
+          message = stringResource(AppException.UserLocationError().toMessageRes()),
           onDismiss = onClearRoute,
       )
     }

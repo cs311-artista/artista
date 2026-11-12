@@ -17,8 +17,6 @@ import androidx.core.app.ActivityOptionsCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.artista.artista.model.artist.Artist
-import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.R
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.Artwork
@@ -183,7 +181,11 @@ class MapScreenTest {
     setRouteOverlay(RouteUiState.LocationUnavailable)
 
     composeTestRule.onNodeWithTag(MapScreenTestTags.ROUTE_LOCATION_UNAVAILABLE).assertIsDisplayed()
-    composeTestRule.onNodeWithText("Current location is unavailable.").assertIsDisplayed()
+    composeTestRule
+        .onNodeWithText(
+            "We're unable to acquire your location. Please make sure location permissions are granted."
+        )
+        .assertIsDisplayed()
   }
 
   @Test
@@ -299,16 +301,16 @@ class MapScreenTest {
   }
 
   private fun routeArtwork(): Artwork =
-    Artwork(
-      uid = "destination",
-      name = "Artwork destination",
-      artist = Artist("artist", "Artist"),
-      description = null,
-      conceptionDate = null,
-      museum = null,
-      location = null,
-      dimension = null,
-    )
+      Artwork(
+          uid = "destination",
+          name = "Artwork destination",
+          artist = Artist("artist", "Artist"),
+          description = null,
+          conceptionDate = null,
+          museum = null,
+          location = null,
+          dimension = null,
+      )
 
   private companion object {
     const val MOCK_LATITUDE = 46.5201
