@@ -100,6 +100,16 @@ sealed class AppException(message: String? = null, cause: Throwable? = null) :
       AppException(message, cause)
 
   /**
+   * The user has not granted the required permissions.
+   *
+   * @param message details about the failure, meant for logs, if any
+   * @param cause the original failure, if any
+   * @author 5kyPhy
+   */
+  class PermissionsError(message: String? = null, cause: Throwable? = null) :
+      AppException(message, cause)
+
+  /**
    * Any other failure, for which the user has nothing specific to fix.
    *
    * @param message details about the failure, meant for logs, if any
