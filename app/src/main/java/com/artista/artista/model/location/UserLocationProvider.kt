@@ -17,14 +17,14 @@ import kotlinx.coroutines.tasks.await
 class UserLocationProvider(val locationClient: FusedLocationProviderClient) : LocationProvider {
 
   /**
-   * Returns the user's current location, or null if it is unavailable.
+   * Returns the user's current location.
    *
-   * @return the user's current location, or null if it is unavailable
+   * @return the user's current location
    * @throws [AppException.UserLocationError] if the location is unavailable
    * @throws [AppException.PermissionsError] if the user has not granted the necessary permissions
    * @author 5kyPhy
    */
-  override suspend fun getUserLocation(): UserLocation? {
+  override suspend fun getUserLocation(): UserLocation {
     val cts = CancellationTokenSource()
     try {
       val location =

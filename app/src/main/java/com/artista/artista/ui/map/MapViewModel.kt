@@ -356,11 +356,7 @@ class MapViewModel(
         onError = ::setLocationError,
     ) {
       val location = locationProvider.getUserLocation()
-      if (location != null) {
-        updateUserLocation(UserLocation(location.latitude, location.longitude))
-      } else {
-        setLocationError(AppException.UserLocationError("Unable to acquire users location"))
-      }
+      updateUserLocation(UserLocation(location.latitude, location.longitude))
     }
   }
 

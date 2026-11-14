@@ -16,9 +16,9 @@ class FakeLocationProvider(
 ) : LocationProvider {
   /**
    * Returns the [UserLocation] associated to [C.Constants.DEFAULT_MAP_LAT] and
-   * [C.Constants.DEFAULT_MAP_LONG], null if failing was set or throws the provided error.
+   * [C.Constants.DEFAULT_MAP_LONG] or throws the provided error.
    */
-  override suspend fun getUserLocation(): UserLocation? {
+  override suspend fun getUserLocation(): UserLocation {
     errorType?.let { throw it }
     return providedLocation
         ?: UserLocation(C.Constants.DEFAULT_MAP_LAT, C.Constants.DEFAULT_MAP_LONG)

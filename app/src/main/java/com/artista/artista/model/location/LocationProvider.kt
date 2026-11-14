@@ -6,12 +6,12 @@ import com.artista.artista.model.map.UserLocation
 interface LocationProvider {
 
   /**
-   * Returns the user's current location, or null if it is unavailable.
+   * Returns the user's current location.
    *
-   * @return the user's current location, or null if it is unavailable
+   * @return the user's current location
    * @throws [AppException.UserLocationError] if the location is unavailable
    * @throws [AppException.PermissionsError] if the user has not granted the necessary permissions
    * @author 5kyPhy
    */
-  suspend fun getUserLocation(): UserLocation?
+  suspend fun getUserLocation(): UserLocation
 }
