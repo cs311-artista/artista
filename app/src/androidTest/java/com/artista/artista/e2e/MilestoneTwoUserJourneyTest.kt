@@ -35,6 +35,7 @@ import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.authentication.AuthRepositoryProvider
 import com.artista.artista.model.authentication.FakeAuthRepository
 import com.artista.artista.model.authentication.FakeAuthUser
+import com.artista.artista.model.location.FakeLocationProvider
 import com.artista.artista.model.map.Coordinate
 import com.artista.artista.model.user.UserRepositoryProvider
 import com.artista.artista.model.walking.WalkingRoute
@@ -128,6 +129,7 @@ class MilestoneTwoUserJourneyTest {
         wikiDataRepository = if (offline) failingWikiDataRepository() else mockRepository,
         savedArtworksRepository = mockRepository,
         walkingRouteRepository = walkingRouteRepository,
+        locationProvider = FakeLocationProvider(false),
     )
   }
 
@@ -289,6 +291,9 @@ class MilestoneTwoUserJourneyTest {
     scrollOverviewToArtwork()
     onDisplayed(ArtworkCardTestTag.ARTWORK_CARD_MAP_BUTTON, scrollTo = true).performClick()
     waitUntil("Map to be displayed") {
+      composeTestRule.onAllNodesWithTag(MapScreenTestTags.MAP).fetchSemanticsNodes().isNotEmpty()
+    }
+    waitUntil("Route to be displayed") {
       composeTestRule
           .onAllNodesWithTag(MapScreenTestTags.ROUTE_SUMMARY_CARD)
           .fetchSemanticsNodes()
