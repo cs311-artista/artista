@@ -129,7 +129,7 @@ class MilestoneTwoUserJourneyTest {
         wikiDataRepository = if (offline) failingWikiDataRepository() else mockRepository,
         savedArtworksRepository = mockRepository,
         walkingRouteRepository = walkingRouteRepository,
-        locationProvider = FakeLocationProvider(false),
+        locationProvider = FakeLocationProvider(),
     )
   }
 

@@ -21,6 +21,7 @@ import com.artista.artista.R
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
+import com.artista.artista.model.error.AppException
 import com.artista.artista.model.location.FakeLocationProvider
 import com.artista.artista.model.map.Coordinate
 import com.artista.artista.model.map.Location as ArtworkLocation
@@ -106,7 +107,7 @@ class MapScreenTest {
             ArtworkRepositoryProvider.mockRepository,
             ArtworkRepositoryProvider.mockRepository,
             WalkingRouteRepositoryRemote(),
-            FakeLocationProvider(false),
+            FakeLocationProvider(),
         )
     composeTestRule.setContent { ArtistaTheme { MapScreen(mapViewModel = mapViewModel) } }
 
@@ -127,7 +128,7 @@ class MapScreenTest {
             ArtworkRepositoryProvider.mockRepository,
             ArtworkRepositoryProvider.mockRepository,
             WalkingRouteRepositoryRemote(),
-            FakeLocationProvider(true),
+            FakeLocationProvider(AppException.UserLocationError()),
         )
     composeTestRule.setContent { ArtistaTheme { MapScreen(mapViewModel = mapViewModel) } }
 
@@ -279,7 +280,7 @@ class MapScreenTest {
               ArtworkRepositoryProvider.mockRepository,
               ArtworkRepositoryProvider.mockRepository,
               walkingRepository,
-              FakeLocationProvider(false),
+              FakeLocationProvider(),
           )
       viewModel.updateUserLocation(UserLocation(MOCK_LATITUDE, MOCK_LONGITUDE))
       viewModel.loadRouteTo(destination)
@@ -305,7 +306,7 @@ class MapScreenTest {
                             ArtworkRepositoryProvider.mockRepository,
                             ArtworkRepositoryProvider.mockRepository,
                             WalkingRouteRepositoryRemote(),
-                            FakeLocationProvider(false),
+                            FakeLocationProvider(),
                         )
                 )
         )

@@ -57,7 +57,7 @@ class MapScreenPermissionDeniedTest {
             wikiDataRepository = ArtworkRepositoryProvider.mockRepository,
             savedArtworksRepository = ArtworkRepositoryProvider.mockRepository,
             walkingRouteRepository = WalkingRouteRepositoryRemote(),
-            FakeLocationProvider(failing = true, errorType = AppException.PermissionsError()),
+            FakeLocationProvider(errorType = AppException.PermissionsError()),
         )
 
     composeTestRule.setContent {
