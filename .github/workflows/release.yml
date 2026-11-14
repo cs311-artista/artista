@@ -38,16 +38,21 @@ jobs:
             echo "::warning::GOOGLE_SERVICES secret is not set. google-services.json will not be created."
           fi
 
-      - name: Configure Google Maps API key
+      - name: Configure API keys
         env:
           MAPS_API_KEY: ${{ secrets.MAPS_API_KEY }}
+          ORS_API_KEY: ${{ secrets.ORS_API_KEY }}
         run: |
           if [ -z "$MAPS_API_KEY" ]; then
             echo "::error::MAPS_API_KEY secret is required to build the release APK."
             exit 1
           fi
+          if [ -z "$ORS_API_KEY" ]; then
+            echo "::error::ORS_API_KEY secret is required to build the release APK."
+            exit 1
+          fi
 
-          printf 'MAPS_API_KEY=%s\n' "$MAPS_API_KEY" > local.properties
+          printf 'MAPS_API_KEY=%s\nORS_API_KEY=%s\n' "$MAPS_API_KEY" "$ORS_API_KEY" > local.properties
 
       # Signs the APK with a fixed key registered in Firebase. Without it, the runner generates a
       # random debug key on every run, and Google Sign-In fails in the published APK.

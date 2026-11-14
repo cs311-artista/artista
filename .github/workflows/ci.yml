@@ -42,14 +42,21 @@ jobs:
             echo "::warning::GOOGLE_SERVICES secret is not set. google-services.json will not be created."
           fi
 
-      - name: Configure Google Maps API key
+      - name: Configure API keys
         env:
           MAPS_API_KEY: ${{ secrets.MAPS_API_KEY }}
+          ORS_API_KEY: ${{ secrets.ORS_API_KEY }}
         run: |
+          : > local.properties
           if [ -n "$MAPS_API_KEY" ]; then
-            printf 'MAPS_API_KEY=%s\n' "$MAPS_API_KEY" > local.properties
+            printf 'MAPS_API_KEY=%s\n' "$MAPS_API_KEY" >> local.properties
           else
             echo "::warning::MAPS_API_KEY secret is not set. Maps will not be configured."
+          fi
+          if [ -n "$ORS_API_KEY" ]; then
+            printf 'ORS_API_KEY=%s\n' "$ORS_API_KEY" >> local.properties
+          else
+            echo "::warning::ORS_API_KEY secret is not set. Routing will not be configured."
           fi
 
       - name: Setup JDK
