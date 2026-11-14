@@ -296,6 +296,7 @@ fun ArtistaNavHost(
                         OverviewViewModel.provideFactory(
                             wikiDataRepository,
                             savedArtworksRepository,
+                            locationProvider,
                         )
                 ),
             onTabSelected = { tab -> navigationActions.navigateTo(tab.destination) },

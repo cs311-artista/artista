@@ -24,6 +24,7 @@ import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artist.failingWikiDataRepository
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
+import com.artista.artista.model.location.FakeLocationProvider
 import com.artista.artista.model.map.Location
 import com.artista.artista.ui.artwork.ArtworkCardTestTag
 import com.artista.artista.ui.artwork.ArtworkFilterTestTags
@@ -131,7 +132,12 @@ class OverviewScreenTest {
   @Test
   fun overviewScreen_whenLoadingFails_showsSavedArtworksAction() {
     var savedArtworksRequested = false
-    val viewModel = OverviewViewModel(failingWikiDataRepository(), ArtworkRepositoryLocal())
+    val viewModel =
+        OverviewViewModel(
+            failingWikiDataRepository(),
+            ArtworkRepositoryLocal(),
+            FakeLocationProvider(),
+        )
 
     setOverviewContent(viewModel, onSavedArtworksClick = { savedArtworksRequested = true })
 
@@ -148,7 +154,7 @@ class OverviewScreenTest {
     val artwork = artwork(name = "The Starry Night", artistName = "Vincent van Gogh").copy(uid = "")
     val repository = ArtworkRepositoryLocal()
     repository.putArtworkInRepositoryUnsavedSection(artwork)
-    val viewModel = OverviewViewModel(repository, repository)
+    val viewModel = OverviewViewModel(repository, repository, FakeLocationProvider())
 
     setOverviewContent(viewModel)
 
@@ -187,7 +193,7 @@ class OverviewScreenTest {
   fun overviewScreen_searchBarClick_invokesSearchCallback() {
     var searchRequested = false
     val repository = ArtworkRepositoryLocal()
-    val viewModel = OverviewViewModel(repository, repository)
+    val viewModel = OverviewViewModel(repository, repository, FakeLocationProvider())
 
     setOverviewContent(viewModel, onSearchClick = { searchRequested = true })
 
@@ -202,7 +208,7 @@ class OverviewScreenTest {
     val artwork = artwork(name = "The Starry Night", artistName = "Vincent van Gogh")
     val repository = ArtworkRepositoryLocal()
     repository.putArtworkInRepositoryUnsavedSection(artwork)
-    val viewModel = OverviewViewModel(repository, repository)
+    val viewModel = OverviewViewModel(repository, repository, FakeLocationProvider())
 
     setOverviewContent(viewModel)
 
@@ -332,7 +338,7 @@ class OverviewScreenTest {
   ) {
     val repository = ArtworkRepositoryLocal()
     artworks.forEach { repository.putArtworkInRepositoryUnsavedSection(it) }
-    val viewModel = OverviewViewModel(repository, repository)
+    val viewModel = OverviewViewModel(repository, repository, FakeLocationProvider())
 
     setOverviewContent(viewModel, onMapClick = onMapClick, onTabSelected = onTabSelected)
   }

@@ -22,6 +22,7 @@ import com.artista.artista.ArtistaApp
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.artwork.mockArtworks
 import com.artista.artista.model.authentication.FakeAuthRepository
+import com.artista.artista.model.location.FakeLocationProvider
 import com.artista.artista.model.user.UserRepositoryLocal
 import com.artista.artista.resources.C
 import com.artista.artista.ui.artwork.ArtworkTestTags
@@ -80,6 +81,7 @@ class CurrentAppUserJourneyTest {
           credentialProvider = credentialProvider,
           wikiDataRepository = mockRepository,
           savedArtworksRepository = mockRepository,
+          locationProvider = FakeLocationProvider(),
       )
     }
   }
