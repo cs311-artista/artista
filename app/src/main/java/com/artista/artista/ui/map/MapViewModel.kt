@@ -2,8 +2,6 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 package com.artista.artista.ui.map
 
-import android.content.Context
-import android.location.Location
 import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -13,39 +11,18 @@ import com.artista.artista.model.artwork.SavedArtworksRepository
 import com.artista.artista.model.artwork.SearchArea
 import com.artista.artista.model.artwork.WikiDataRepository
 import com.artista.artista.model.error.AppException
+import com.artista.artista.model.location.LocationProvider
 import com.artista.artista.model.map.Coordinate
 import com.artista.artista.model.map.UserLocation
 import com.artista.artista.model.walking.WalkingRoute
 import com.artista.artista.model.walking.WalkingRouteRepository
 import com.artista.artista.ui.error.launchCatching
 import com.artista.artista.ui.error.toMessageRes
-import com.google.android.gms.location.LocationServices
-import com.google.android.gms.location.Priority
-import com.google.android.gms.tasks.CancellationTokenSource
-import java.util.concurrent.Executor
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-
-/**
- * Provides a controllable location source to the map ViewModel.
- *
- * Production callers should leave this provider null so the ViewModel uses the fused-location
- * client. Tests can inject a provider to avoid depending on device location services.
- *
- * @author 5kyPhy
- */
-fun interface LocationProvider {
-
-  /**
-   * Reads the current device location.
-   *
-   * @param onLocation callback receiving the location, or null when unavailable
-   */
-  fun getCurrentLocation(onLocation: (Location?) -> Unit)
-}
 
 /**
  * Stores the location state displayed by the map.
@@ -141,7 +118,7 @@ class MapViewModel(
     private val wikiDataRepository: WikiDataRepository,
     private val savedArtworksRepository: SavedArtworksRepository,
     private val walkingRouteRepository: WalkingRouteRepository,
-    private val locationProvider: LocationProvider? = null,
+    private val locationProvider: LocationProvider,
 ) : ViewModel() {
 
   private val _uiState = MutableStateFlow(MapViewUiState())
@@ -370,38 +347,26 @@ class MapViewModel(
   /**
    * Acquires the current device location and updates the map state.
    *
-   * @param context the local context used for the location services
    * @author 5kyPhy
    */
-  fun acquireLocation(context: Context) {
+  fun acquireLocation() {
     locationFailed = false
-    locationProvider?.let { provider ->
-      provider.getCurrentLocation { location ->
-        if (location != null) {
-          updateUserLocation(UserLocation(location.latitude, location.longitude))
-        } else {
-          setLocationError(AppException.UserLocationError("Location was unavailable."))
-        }
-      }
-      return
-    }
-
-    val locationClient = LocationServices.getFusedLocationProviderClient(context)
     try {
-      locationClient
-          .getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, CancellationTokenSource().token)
-          .addOnSuccessListener(DIRECT_EXECUTOR) { location ->
-            if (location != null) {
-              updateUserLocation(UserLocation(location.latitude, location.longitude))
-            } else {
-              setLocationError(AppException.UserLocationError("Location was unavailable."))
-            }
-          }
-          .addOnFailureListener(DIRECT_EXECUTOR) { e ->
-            setLocationError(AppException.UserLocationError(cause = e))
-          }
-    } catch (_: SecurityException) {
-      setLocationPermissionError(AppException.UserLocationError())
+      val location = locationProvider.getUserLocation()
+      if (location != null) {
+        updateUserLocation(UserLocation(location.latitude, location.longitude))
+      } else {
+        setLocationError(AppException.UserLocationError("Unable to acquire users location"))
+      }
+    } catch (e: AppException) {
+      when (e) {
+        is AppException.UserLocationError -> setLocationError(e)
+        is AppException.PermissionsError -> setLocationPermissionError(e)
+        else ->
+            setLocationError(
+                AppException.UserLocationError("Unexpected error occurred while acquiring location")
+            )
+      }
     }
   }
 
@@ -421,6 +386,7 @@ class MapViewModel(
         wikiDataRepository: WikiDataRepository,
         savedArtworksRepository: SavedArtworksRepository,
         walkingRouteRepository: WalkingRouteRepository,
+        locationProvider: LocationProvider,
     ): ViewModelProvider.Factory =
         object : ViewModelProvider.Factory {
           @Suppress("UNCHECKED_CAST")
@@ -430,14 +396,12 @@ class MapViewModel(
                   wikiDataRepository,
                   savedArtworksRepository,
                   walkingRouteRepository,
-                  locationProvider = null,
+                  locationProvider,
               )
                   as T
             }
             throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
           }
         }
-
-    val DIRECT_EXECUTOR = Executor { command -> command.run() }
   }
 }

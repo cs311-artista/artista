@@ -50,6 +50,7 @@ import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.error.AppException
+import com.artista.artista.model.location.UserLocationProvider
 import com.artista.artista.model.map.Coordinate
 import com.artista.artista.model.map.UserLocation
 import com.artista.artista.model.walking.WalkingRouteRepositoryRemote
@@ -62,6 +63,7 @@ import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaColors
 import com.artista.artista.ui.theme.ArtistaTheme
 import com.artista.artista.ui.theme.Dimensions
+import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
@@ -194,7 +196,7 @@ fun MapScreen(
             granted && (!locationAcquisitionRequested || mapViewModel.uiState.userLocation == null)
         ) {
           locationAcquisitionRequested = true
-          mapViewModel.acquireLocation(context)
+          mapViewModel.acquireLocation()
         } else if (!granted) {
           mapViewModel.setLocationPermissionError(AppException.UserLocationError())
         }
@@ -560,6 +562,7 @@ internal fun cameraPositionFor(userLocation: UserLocation?): CameraPosition {
 @Preview(widthDp = 1080, heightDp = 2424)
 @Composable
 internal fun MapScreenPreview() {
+  val locationClient = LocationServices.getFusedLocationProviderClient(LocalContext.current)
   ArtistaTheme {
     MapScreen(
         mapViewModel =
@@ -569,6 +572,7 @@ internal fun MapScreenPreview() {
                         wikiDataRepository = ArtworkRepositoryProvider.mockRepository,
                         savedArtworksRepository = ArtworkRepositoryProvider.mockRepository,
                         walkingRouteRepository = WalkingRouteRepositoryRemote(),
+                        locationProvider = UserLocationProvider(locationClient),
                     )
             )
     )

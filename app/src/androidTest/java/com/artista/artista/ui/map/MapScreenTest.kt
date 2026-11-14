@@ -21,12 +21,14 @@ import com.artista.artista.R
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
+import com.artista.artista.model.location.FakeLocationProvider
 import com.artista.artista.model.map.Coordinate
 import com.artista.artista.model.map.Location as ArtworkLocation
 import com.artista.artista.model.map.UserLocation
 import com.artista.artista.model.walking.WalkingRoute
 import com.artista.artista.model.walking.WalkingRouteRepository
 import com.artista.artista.model.walking.WalkingRouteRepositoryRemote
+import com.artista.artista.resources.C
 import com.artista.artista.ui.location.USER_LOCATION_PERMISSIONS
 import com.artista.artista.ui.navigation.NavigationTestTags
 import com.artista.artista.ui.theme.ArtistaTheme
@@ -104,7 +106,7 @@ class MapScreenTest {
             ArtworkRepositoryProvider.mockRepository,
             ArtworkRepositoryProvider.mockRepository,
             WalkingRouteRepositoryRemote(),
-            locationProvider = LocationProvider { callback -> callback(mockDeviceLocation()) },
+            FakeLocationProvider(false),
         )
     composeTestRule.setContent { ArtistaTheme { MapScreen(mapViewModel = mapViewModel) } }
 
@@ -125,7 +127,7 @@ class MapScreenTest {
             ArtworkRepositoryProvider.mockRepository,
             ArtworkRepositoryProvider.mockRepository,
             WalkingRouteRepositoryRemote(),
-            locationProvider = LocationProvider { callback -> callback(null) },
+            FakeLocationProvider(true),
         )
     composeTestRule.setContent { ArtistaTheme { MapScreen(mapViewModel = mapViewModel) } }
 
@@ -204,10 +206,11 @@ class MapScreenTest {
   fun routeOverlay_locationUnavailable_displaysMessage() {
     setRouteOverlay(RouteUiState.LocationUnavailable)
 
+    composeTestRule.waitForIdle()
     composeTestRule.onNodeWithTag(MapScreenTestTags.ROUTE_LOCATION_UNAVAILABLE).assertIsDisplayed()
     composeTestRule
         .onNodeWithText(
-            "We're unable to acquire your location. Please make sure location permissions are granted."
+            "We're unable to acquire your location. Please make sure device location is turned on."
         )
         .assertIsDisplayed()
   }
@@ -276,6 +279,7 @@ class MapScreenTest {
               ArtworkRepositoryProvider.mockRepository,
               ArtworkRepositoryProvider.mockRepository,
               walkingRepository,
+              FakeLocationProvider(false),
           )
       viewModel.updateUserLocation(UserLocation(MOCK_LATITUDE, MOCK_LONGITUDE))
       viewModel.loadRouteTo(destination)
@@ -301,6 +305,7 @@ class MapScreenTest {
                             ArtworkRepositoryProvider.mockRepository,
                             ArtworkRepositoryProvider.mockRepository,
                             WalkingRouteRepositoryRemote(),
+                            FakeLocationProvider(false),
                         )
                 )
         )
@@ -337,8 +342,8 @@ class MapScreenTest {
       )
 
   private companion object {
-    const val MOCK_LATITUDE = 46.5201
-    const val MOCK_LONGITUDE = 6.6332
+    const val MOCK_LATITUDE = C.Constants.DEFAULT_MAP_LAT
+    const val MOCK_LONGITUDE = C.Constants.DEFAULT_MAP_LONG
   }
 
   private fun mockDeviceLocation(): Location =

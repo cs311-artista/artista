@@ -11,6 +11,7 @@ import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.core.app.ActivityOptionsCompat
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.error.AppException
+import com.artista.artista.model.location.FakeLocationProvider
 import com.artista.artista.model.walking.WalkingRouteRepositoryRemote
 import com.artista.artista.ui.error.toMessageRes
 import com.artista.artista.ui.location.USER_LOCATION_PERMISSIONS
@@ -56,6 +57,7 @@ class MapScreenPermissionDeniedTest {
             wikiDataRepository = ArtworkRepositoryProvider.mockRepository,
             savedArtworksRepository = ArtworkRepositoryProvider.mockRepository,
             walkingRouteRepository = WalkingRouteRepositoryRemote(),
+            FakeLocationProvider(failing = true, errorType = AppException.PermissionsError()),
         )
 
     composeTestRule.setContent {
