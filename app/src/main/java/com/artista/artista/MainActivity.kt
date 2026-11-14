@@ -44,6 +44,8 @@ import com.artista.artista.model.artwork.SavedArtworksRepository
 import com.artista.artista.model.artwork.WikiDataRepository
 import com.artista.artista.model.artwork.createArtworkImageLoader
 import com.artista.artista.model.authentication.AuthRepositoryProvider
+import com.artista.artista.model.location.LocationProvider
+import com.artista.artista.model.location.UserLocationProvider
 import com.artista.artista.model.user.UserRepositoryProvider
 import com.artista.artista.model.user.UsernameCacheDataStore
 import com.artista.artista.model.user.usernameDataStore
@@ -74,6 +76,7 @@ import com.artista.artista.ui.search.SearchScreen
 import com.artista.artista.ui.search.SearchScreenViewModel
 import com.artista.artista.ui.theme.ArtistaTheme
 import com.artista.artista.ui.theme.Dimensions
+import com.google.android.gms.location.LocationServices
 
 /**
  * Hosts the Artista app's root composition, and through it the navigation graph.
@@ -156,6 +159,8 @@ fun ArtistaApp(
     savedArtworksRepository: SavedArtworksRepository =
         ArtworkRepositoryProvider.savedArtworksRepository,
     walkingRouteRepository: WalkingRouteRepository = WalkingRouteRepositoryRemote(),
+    locationProvider: LocationProvider =
+        UserLocationProvider(LocationServices.getFusedLocationProviderClient(LocalContext.current)),
 ) {
   val state by authViewModel.uiState.collectAsStateWithLifecycle()
   val profileInitializationFailedMessage = stringResource(R.string.profile_initialization_failed)
@@ -193,6 +198,7 @@ fun ArtistaApp(
               wikiDataRepository = wikiDataRepository,
               savedArtworksRepository = savedArtworksRepository,
               walkingRouteRepository = walkingRouteRepository,
+              locationProvider = locationProvider,
           )
         }
         SnackbarHost(
@@ -245,6 +251,8 @@ fun ArtistaNavHost(
     savedArtworksRepository: SavedArtworksRepository,
     walkingRouteRepository: WalkingRouteRepository,
     navController: NavHostController = rememberNavController(),
+    locationProvider: LocationProvider =
+        UserLocationProvider(LocationServices.getFusedLocationProviderClient(LocalContext.current)),
     // The start destination has to be a direct child of the root graph, and Overview lives in the
     // nested graph of its tab, so the graph route is used rather than Screen.Overview.route.
     startDestination: String = C.Constants.OVERVIEW_GRAPH_ROUTE,
@@ -265,6 +273,7 @@ fun ArtistaNavHost(
                   wikiDataRepository,
                   savedArtworksRepository,
                   walkingRouteRepository,
+                  locationProvider,
               ),
       )
   val showRouteOnMap: (Artwork) -> Unit = { artwork ->

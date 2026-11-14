@@ -109,13 +109,14 @@
     <string name="error_invalid_data">Received unexpected data. Please try again later.</string>
     <string name="error_rate_limited_minute">You\'ve reached the usage limit. Please wait a moment and try again.</string>
     <string name="error_rate_limited_daily">You\'ve reached the usage limit. Please try again tomorrow.</string>
+    <string name="error_user_location">We\'re unable to acquire your location. Please make sure device location is turned on.</string>
+    <string name="error_permissions">You have not granted the necessary app permissions to use this feature. Please make sure to grant all required permission to the app inside the apps settings.</string>
     <string name="error_unknown">Something went wrong. Please try again.</string>
 
     <!-- Bottom navigation -->
     <string name="navigation_overview">Overview</string>
     <string name="navigation_map">Map</string>
     <string name="navigation_profile">Profile</string>
-    <string name="error_user_location">We\'re unable to acquire your location. Please make sure location permissions are granted.</string>
     <string name="arrow_back_description">Back</string>
     <string name="search_icon_description">Search</string>
 </resources>

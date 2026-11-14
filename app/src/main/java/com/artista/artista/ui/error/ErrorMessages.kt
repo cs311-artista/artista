@@ -31,5 +31,6 @@ fun AppException.toMessageRes(): Int =
             R.string.error_rate_limited_daily
           }
       is AppException.UserLocationError -> R.string.error_user_location
+      is AppException.PermissionsError -> R.string.error_permissions
       is AppException.Unknown -> R.string.error_unknown
     }
