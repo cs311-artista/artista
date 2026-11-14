@@ -13,5 +13,5 @@ interface LocationProvider {
    * @throws [AppException.PermissionsError] if the user has not granted the necessary permissions
    * @author 5kyPhy
    */
-  fun getUserLocation(): UserLocation?
+  suspend fun getUserLocation(): UserLocation?
 }

@@ -351,21 +351,15 @@ class MapViewModel(
    */
   fun acquireLocation() {
     locationFailed = false
-    try {
+    viewModelScope.launchCatching(
+        tag = TAG,
+        onError = ::setLocationError,
+    ) {
       val location = locationProvider.getUserLocation()
       if (location != null) {
         updateUserLocation(UserLocation(location.latitude, location.longitude))
       } else {
         setLocationError(AppException.UserLocationError("Unable to acquire users location"))
-      }
-    } catch (e: AppException) {
-      when (e) {
-        is AppException.UserLocationError -> setLocationError(e)
-        is AppException.PermissionsError -> setLocationPermissionError(e)
-        else ->
-            setLocationError(
-                AppException.UserLocationError("Unexpected error occurred while acquiring location")
-            )
       }
     }
   }

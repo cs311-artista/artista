@@ -5,7 +5,8 @@ import com.artista.artista.model.map.UserLocation
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
-import java.util.concurrent.Executor
+import java.util.concurrent.CancellationException
+import kotlinx.coroutines.tasks.await
 
 /**
  * Provides the user's current location.
@@ -23,27 +24,23 @@ class UserLocationProvider(val locationClient: FusedLocationProviderClient) : Lo
    * @throws [AppException.PermissionsError] if the user has not granted the necessary permissions
    * @author 5kyPhy
    */
-  override fun getUserLocation(): UserLocation? {
+  override suspend fun getUserLocation(): UserLocation? {
+    val cts = CancellationTokenSource()
     try {
-      locationClient
-          .getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, CancellationTokenSource().token)
-          .addOnSuccessListener(DIRECT_EXECUTOR) { location ->
-            if (location != null) {
-              return@addOnSuccessListener
-            } else {
-              throw AppException.UserLocationError("Location was unavailable.")
-            }
-          }
-          .addOnFailureListener(DIRECT_EXECUTOR) { e ->
-            throw AppException.UserLocationError(cause = e)
-          }
+      val location =
+          locationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, cts.token).await()
+              ?: throw AppException.UserLocationError("Location was unavailable.")
+      return UserLocation(location.latitude, location.longitude)
+    } catch (e: AppException) {
+      throw e
+    } catch (e: CancellationException) {
+      throw e
     } catch (e: SecurityException) {
-      throw AppException.PermissionsError(cause = e)
+      throw AppException.PermissionsError("Permissions are not granted.", e)
+    } catch (e: Exception) {
+      throw AppException.UserLocationError("Failed to get user location.", e)
+    } finally {
+      cts.cancel()
     }
-    return null
-  }
-
-  companion object {
-    val DIRECT_EXECUTOR = Executor { command -> command.run() }
   }
 }
