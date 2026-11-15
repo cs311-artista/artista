@@ -404,6 +404,22 @@ class ArtistPreferencesScreenTest {
     composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.RETRY_BUTTON).assertDoesNotExist()
   }
 
+  /**
+   * Verifies that the save button is disabled while the popular artists load, even with a change.
+   */
+  @Test
+  fun saveButton_whilePopularArtistsLoad_isDisabled() {
+    // The load never ends, so the screen stays loading for the whole test.
+    val repository = ControllableWikiRepository().apply { pending = CompletableDeferred() }
+    val viewModel = viewModelWith(repository)
+    // Changed directly, since no card can be tapped while loading: without the loading rule, this
+    // selection would enable Save.
+    viewModel.toggleArtist(testArtists.first().uid)
+    setPreferencesContent(viewModel = viewModel)
+
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SAVE_BUTTON).assertIsNotEnabled()
+  }
+
   /** Verifies that the save button is disabled when the screen opens, as nothing has changed. */
   @Test
   fun saveButton_initially_isDisabled() {

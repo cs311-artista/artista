@@ -508,7 +508,9 @@ class ArtistPreferencesViewModelTest {
 
   /** Verifies that selecting an artist enables Save. */
   @Test
-  fun canSave_afterToggle_isTrue() {
+  fun canSave_afterToggle_isTrue() = runTest {
+    // Save is disabled while the popular artists load, so the load must finish first.
+    advanceUntilIdle()
     viewModel.toggleArtist(PICASSO.uid)
 
     assertTrue(viewModel.uiState.value.canSave)
@@ -516,11 +518,67 @@ class ArtistPreferencesViewModelTest {
 
   /** Verifies that undoing a change disables Save again, since the selection is the saved one. */
   @Test
-  fun canSave_afterUndoingToggle_isFalse() {
+  fun canSave_afterUndoingToggle_isFalse() = runTest {
+    // Otherwise Save would already be disabled by the running load, and the test would pass for
+    // nothing.
+    advanceUntilIdle()
     viewModel.toggleArtist(PICASSO.uid)
     viewModel.toggleArtist(PICASSO.uid)
 
     assertFalse(viewModel.uiState.value.canSave)
+  }
+
+  /**
+   * Verifies that Save is disabled while the popular artists load, even with a changed selection.
+   */
+  @Test
+  fun canSave_whilePopularArtistsLoad_isFalse() {
+    val state =
+        ArtistPreferencesUiState(
+            selectedArtists = setOf(PICASSO.uid),
+            isLoadingPopularArtists = true,
+        )
+
+    assertFalse(state.canSave)
+  }
+
+  /** Verifies that Save is disabled while the saved artists load, even with a changed selection. */
+  @Test
+  fun canSave_whileSavedArtistsLoad_isFalse() {
+    val state =
+        ArtistPreferencesUiState(selectedArtists = setOf(PICASSO.uid), isLoadingSavedArtists = true)
+
+    assertFalse(state.canSave)
+  }
+
+  /** Verifies that a selection made during the popular-artists load can be saved once it ends. */
+  @Test
+  fun canSave_afterPopularArtistsLoad_isTrueAgain() = runTest {
+    val repository = ControllableWikiDataRepository().apply { pending = CompletableDeferred() }
+    val viewModel = ArtistPreferencesViewModel(repository, authRepository, userRepository)
+    advanceUntilIdle()
+    viewModel.toggleArtist(PICASSO.uid)
+    assertFalse(viewModel.uiState.value.canSave)
+
+    repository.pending?.complete(Unit)
+    advanceUntilIdle()
+
+    assertTrue(viewModel.uiState.value.canSave)
+  }
+
+  /** Verifies that a save requested while the popular artists load writes nothing. */
+  @Test
+  fun saveSelectedArtists_whilePopularArtistsLoad_doesNotWrite() = runTest {
+    val repository = ControllableWikiDataRepository().apply { pending = CompletableDeferred() }
+    val viewModel = ArtistPreferencesViewModel(repository, authRepository, userRepository)
+    signIn()
+    viewModel.toggleArtist(PICASSO.uid)
+
+    viewModel.saveSelectedArtists()
+    advanceUntilIdle()
+
+    assertEquals(0, userRepository.writeCount)
+    assertFalse(viewModel.uiState.value.isSaving)
   }
 
   /** Verifies that a successful save exposes the confirmation message and disables Save. */

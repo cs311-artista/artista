@@ -61,14 +61,19 @@ data class ArtistPreferencesUiState(
     @param:StringRes val messageResId: Int? = null,
 ) {
   /**
-   * Whether the Save button can be used: the selection differs from the last saved one and no save
-   * is running.
+   * Whether the Save button can be used: the selection differs from the last saved one, no save is
+   * running, and nothing is loading.
    *
    * Comparing with the saved selection, rather than tracking toggles, makes the button disabled
-   * again when the user undoes their changes.
+   * again when the user undoes their changes. Checking the loads does not rely on the selection
+   * being unchanged while they run, so a save can never start before the screen is ready.
    */
   val canSave: Boolean
-    get() = selectedArtists != savedArtists && !isSaving
+    get() =
+        selectedArtists != savedArtists &&
+            !isSaving &&
+            !isLoadingPopularArtists &&
+            !isLoadingSavedArtists
 
   /**
    * The popular artists whose name matches [searchQuery], in display order.
