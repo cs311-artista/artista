@@ -72,11 +72,11 @@ class CurrentAppUserJourneyTest {
 
   @Before
   fun setUp() {
+    grantLocationPermissions()
     val mockRepository = ArtworkRepositoryProvider.mockRepository
     mockRepository.clear()
     ArtworkRepositoryProvider.populateAPI()
     runBlocking { ArtworkRepositoryProvider.populateSaved(mockArtworks.drop(2).take(3)) }
-    grantLocationPermissions()
 
     composeTestRule.setContent {
       ArtistaApp(
@@ -337,23 +337,16 @@ class CurrentAppUserJourneyTest {
     }
   }
 
-  /**
-   * Grants the location permissions required for Map to render without a runtime permission dialog
-   * interrupting the navigation journey.
-   */
+  /** Grants the location permissions. */
   private fun grantLocationPermissions() {
     instrumentation.uiAutomation.adoptShellPermissionIdentity()
-    try {
-      instrumentation.uiAutomation.grantRuntimePermission(
-          instrumentation.targetContext.packageName,
-          android.Manifest.permission.ACCESS_FINE_LOCATION,
-      )
-      instrumentation.uiAutomation.grantRuntimePermission(
-          instrumentation.targetContext.packageName,
-          android.Manifest.permission.ACCESS_COARSE_LOCATION,
-      )
-    } finally {
-      instrumentation.uiAutomation.dropShellPermissionIdentity()
-    }
+    instrumentation.uiAutomation.grantRuntimePermission(
+        instrumentation.targetContext.packageName,
+        android.Manifest.permission.ACCESS_FINE_LOCATION,
+    )
+    instrumentation.uiAutomation.grantRuntimePermission(
+        instrumentation.targetContext.packageName,
+        android.Manifest.permission.ACCESS_COARSE_LOCATION,
+    )
   }
 }
