@@ -10,6 +10,7 @@ import android.graphics.Path
 import android.widget.Toast
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -68,6 +69,7 @@ import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
 import com.google.maps.android.compose.GoogleMap
+import com.google.maps.android.compose.MapProperties
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.Polyline
@@ -81,9 +83,6 @@ import com.google.maps.android.compose.rememberCameraPositionState
 object MapScreenTestTags {
   /** Tag identifying the Google Map surface. */
   const val MAP = "map_surface"
-
-  /** Tag identifying the marker for the user's current location. */
-  const val USER_LOCATION_MARKER = "map_user_location_marker"
 
   /** Tag identifying markers for artworks loaded from the remote repository. */
   const val REMOTE_ARTWORK_MARKER = "map_remote_artwork_marker"
@@ -177,9 +176,6 @@ fun MapScreen(
   val userLocation = uiState.userLocation
   val latestRouteUiState by rememberUpdatedState(routeUiState)
   val cameraPositionState = rememberCameraPositionState { position = cameraPositionFor(null) }
-  val markerState = remember {
-    MarkerState(position = LatLng(C.Constants.DEFAULT_MAP_LAT, C.Constants.DEFAULT_MAP_LONG))
-  }
 
   var locationAcquisitionRequested by remember { mutableStateOf(false) }
 
@@ -206,12 +202,11 @@ fun MapScreen(
     errorMessage?.let { Toast.makeText(context, it, Toast.LENGTH_LONG).show() }
   }
 
-  // Recenter map and move marker when user location changes.
+  // Recenter map when user location changes.
   // Only recenter when no route is currently displayed, so the user can explore the map without
   // being interrupted by the camera moving back to their location.
   LaunchedEffect(userLocation) {
     userLocation?.let {
-      markerState.position = LatLng(it.latitude, it.longitude)
       if (latestRouteUiState !is RouteUiState.Success) {
         cameraPositionState.position = cameraPositionFor(it)
       }
@@ -242,14 +237,13 @@ fun MapScreen(
         modifier = Modifier.fillMaxSize().testTag(MapScreenTestTags.MAP),
         cameraPositionState = cameraPositionState,
         onMapLoaded = { mapLoaded = true },
+        properties = MapProperties(isMyLocationEnabled = uiState.hasLocationPermission),
+        contentPadding =
+            PaddingValues(
+                bottom = Dimensions.bottomMapToolBarPadding,
+                top = Dimensions.topMapToolBarPadding,
+            ),
     ) {
-      uiState.userLocation?.let {
-        Marker(
-            tag = MapScreenTestTags.USER_LOCATION_MARKER,
-            state = markerState,
-            title = stringResource(R.string.map_location_marker_text),
-        )
-      }
       uiState.savedArtworks.forEach { artwork ->
         DisplayArtworkMarker(artwork, onArtworkMarkerClick, MarkerType.SavedArtwork)
       }
