@@ -330,6 +330,8 @@ class MilestoneTwoUserJourneyTest {
   private fun saveArtistPreference() {
     onDisplayed(UserProfileTestTags.PREFERENCES_BUTTON, scrollTo = true).performClick()
     waitForDisplayed(ArtistPreferencesTestTags.SCREEN)
+    // The search bar is disabled until the saved artists have loaded, which the grid shows.
+    waitForDisplayed(ArtistPreferencesTestTags.ARTISTS_GRID)
     // Sets the text directly instead of simulating keystrokes, which hangs on small screens.
     onDisplayed(ArtistPreferencesTestTags.SEARCH_BAR).performTextReplacement("Monet")
 
