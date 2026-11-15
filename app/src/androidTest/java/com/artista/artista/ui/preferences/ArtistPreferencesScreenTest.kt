@@ -13,6 +13,7 @@ import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
@@ -30,6 +31,7 @@ import com.artista.artista.model.user.FakeUserRepository
 import com.artista.artista.model.user.UserRepositoryLocal
 import com.artista.artista.ui.navigation.NavigationTestTags
 import com.artista.artista.ui.navigation.Tab
+import kotlinx.coroutines.CompletableDeferred
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -325,6 +327,83 @@ class ArtistPreferencesScreenTest {
         .assertIsNotEnabled()
   }
 
+  /** Verifies that a spinner replaces the grid while the popular artists load. */
+  @Test
+  fun popularArtists_whileLoading_showsSpinner() {
+    // The load never ends, so the screen stays loading for the whole test.
+    val repository = ControllableWikiRepository().apply { pending = CompletableDeferred() }
+    setPreferencesContent(viewModel = viewModelWith(repository))
+
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.LOADING_STATE).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.ARTISTS_GRID).assertDoesNotExist()
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.LOAD_ERROR_STATE).assertDoesNotExist()
+  }
+
+  /** Verifies that a successful load shows the grid, without the loading or error state. */
+  @Test
+  fun popularArtists_loaded_showsGridOnly() {
+    setPreferencesContent()
+
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.ARTISTS_GRID).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.LOADING_STATE).assertDoesNotExist()
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.LOAD_ERROR_STATE).assertDoesNotExist()
+  }
+
+  /**
+   * Verifies that a failed load replaces the grid with the error state and its Retry button, while
+   * the rest of the screen stays available.
+   */
+  @Test
+  fun popularArtists_loadFails_showsErrorStateWithRetry() {
+    val repository = ControllableWikiRepository().apply { failure = AppException.Network() }
+    setPreferencesContent(viewModel = viewModelWith(repository))
+
+    composeTestRule.waitUntil(TIMEOUT_MS) { existsNodeWithTag(LOAD_ERROR_STATE_TAG) }
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.LOAD_ERROR_STATE).assertIsDisplayed()
+    composeTestRule
+        .onNodeWithTag(ArtistPreferencesTestTags.RETRY_BUTTON)
+        .assertIsDisplayed()
+        .assertTextContains(stringOf(R.string.artist_preferences_try_again))
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.ARTISTS_GRID).assertDoesNotExist()
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SEARCH_BAR).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SAVE_BUTTON).assertIsDisplayed()
+  }
+
+  /** Verifies that tapping Retry after a failed load shows the artists once the load succeeds. */
+  @Test
+  fun retryButton_afterFailure_showsArtistGrid() {
+    val repository = ControllableWikiRepository().apply { failure = AppException.Network() }
+    setPreferencesContent(viewModel = viewModelWith(repository))
+    composeTestRule.waitUntil(TIMEOUT_MS) { existsNodeWithTag(LOAD_ERROR_STATE_TAG) }
+
+    repository.failure = null
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.RETRY_BUTTON).performClick()
+
+    composeTestRule.waitUntil(TIMEOUT_MS) {
+      existsNodeWithTag(ArtistPreferencesTestTags.ARTISTS_GRID)
+    }
+    composeTestRule
+        .onNodeWithTag(ArtistPreferencesTestTags.getArtistCardTestTag(testArtists.first().uid))
+        .assertIsDisplayed()
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.LOAD_ERROR_STATE).assertDoesNotExist()
+  }
+
+  /** Verifies that tapping Retry hides the error state and shows the spinner during the retry. */
+  @Test
+  fun retryButton_click_showsSpinnerWhileRetrying() {
+    val repository = ControllableWikiRepository().apply { failure = AppException.Network() }
+    setPreferencesContent(viewModel = viewModelWith(repository))
+    composeTestRule.waitUntil(TIMEOUT_MS) { existsNodeWithTag(LOAD_ERROR_STATE_TAG) }
+
+    // The retry never ends, so the spinner stays for the rest of the test.
+    repository.pending = CompletableDeferred()
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.RETRY_BUTTON).performClick()
+
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.LOADING_STATE).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.LOAD_ERROR_STATE).assertDoesNotExist()
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.RETRY_BUTTON).assertDoesNotExist()
+  }
+
   /** Verifies that the save button is disabled when the screen opens, as nothing has changed. */
   @Test
   fun saveButton_initially_isDisabled() {
@@ -449,6 +528,42 @@ class ArtistPreferencesScreenTest {
       )
 
   /**
+   * Creates the ViewModel under test, signed out, with the given catalog.
+   *
+   * @param repository the catalog the popular artists are loaded from
+   * @return a ViewModel backed by [repository]
+   */
+  private fun viewModelWith(repository: WikiDataRepository): ArtistPreferencesViewModel =
+      ArtistPreferencesViewModel(repository, FakeAuthRepository(), UserRepositoryLocal())
+
+  /**
+   * Tells whether a node with the given tag is currently in the tree, to wait for a state change.
+   *
+   * @param tag the test tag to look for
+   * @return true if at least one node has this tag
+   */
+  private fun existsNodeWithTag(tag: String): Boolean =
+      composeTestRule.onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty()
+
+  /**
+   * Catalog whose popular-artists load the test controls: it can be held until [pending] completes,
+   * and it fails with [failure] when one is set. It otherwise serves [testArtists].
+   */
+  private inner class ControllableWikiRepository : WikiDataRepository by ArtworkRepositoryLocal() {
+    /** Thrown by the load when set, read once the load is released. */
+    @Volatile var failure: Exception? = null
+
+    /** When set, the load waits for it to complete, which simulates a slow network. */
+    @Volatile var pending: CompletableDeferred<Unit>? = null
+
+    override suspend fun getPopularArtists(): List<Artist> {
+      pending?.await()
+      failure?.let { throw it }
+      return testArtists
+    }
+  }
+
+  /**
    * Clicks the card of an artist, to select or deselect them.
    *
    * @param artist the artist whose card is clicked
@@ -463,7 +578,10 @@ class ArtistPreferencesScreenTest {
     /** Identifier of the signed-in user in the save tests. */
     const val UID = "uid-1"
 
-    /** Longest wait, in milliseconds, for a save to finish before a test fails. */
+    /** Longest wait, in milliseconds, for a save or a load to finish before a test fails. */
     const val TIMEOUT_MS = 5_000L
+
+    /** Shorter name for the error-state tag, which the load tests wait for. */
+    const val LOAD_ERROR_STATE_TAG = ArtistPreferencesTestTags.LOAD_ERROR_STATE
   }
 }
