@@ -40,8 +40,13 @@ import kotlinx.coroutines.launch
  * @property isSaving whether the selection is being saved, during which saving again is disabled.
  * @property isLoadingSavedArtists whether the stored artists of the signed-in user are loading,
  *   during which the artists cannot be selected, so a tap is not replaced by the loaded selection.
+ * @property isLoadingPopularArtists whether the popular artists are loading, during which another
+ *   load is not started.
+ * @property hasPopularArtistsLoadFailed whether the last load of the popular artists failed. Unlike
+ *   [messageResId], it stays set after the error has been shown, so the screen can keep offering a
+ *   retry.
  * @property messageResId string resource of the message shown once a save succeeds or fails, or
- *   when loading the saved artists fails; null when there is nothing to show.
+ *   when loading the popular or saved artists fails; null when there is nothing to show.
  * @author Timz3rr, patrickmcdan, krfpn
  */
 data class ArtistPreferencesUiState(
@@ -51,6 +56,8 @@ data class ArtistPreferencesUiState(
     val savedArtists: Set<ArtistId> = emptySet(),
     val isSaving: Boolean = false,
     val isLoadingSavedArtists: Boolean = false,
+    val isLoadingPopularArtists: Boolean = false,
+    val hasPopularArtistsLoadFailed: Boolean = false,
     @param:StringRes val messageResId: Int? = null,
 ) {
   /**
@@ -110,19 +117,42 @@ class ArtistPreferencesViewModel(
   private var loadJob: Job? = null
 
   init {
-    viewModelScope.launchCatching(
-        tag = TAG,
-        onError = {
-          // TODO (#260): Add an error field to the state and show a message with a retry action.
-          // Already logged by launchCatching. The grid stays empty until a retry exists.
-        },
-    ) {
-      _uiState.update { it.copy(popularArtists = artworkRepository.getPopularArtists()) }
-    }
+    loadPopularArtists()
     // A plain launch is enough: collecting the auth state only listens to sign-ins and sign-outs
     // and does not fail (see AuthRepository.authState). The load of the saved artists, which can
     // fail, is protected by launchCatching in onAuthStateChanged.
     viewModelScope.launch { authRepository.authState.collect(::onAuthStateChanged) }
+  }
+
+  /**
+   * Loads the popular artists suggested to the user.
+   *
+   * Called when the ViewModel is created and when the user taps Retry after a failed load. On
+   * failure, [ArtistPreferencesUiState.hasPopularArtistsLoadFailed] is set and an error message is
+   * exposed. The call is ignored while a load is already running, so a double tap on Retry does not
+   * start a second request.
+   *
+   * @author krfpn
+   */
+  fun loadPopularArtists() {
+    if (_uiState.value.isLoadingPopularArtists) return
+    // The failed flag is cleared now, so the screen hides the error state while retrying.
+    _uiState.update { it.copy(isLoadingPopularArtists = true, hasPopularArtistsLoadFailed = false) }
+    viewModelScope.launchCatching(
+        tag = TAG,
+        onError = { error ->
+          _uiState.update {
+            it.copy(
+                isLoadingPopularArtists = false,
+                hasPopularArtistsLoadFailed = true,
+                messageResId = error.toMessageRes(),
+            )
+          }
+        },
+    ) {
+      val artists = artworkRepository.getPopularArtists()
+      _uiState.update { it.copy(popularArtists = artists, isLoadingPopularArtists = false) }
+    }
   }
 
   /**
