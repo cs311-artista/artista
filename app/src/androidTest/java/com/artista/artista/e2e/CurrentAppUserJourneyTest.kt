@@ -4,6 +4,7 @@
 package com.artista.artista.e2e
 
 import androidx.activity.ComponentActivity
+import androidx.compose.ui.test.ComposeTimeoutException
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
@@ -36,6 +37,7 @@ import com.artista.artista.ui.overview.OverviewTestTags
 import com.artista.artista.ui.preferences.ArtistPreferencesTestTags
 import com.artista.artista.ui.profile.UserProfileTestTags
 import kotlinx.coroutines.runBlocking
+import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -74,6 +76,7 @@ class CurrentAppUserJourneyTest {
     mockRepository.clear()
     ArtworkRepositoryProvider.populateAPI()
     runBlocking { ArtworkRepositoryProvider.populateSaved(mockArtworks.drop(2).take(3)) }
+    grantLocationPermissions()
 
     composeTestRule.setContent {
       ArtistaApp(
@@ -84,6 +87,11 @@ class CurrentAppUserJourneyTest {
           locationProvider = FakeLocationProvider(),
       )
     }
+  }
+
+  @After
+  fun tearDown() {
+    instrumentation.uiAutomation.dropShellPermissionIdentity()
   }
 
   /**
@@ -310,15 +318,23 @@ class CurrentAppUserJourneyTest {
    * @author krfpn
    */
   private fun waitUntilDisplayed(tag: String) {
-    composeTestRule.waitUntil(timeoutMillis) {
-      try {
-        composeTestRule.onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty()
-      } catch (e: IllegalStateException) {
-        // Thrown as "No compose hierarchies found" while no root is attached
-        false
-      }
-    }
+    waitUntil("$tag to be displayed") { composeTestRule.onNodeWithTag(tag).isDisplayed() }
     composeTestRule.onNodeWithTag(tag).assertIsDisplayed()
+  }
+
+  private fun waitUntil(description: String, condition: () -> Boolean) {
+    try {
+      composeTestRule.waitUntil(timeoutMillis) {
+        try {
+          condition()
+        } catch (e: IllegalStateException) {
+          // Thrown as "No compose hierarchies found" while no root is attached
+          false
+        }
+      }
+    } catch (e: ComposeTimeoutException) {
+      throw AssertionError("Timed out waiting for: $description", e)
+    }
   }
 
   /**
