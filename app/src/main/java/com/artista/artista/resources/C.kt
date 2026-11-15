@@ -31,6 +31,8 @@ object C {
     /** Route of the nested graph holding the Profile tab and the screens opened from it. */
     const val PROFILE_GRAPH_ROUTE = "profile_graph"
 
+    // Map/Location related values.
+    const val USER_LOCATION_ZOOM = 15f
     const val DEFAULT_MAP_ZOOM = 12f
     const val DEFAULT_MAP_LAT = 46.5197
     const val DEFAULT_MAP_LONG = 6.6323

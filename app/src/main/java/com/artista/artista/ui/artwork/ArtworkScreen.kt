@@ -57,6 +57,7 @@ import com.artista.artista.model.artwork.mockArtworks
 import com.artista.artista.model.map.Location
 import com.artista.artista.resources.C
 import com.artista.artista.ui.navigation.BackButton
+import com.artista.artista.ui.shared.ArtworkMarker
 import com.artista.artista.ui.theme.ArtistaTheme
 import com.artista.artista.ui.theme.Dimensions
 import com.google.android.gms.maps.model.CameraPosition
@@ -80,6 +81,7 @@ object ArtworkTestTags {
   const val BACK_BUTTON = "artwork_back_button"
   const val ARTWORK_TITLE = "artwork_title"
   const val ARTWORK_MAP_TILE = "artwork_map_tile"
+  const val ARTWORK_MAP_MARKER = "artwork_map_marker"
   const val ARTWORK_IMAGE = "artwork_image"
   const val ARTWORK_IMAGE_FALLBACK = "artwork_image_fallback"
   const val ARTWORK_LOADING_INDICATOR = "artwork_loading_indicator"
@@ -284,9 +286,10 @@ fun ArtworkScreen(
                 )
               }
         }
-        val mapTileMarkerState = remember {
-          MarkerState(position = artwork.location.let { LatLng(it.latitude, it.longitude) })
-        }
+        val mapTileMarkerState =
+            remember(key1 = artwork.uid) {
+              MarkerState(position = artwork.location.let { LatLng(it.latitude, it.longitude) })
+            }
 
         MapTile(
             modifier,
@@ -388,8 +391,10 @@ fun MapTile(
           cameraPositionState = cameraPositionState,
       ) {
         Marker(
+            tag = ArtworkTestTags.ARTWORK_MAP_MARKER,
             state = markerState,
             title = artworkName,
+            icon = ArtworkMarker.artworkMarkerIcon(),
         )
       }
     }
@@ -403,7 +408,7 @@ internal fun ArtworkPreview() {
   val sampleArtwork = mockArtworks.first()
   try {
     ArtworkRepositoryProvider.populateAPI()
-  } catch (e: Exception) {
+  } catch (_: Exception) {
     // Ignore any exceptions during preview population
   }
 
