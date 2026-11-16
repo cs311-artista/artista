@@ -348,6 +348,7 @@ internal fun RouteOverlay(
           modifier = modifier.testTag(MapScreenTestTags.ROUTE_LOADING),
           message = stringResource(R.string.map_route_loading),
           showProgress = true,
+          informational = true,
       )
     }
     is RouteUiState.Success -> {
