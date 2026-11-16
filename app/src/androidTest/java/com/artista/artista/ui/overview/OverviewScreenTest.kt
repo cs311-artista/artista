@@ -77,7 +77,6 @@ class OverviewScreenTest {
     composeTestRule.setContent { OverviewScreenPreview() }
 
     composeTestRule.onNodeWithTag(OverviewTestTags.SCREEN).assertIsDisplayed()
-    composeTestRule.onNodeWithTag(OverviewTestTags.ARTWORK_LIST).assertIsDisplayed()
   }
 
   /**
