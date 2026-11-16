@@ -2,6 +2,7 @@
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.overview
 
+import android.app.Instrumentation
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
@@ -19,6 +20,7 @@ import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.lifecycle.Lifecycle
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
 import com.artista.artista.R
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artist.failingWikiDataRepository
@@ -34,6 +36,7 @@ import com.artista.artista.ui.theme.ArtistaTheme
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -50,6 +53,22 @@ class OverviewScreenTest {
 
   private companion object {
     const val SAVE_OPERATION_TIMEOUT_MILLIS = 5_000L
+  }
+
+  private final val instrumentation: Instrumentation = InstrumentationRegistry.getInstrumentation()
+
+  @Before
+  fun setup() {
+    instrumentation.uiAutomation.adoptShellPermissionIdentity()
+    instrumentation.uiAutomation.grantRuntimePermission(
+        instrumentation.targetContext.packageName,
+        android.Manifest.permission.ACCESS_FINE_LOCATION,
+    )
+    instrumentation.uiAutomation.grantRuntimePermission(
+        instrumentation.targetContext.packageName,
+        android.Manifest.permission.ACCESS_COARSE_LOCATION,
+    )
+    instrumentation.uiAutomation.dropShellPermissionIdentity()
   }
 
   /** Verifies that the overview preview renders its sample artwork list. */
