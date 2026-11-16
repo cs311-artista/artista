@@ -472,7 +472,7 @@ private fun DisplayArtworkMarker(
         title = artwork.name,
         snippet = stringResource(R.string.map_marker_navigate_to),
         onInfoWindowClick = { onArtworkMarkerClick(artwork) },
-        icon = ArtworkMarker.artworkMarkerIcon(markerType.color),
+        icon = ArtworkMarker.artworkMarkerIcon(markerType),
     )
   }
 }

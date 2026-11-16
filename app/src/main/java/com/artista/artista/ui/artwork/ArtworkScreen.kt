@@ -292,7 +292,6 @@ fun ArtworkScreen(
             }
 
         MapTile(
-            modifier,
             mapTileCameraPositionState,
             mapTileMarkerState,
             artwork.location,
@@ -352,7 +351,6 @@ fun ArtworkFieldItem(
  */
 @Composable
 fun MapTile(
-    modifier: Modifier = Modifier,
     cameraPositionState: CameraPositionState,
     markerState: MarkerState,
     location: Location,
@@ -360,7 +358,7 @@ fun MapTile(
     onMapPressChanged: (Boolean) -> Unit = {},
 ) {
   OutlinedCard(
-      modifier = modifier.fillMaxWidth(),
+      modifier = Modifier.fillMaxWidth(),
       shape = RoundedCornerShape(Dimensions.cornerRadiusSmall),
   ) {
     Column(
