@@ -6,6 +6,7 @@ package com.artista.artista.ui.artwork
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -189,6 +190,19 @@ class ArtworkScreenTest {
           .isNotEmpty()
     }
     composeTestRule.onNodeWithTag(ArtworkTestTags.ARTWORK_ERROR_MESSAGE).assertExists()
+  }
+
+  @Test
+  fun artworkScreen_whenArtworkIsNull_saveButtonIsDisabled() {
+    setScreenContent(artwork = null)
+
+    composeTestRule.waitUntil(timeoutMillis = milliseconds) {
+      composeTestRule
+          .onAllNodesWithTag(ArtworkTestTags.ARTWORK_ERROR_MESSAGE)
+          .fetchSemanticsNodes()
+          .isNotEmpty()
+    }
+    composeTestRule.onNodeWithTag(ArtworkTestTags.SAVE_BUTTON).assertIsNotEnabled()
   }
 
   private fun setScreenContent(
