@@ -27,7 +27,6 @@ import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.SavedArtworksRepository
 import com.artista.artista.model.error.AppException
 import com.artista.artista.model.map.Location
-import com.artista.artista.ui.artwork.ArtworkFilterTestTags
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaTheme
 import kotlinx.coroutines.CompletableDeferred
@@ -137,9 +136,7 @@ class SavedArtworksScreenTest {
 
     composeTestRule.waitForIdle()
     composeTestRule.onNodeWithTag(SavedArtworksTestTags.FILTER_BUTTON).performClick()
-    composeTestRule
-        .onNodeWithTag("${ArtworkFilterTestTags.ARTIST}-input")
-        .performTextInput("vin")
+    composeTestRule.onNodeWithTag("${ArtworkFilterTestTags.ARTIST}-input").performTextInput("vin")
     composeTestRule
         .onNodeWithTag("${ArtworkFilterTestTags.ARTIST}-option-Vincent van Gogh")
         .performClick()
@@ -178,9 +175,7 @@ class SavedArtworksScreenTest {
 
     composeTestRule.waitForIdle()
     composeTestRule.onNodeWithTag(SavedArtworksTestTags.FILTER_BUTTON).performClick()
-    composeTestRule
-        .onNodeWithTag("${ArtworkFilterTestTags.ARTIST}-input")
-        .performTextInput("vin")
+    composeTestRule.onNodeWithTag("${ArtworkFilterTestTags.ARTIST}-input").performTextInput("vin")
     composeTestRule
         .onNodeWithTag("${ArtworkFilterTestTags.ARTIST}-option-Vincent van Gogh")
         .performClick()
