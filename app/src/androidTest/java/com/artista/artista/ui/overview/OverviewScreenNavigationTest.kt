@@ -1,6 +1,7 @@
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.overview
 
+import android.app.Instrumentation
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextEquals
@@ -17,6 +18,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.artista.artista.ArtistaNavHost
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
 import com.artista.artista.model.artwork.mockArtworks
+import com.artista.artista.model.location.FakeLocationProvider
 import com.artista.artista.model.walking.WalkingRouteRepositoryRemote
 import com.artista.artista.resources.C
 import com.artista.artista.ui.artwork.ArtworkCardTestTag
@@ -40,6 +42,7 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class OverviewScreenNavigationTest {
   private lateinit var repository: ArtworkRepositoryLocal
+  private final val instrumentation: Instrumentation = InstrumentationRegistry.getInstrumentation()
 
   /**
    * Gives each test its own seeded repository, so results do not depend on test order or on state
@@ -53,6 +56,16 @@ class OverviewScreenNavigationTest {
         ArtworkRepositoryLocal().also { localRepository ->
           mockArtworks.forEach { localRepository.putArtworkInRepositoryUnsavedSection(it) }
         }
+    instrumentation.uiAutomation.adoptShellPermissionIdentity()
+    instrumentation.uiAutomation.grantRuntimePermission(
+        instrumentation.targetContext.packageName,
+        android.Manifest.permission.ACCESS_FINE_LOCATION,
+    )
+    instrumentation.uiAutomation.grantRuntimePermission(
+        instrumentation.targetContext.packageName,
+        android.Manifest.permission.ACCESS_COARSE_LOCATION,
+    )
+    instrumentation.uiAutomation.dropShellPermissionIdentity()
   }
 
   @get:Rule val composeTestRule = createAndroidComposeRule<ComponentActivity>()
@@ -112,6 +125,7 @@ class OverviewScreenNavigationTest {
             wikiDataRepository = repository,
             savedArtworksRepository = repository,
             walkingRouteRepository = WalkingRouteRepositoryRemote(),
+            locationProvider = FakeLocationProvider(),
         )
       }
 
@@ -148,6 +162,7 @@ class OverviewScreenNavigationTest {
           wikiDataRepository = repository,
           savedArtworksRepository = repository,
           walkingRouteRepository = WalkingRouteRepositoryRemote(),
+          locationProvider = FakeLocationProvider(),
       )
     }
 

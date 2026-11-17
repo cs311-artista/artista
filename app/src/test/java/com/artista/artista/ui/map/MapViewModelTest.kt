@@ -2,8 +2,6 @@
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.map
 
-import android.content.ContextWrapper
-import android.location.Location
 import com.artista.artista.MainDispatcherRule
 import com.artista.artista.R
 import com.artista.artista.model.artist.Artist
@@ -15,11 +13,13 @@ import com.artista.artista.model.artwork.SavedArtworksRepository
 import com.artista.artista.model.artwork.SearchArea
 import com.artista.artista.model.artwork.WikiDataRepository
 import com.artista.artista.model.error.AppException
+import com.artista.artista.model.location.FakeLocationProvider
 import com.artista.artista.model.map.Coordinate
 import com.artista.artista.model.map.Location as ArtworkLocation
 import com.artista.artista.model.map.UserLocation
 import com.artista.artista.model.walking.WalkingRoute
 import com.artista.artista.model.walking.WalkingRouteRepository
+import com.artista.artista.resources.C
 import com.google.android.gms.maps.model.LatLng
 import kotlin.time.Duration.Companion.minutes
 import kotlinx.coroutines.CompletableDeferred
@@ -50,7 +50,7 @@ class MapViewModelTest {
    */
   @Test
   fun updateUserLocation_storesLocationAndClearsError() {
-    val viewModel = createViewModel()
+    val viewModel = createViewModel(FakeLocationProvider())
     viewModel.setLocationError(AppException.UserLocationError())
 
     val location = UserLocation(latitude = 46.5201, longitude = 6.6332)
@@ -67,7 +67,7 @@ class MapViewModelTest {
    */
   @Test
   fun setLocationError_storesMessageAndPreservesLocation() {
-    val viewModel = createViewModel()
+    val viewModel = createViewModel(FakeLocationProvider())
     val location = UserLocation(latitude = 46.5201, longitude = 6.6332)
     viewModel.updateUserLocation(location)
 
@@ -79,10 +79,11 @@ class MapViewModelTest {
 
   /** Verifies that a successful location request stores the acquired coordinates. */
   @Test
-  fun acquireLocation_withPermission_storesAcquiredLocation() {
-    val viewModel = createViewModel(locationProvider = fakeLocationProvider(LOCATION))
+  fun acquireLocation_withPermission_storesAcquiredLocation() = runTest {
+    val viewModel = createViewModel(FakeLocationProvider())
 
-    viewModel.acquireLocation(ContextWrapper(null))
+    viewModel.acquireLocation()
+    advanceUntilIdle()
 
     assertEquals(
         UserLocation(LOCATION.latitude, LOCATION.longitude),
@@ -93,20 +94,24 @@ class MapViewModelTest {
 
   /** Verifies that a null location exposes the unavailable-location error. */
   @Test
-  fun acquireLocation_withNoLocation_exposesUnavailableError() {
-    val viewModel = createViewModel(locationProvider = fakeLocationProvider(null))
+  fun acquireLocation_withNoLocation_exposesUnavailableError() = runTest {
+    val viewModel =
+        createViewModel(FakeLocationProvider(errorType = AppException.UserLocationError()))
 
-    viewModel.acquireLocation(ContextWrapper(null))
+    viewModel.acquireLocation()
+    advanceUntilIdle()
 
     assertEquals(R.string.error_user_location, viewModel.uiState.errorMsg)
   }
 
   /** Verifies that a failed location request exposes the acquisition error. */
   @Test
-  fun acquireLocation_whenRequestFails_exposesAcquisitionError() {
-    val viewModel = createViewModel(locationProvider = fakeLocationProviderFailure())
+  fun acquireLocation_whenRequestFails_exposesAcquisitionError() = runTest {
+    val viewModel =
+        createViewModel(FakeLocationProvider(errorType = AppException.UserLocationError()))
 
-    viewModel.acquireLocation(ContextWrapper(null))
+    viewModel.acquireLocation()
+    advanceUntilIdle()
 
     assertEquals(R.string.error_user_location, viewModel.uiState.errorMsg)
   }
@@ -116,7 +121,12 @@ class MapViewModelTest {
     val expected = listOf(sampleArtwork("remote"))
     val repository = FakeWikiDataRepository(expected)
     val viewModel =
-        MapViewModel(repository, EmptySavedArtworksRepository(), FakeWalkingRouteRepository())
+        MapViewModel(
+            repository,
+            EmptySavedArtworksRepository(),
+            FakeWalkingRouteRepository(),
+            FakeLocationProvider(),
+        )
 
     viewModel.updateUserLocation(UserLocation(46.52, 6.63))
     advanceUntilIdle()
@@ -129,7 +139,12 @@ class MapViewModelTest {
   fun remoteArtworkFailure_exposesAnErrorWithoutClearingExistingArtworks() = runTest {
     val repository = FakeWikiDataRepository(emptyList(), shouldFail = true)
     val viewModel =
-        MapViewModel(repository, EmptySavedArtworksRepository(), FakeWalkingRouteRepository())
+        MapViewModel(
+            repository,
+            EmptySavedArtworksRepository(),
+            FakeWalkingRouteRepository(),
+            FakeLocationProvider(),
+        )
 
     viewModel.updateUserLocation(UserLocation(46.52, 6.63))
     advanceUntilIdle()
@@ -140,12 +155,7 @@ class MapViewModelTest {
 
   @Test
   fun unauthenticatedSavedArtworkRead_keepsMapUsable() = runTest {
-    val viewModel =
-        MapViewModel(
-            FakeWikiDataRepository(emptyList()),
-            FailingSavedArtworksRepository(),
-            FakeWalkingRouteRepository(),
-        )
+    val viewModel = createViewModel(FakeLocationProvider())
 
     advanceUntilIdle()
 
@@ -155,13 +165,7 @@ class MapViewModelTest {
 
   @Test
   fun setLocationPermissionError_correctlyExposes_LocationPermissionError() = runTest {
-    val viewModel =
-        MapViewModel(
-            FakeWikiDataRepository(emptyList()),
-            EmptySavedArtworksRepository(),
-            FakeWalkingRouteRepository(),
-        )
-
+    val viewModel = createViewModel(FakeLocationProvider())
     assertNull(viewModel.uiState.errorMsg)
 
     viewModel.setLocationPermissionError(AppException.UserLocationError())
@@ -169,12 +173,12 @@ class MapViewModelTest {
     assertEquals(R.string.error_user_location, viewModel.uiState.errorMsg)
   }
 
-  private fun createViewModel(locationProvider: LocationProvider? = null): MapViewModel =
+  private fun createViewModel(fakeLocationProvider: FakeLocationProvider): MapViewModel =
       MapViewModel(
           ArtworkRepositoryProvider.mockRepository,
           ArtworkRepositoryProvider.mockRepository,
           FakeWalkingRouteRepository(),
-          locationProvider,
+          fakeLocationProvider,
       )
 
   @Test
@@ -187,6 +191,7 @@ class MapViewModelTest {
             FakeWikiDataRepository(listOf(artwork)),
             EmptySavedArtworksRepository(),
             repository,
+            FakeLocationProvider(),
         )
     viewModel.updateUserLocation(UserLocation(46.52, 6.63))
 
@@ -208,6 +213,7 @@ class MapViewModelTest {
             FakeWikiDataRepository(emptyList()),
             EmptySavedArtworksRepository(),
             repository,
+            FakeLocationProvider(),
         )
 
     viewModel.loadRouteTo(artwork)
@@ -220,10 +226,10 @@ class MapViewModelTest {
   }
 
   @Test
-  fun loadRouteTo_withoutLocation_thenLocationFails_exposesLocationUnavailable() {
+  fun loadRouteTo_withoutLocation_thenLocationFails_exposesLocationUnavailable() = runTest {
     val failures =
         listOf<Pair<String, (MapViewModel) -> Unit>>(
-            "no location returned" to { vm -> vm.acquireLocation(ContextWrapper(null)) },
+            "no location returned" to { vm -> vm.acquireLocation() },
             "permission denied" to
                 { vm ->
                   vm.setLocationPermissionError(AppException.UserLocationError())
@@ -231,11 +237,13 @@ class MapViewModelTest {
         )
 
     failures.forEach { (name, fail) ->
-      val viewModel = createViewModel(locationProvider = fakeLocationProvider(null))
+      val viewModel =
+          createViewModel(FakeLocationProvider(errorType = AppException.UserLocationError()))
 
       viewModel.loadRouteTo(artworkWithLocation("destination"))
       fail(viewModel)
 
+      advanceUntilIdle()
       assertEquals(name, RouteUiState.LocationUnavailable, viewModel.routeUiState)
     }
   }
@@ -248,6 +256,7 @@ class MapViewModelTest {
             FakeWikiDataRepository(listOf(artwork)),
             EmptySavedArtworksRepository(),
             FakeWalkingRouteRepository(exception = AppException.NotFound()),
+            FakeLocationProvider(),
         )
     viewModel.updateUserLocation(UserLocation(46.52, 6.63))
 
@@ -265,6 +274,7 @@ class MapViewModelTest {
             FakeWikiDataRepository(listOf(artwork)),
             EmptySavedArtworksRepository(),
             FakeWalkingRouteRepository(),
+            FakeLocationProvider(),
         )
     viewModel.updateUserLocation(UserLocation(46.52, 6.63))
 
@@ -305,6 +315,7 @@ class MapViewModelTest {
               FakeWikiDataRepository(listOf(artwork)),
               EmptySavedArtworksRepository(),
               FakeWalkingRouteRepository(exception = exception),
+              FakeLocationProvider(),
           )
       viewModel.updateUserLocation(UserLocation(46.52, 6.63))
 
@@ -324,6 +335,7 @@ class MapViewModelTest {
             FakeWikiDataRepository(listOf(artwork)),
             EmptySavedArtworksRepository(),
             repository,
+            FakeLocationProvider(),
         )
     viewModel.setLocationError(AppException.UserLocationError())
 
@@ -348,6 +360,7 @@ class MapViewModelTest {
             FakeWikiDataRepository(listOf(artwork)),
             EmptySavedArtworksRepository(),
             repository,
+            FakeLocationProvider(),
         )
     viewModel.updateUserLocation(UserLocation(46.52, 6.63))
     viewModel.loadRouteTo(artwork)
@@ -369,6 +382,7 @@ class MapViewModelTest {
             FakeWikiDataRepository(listOf(artwork)),
             EmptySavedArtworksRepository(),
             repository,
+            FakeLocationProvider(),
         )
     viewModel.updateUserLocation(UserLocation(46.52, 6.63))
 
@@ -389,6 +403,7 @@ class MapViewModelTest {
             FakeWikiDataRepository(listOf(artwork)),
             EmptySavedArtworksRepository(),
             repository,
+            FakeLocationProvider(),
         )
     viewModel.updateUserLocation(UserLocation(46.52, 6.63))
 
@@ -403,7 +418,7 @@ class MapViewModelTest {
 
   @Test
   fun retryRoute_withoutPreviousArtwork_doesNothing() = runTest {
-    val viewModel = createViewModel()
+    val viewModel = createViewModel(FakeLocationProvider())
 
     viewModel.retryRoute()
 
@@ -419,6 +434,7 @@ class MapViewModelTest {
             FakeWikiDataRepository(listOf(artwork)),
             EmptySavedArtworksRepository(),
             repository,
+            FakeLocationProvider(),
         )
     viewModel.updateUserLocation(UserLocation(46.52, 6.63))
     viewModel.loadRouteTo(artwork)
@@ -442,6 +458,7 @@ class MapViewModelTest {
             FakeWikiDataRepository(listOf(first, second)),
             EmptySavedArtworksRepository(),
             repository,
+            FakeLocationProvider(),
         )
 
     viewModel.loadRouteTo(first)
@@ -486,6 +503,7 @@ class MapViewModelTest {
             FakeWikiDataRepository(listOf(first, second)),
             EmptySavedArtworksRepository(),
             repository,
+            FakeLocationProvider(),
         )
     viewModel.updateUserLocation(UserLocation(46.52, 6.63))
 
@@ -580,23 +598,11 @@ class MapViewModelTest {
           wikiDataRepository = FakeWikiDataRepository(listOf()),
           savedArtworksRepository = EmptySavedArtworksRepository(),
           walkingRouteRepository = walkingRouteRepository,
+          locationProvider = FakeLocationProvider(),
       )
 
-  private fun fakeLocationProvider(location: Location?): LocationProvider =
-      LocationProvider { callback ->
-        callback(location)
-      }
-
-  private fun fakeLocationProviderFailure(): LocationProvider = LocationProvider { callback ->
-    callback(null)
-  }
-
   private companion object {
-    val LOCATION =
-        Location("test").apply {
-          latitude = 46.5201
-          longitude = 6.6332
-        }
+    val LOCATION = UserLocation(C.Constants.DEFAULT_MAP_LAT, C.Constants.DEFAULT_MAP_LONG)
 
     fun sampleArtwork(uid: ArtworkId) =
         Artwork(uid, "Artwork $uid", Artist("artist", "Artist"), null, null, null, null, null)

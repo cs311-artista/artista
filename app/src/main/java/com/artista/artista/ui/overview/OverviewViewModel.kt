@@ -16,6 +16,9 @@ import com.artista.artista.model.artwork.applyFilter
 import com.artista.artista.model.artwork.artistOptions
 import com.artista.artista.model.artwork.locationOptions
 import com.artista.artista.model.artwork.museumOptions
+import com.artista.artista.model.error.AppException
+import com.artista.artista.model.location.LocationProvider
+import com.artista.artista.model.map.UserLocation
 import com.artista.artista.ui.error.launchCatching
 import com.artista.artista.ui.error.toMessageRes
 import kotlinx.coroutines.Job
@@ -45,6 +48,8 @@ data class OverviewUiState(
     val artistOptions: List<String> = emptyList(),
     val museumOptions: List<String> = emptyList(),
     val locationOptions: List<String> = emptyList(),
+    val hasLocationPermission: Boolean = false,
+    val userLocation: UserLocation? = null,
     @param:StringRes val errorMessageRes: Int? = null,
     @param:StringRes val saveErrorMessageRes: Int? = null,
 )
@@ -61,6 +66,7 @@ data class OverviewUiState(
 class OverviewViewModel(
     private val artworkRepository: WikiDataRepository,
     private val savedArtworksRepository: SavedArtworksRepository,
+    private val locationProvider: LocationProvider,
 ) : ViewModel() {
 
   private val _uiState = MutableStateFlow(OverviewUiState())
@@ -85,13 +91,10 @@ class OverviewViewModel(
         tag = TAG,
         onError = { error -> _uiState.update { it.copy(errorMessageRes = error.toMessageRes()) } },
     ) {
-      val lausanneCenter =
-          SearchArea(
-              latitude = 46.5197,
-              longitude = 6.6323,
-              radiusKm = 5.0,
-          )
-      allArtworks = artworkRepository.getArtworksNearLocation(lausanneCenter)
+      val userLocation = locationProvider.getUserLocation()
+      val searchArea = SearchArea(userLocation.latitude, userLocation.longitude, 50.0)
+
+      allArtworks = artworkRepository.getArtworksNearLocation(searchArea, limit = 100)
       _uiState.update { current ->
         val activeFilter = current.activeFilter
         current.copy(
@@ -164,6 +167,16 @@ class OverviewViewModel(
   }
 
   /**
+   * Sets an error message to be displayed in the Overview screen.
+   *
+   * @param error the [AppException] that contains the error message resource
+   * @author 5kyPhy
+   */
+  fun setErrorMessage(error: AppException) {
+    _uiState.update { it.copy(errorMessageRes = error.toMessageRes()) }
+  }
+
+  /**
    * Clears the current Overview error message.
    *
    * @author patrickmcdan
@@ -191,6 +204,24 @@ class OverviewViewModel(
         )
   }
 
+  /**
+   * Handles permission result callback from the UI layer. Call this when activity result returns to
+   * update ViewModel state.
+   *
+   * @param granted whether the location permissions were granted by the user or not.
+   * @author 5kyPhy
+   */
+  fun handleLocationPermissionResult(granted: Boolean) {
+    viewModelScope.launchCatching(
+        tag = TAG,
+        onError = { error ->
+          _uiState.update { it.copy(saveErrorMessageRes = error.toMessageRes()) }
+        },
+    ) {
+      _uiState.update { it.copy(hasLocationPermission = granted) }
+    }
+  }
+
   companion object {
     private const val TAG = "OverviewViewModel"
 
@@ -205,12 +236,13 @@ class OverviewViewModel(
     fun provideFactory(
         repository: WikiDataRepository,
         savedArtworksRepository: SavedArtworksRepository,
+        locationClient: LocationProvider,
     ): ViewModelProvider.Factory =
         object : ViewModelProvider.Factory {
           @Suppress("UNCHECKED_CAST")
           override fun <T : ViewModel> create(modelClass: Class<T>): T {
             if (modelClass.isAssignableFrom(OverviewViewModel::class.java)) {
-              return OverviewViewModel(repository, savedArtworksRepository) as T
+              return OverviewViewModel(repository, savedArtworksRepository, locationClient) as T
             }
             throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
           }

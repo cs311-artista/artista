@@ -19,6 +19,7 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -122,6 +123,156 @@ class ArtistPreferencesViewModelTest {
     advanceUntilIdle()
 
     assertTrue(viewModel.uiState.value.popularArtists.isEmpty())
+  }
+
+  /** Verifies that the popular artists are marked as loading until the repository answers. */
+  @Test
+  fun init_whileLoadingPopularArtists_isLoading() = runTest {
+    val repository = ControllableWikiDataRepository().apply { pending = CompletableDeferred() }
+    val viewModel = ArtistPreferencesViewModel(repository, authRepository, userRepository)
+    advanceUntilIdle()
+
+    assertTrue(viewModel.uiState.value.isLoadingPopularArtists)
+    assertFalse(viewModel.uiState.value.hasPopularArtistsLoadFailed)
+
+    repository.pending?.complete(Unit)
+    advanceUntilIdle()
+
+    assertFalse(viewModel.uiState.value.isLoadingPopularArtists)
+    assertEquals(ALL_ARTISTS, viewModel.uiState.value.popularArtists)
+  }
+
+  /** Verifies that a successful load neither reports a failure nor shows a message. */
+  @Test
+  fun init_whenLoadingPopularArtistsSucceeds_reportsNoFailure() = runTest {
+    advanceUntilIdle()
+
+    val state = viewModel.uiState.value
+    assertFalse(state.isLoadingPopularArtists)
+    assertFalse(state.hasPopularArtistsLoadFailed)
+    assertNull(state.messageResId)
+  }
+
+  /** Verifies that a failed load is reported, with the message matching the failure. */
+  @Test
+  fun init_whenLoadingPopularArtistsFails_reportsFailureWithMessage() = runTest {
+    val repository = ControllableWikiDataRepository().apply { failure = AppException.Network() }
+    val viewModel = ArtistPreferencesViewModel(repository, authRepository, userRepository)
+    advanceUntilIdle()
+
+    val state = viewModel.uiState.value
+    assertTrue(state.hasPopularArtistsLoadFailed)
+    assertFalse(state.isLoadingPopularArtists)
+    assertEquals(R.string.error_network, state.messageResId)
+  }
+
+  /** Verifies that a failure that is not an AppException shows the generic message. */
+  @Test
+  fun init_whenLoadingPopularArtistsFailsUnexpectedly_showsUnknownMessage() = runTest {
+    val repository =
+        ControllableWikiDataRepository().apply { failure = IllegalStateException("Bug") }
+    val viewModel = ArtistPreferencesViewModel(repository, authRepository, userRepository)
+    advanceUntilIdle()
+
+    assertTrue(viewModel.uiState.value.hasPopularArtistsLoadFailed)
+    assertEquals(R.string.error_unknown, viewModel.uiState.value.messageResId)
+  }
+
+  /**
+   * Verifies that clearing the toast message does not hide the error state, so Try again stays
+   * available after the toast is gone.
+   */
+  @Test
+  fun clearMessage_afterPopularArtistsLoadFails_keepsFailure() = runTest {
+    val repository = ControllableWikiDataRepository().apply { failure = AppException.Network() }
+    val viewModel = ArtistPreferencesViewModel(repository, authRepository, userRepository)
+    advanceUntilIdle()
+    // Otherwise the test would pass even if the failure never set a message to clear.
+    assertNotNull(viewModel.uiState.value.messageResId)
+
+    viewModel.clearMessage()
+
+    assertNull(viewModel.uiState.value.messageResId)
+    assertTrue(viewModel.uiState.value.hasPopularArtistsLoadFailed)
+  }
+
+  /** Verifies that retrying after a failure loads the artists and clears the failure. */
+  @Test
+  fun loadPopularArtists_afterFailure_loadsArtistsAndClearsFailure() = runTest {
+    val repository = ControllableWikiDataRepository().apply { failure = AppException.Network() }
+    val viewModel = ArtistPreferencesViewModel(repository, authRepository, userRepository)
+    advanceUntilIdle()
+
+    repository.failure = null
+    viewModel.loadPopularArtists()
+    advanceUntilIdle()
+
+    val state = viewModel.uiState.value
+    assertEquals(ALL_ARTISTS, state.popularArtists)
+    assertFalse(state.hasPopularArtistsLoadFailed)
+    assertFalse(state.isLoadingPopularArtists)
+  }
+
+  /** Verifies that a retry hides the error state at once and shows the loading state instead. */
+  @Test
+  fun loadPopularArtists_afterFailure_showsLoadingWhileRetrying() = runTest {
+    val repository = ControllableWikiDataRepository().apply { failure = AppException.Network() }
+    val viewModel = ArtistPreferencesViewModel(repository, authRepository, userRepository)
+    advanceUntilIdle()
+
+    repository.pending = CompletableDeferred()
+    viewModel.loadPopularArtists()
+
+    // Checked before the retry runs: the state changes as soon as the user taps.
+    assertTrue(viewModel.uiState.value.isLoadingPopularArtists)
+    assertFalse(viewModel.uiState.value.hasPopularArtistsLoadFailed)
+  }
+
+  /** Verifies that a retry that fails again reports the failure again. */
+  @Test
+  fun loadPopularArtists_failsAgain_reportsFailureAgain() = runTest {
+    val repository = ControllableWikiDataRepository().apply { failure = AppException.Network() }
+    val viewModel = ArtistPreferencesViewModel(repository, authRepository, userRepository)
+    advanceUntilIdle()
+    viewModel.clearMessage()
+
+    viewModel.loadPopularArtists()
+    advanceUntilIdle()
+
+    assertTrue(viewModel.uiState.value.hasPopularArtistsLoadFailed)
+    assertEquals(R.string.error_network, viewModel.uiState.value.messageResId)
+    assertEquals(2, repository.callCount)
+  }
+
+  /**
+   * Verifies that a retry while a load is running is ignored, so a double tap sends one request.
+   */
+  @Test
+  fun loadPopularArtists_whileLoading_isIgnored() = runTest {
+    val repository = ControllableWikiDataRepository().apply { pending = CompletableDeferred() }
+    val viewModel = ArtistPreferencesViewModel(repository, authRepository, userRepository)
+    advanceUntilIdle()
+
+    viewModel.loadPopularArtists()
+    viewModel.loadPopularArtists()
+    advanceUntilIdle()
+
+    assertEquals(1, repository.callCount)
+  }
+
+  /** Verifies that the selection made while the artists failed to load is kept by a retry. */
+  @Test
+  fun loadPopularArtists_afterFailure_keepsSelection() = runTest {
+    val repository = ControllableWikiDataRepository().apply { failure = AppException.Network() }
+    val viewModel = ArtistPreferencesViewModel(repository, authRepository, userRepository)
+    advanceUntilIdle()
+    viewModel.toggleArtist(PICASSO.uid)
+
+    repository.failure = null
+    viewModel.loadPopularArtists()
+    advanceUntilIdle()
+
+    assertEquals(setOf(PICASSO.uid), viewModel.uiState.value.selectedArtists)
   }
 
   /** Verifies that the query is kept as typed, so the field never rewrites the user's text. */
@@ -360,7 +511,9 @@ class ArtistPreferencesViewModelTest {
 
   /** Verifies that selecting an artist enables Save. */
   @Test
-  fun canSave_afterToggle_isTrue() {
+  fun canSave_afterToggle_isTrue() = runTest {
+    // Save is disabled while the popular artists load, so the load must finish first.
+    advanceUntilIdle()
     viewModel.toggleArtist(PICASSO.uid)
 
     assertTrue(viewModel.uiState.value.canSave)
@@ -368,11 +521,67 @@ class ArtistPreferencesViewModelTest {
 
   /** Verifies that undoing a change disables Save again, since the selection is the saved one. */
   @Test
-  fun canSave_afterUndoingToggle_isFalse() {
+  fun canSave_afterUndoingToggle_isFalse() = runTest {
+    // Otherwise Save would already be disabled by the running load, and the test would pass for
+    // nothing.
+    advanceUntilIdle()
     viewModel.toggleArtist(PICASSO.uid)
     viewModel.toggleArtist(PICASSO.uid)
 
     assertFalse(viewModel.uiState.value.canSave)
+  }
+
+  /**
+   * Verifies that Save is disabled while the popular artists load, even with a changed selection.
+   */
+  @Test
+  fun canSave_whilePopularArtistsLoad_isFalse() {
+    val state =
+        ArtistPreferencesUiState(
+            selectedArtists = setOf(PICASSO.uid),
+            isLoadingPopularArtists = true,
+        )
+
+    assertFalse(state.canSave)
+  }
+
+  /** Verifies that Save is disabled while the saved artists load, even with a changed selection. */
+  @Test
+  fun canSave_whileSavedArtistsLoad_isFalse() {
+    val state =
+        ArtistPreferencesUiState(selectedArtists = setOf(PICASSO.uid), isLoadingSavedArtists = true)
+
+    assertFalse(state.canSave)
+  }
+
+  /** Verifies that a selection made during the popular-artists load can be saved once it ends. */
+  @Test
+  fun canSave_afterPopularArtistsLoad_isTrueAgain() = runTest {
+    val repository = ControllableWikiDataRepository().apply { pending = CompletableDeferred() }
+    val viewModel = ArtistPreferencesViewModel(repository, authRepository, userRepository)
+    advanceUntilIdle()
+    viewModel.toggleArtist(PICASSO.uid)
+    assertFalse(viewModel.uiState.value.canSave)
+
+    repository.pending?.complete(Unit)
+    advanceUntilIdle()
+
+    assertTrue(viewModel.uiState.value.canSave)
+  }
+
+  /** Verifies that a save requested while the popular artists load writes nothing. */
+  @Test
+  fun saveSelectedArtists_whilePopularArtistsLoad_doesNotWrite() = runTest {
+    val repository = ControllableWikiDataRepository().apply { pending = CompletableDeferred() }
+    val viewModel = ArtistPreferencesViewModel(repository, authRepository, userRepository)
+    signIn()
+    viewModel.toggleArtist(PICASSO.uid)
+
+    viewModel.saveSelectedArtists()
+    advanceUntilIdle()
+
+    assertEquals(0, userRepository.writeCount)
+    assertFalse(viewModel.uiState.value.isSaving)
   }
 
   /** Verifies that a successful save exposes the confirmation message and disables Save. */
@@ -662,6 +871,30 @@ class ArtistPreferencesViewModelTest {
    */
   private fun displayedArtistsFor(query: String): List<Artist> =
       ArtistPreferencesUiState(popularArtists = ALL_ARTISTS, searchQuery = query).displayedArtists
+
+  /**
+   * Catalog whose popular-artists load the test controls: it can be held until [pending] completes,
+   * and it fails with [failure] when one is set. Every other method is forwarded to an empty
+   * [ArtworkRepositoryLocal].
+   */
+  private class ControllableWikiDataRepository : WikiDataRepository by ArtworkRepositoryLocal() {
+    /** Thrown by the load when set, read once the load is released. */
+    var failure: Exception? = null
+
+    /** When set, the load waits for it to complete, which simulates a slow network. */
+    var pending: CompletableDeferred<Unit>? = null
+
+    /** Number of loads started, to check that a retry does not start a second one. */
+    var callCount = 0
+      private set
+
+    override suspend fun getPopularArtists(): List<Artist> {
+      callCount++
+      pending?.await()
+      failure?.let { throw it }
+      return ALL_ARTISTS
+    }
+  }
 
   private companion object {
     const val UID = "uid-1"

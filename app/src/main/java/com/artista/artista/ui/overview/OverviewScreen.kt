@@ -1,6 +1,7 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 package com.artista.artista.ui.overview
 
+import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -52,15 +53,19 @@ import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkFilter
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
-import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.artwork.mockArtworks
+import com.artista.artista.model.error.AppException
+import com.artista.artista.model.location.UserLocationProvider
 import com.artista.artista.ui.artwork.ArtworkCard
 import com.artista.artista.ui.artwork.ArtworkFilterDialog
+import com.artista.artista.ui.location.UserLocationPermission
+import com.artista.artista.ui.location.hasUserLocationPermissions
 import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaTheme
 import com.artista.artista.ui.theme.Dimensions
 import com.artista.artista.ui.theme.SearchBarPalette
+import com.google.android.gms.location.LocationServices
 
 /**
  * Provides stable semantics tags for Overview screen UI tests.
@@ -92,19 +97,13 @@ object OverviewTestTags {
  */
 @Composable
 fun OverviewScreen(
-    viewModel: OverviewViewModel =
-        viewModel(
-            factory =
-                OverviewViewModel.provideFactory(
-                    repository = ArtworkRepositoryProvider.wikiDataRepository,
-                    savedArtworksRepository = ArtworkRepositoryProvider.savedArtworksRepository,
-                )
-        ),
+    viewModel: OverviewViewModel,
     onTabSelected: (Tab) -> Unit = {},
     onArtworkClick: (Artwork) -> Unit = {},
     onSavedArtworksClick: () -> Unit = {},
     onSearchClick: () -> Unit = {},
     onMapClick: (Artwork) -> Unit = {},
+    hasLocationPermissions: (Context) -> Boolean = ::hasUserLocationPermissions,
 ) {
   val uiState by viewModel.uiState.collectAsState()
   val lifecycleOwner = LocalLifecycleOwner.current
@@ -112,6 +111,7 @@ fun OverviewScreen(
   val context = LocalContext.current
   val errorMessage = uiState.errorMessageRes?.let { stringResource(it) }
   val saveErrorMessage = uiState.saveErrorMessageRes?.let { stringResource(it) }
+  var locationAcquisitionRequested by remember { mutableStateOf(false) }
 
   // Overview may stay in memory while the artwork screen changes saved-artwork storage. Reload
   // saved IDs whenever Overview resumes so its bookmark icons reflect those external changes.
@@ -124,6 +124,19 @@ fun OverviewScreen(
     lifecycleOwner.lifecycle.addObserver(observer)
     onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
   }
+
+  UserLocationPermission(
+      onPermissionResult = { granted ->
+        viewModel.handleLocationPermissionResult(granted)
+        if (granted && (!locationAcquisitionRequested || uiState.userLocation == null)) {
+          locationAcquisitionRequested = true
+          viewModel.refreshUiState()
+        } else if (!granted) {
+          viewModel.setErrorMessage(AppException.PermissionsError())
+        }
+      },
+      hasPermissions = hasLocationPermissions,
+  )
 
   LaunchedEffect(errorMessage) {
     errorMessage?.let { Toast.makeText(context, it, Toast.LENGTH_LONG).show() }
@@ -313,10 +326,15 @@ private fun OverviewErrorContent(onSavedArtworksClick: () -> Unit) {
 @Preview(showBackground = true)
 @Composable
 internal fun OverviewScreenPreview() {
+  val locationClient = LocationServices.getFusedLocationProviderClient(LocalContext.current)
   val viewModel = remember {
     val repository = ArtworkRepositoryLocal()
     mockArtworks.forEach { repository.putArtworkInRepositoryUnsavedSection(it) }
-    OverviewViewModel(repository, repository)
+    OverviewViewModel(
+        repository,
+        repository,
+        UserLocationProvider(locationClient),
+    )
   }
   ArtistaTheme { OverviewScreen(viewModel = viewModel) }
 }
