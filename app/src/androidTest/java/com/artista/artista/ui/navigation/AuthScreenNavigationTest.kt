@@ -2,6 +2,7 @@
 // Co-authored-by: DeepSeek Flash
 package com.artista.artista.ui.navigation
 
+import android.app.Instrumentation
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
@@ -9,6 +10,7 @@ import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
 import com.artista.artista.ArtistaApp
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.authentication.FakeAuthRepository
@@ -17,6 +19,7 @@ import com.artista.artista.resources.C
 import com.artista.artista.ui.authentication.AuthViewModel
 import com.artista.artista.ui.authentication.FakeGoogleCredentialProvider
 import com.artista.artista.ui.overview.OverviewTestTags
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -34,8 +37,23 @@ import org.junit.runner.RunWith
  */
 @RunWith(AndroidJUnit4::class)
 class AuthScreenNavigationTest {
+  private final val instrumentation: Instrumentation = InstrumentationRegistry.getInstrumentation()
 
   @get:Rule val composeTestRule = createAndroidComposeRule<ComponentActivity>()
+
+  @Before
+  fun setup() {
+    instrumentation.uiAutomation.adoptShellPermissionIdentity()
+    instrumentation.uiAutomation.grantRuntimePermission(
+        instrumentation.targetContext.packageName,
+        android.Manifest.permission.ACCESS_FINE_LOCATION,
+    )
+    instrumentation.uiAutomation.grantRuntimePermission(
+        instrumentation.targetContext.packageName,
+        android.Manifest.permission.ACCESS_COARSE_LOCATION,
+    )
+    instrumentation.uiAutomation.dropShellPermissionIdentity()
+  }
 
   // Built outside the composition: a ViewModel belongs to a ViewModelStoreOwner, and the root only
   // needs the state it exposes.

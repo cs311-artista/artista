@@ -8,6 +8,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -26,6 +27,7 @@ import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -156,24 +158,38 @@ fun ArtistPreferencesScreen(
           style = MaterialTheme.typography.titleLarge,
           color = MaterialTheme.colorScheme.primary,
       )
-      // The weight keeps the save button above the bottom bar; the grid scrolls when it overflows.
-      // A lazy grid needs a bounded height: making this column scrollable would crash it.
-      LazyVerticalGrid(
-          columns = GridCells.Fixed(3),
-          modifier =
-              Modifier.weight(1f).fillMaxWidth().testTag(ArtistPreferencesTestTags.ARTISTS_GRID),
-          horizontalArrangement =
-              Arrangement.spacedBy(Dimensions.artistPreferencesGridHorizontalSpacing),
-          verticalArrangement =
-              Arrangement.spacedBy(Dimensions.artistPreferencesGridVerticalSpacing),
-      ) {
-        items(uiState.displayedArtists, key = { it.uid }) { artist ->
-          ArtistCard(
-              artist = artist,
-              selected = artist.uid in uiState.selectedArtists,
-              enabled = !uiState.isLoadingSavedArtists,
-              onToggle = { artistPreferencesViewModel.toggleArtist(artist.uid) },
-          )
+      // The loading and error states take the grid's place with the same weight, so the save
+      // button does not move.
+      if (uiState.isLoadingPopularArtists) {
+        // Without it, the grid stays empty during a slow load and a retry looks like it did
+        // nothing.
+        PopularArtistsLoadingState(modifier = Modifier.weight(1f).fillMaxWidth())
+      } else if (uiState.hasPopularArtistsLoadFailed) {
+        PopularArtistsLoadErrorState(
+            onRetry = artistPreferencesViewModel::loadPopularArtists,
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+        )
+      } else {
+        // The weight keeps the save button above the bottom bar; the grid scrolls when it
+        // overflows. A lazy grid needs a bounded height: making this column scrollable would crash
+        // it.
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(3),
+            modifier =
+                Modifier.weight(1f).fillMaxWidth().testTag(ArtistPreferencesTestTags.ARTISTS_GRID),
+            horizontalArrangement =
+                Arrangement.spacedBy(Dimensions.artistPreferencesGridHorizontalSpacing),
+            verticalArrangement =
+                Arrangement.spacedBy(Dimensions.artistPreferencesGridVerticalSpacing),
+        ) {
+          items(uiState.displayedArtists, key = { it.uid }) { artist ->
+            ArtistCard(
+                artist = artist,
+                selected = artist.uid in uiState.selectedArtists,
+                enabled = !uiState.isLoadingSavedArtists,
+                onToggle = { artistPreferencesViewModel.toggleArtist(artist.uid) },
+            )
+          }
         }
       }
       Button(
@@ -197,6 +213,58 @@ fun ArtistPreferencesScreen(
             style = MaterialTheme.typography.titleMedium,
         )
       }
+    }
+  }
+}
+
+/**
+ * Displays a spinner while the popular artists are loading.
+ *
+ * @param modifier modifier applied to the loading-state container
+ * @author krfpn
+ */
+@Composable
+private fun PopularArtistsLoadingState(modifier: Modifier = Modifier) {
+  Box(
+      modifier = modifier.testTag(ArtistPreferencesTestTags.LOADING_STATE),
+      contentAlignment = Alignment.Center,
+  ) {
+    CircularProgressIndicator()
+  }
+}
+
+/**
+ * Displays the popular-artists load error with a Retry button, so the user can retry after the
+ * toast is gone.
+ *
+ * @param onRetry called when the user taps Retry
+ * @param modifier modifier applied to the error-state container
+ * @author krfpn
+ */
+@Composable
+private fun PopularArtistsLoadErrorState(onRetry: () -> Unit, modifier: Modifier = Modifier) {
+  Column(
+      modifier = modifier.testTag(ArtistPreferencesTestTags.LOAD_ERROR_STATE),
+      verticalArrangement = Arrangement.Center,
+      horizontalAlignment = Alignment.CenterHorizontally,
+  ) {
+    Text(
+        text = stringResource(R.string.artist_preferences_load_error_state),
+        style = MaterialTheme.typography.bodyLarge,
+        color = MaterialTheme.colorScheme.error,
+        textAlign = TextAlign.Center,
+    )
+    Spacer(modifier = Modifier.height(Dimensions.artistPreferencesRetryButtonSpacing))
+    Button(
+        onClick = onRetry,
+        modifier = Modifier.testTag(ArtistPreferencesTestTags.RETRY_BUTTON),
+        colors =
+            ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.primary,
+            ),
+    ) {
+      Text(text = stringResource(R.string.try_again))
     }
   }
 }

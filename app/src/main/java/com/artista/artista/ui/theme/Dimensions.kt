@@ -114,6 +114,7 @@ internal object Dimensions {
   val artistPreferencesSectionSpacing = 16.dp
   val artistPreferencesGridHorizontalSpacing = 12.dp
   val artistPreferencesGridVerticalSpacing = 12.dp
+  val artistPreferencesRetryButtonSpacing = 16.dp
   val artistCardContentPadding = 8.dp
   val artistCardSelectionIndicatorPadding = 4.dp
   val artistCardNameTopSpacing = 8.dp
@@ -138,6 +139,10 @@ internal object Dimensions {
   // Bottom navigation.
   val navigationBarHorizontalPadding = 16.dp
   val navigationBarVerticalPadding = 16.dp
+
+  // Map screen.
+  val bottomMapToolBarPadding = 110.dp
+  val topMapToolBarPadding = 24.dp
 
   // Map route overlays.
   val mapRouteOverlayHorizontalPadding = 16.dp

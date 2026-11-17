@@ -104,7 +104,7 @@ val mockArtworks: List<Artwork> =
             description = "A bronze study of contemplation.",
             conceptionDate = Date(0L),
             museum = "Musée Rodin",
-            location = Location(2.3158, 48.8554, "Paris"),
+            location = Location(46.5, 6.63, "Paris"),
             dimension = Dimension(98.0, 189.0),
         ),
         Artwork(
@@ -134,7 +134,7 @@ val mockArtworks: List<Artwork> =
             description = "The artist is intentionally unknown.",
             conceptionDate = Date(315532800000L),
             museum = "Gallery \"North\"",
-            location = Location(13.4050, 52.5200, null),
+            location = Location(45.9, 6.635, null),
             dimension = Dimension(120.0, 80.0),
         ),
         Artwork(

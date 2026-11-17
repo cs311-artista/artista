@@ -4,6 +4,7 @@
 package com.artista.artista.e2e
 
 import androidx.activity.ComponentActivity
+import androidx.compose.ui.test.ComposeTimeoutException
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
@@ -22,6 +23,7 @@ import com.artista.artista.ArtistaApp
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.artwork.mockArtworks
 import com.artista.artista.model.authentication.FakeAuthRepository
+import com.artista.artista.model.location.FakeLocationProvider
 import com.artista.artista.model.user.UserRepositoryLocal
 import com.artista.artista.resources.C
 import com.artista.artista.ui.artwork.ArtworkTestTags
@@ -35,6 +37,7 @@ import com.artista.artista.ui.overview.OverviewTestTags
 import com.artista.artista.ui.preferences.ArtistPreferencesTestTags
 import com.artista.artista.ui.profile.UserProfileTestTags
 import kotlinx.coroutines.runBlocking
+import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -69,6 +72,7 @@ class CurrentAppUserJourneyTest {
 
   @Before
   fun setUp() {
+    grantLocationPermissions()
     val mockRepository = ArtworkRepositoryProvider.mockRepository
     mockRepository.clear()
     ArtworkRepositoryProvider.populateAPI()
@@ -80,8 +84,14 @@ class CurrentAppUserJourneyTest {
           credentialProvider = credentialProvider,
           wikiDataRepository = mockRepository,
           savedArtworksRepository = mockRepository,
+          locationProvider = FakeLocationProvider(),
       )
     }
+  }
+
+  @After
+  fun tearDown() {
+    instrumentation.uiAutomation.dropShellPermissionIdentity()
   }
 
   /**
@@ -308,34 +318,35 @@ class CurrentAppUserJourneyTest {
    * @author krfpn
    */
   private fun waitUntilDisplayed(tag: String) {
-    composeTestRule.waitUntil(timeoutMillis) {
-      try {
-        composeTestRule.onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty()
-      } catch (e: IllegalStateException) {
-        // Thrown as "No compose hierarchies found" while no root is attached
-        false
-      }
-    }
+    waitUntil("$tag to be displayed") { composeTestRule.onNodeWithTag(tag).isDisplayed() }
     composeTestRule.onNodeWithTag(tag).assertIsDisplayed()
   }
 
-  /**
-   * Grants the location permissions required for Map to render without a runtime permission dialog
-   * interrupting the navigation journey.
-   */
+  private fun waitUntil(description: String, condition: () -> Boolean) {
+    try {
+      composeTestRule.waitUntil(timeoutMillis) {
+        try {
+          condition()
+        } catch (e: IllegalStateException) {
+          // Thrown as "No compose hierarchies found" while no root is attached
+          false
+        }
+      }
+    } catch (e: ComposeTimeoutException) {
+      throw AssertionError("Timed out waiting for: $description", e)
+    }
+  }
+
+  /** Grants the location permissions. */
   private fun grantLocationPermissions() {
     instrumentation.uiAutomation.adoptShellPermissionIdentity()
-    try {
-      instrumentation.uiAutomation.grantRuntimePermission(
-          instrumentation.targetContext.packageName,
-          android.Manifest.permission.ACCESS_FINE_LOCATION,
-      )
-      instrumentation.uiAutomation.grantRuntimePermission(
-          instrumentation.targetContext.packageName,
-          android.Manifest.permission.ACCESS_COARSE_LOCATION,
-      )
-    } finally {
-      instrumentation.uiAutomation.dropShellPermissionIdentity()
-    }
+    instrumentation.uiAutomation.grantRuntimePermission(
+        instrumentation.targetContext.packageName,
+        android.Manifest.permission.ACCESS_FINE_LOCATION,
+    )
+    instrumentation.uiAutomation.grantRuntimePermission(
+        instrumentation.targetContext.packageName,
+        android.Manifest.permission.ACCESS_COARSE_LOCATION,
+    )
   }
 }
