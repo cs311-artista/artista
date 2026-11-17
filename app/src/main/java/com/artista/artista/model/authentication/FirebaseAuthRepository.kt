@@ -91,10 +91,18 @@ class FirebaseAuthRepository(private val auth: FirebaseAuth) : AuthRepository {
   /**
    * Adapts a Firebase user to the domain's thin [AuthUser] abstraction.
    *
+   * The Google provider reports the picture of the account as a URI, which becomes the picture URL
+   * of the session. A blank value is "no picture" rather than a picture nobody can display, and
+   * reading a URI cannot fail, so a malformed picture field can never fail a sign-in.
+   *
    * @return the domain representation of this Firebase user
    * @author timo-by
    */
-  private fun FirebaseUser.toAuthUser(): AuthUser = FirebaseAuthUser(uid)
+  private fun FirebaseUser.toAuthUser(): AuthUser =
+      FirebaseAuthUser(
+          uid = uid,
+          photoUrl = photoUrl?.toString()?.takeIf { it.isNotBlank() },
+      )
 }
 
 /**

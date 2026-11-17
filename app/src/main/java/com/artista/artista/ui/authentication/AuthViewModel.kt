@@ -14,15 +14,19 @@ import com.artista.artista.model.authentication.AuthRepository
 import com.artista.artista.model.authentication.AuthUser
 import com.artista.artista.model.error.AppException
 import com.artista.artista.model.user.User
+import com.artista.artista.model.user.UserId
 import com.artista.artista.model.user.UserPreference
 import com.artista.artista.model.user.UserRepository
 import com.artista.artista.ui.error.launchCatching
 import com.artista.artista.ui.error.toMessageRes
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 
 /**
  * What the application knows about the authentication session.
@@ -113,6 +117,25 @@ class AuthViewModel(
    */
   val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
 
+  /**
+   * The user whose profile initialization already ran for the current session, or `null` when no
+   * session has been initialized yet.
+   *
+   * @author timo-by
+   */
+  private var profileInitializedUserId: UserId? = null
+
+  /**
+   * The profile initialization running for the current session, or `null` when none is running.
+   *
+   * Held so that it can be cancelled: an initialization reads and writes over the network, and one
+   * still running when its session ends must neither write to the profile nor report a failure on
+   * behalf of the session that replaced it.
+   *
+   * @author timo-by
+   */
+  private var profileInitializationJob: Job? = null
+
   init {
     viewModelScope.launchCatching(
         tag = TAG,
@@ -122,6 +145,9 @@ class AuthViewModel(
     ) {
       repository.authState.collect { user ->
         _uiState.update { it.copy(session = sessionFor(user)) }
+        // Every session goes through here, including the one restored from the on-device cache,
+        // which never reaches signIn.
+        onSessionChanged(user)
       }
     }
   }
@@ -146,7 +172,7 @@ class AuthViewModel(
         // repository is reported as is, anything else becomes AppException.Unknown, and both are
         // logged.
         val authUser = repository.signIn(idToken).getOrThrow()
-        ensureProfileExists(authUser)
+        initializeProfileIfNeeded(authUser, ProfileInitializationTrigger.SIGN_IN)
       } finally {
         // Reset however the operation ends, so a failure does not leave the button spinning.
         _uiState.update { it.copy(isLoading = false) }
@@ -155,23 +181,131 @@ class AuthViewModel(
   }
 
   /**
-   * Ensures that a user profile document exists in [userRepository] for the given [user].
+   * Starts the profile initialization of the session the repository has just reported.
    *
-   * If no profile exists for [user], a default user profile with empty preferences is created. If a
-   * profile already exists, it is left untouched. Only [AppException.NotFound] means that the
-   * profile is absent; other failures keep the user signed in and expose a retry action.
+   * A session restored from the on-device cache never goes through [signIn], so the initialization
+   * has to be reachable from the authentication state too: without it, the profile of an account
+   * signed in before the picture existed would stay unsynchronized for as long as it is never
+   * signed out.
+   *
+   * @param user the user the repository reported, or `null` when nobody is signed in
+   * @author timo-by
+   */
+  private fun onSessionChanged(user: AuthUser?) {
+    if (user == null) {
+      // The session is over: the next one is a new session and gets initialized again, and an
+      // initialization still running now works for a session that no longer exists.
+      releaseSessionClaim()
+      return
+    }
+    // Initialization reports its own failure through [AuthUiState.profileInitializationFailed],
+    // which the signed-in graph turns into a retry action, so this launch has nothing to report.
+    viewModelScope.launch {
+      initializeProfileIfNeeded(user, ProfileInitializationTrigger.RESTORED_SESSION)
+    }
+  }
+
+  /**
+   * Forgets the initialized session, so that the next one is initialized in its turn.
+   *
+   * Cancelling what is still running is what keeps the initialization of a finished session from
+   * touching the profile and the state of the session that follows it.
+   *
+   * @author timo-by
+   */
+  private fun releaseSessionClaim() {
+    profileInitializedUserId = null
+    profileInitializationJob?.cancel()
+    profileInitializationJob = null
+  }
+
+  /**
+   * What started a profile initialization, which decides how its outcome is delivered.
+   *
+   * @author timo-by
+   */
+  private enum class ProfileInitializationTrigger {
+    /**
+     * A sign-in the user asked for. [signIn] waits for the initialization, so its spinner covers
+     * it, and a failure is always reported.
+     */
+    SIGN_IN,
+
+    /**
+     * A session reported by [AuthRepository.authState], usually one restored from the on-device
+     * cache at launch. Nothing waits for the initialization, and a launch without a connection
+     * stays quiet.
+     */
+    RESTORED_SESSION,
+  }
+
+  /**
+   * Initializes the profile of [user], at most once per session.
+   *
+   * The session is claimed before suspending, which is what makes one initialization happen even
+   * though both entry points have something to say about the same sign-in: [signIn] initializes the
+   * user it has just signed in, and the authentication state reports that same sign-in to the
+   * collector this ViewModel starts. A repeated notification of an unchanged user never reaches
+   * this method in production - [AuthRepository.authState] drops those - so the guard is about the
+   * two branches the app really runs rather than about the backend repeating itself, and it is what
+   * keeps a session that reports itself again from reading the profile a second time.
+   *
+   * @param user the signed-in user
+   * @param trigger what started this initialization, which decides how its outcome is delivered
+   * @author timo-by
+   */
+  private suspend fun initializeProfileIfNeeded(
+      user: AuthUser,
+      trigger: ProfileInitializationTrigger,
+  ) {
+    if (profileInitializedUserId == user.uid) return
+    profileInitializedUserId = user.uid
+    // The previous initialization has to be over before this one touches the state, so that its
+    // last update cannot land on the session this one belongs to.
+    profileInitializationJob?.cancelAndJoin()
+    val job = viewModelScope.launch {
+      ensureProfileExists(
+          user,
+          silentOnNetworkFailure = trigger == ProfileInitializationTrigger.RESTORED_SESSION,
+      )
+    }
+    profileInitializationJob = job
+    // A sign-in waits for its initialization so that its spinner covers it. A restored session
+    // has no spinner to cover it with, and its failure has a retry action of its own.
+    if (trigger == ProfileInitializationTrigger.SIGN_IN) job.join()
+  }
+
+  /**
+   * Ensures that the profile of the given [user] is stored and carries their picture.
+   *
+   * If no profile exists for [user], a default one is created, picture included. If a profile
+   * already exists, it is kept as it is and only its picture is refreshed from the provider. Only
+   * [AppException.NotFound] means that the profile is absent; other failures keep the user signed
+   * in and expose a retry action.
    *
    * @param user the signed-in user, as reported by the authentication repository
+   * @param silentOnNetworkFailure whether a [AppException.Network] failure is left unreported, as
+   *   it is for a session restored at launch: being offline is then the normal state of the
+   *   returning user, not something they did, and the profile screen already stays quiet about it
+   *   for the same reason
    * @author hixeum
    */
-  private suspend fun ensureProfileExists(user: AuthUser) {
+  private suspend fun ensureProfileExists(
+      user: AuthUser,
+      silentOnNetworkFailure: Boolean = false,
+  ) {
     _uiState.update { it.copy(isProfileInitializationInProgress = true) }
     try {
-      try {
-        userRepository.getUser(user.uid)
-      } catch (_: AppException.NotFound) {
-        // A missing profile is the only lookup result that justifies creating a default one.
-        userRepository.createUser(User(uid = user.uid, preference = UserPreference()))
+      // Only the lookup's NotFound means the profile is absent, so only it can justify a default
+      // profile. The same failure from the refresh means the document disappeared under us: a
+      // failure to retry, never a profile to recreate over the data it holds.
+      val storedProfile = findProfile(user.uid)
+      if (storedProfile == null) {
+        userRepository.createUser(
+            User(uid = user.uid, preference = UserPreference(), photoUrl = user.photoUrl),
+        )
+      } else {
+        refreshProfilePicture(storedProfile, user.photoUrl)
       }
       _uiState.update { it.copy(profileInitializationFailed = false) }
     } catch (exception: CancellationException) {
@@ -179,12 +313,53 @@ class AuthViewModel(
       throw exception
     } catch (exception: Exception) {
       // Authentication already succeeded; keep the user signed in and make profile recovery
-      // visible.
+      // visible, unless the launch was simply offline: a snackbar at every start without a
+      // connection would only be noise, and the next session that has a connection heals the
+      // picture.
       Log.e(TAG, "Failed to initialize the signed-in user's profile.", exception)
-      _uiState.update { it.copy(profileInitializationFailed = true) }
+      val isSilentNetworkFailure = silentOnNetworkFailure && (exception is AppException.Network)
+      _uiState.update { it.copy(profileInitializationFailed = !isSilentNetworkFailure) }
     } finally {
       _uiState.update { it.copy(isProfileInitializationInProgress = false) }
     }
+  }
+
+  /**
+   * Reads the stored profile of [uid].
+   *
+   * A user without a profile is an expected answer rather than a failure, so it is reported as
+   * `null` instead of as an [AppException]: only the caller can tell "this account has no profile
+   * yet" from "the profile could not be read", and only the first justifies creating one.
+   *
+   * @param uid identifier of the user whose profile to read
+   * @return the stored profile, or `null` when the user has none yet
+   * @author timo-by
+   */
+  private suspend fun findProfile(uid: UserId): User? =
+      try {
+        userRepository.getUser(uid)
+      } catch (_: AppException.NotFound) {
+        null
+      }
+
+  /**
+   * Writes the picture the provider reports into [storedProfile], when it has a new one.
+   *
+   * A provider that reports no picture leaves the stored one alone: a transient hiccup, or a
+   * picture hidden by a privacy setting, must not wipe it. A picture that already matches is not
+   * written either, so restoring a session costs no write.
+   *
+   * Only the picture is written, not the profile that was read: the profile screen and the
+   * preferences screen read the profile and write it back whole, so replacing the document here
+   * could revert one of their saves landing between this read and this write.
+   *
+   * @param storedProfile the profile as it is stored
+   * @param providerPictureUrl the picture the provider reports, or `null` when it reports none
+   * @author timo-by
+   */
+  private suspend fun refreshProfilePicture(storedProfile: User, providerPictureUrl: String?) {
+    if (providerPictureUrl == null || providerPictureUrl == storedProfile.photoUrl) return
+    userRepository.updatePhotoUrl(storedProfile.uid, providerPictureUrl)
   }
 
   /**
@@ -198,9 +373,13 @@ class AuthViewModel(
 
     // Let a later failed attempt transition back to true and display a fresh snackbar.
     _uiState.update { it.copy(profileInitializationFailed = false) }
-    viewModelScope.launchCatching(tag = TAG, onError = ::report) {
-      ensureProfileExists(session.user)
-    }
+    // Tracked like the initialization it repeats, so that a sign-out cancels it and it cannot
+    // report a failure on behalf of a session that has ended.
+    profileInitializationJob?.cancel()
+    profileInitializationJob =
+        viewModelScope.launchCatching(tag = TAG, onError = ::report) {
+          ensureProfileExists(session.user)
+        }
   }
 
   /**
@@ -266,6 +445,9 @@ class AuthViewModel(
    * @author timo-by
    */
   private fun reportStreamFailure(error: AppException) {
+    // Nothing will report a session again, so an initialization still running works for a session
+    // that can no longer be tracked either.
+    releaseSessionClaim()
     _uiState.update {
       it.copy(session = AuthSession.SignedOut, repositoryErrorMessageRes = error.toMessageRes())
     }

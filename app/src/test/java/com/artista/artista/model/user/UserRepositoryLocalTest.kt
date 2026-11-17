@@ -28,11 +28,7 @@ class UserRepositoryLocalTest {
     assertEquals(user, repository.getUser("user-1"))
   }
 
-  /**
-   * Checks that the picture URL survives a round trip through the local repository.
-   *
-   * @author timo-by
-   */
+  /** Checks that the picture URL survives a round trip through the local repository. */
   @Test
   fun createUser_keepsThePictureUrl() = runTest {
     val repository = UserRepositoryLocal()
@@ -42,11 +38,7 @@ class UserRepositoryLocalTest {
     assertEquals(TEST_PICTURE_URL, repository.getUser("user-1").photoUrl)
   }
 
-  /**
-   * Checks that updating the picture replaces it and leaves the rest of the profile as it was.
-   *
-   * @author timo-by
-   */
+  /** Checks that updating the picture replaces it and leaves the rest of the profile as it was. */
   @Test
   fun updatePhotoUrl_replacesThePictureUrl() = runTest {
     val repository = UserRepositoryLocal()

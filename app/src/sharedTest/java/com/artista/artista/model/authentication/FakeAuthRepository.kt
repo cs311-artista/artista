@@ -104,8 +104,9 @@ class FakeAuthRepository(initialUser: AuthUser? = null) : AuthRepository {
   override val authState: Flow<AuthUser?> = flow {
     authStateError?.let { throw it }
     if (authStateIsPending) awaitCancellation()
-    // The re-emissions are merged in so that a test can notify the same user twice, as the backend
-    // does on a token refresh.
+    // The re-emissions are merged in so that a test can notify the same user twice. Unlike
+    // [FirebaseAuthRepository], this flow neither conflates nor drops unchanged values: that is
+    // what lets a test express a notification the production flow filters out.
     emitAll(merge(state, reemissions))
   }
       .onStart { activeAuthStateCollectors++ }
@@ -142,11 +143,16 @@ class FakeAuthRepository(initialUser: AuthUser? = null) : AuthRepository {
   }
 
   /**
-   * Reports the current authentication state again, as the backend does when it notifies its
-   * listeners for an unchanged user, for example on a token refresh.
+   * Reports the current authentication state again, as a backend listener may notify an unchanged
+   * user, for example on a token refresh.
    *
    * A state holder drops a value equal to the one it already holds, so without this a test could
    * not tell "the same user arrived again" apart from "nothing happened".
+   *
+   * Production does not reach a collector with an unchanged user:
+   * [FirebaseAuthRepository.authState] drops those with `distinctUntilChanged()`. What this
+   * expresses is therefore the invariant the ViewModel has to hold on its own - one profile
+   * initialization per session - rather than an event the app really receives.
    *
    * @author timo-by
    */

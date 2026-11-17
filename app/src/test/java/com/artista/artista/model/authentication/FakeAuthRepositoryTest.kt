@@ -22,11 +22,7 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class FakeAuthRepositoryTest {
 
-  /**
-   * Checks that re-emitting reports the user of the current state to an active collector again.
-   *
-   * @author timo-by
-   */
+  /** Checks that re-emitting reports the user of the current state to an active collector again. */
   @Test
   fun reemitAuthState_reportsTheCurrentUserAgain() = runTest {
     val user = FakeAuthUser(uid = "user-1")

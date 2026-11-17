@@ -222,11 +222,7 @@ class UserRepositoryFirestoreTest : FirebaseEmulatedTest() {
     assertRepositoryThrows(AppException.InvalidData::class) { repository.getUser(testUserId) }
   }
 
-  /**
-   * Checks that the picture URL of a created profile reaches Firestore.
-   *
-   * @author timo-by
-   */
+  /** Checks that the picture URL of a created profile reaches Firestore. */
   @Test
   fun createUser_storesThePictureUrl() = runTest {
     repository.createUser(userWith(uid = testUserId, photoUrl = TEST_PICTURE_URL))
@@ -241,11 +237,7 @@ class UserRepositoryFirestoreTest : FirebaseEmulatedTest() {
     assertEquals(TEST_PICTURE_URL, stored.getString("photoUrl"))
   }
 
-  /**
-   * Checks that the stored picture URL is read back through the repository.
-   *
-   * @author timo-by
-   */
+  /** Checks that the stored picture URL is read back through the repository. */
   @Test
   fun getUser_returnsTheStoredPictureUrl() = runTest {
     repository.createUser(userWith(uid = testUserId, photoUrl = TEST_PICTURE_URL))
@@ -256,8 +248,6 @@ class UserRepositoryFirestoreTest : FirebaseEmulatedTest() {
   /**
    * Checks that a document written before the picture existed still loads, as a user without a
    * picture: no migration is needed.
-   *
-   * @author timo-by
    */
   @Test
   fun getUser_withoutPictureField_returnsNoPicture() = runTest {
@@ -266,11 +256,7 @@ class UserRepositoryFirestoreTest : FirebaseEmulatedTest() {
     assertNull(repository.getUser(testUserId).photoUrl)
   }
 
-  /**
-   * Checks that a blank picture URL is read as no picture.
-   *
-   * @author timo-by
-   */
+  /** Checks that a blank picture URL is read as no picture. */
   @Test
   fun getUser_withBlankPictureField_returnsNoPicture() = runTest {
     seedRawUserDocument(
@@ -291,8 +277,6 @@ class UserRepositoryFirestoreTest : FirebaseEmulatedTest() {
    * The picture is cosmetic while the name and the preferences are not, and the app could not
    * repair an unreadable value either, since the refresh that would overwrite it reads the profile
    * first: failing the lookup would hide those fields for good.
-   *
-   * @author timo-by
    */
   @Test
   fun getUser_withNonStringPictureField_returnsNoPicture() = runTest {
@@ -312,11 +296,7 @@ class UserRepositoryFirestoreTest : FirebaseEmulatedTest() {
     assertEquals(listOf("Van Gogh"), stored.preference.artists)
   }
 
-  /**
-   * Checks that an update replaces the stored picture URL.
-   *
-   * @author timo-by
-   */
+  /** Checks that an update replaces the stored picture URL. */
   @Test
   fun updateUser_replacesThePictureUrl() = runTest {
     repository.createUser(userWith(uid = testUserId, photoUrl = TEST_PICTURE_URL))
@@ -329,8 +309,6 @@ class UserRepositoryFirestoreTest : FirebaseEmulatedTest() {
   /**
    * Checks that a save which does not touch the picture keeps the stored one, which is what every
    * other screen of the app relies on when it reads a profile and writes it back.
-   *
-   * @author timo-by
    */
   @Test
   fun updateUser_withoutTouchingIt_keepsThePictureUrl() = runTest {
@@ -342,11 +320,7 @@ class UserRepositoryFirestoreTest : FirebaseEmulatedTest() {
     assertEquals(TEST_PICTURE_URL, repository.getUser(testUserId).photoUrl)
   }
 
-  /**
-   * Checks that a picture update stores the URL in the field the lookup reads.
-   *
-   * @author timo-by
-   */
+  /** Checks that a picture update stores the URL in the field the lookup reads. */
   @Test
   fun updatePhotoUrl_storesThePictureUrl() = runTest {
     repository.createUser(userWith(uid = testUserId))
@@ -359,8 +333,6 @@ class UserRepositoryFirestoreTest : FirebaseEmulatedTest() {
   /**
    * Checks that a picture update leaves every other field of the profile as it was, which is what
    * lets it run while another screen is saving the same profile.
-   *
-   * @author timo-by
    */
   @Test
   fun updatePhotoUrl_keepsTheOtherFields() = runTest {
@@ -374,11 +346,7 @@ class UserRepositoryFirestoreTest : FirebaseEmulatedTest() {
     )
   }
 
-  /**
-   * Checks that updating the picture of a profile that does not exist reports a missing user.
-   *
-   * @author timo-by
-   */
+  /** Checks that updating the picture of a profile that does not exist reports a missing user. */
   @Test
   fun updatePhotoUrl_withoutProfile_throwsNotFound() = runTest {
     assertRepositoryThrows(AppException.NotFound::class) {

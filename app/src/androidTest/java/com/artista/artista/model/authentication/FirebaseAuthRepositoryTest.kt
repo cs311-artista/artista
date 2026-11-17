@@ -137,8 +137,6 @@ class FirebaseAuthRepositoryTest {
    * The picture is set through the SDK rather than through a `picture` claim of a generated token,
    * so what is tested is the mapping the repository performs, not an assumption about how the
    * emulator fills the photo URL of an account.
-   *
-   * @author timo-by
    */
   @Test
   fun authState_reportsThePictureSetOnTheAccount() = runTest {
@@ -150,11 +148,7 @@ class FirebaseAuthRepositoryTest {
     assertEquals(TEST_PICTURE_URL, observed?.photoUrl)
   }
 
-  /**
-   * Verifies that an account without a picture reports none.
-   *
-   * @author timo-by
-   */
+  /** Verifies that an account without a picture reports none. */
   @Test
   fun authState_withoutPicture_reportsNoPicture() = runTest {
     FirebaseEmulator.auth.signInAnonymously().await()
@@ -167,8 +161,6 @@ class FirebaseAuthRepositoryTest {
    *
    * A returned user without the picture would leave a fresh sign-in with nothing to store, while a
    * restored session (covered above) had it: the two paths must not disagree.
-   *
-   * @author timo-by
    */
   @Test
   fun signIn_reportsThePictureOfTheSignedInAccount() = runTest {
