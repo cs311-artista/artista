@@ -18,6 +18,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.artista.artista.R
 import com.artista.artista.model.artist.Artist
@@ -26,6 +27,7 @@ import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.SavedArtworksRepository
 import com.artista.artista.model.error.AppException
 import com.artista.artista.model.map.Location
+import com.artista.artista.ui.artwork.ArtworkFilterTestTags
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaTheme
 import kotlinx.coroutines.CompletableDeferred
@@ -106,6 +108,73 @@ class SavedArtworksScreenTest {
     composeTestRule.onNodeWithText(artistName).assertIsDisplayed()
     val title = checkNotNull(savedArtwork.name)
     composeTestRule.onNodeWithText(title).assertIsDisplayed()
+  }
+
+  /** Verifies that the filter action opens the shared artwork filter dialog. */
+  @Test
+  fun savedArtworksScreen_filterButton_opensFilterDialog() {
+    fakeRepository.savedArtworks.add(savedArtwork)
+    setScreenContent()
+
+    composeTestRule.waitForIdle()
+    composeTestRule.onNodeWithTag(SavedArtworksTestTags.FILTER_BUTTON).performClick()
+
+    composeTestRule.onNodeWithTag(ArtworkFilterTestTags.DIALOG).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(ArtworkFilterTestTags.APPLY_BUTTON).assertIsDisplayed()
+  }
+
+  /** Verifies that applying a saved-artwork filter updates the displayed cards. */
+  @Test
+  fun savedArtworksScreen_applyingFilter_updatesSavedArtworkList() {
+    val otherArtwork =
+        savedArtwork.copy(
+            uid = "vermeerId",
+            name = "Girl with a Pearl Earring",
+            artist = Artist("test-vermeer", "Johannes Vermeer"),
+        )
+    fakeRepository.savedArtworks.addAll(listOf(savedArtwork, otherArtwork))
+    setScreenContent()
+
+    composeTestRule.waitForIdle()
+    composeTestRule.onNodeWithTag(SavedArtworksTestTags.FILTER_BUTTON).performClick()
+    composeTestRule
+        .onNodeWithTag("${ArtworkFilterTestTags.ARTIST}-input")
+        .performTextInput("vin")
+    composeTestRule
+        .onNodeWithTag("${ArtworkFilterTestTags.ARTIST}-option-Vincent van Gogh")
+        .performClick()
+    composeTestRule.onNodeWithTag(ArtworkFilterTestTags.APPLY_BUTTON).performClick()
+
+    composeTestRule.onNodeWithTag(SavedArtworksTestTags.card(savedArtwork)).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(SavedArtworksTestTags.card(otherArtwork)).assertDoesNotExist()
+  }
+
+  /** Verifies that clearing a saved-artwork filter restores the complete list. */
+  @Test
+  fun savedArtworksScreen_clearingFilter_restoresSavedArtworkList() {
+    val otherArtwork =
+        savedArtwork.copy(
+            uid = "vermeerId",
+            name = "Girl with a Pearl Earring",
+            artist = Artist("test-vermeer", "Johannes Vermeer"),
+        )
+    fakeRepository.savedArtworks.addAll(listOf(savedArtwork, otherArtwork))
+    setScreenContent()
+
+    composeTestRule.waitForIdle()
+    composeTestRule.onNodeWithTag(SavedArtworksTestTags.FILTER_BUTTON).performClick()
+    composeTestRule
+        .onNodeWithTag("${ArtworkFilterTestTags.ARTIST}-input")
+        .performTextInput("vin")
+    composeTestRule
+        .onNodeWithTag("${ArtworkFilterTestTags.ARTIST}-option-Vincent van Gogh")
+        .performClick()
+    composeTestRule.onNodeWithTag(ArtworkFilterTestTags.APPLY_BUTTON).performClick()
+    composeTestRule.onNodeWithTag(SavedArtworksTestTags.FILTER_BUTTON).performClick()
+    composeTestRule.onNodeWithTag(ArtworkFilterTestTags.CLEAR_BUTTON).performClick()
+
+    composeTestRule.onNodeWithTag(SavedArtworksTestTags.card(savedArtwork)).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(SavedArtworksTestTags.card(otherArtwork)).assertIsDisplayed()
   }
 
   /** Verifies that an artwork without an artist name displays the shared fallback text. */
