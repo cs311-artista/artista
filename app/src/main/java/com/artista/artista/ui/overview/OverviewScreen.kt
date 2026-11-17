@@ -166,7 +166,7 @@ fun OverviewScreen(
             ) {
               Icon(
                   imageVector = Icons.Outlined.FilterList,
-                  contentDescription = stringResource(R.string.overview_filter_open),
+                  contentDescription = stringResource(R.string.artwork_filter_open),
                   tint = MaterialTheme.colorScheme.onSurface,
               )
             }
@@ -207,7 +207,7 @@ fun OverviewScreen(
           contentAlignment = Alignment.Center,
       ) {
         Text(
-            text = stringResource(R.string.overview_filter_empty_results),
+            text = stringResource(R.string.artwork_filter_empty_results),
             modifier = Modifier.testTag(OverviewTestTags.EMPTY_FILTER_RESULTS),
         )
       }
