@@ -7,6 +7,7 @@ import androidx.compose.ui.graphics.toArgb
 import com.artista.artista.model.map.UserLocation
 import com.artista.artista.resources.C
 import com.artista.artista.ui.location.USER_LOCATION_PERMISSIONS
+import com.artista.artista.ui.shared.MarkerType
 import com.artista.artista.ui.theme.ArtistaColors
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -49,7 +50,7 @@ class MapScreenTest {
 
     assertEquals(userLocation.latitude, camera.target.latitude, COORDINATE_TOLERANCE)
     assertEquals(userLocation.longitude, camera.target.longitude, COORDINATE_TOLERANCE)
-    assertEquals(USER_LOCATION_ZOOM, camera.zoom)
+    assertEquals(C.Constants.USER_LOCATION_ZOOM, camera.zoom)
   }
 
   /** Verifies that permission requests include fine and coarse location access. */

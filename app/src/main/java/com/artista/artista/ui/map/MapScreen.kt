@@ -3,13 +3,10 @@
 package com.artista.artista.ui.map
 
 import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.graphics.Paint
-import android.graphics.Path
 import android.widget.Toast
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -36,14 +33,12 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntSize
-import androidx.core.graphics.createBitmap
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.artista.artista.R
@@ -59,15 +54,17 @@ import com.artista.artista.ui.location.UserLocationPermission
 import com.artista.artista.ui.location.hasUserLocationPermissions
 import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
+import com.artista.artista.ui.shared.ArtworkMarker
+import com.artista.artista.ui.shared.MarkerType
 import com.artista.artista.ui.theme.ArtistaColors
 import com.artista.artista.ui.theme.ArtistaTheme
 import com.artista.artista.ui.theme.Dimensions
 import com.google.android.gms.maps.CameraUpdateFactory
-import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
 import com.google.maps.android.compose.GoogleMap
+import com.google.maps.android.compose.MapProperties
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.Polyline
@@ -81,9 +78,6 @@ import com.google.maps.android.compose.rememberCameraPositionState
 object MapScreenTestTags {
   /** Tag identifying the Google Map surface. */
   const val MAP = "map_surface"
-
-  /** Tag identifying the marker for the user's current location. */
-  const val USER_LOCATION_MARKER = "map_user_location_marker"
 
   /** Tag identifying markers for artworks loaded from the remote repository. */
   const val REMOTE_ARTWORK_MARKER = "map_remote_artwork_marker"
@@ -117,22 +111,11 @@ object MapScreenTestTags {
 }
 
 /**
- * Identifies the artwork source represented by a map marker.
- *
- * @property color ARGB color used to render the marker icon.
- * @author 5kyPhy
- */
-enum class MarkerType(val color: Int) {
-  SavedArtwork(ArtistaColors.SavedArtworkMarker.toArgb()),
-  RemoteArtwork(ArtistaColors.RemoteArtworkMarker.toArgb()),
-}
-
-/**
  * Returns the test tag associated with an artwork marker type.
  *
  * @param markerType source represented by the marker.
  * @return stable marker tag used by map tests and Google Maps marker metadata.
- * @author Copilot
+ * @author 5kyPhy
  */
 internal fun markerTag(markerType: MarkerType): String =
     when (markerType) {
@@ -156,8 +139,6 @@ internal fun remoteArtworksNotSaved(
   return remoteArtworks.filterNot { it.uid in savedArtworkIds }
 }
 
-internal const val USER_LOCATION_ZOOM = 15f
-
 /**
  * Displays a map centered on the user's current position.
  *
@@ -177,9 +158,6 @@ fun MapScreen(
   val userLocation = uiState.userLocation
   val latestRouteUiState by rememberUpdatedState(routeUiState)
   val cameraPositionState = rememberCameraPositionState { position = cameraPositionFor(null) }
-  val markerState = remember {
-    MarkerState(position = LatLng(C.Constants.DEFAULT_MAP_LAT, C.Constants.DEFAULT_MAP_LONG))
-  }
 
   var locationAcquisitionRequested by remember { mutableStateOf(false) }
 
@@ -206,12 +184,11 @@ fun MapScreen(
     errorMessage?.let { Toast.makeText(context, it, Toast.LENGTH_LONG).show() }
   }
 
-  // Recenter map and move marker when user location changes.
+  // Recenter map when user location changes.
   // Only recenter when no route is currently displayed, so the user can explore the map without
   // being interrupted by the camera moving back to their location.
   LaunchedEffect(userLocation) {
     userLocation?.let {
-      markerState.position = LatLng(it.latitude, it.longitude)
       if (latestRouteUiState !is RouteUiState.Success) {
         cameraPositionState.position = cameraPositionFor(it)
       }
@@ -242,14 +219,13 @@ fun MapScreen(
         modifier = Modifier.fillMaxSize().testTag(MapScreenTestTags.MAP),
         cameraPositionState = cameraPositionState,
         onMapLoaded = { mapLoaded = true },
+        properties = MapProperties(isMyLocationEnabled = uiState.hasLocationPermission),
+        contentPadding =
+            PaddingValues(
+                bottom = Dimensions.bottomMapToolBarPadding,
+                top = Dimensions.topMapToolBarPadding,
+            ),
     ) {
-      uiState.userLocation?.let {
-        Marker(
-            tag = MapScreenTestTags.USER_LOCATION_MARKER,
-            state = markerState,
-            title = stringResource(R.string.map_location_marker_text),
-        )
-      }
       uiState.savedArtworks.forEach { artwork ->
         DisplayArtworkMarker(artwork, onArtworkMarkerClick, MarkerType.SavedArtwork)
       }
@@ -472,6 +448,14 @@ private fun RouteMessageCard(
   }
 }
 
+/**
+ * Displays a map marker for an artwork.
+ *
+ * @param artwork artwork represented by the marker.
+ * @param onArtworkMarkerClick called when the marker's info window is clicked.
+ * @param markerType source represented by the marker.
+ * @author 5kyPhy
+ */
 @Composable
 private fun DisplayArtworkMarker(
     artwork: Artwork,
@@ -483,60 +467,17 @@ private fun DisplayArtworkMarker(
         remember(key1 = artwork.uid) {
           MarkerState(position = LatLng(artwork.location.latitude, artwork.location.longitude))
         }
+    val icon = remember(markerType) { ArtworkMarker.artworkMarkerIcon(markerType) }
     Marker(
         tag = markerTag(markerType),
         state = artworkMarkerState,
         title = artwork.name,
         snippet = stringResource(R.string.map_marker_navigate_to),
         onInfoWindowClick = { onArtworkMarkerClick(artwork) },
-        icon = artworkMarkerIcon(markerType.color),
+        icon = icon,
     )
   }
 }
-
-/**
- * Creates a map-compatible pin icon using the supplied centralized artwork color.
- *
- * Google Maps requires a [com.google.android.gms.maps.model.BitmapDescriptor] for marker icons, so
- * the Compose color cannot be passed directly to [Marker].
- *
- * @param color ARGB color used for the pin body.
- * @return bitmap descriptor containing a colored pin with a white center.
- * @author 5kyPhy
- */
-private fun artworkMarkerIcon(color: Int) =
-    BitmapDescriptorFactory.fromBitmap(artworkMarkerBitmap(color))
-
-/**
- * Renders the colored pin bitmap used by an artwork map marker.
- *
- * @param color ARGB color used for the pin body.
- * @return bitmap containing a colored pin with a white center.
- * @author Copilot
- */
-private fun artworkMarkerBitmap(color: Int): Bitmap =
-    createBitmap(48, 64).also { bitmap ->
-      Canvas(bitmap).apply {
-        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color }
-        // Draw the pin manually so its color comes from the shared Compose palette.
-        val path =
-            Path().apply {
-              moveTo(24f, 64f)
-              cubicTo(20f, 56f, 4f, 42f, 4f, 24f)
-              cubicTo(4f, 11f, 13f, 2f, 24f, 2f)
-              cubicTo(35f, 2f, 44f, 11f, 44f, 24f)
-              cubicTo(44f, 42f, 28f, 56f, 24f, 64f)
-              close()
-            }
-        drawPath(path, paint)
-        drawCircle(
-            24f,
-            24f,
-            8f,
-            Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = android.graphics.Color.WHITE },
-        )
-      }
-    }
 
 /**
  * Builds the initial or user-centered camera position.
@@ -549,7 +490,8 @@ internal fun cameraPositionFor(userLocation: UserLocation?): CameraPosition {
   val target =
       userLocation?.let { LatLng(it.latitude, it.longitude) }
           ?: LatLng(C.Constants.DEFAULT_MAP_LAT, C.Constants.DEFAULT_MAP_LONG)
-  val zoom = if (userLocation == null) C.Constants.DEFAULT_MAP_ZOOM else USER_LOCATION_ZOOM
+  val zoom =
+      if (userLocation == null) C.Constants.DEFAULT_MAP_ZOOM else C.Constants.USER_LOCATION_ZOOM
   return CameraPosition.fromLatLngZoom(target, zoom)
 }
 

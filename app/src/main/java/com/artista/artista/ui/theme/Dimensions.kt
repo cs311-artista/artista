@@ -140,6 +140,10 @@ internal object Dimensions {
   val navigationBarHorizontalPadding = 16.dp
   val navigationBarVerticalPadding = 16.dp
 
+  // Map screen.
+  val bottomMapToolBarPadding = 110.dp
+  val topMapToolBarPadding = 24.dp
+
   // Map route overlays.
   val mapRouteOverlayHorizontalPadding = 16.dp
   val mapRouteOverlayTopPadding = 60.dp
