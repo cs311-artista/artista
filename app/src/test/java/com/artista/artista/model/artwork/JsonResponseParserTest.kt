@@ -86,9 +86,7 @@ class JsonResponseParserTest {
         )
 
     invalidResponses.forEach { response ->
-      assertThrows(AppException.InvalidData::class.java) {
-        parser.parseArtistCandidates(response)
-      }
+      assertThrows(AppException.InvalidData::class.java) { parser.parseArtistCandidates(response) }
     }
   }
 
@@ -167,6 +165,20 @@ class JsonResponseParserTest {
   @Test
   fun parseCuratedArtistQid_returnsNullWhenThereAreNoBindings() {
     assertNull(parser.parseCuratedArtistQid("""{"results":{"bindings":[]}}"""))
+  }
+
+  @Test
+  fun parseCuratedArtistQid_throwsInvalidDataForMalformedResponseOrInvalidArtistUri() {
+    val malformedResponse = """{"results":{}}"""
+    val invalidArtistUri =
+        """{"results":{"bindings":[{"artist":{"value":"http://www.wikidata.org/entity/not-a-qid"}}]}}"""
+
+    assertThrows(AppException.InvalidData::class.java) {
+      parser.parseCuratedArtistQid(malformedResponse)
+    }
+    assertThrows(AppException.InvalidData::class.java) {
+      parser.parseCuratedArtistQid(invalidArtistUri)
+    }
   }
 
   private companion object {
