@@ -19,6 +19,7 @@
     <string name="artwork_no_description">No description available</string>
     <string name="artwork_no_location">Location not specified</string>
     <string name="artwork_no_dimensions">Dimensions unavailable</string>
+    <string name="artwork_try_again">Try again</string>
 
     <string name="artwork_location_format">%1$.5f, %2$.5f</string>
     <string name="artwork_card_map">Map</string>
@@ -57,6 +58,19 @@
     <string name="saved_artworks_empty">You have no saved artworks yet.</string>
     <string name="saved_artworks_loading">Loading saved artworks...</string>
     <string name="saved_artworks_load_error_state">Your saved artworks couldn\'t be loaded.</string>
+    <string name="saved_artworks_try_again">Try again</string>
+    <string name="artwork_filter_open">Filter artworks</string>
+    <string name="artwork_filter_title">Filter artworks</string>
+    <string name="artwork_filter_artist">Artist</string>
+    <string name="artwork_filter_museum">Museum</string>
+    <string name="artwork_filter_location">Location</string>
+    <string name="artwork_filter_from_year">From year</string>
+    <string name="artwork_filter_to_year">To year</string>
+    <string name="artwork_filter_invalid_year_range">From year must not exceed to year.</string>
+    <string name="artwork_filter_remove">Remove filter</string>
+    <string name="artwork_filter_apply">Apply</string>
+    <string name="artwork_filter_clear">Clear all</string>
+    <string name="artwork_filter_empty_results">No artworks match the selected filters.</string>
 
     <!-- Authentication screen -->
     <string name="sign_in_with_google">Sign in with Google</string>
@@ -70,18 +84,6 @@
     <string name="overview_load_error">Unable to load nearby artworks.</string>
     <string name="overview_saved_artworks_action">Saved artworks</string>
     <string name="overview_search_placeholder">Search artworks or artists</string>
-    <string name="overview_filter_open">Filter artworks</string>
-    <string name="overview_filter_title">Filter artworks</string>
-    <string name="overview_filter_artist">Artist</string>
-    <string name="overview_filter_museum">Museum</string>
-    <string name="overview_filter_location">Location</string>
-    <string name="overview_filter_from_year">From year</string>
-    <string name="overview_filter_to_year">To year</string>
-    <string name="overview_filter_invalid_year_range">From year must not exceed to year.</string>
-    <string name="overview_filter_remove">Remove filter</string>
-    <string name="overview_filter_apply">Apply</string>
-    <string name="overview_filter_clear">Clear all</string>
-    <string name="overview_filter_empty_results">No artworks match the selected filters.</string>
     <string name="search_placeholder">Search artworks</string>
     <string name="search_loading">Loading artworks</string>
     <string name="search_empty_results_title">No artworks found</string>
