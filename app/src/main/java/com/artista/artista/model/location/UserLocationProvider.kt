@@ -2,6 +2,7 @@ package com.artista.artista.model.location
 
 import com.artista.artista.model.error.AppException
 import com.artista.artista.model.map.UserLocation
+import com.google.android.gms.location.CurrentLocationRequest
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
@@ -14,7 +15,12 @@ import kotlinx.coroutines.tasks.await
  * @param locationClient the client used to fetch the user's location
  * @author 5kyPhy
  */
-class UserLocationProvider(val locationClient: FusedLocationProviderClient) : LocationProvider {
+class UserLocationProvider(private val locationClient: FusedLocationProviderClient) :
+    LocationProvider {
+  companion object {
+    private const val LOCATION_ACQUISITION_TIMEOUT = 10_000L
+    private const val LOCATION_CACHE_MAX_AGE = 30_000L
+  }
 
   /**
    * Returns the user's current location.
@@ -27,8 +33,14 @@ class UserLocationProvider(val locationClient: FusedLocationProviderClient) : Lo
   override suspend fun getUserLocation(): UserLocation {
     val cts = CancellationTokenSource()
     try {
+      val request =
+          CurrentLocationRequest.Builder()
+              .setPriority(Priority.PRIORITY_HIGH_ACCURACY)
+              .setDurationMillis(LOCATION_ACQUISITION_TIMEOUT)
+              .setMaxUpdateAgeMillis(LOCATION_CACHE_MAX_AGE)
+              .build()
       val location =
-          locationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, cts.token).await()
+          locationClient.getCurrentLocation(request, cts.token).await()
               ?: throw AppException.UserLocationError("Location was unavailable.")
       return UserLocation(location.latitude, location.longitude)
     } catch (e: AppException) {
