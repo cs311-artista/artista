@@ -454,7 +454,7 @@ private fun RouteMessageCard(
             modifier = Modifier.testTag(MapScreenTestTags.ROUTE_RETRY_BUTTON),
             onClick = it,
         ) {
-          Text(text = stringResource(R.string.map_route_retry))
+          Text(text = stringResource(R.string.try_again))
         }
       }
       onDismiss?.let {

@@ -6,7 +6,7 @@ import com.artista.artista.model.artist.ArtistId
 /**
  * Provides stable semantics tags for the artist preferences screen UI tests.
  *
- * @author Timz3rr
+ * @author Timz3rr, krfpn
  */
 object ArtistPreferencesTestTags {
 
@@ -33,6 +33,15 @@ object ArtistPreferencesTestTags {
 
   /** Tag identifying the button saving the selected artists. */
   const val SAVE_BUTTON = "artist_preferences_save_button"
+
+  /** Tag identifying the spinner shown instead of the grid while the artists load. */
+  const val LOADING_STATE = "artist_preferences_loading_state"
+
+  /** Tag identifying the error state shown instead of the grid when loading the artists fails. */
+  const val LOAD_ERROR_STATE = "artist_preferences_load_error_state"
+
+  /** Tag identifying the button retrying to load the popular artists. */
+  const val RETRY_BUTTON = "artist_preferences_retry_button"
 
   /**
    * Returns the tag identifying the card of a specific artist.
