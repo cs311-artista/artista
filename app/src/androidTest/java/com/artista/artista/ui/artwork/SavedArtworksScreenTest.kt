@@ -27,6 +27,7 @@ import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.SavedArtworksRepository
 import com.artista.artista.model.error.AppException
 import com.artista.artista.model.map.Location
+import com.artista.artista.ui.artwork.ArtworkFilterTestTags
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaTheme
 import kotlinx.coroutines.CompletableDeferred
@@ -136,7 +137,9 @@ class SavedArtworksScreenTest {
 
     composeTestRule.waitForIdle()
     composeTestRule.onNodeWithTag(SavedArtworksTestTags.FILTER_BUTTON).performClick()
-    composeTestRule.onNodeWithTag("${ArtworkFilterTestTags.ARTIST}-input").performTextInput("vin")
+    composeTestRule
+        .onNodeWithTag("${ArtworkFilterTestTags.ARTIST}-input")
+        .performTextInput("vin")
     composeTestRule
         .onNodeWithTag("${ArtworkFilterTestTags.ARTIST}-option-Vincent van Gogh")
         .performClick()
@@ -146,20 +149,20 @@ class SavedArtworksScreenTest {
     composeTestRule.onNodeWithTag(SavedArtworksTestTags.card(otherArtwork)).assertDoesNotExist()
   }
 
-  /** Verifies that a filter with no matching saved artworks shows the empty-result state. */
-  @Test
-  fun savedArtworksScreen_filterWithNoMatches_showsEmptyResultState() {
-    fakeRepository.savedArtworks.add(savedArtwork)
-    setScreenContent()
+    /** Verifies that a filter with no matching saved artworks shows the empty-result state. */
+    @Test
+    fun savedArtworksScreen_filterWithNoMatches_showsEmptyResultState() {
+        fakeRepository.savedArtworks.add(savedArtwork)
+        setScreenContent()
 
-    composeTestRule.waitForIdle()
-    composeTestRule.onNodeWithTag(SavedArtworksTestTags.FILTER_BUTTON).performClick()
-    composeTestRule.onNodeWithTag(ArtworkFilterTestTags.FROM_YEAR).performTextInput("3000")
-    composeTestRule.onNodeWithTag(ArtworkFilterTestTags.APPLY_BUTTON).performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag(SavedArtworksTestTags.FILTER_BUTTON).performClick()
+        composeTestRule.onNodeWithTag(ArtworkFilterTestTags.FROM_YEAR).performTextInput("3000")
+        composeTestRule.onNodeWithTag(ArtworkFilterTestTags.APPLY_BUTTON).performClick()
 
-    composeTestRule.onNodeWithTag(SavedArtworksTestTags.EMPTY_FILTER_RESULTS).assertIsDisplayed()
-    composeTestRule.onNodeWithTag(SavedArtworksTestTags.LIST).assertDoesNotExist()
-  }
+        composeTestRule.onNodeWithTag(SavedArtworksTestTags.EMPTY_FILTER_RESULTS).assertIsDisplayed()
+        composeTestRule.onNodeWithTag(SavedArtworksTestTags.LIST).assertDoesNotExist()
+    }
 
   /** Verifies that clearing a saved-artwork filter restores the complete list. */
   @Test
@@ -175,7 +178,9 @@ class SavedArtworksScreenTest {
 
     composeTestRule.waitForIdle()
     composeTestRule.onNodeWithTag(SavedArtworksTestTags.FILTER_BUTTON).performClick()
-    composeTestRule.onNodeWithTag("${ArtworkFilterTestTags.ARTIST}-input").performTextInput("vin")
+    composeTestRule
+        .onNodeWithTag("${ArtworkFilterTestTags.ARTIST}-input")
+        .performTextInput("vin")
     composeTestRule
         .onNodeWithTag("${ArtworkFilterTestTags.ARTIST}-option-Vincent van Gogh")
         .performClick()
