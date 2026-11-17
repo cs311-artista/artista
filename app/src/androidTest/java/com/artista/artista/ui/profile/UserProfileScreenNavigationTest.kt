@@ -3,6 +3,7 @@
 // Co-authored-by: DeepSeek Flash
 package com.artista.artista.ui.profile
 
+import android.app.Instrumentation
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextEquals
@@ -14,6 +15,7 @@ import androidx.compose.ui.test.performTextReplacement
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
 import com.artista.artista.ArtistaNavHost
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
 import com.artista.artista.model.authentication.AuthRepositoryProvider
@@ -26,6 +28,7 @@ import com.artista.artista.ui.navigation.Screen
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.overview.OverviewTestTags
 import org.junit.Assert.assertEquals
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -43,6 +46,22 @@ class UserProfileScreenNavigationTest {
   // Owned by the test rather than read from the application: the graph now takes its repositories
   // as arguments, so nothing here touches the providers the application configures.
   private val artworkRepository = ArtworkRepositoryLocal()
+
+  private final val instrumentation: Instrumentation = InstrumentationRegistry.getInstrumentation()
+
+  @Before
+  fun setup() {
+    instrumentation.uiAutomation.adoptShellPermissionIdentity()
+    instrumentation.uiAutomation.grantRuntimePermission(
+        instrumentation.targetContext.packageName,
+        android.Manifest.permission.ACCESS_FINE_LOCATION,
+    )
+    instrumentation.uiAutomation.grantRuntimePermission(
+        instrumentation.targetContext.packageName,
+        android.Manifest.permission.ACCESS_COARSE_LOCATION,
+    )
+    instrumentation.uiAutomation.dropShellPermissionIdentity()
+  }
 
   /**
    * Verifies that tapping the profile logout button reports the logout intent to the caller.

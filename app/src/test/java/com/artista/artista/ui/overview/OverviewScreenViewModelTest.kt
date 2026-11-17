@@ -15,6 +15,7 @@ import com.artista.artista.model.artwork.SavedArtworksRepository
 import com.artista.artista.model.artwork.SearchArea
 import com.artista.artista.model.artwork.WikiDataRepository
 import com.artista.artista.model.error.AppException
+import com.artista.artista.model.location.FakeLocationProvider
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -55,7 +56,7 @@ class OverviewScreenViewModelTest {
               limit: Int,
           ): List<Artwork> = expectedArtworks
         }
-    val viewModel = OverviewViewModel(repository, ArtworkRepositoryLocal())
+    val viewModel = OverviewViewModel(repository, ArtworkRepositoryLocal(), FakeLocationProvider())
 
     advanceUntilIdle()
 
@@ -73,6 +74,7 @@ class OverviewScreenViewModelTest {
         OverviewViewModel(
             failingWikiDataRepository(IllegalStateException("Artwork provider failure")),
             ArtworkRepositoryLocal(),
+            FakeLocationProvider(),
         )
 
     advanceUntilIdle()
@@ -92,6 +94,7 @@ class OverviewScreenViewModelTest {
         OverviewViewModel(
             failingWikiDataRepository(AppException.Network()),
             ArtworkRepositoryLocal(),
+            FakeLocationProvider(),
         )
 
     advanceUntilIdle()
@@ -112,6 +115,7 @@ class OverviewScreenViewModelTest {
         OverviewViewModel(
             failingWikiDataRepository(CancellationException("Load cancelled")),
             ArtworkRepositoryLocal(),
+            FakeLocationProvider(),
         )
 
     advanceUntilIdle()
@@ -141,7 +145,7 @@ class OverviewScreenViewModelTest {
             return expectedArtworks
           }
         }
-    val viewModel = OverviewViewModel(repository, ArtworkRepositoryLocal())
+    val viewModel = OverviewViewModel(repository, ArtworkRepositoryLocal(), FakeLocationProvider())
 
     advanceUntilIdle()
 
@@ -160,7 +164,7 @@ class OverviewScreenViewModelTest {
     val artwork = artwork(name = "The Starry Night", artistName = "Vincent van Gogh")
     val repository = ArtworkRepositoryLocal()
     repository.putArtworkInRepositoryUnsavedSection(artwork)
-    val viewModel = OverviewViewModel(repository, repository)
+    val viewModel = OverviewViewModel(repository, repository, FakeLocationProvider())
 
     advanceUntilIdle()
     viewModel.toggleSavedArtwork(artwork)
@@ -181,7 +185,7 @@ class OverviewScreenViewModelTest {
   fun overviewViewModel_whenToggledAgainWhilePending_keepsFirstToggle() = runTest {
     val artwork = artwork(name = "The Starry Night", artistName = "Vincent van Gogh")
     val repository = ArtworkRepositoryLocal()
-    val viewModel = OverviewViewModel(repository, repository)
+    val viewModel = OverviewViewModel(repository, repository, FakeLocationProvider())
 
     advanceUntilIdle()
     viewModel.toggleSavedArtwork(artwork)
@@ -197,7 +201,7 @@ class OverviewScreenViewModelTest {
   fun overviewViewModel_refreshSavedArtworkIds_includesArtworkSavedElsewhere() = runTest {
     val artwork = artwork(name = "The Starry Night", artistName = "Vincent van Gogh")
     val repository = ArtworkRepositoryLocal()
-    val viewModel = OverviewViewModel(repository, repository)
+    val viewModel = OverviewViewModel(repository, repository, FakeLocationProvider())
 
     advanceUntilIdle()
     repository.saveArtwork(artwork)
@@ -214,7 +218,8 @@ class OverviewScreenViewModelTest {
         object : SavedArtworksRepository by ArtworkRepositoryLocal() {
           override suspend fun getSavedArtworks(): List<Artwork> = throw AppException.Network()
         }
-    val viewModel = OverviewViewModel(ArtworkRepositoryLocal(), savedRepository)
+    val viewModel =
+        OverviewViewModel(ArtworkRepositoryLocal(), savedRepository, FakeLocationProvider())
 
     advanceUntilIdle()
 
@@ -231,7 +236,7 @@ class OverviewScreenViewModelTest {
     val artwork = artwork(name = "The Starry Night", artistName = "Vincent van Gogh").copy(uid = "")
     val repository = ArtworkRepositoryLocal()
     repository.putArtworkInRepositoryUnsavedSection(artwork)
-    val viewModel = OverviewViewModel(repository, repository)
+    val viewModel = OverviewViewModel(repository, repository, FakeLocationProvider())
 
     advanceUntilIdle()
     viewModel.toggleSavedArtwork(artwork)
@@ -251,7 +256,7 @@ class OverviewScreenViewModelTest {
     val artwork = artwork(name = "The Starry Night", artistName = "Vincent van Gogh")
     val repository = ArtworkRepositoryLocal()
     repository.saveArtwork(artwork)
-    val viewModel = OverviewViewModel(repository, repository)
+    val viewModel = OverviewViewModel(repository, repository, FakeLocationProvider())
 
     advanceUntilIdle()
     repository.removeArtworkFromSaved(artwork.uid)
@@ -269,7 +274,12 @@ class OverviewScreenViewModelTest {
    */
   @Test
   fun clearErrorMessage_removesTheCurrentError() = runTest {
-    val viewModel = OverviewViewModel(failingWikiDataRepository(), ArtworkRepositoryLocal())
+    val viewModel =
+        OverviewViewModel(
+            failingWikiDataRepository(),
+            ArtworkRepositoryLocal(),
+            FakeLocationProvider(),
+        )
 
     advanceUntilIdle()
     viewModel.clearErrorMessage()
@@ -289,7 +299,7 @@ class OverviewScreenViewModelTest {
               limit: Int,
           ): List<Artwork> = listOf(first, second)
         }
-    val viewModel = OverviewViewModel(repository, ArtworkRepositoryLocal())
+    val viewModel = OverviewViewModel(repository, ArtworkRepositoryLocal(), FakeLocationProvider())
 
     advanceUntilIdle()
     viewModel.applyFilter(ArtworkFilter(artists = setOf("Johannes Vermeer")))
@@ -309,7 +319,9 @@ class OverviewScreenViewModelTest {
   @Test
   fun provideFactory_forUnknownViewModelClass_throws() {
     val repository = ArtworkRepositoryLocal()
-    val factory = OverviewViewModel.provideFactory(repository, repository)
+    val savedRepository = ArtworkRepositoryLocal()
+    val factory =
+        OverviewViewModel.provideFactory(repository, savedRepository, FakeLocationProvider())
 
     assertThrows(IllegalArgumentException::class.java) {
       factory.create(OtherViewModel::class.java)
