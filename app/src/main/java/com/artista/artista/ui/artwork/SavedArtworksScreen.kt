@@ -14,10 +14,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.FilterList
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -26,6 +32,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -36,6 +45,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
+import com.artista.artista.model.artwork.ArtworkFilter
 import com.artista.artista.model.artwork.mockArtworks
 import com.artista.artista.ui.navigation.BackButton
 import com.artista.artista.ui.navigation.BottomNavigationMenu
@@ -79,6 +89,8 @@ fun SavedArtworksScreen(
       onBackClick = onBackClick,
       onArtworkDetailsClick = onArtworkDetailsClick,
       onArtworkUnsave = viewModel::onArtworkUnsave,
+      onApplyFilter = viewModel::applyFilter,
+      onClearFilter = viewModel::clearFilter,
       onRetry = viewModel::refreshSavedArtworks,
       onLoadErrorHandled = viewModel::clearLoadError,
       onUnsaveErrorHandled = viewModel::clearUnsaveError,
@@ -98,6 +110,8 @@ fun SavedArtworksScreen(
  * @param onBackClick called when the user taps the back arrow
  * @param onArtworkDetailsClick called when the user opens an artwork's details
  * @param onArtworkUnsave called when the user removes an artwork from the saved list
+ * @param onApplyFilter called when the user applies filter criteria
+ * @param onClearFilter called when the user clears active filter criteria
  * @param onRetry called when the user requests another loading attempt
  * @param onLoadErrorHandled called after the loading error toast is displayed
  * @param onUnsaveErrorHandled called after the unsave error toast is displayed
@@ -112,6 +126,8 @@ private fun SavedArtworksScreenLayout(
     onBackClick: () -> Unit,
     onArtworkDetailsClick: (Artwork) -> Unit,
     onArtworkUnsave: (Artwork) -> Unit,
+    onApplyFilter: (ArtworkFilter) -> Unit,
+    onClearFilter: () -> Unit,
     onRetry: () -> Unit,
     onLoadErrorHandled: () -> Unit,
     onUnsaveErrorHandled: () -> Unit,
@@ -122,6 +138,7 @@ private fun SavedArtworksScreenLayout(
   val context = LocalContext.current
   val loadErrorMessage = uiState.loadErrorMessageResId?.let { stringResource(it) }
   val unsaveErrorMessage = uiState.unsaveErrorMessageResId?.let { stringResource(it) }
+  var filterDialogVisible by remember { mutableStateOf(false) }
 
   LaunchedEffect(loadErrorMessage) {
     loadErrorMessage?.let { message ->
@@ -166,6 +183,26 @@ private fun SavedArtworksScreenLayout(
                   modifier = Modifier.testTag(SavedArtworksTestTags.BACK_BUTTON),
               )
             },
+            actions = {
+              IconButton(
+                  onClick = { filterDialogVisible = true },
+                  modifier = Modifier.testTag(SavedArtworksTestTags.FILTER_BUTTON),
+              ) {
+                BadgedBox(
+                    badge = {
+                      if (uiState.activeFilter.isActive()) {
+                        Badge(modifier = Modifier.testTag(SavedArtworksTestTags.FILTER_ACTIVE))
+                      }
+                    }
+                ) {
+                  Icon(
+                      imageVector = Icons.Outlined.FilterList,
+                      contentDescription = stringResource(R.string.artwork_filter_open),
+                      tint = MaterialTheme.colorScheme.onSurface,
+                  )
+                }
+              }
+            },
         )
       },
       // Shared bottom navigation for the application's main sections.
@@ -176,6 +213,23 @@ private fun SavedArtworksScreenLayout(
         )
       },
   ) { innerPadding ->
+    if (filterDialogVisible) {
+      ArtworkFilterDialog(
+          filter = uiState.activeFilter,
+          onApply = {
+            onApplyFilter(it)
+            filterDialogVisible = false
+          },
+          onClear = {
+            onClearFilter()
+            filterDialogVisible = false
+          },
+          onDismiss = { filterDialogVisible = false },
+          artistOptions = uiState.artistOptions,
+          museumOptions = uiState.museumOptions,
+          locationOptions = uiState.locationOptions,
+      )
+    }
     // Main content area containing the user's saved artworks.
     if (uiState.isLoading) {
       SavedArtworksLoadingState(modifier = Modifier.fillMaxSize().padding(innerPadding))
@@ -184,6 +238,16 @@ private fun SavedArtworksScreenLayout(
           onRetry = onRetry,
           modifier = Modifier.fillMaxSize().padding(innerPadding),
       )
+    } else if (uiState.artworks.isEmpty() && uiState.activeFilter.isActive()) {
+      Box(
+          modifier = Modifier.fillMaxSize().padding(innerPadding),
+          contentAlignment = Alignment.Center,
+      ) {
+        Text(
+            text = stringResource(R.string.artwork_filter_empty_results),
+            modifier = Modifier.testTag(SavedArtworksTestTags.EMPTY_FILTER_RESULTS),
+        )
+      }
     } else if (uiState.artworks.isEmpty()) {
       EmptySavedArtworksState(modifier = Modifier.fillMaxSize().padding(innerPadding))
     } else {
@@ -207,6 +271,9 @@ object SavedArtworksTestTags {
   const val SCREEN = "saved_artworks_screen"
   const val TITLE = "saved_artworks_title"
   const val BACK_BUTTON = "saved_artworks_back_button"
+  const val FILTER_BUTTON = "saved_artworks_filter_button"
+  const val FILTER_ACTIVE = "saved_artworks_filter_active"
+  const val EMPTY_FILTER_RESULTS = "saved_artworks_empty_filter_results"
   const val LIST = "saved_artworks_list"
   const val EMPTY_STATE = "saved_artworks_empty_state"
   const val LOADING_STATE = "saved_artworks_loading_state"
@@ -366,6 +433,8 @@ internal fun SavedArtworksScreenPreview() {
         onBackClick = {},
         onArtworkDetailsClick = {},
         onArtworkUnsave = {},
+        onApplyFilter = {},
+        onClearFilter = {},
         onTabSelected = {},
         onMapClick = {},
         onRetry = {},
