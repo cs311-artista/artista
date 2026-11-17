@@ -27,6 +27,88 @@ class JsonResponseParserTest {
 
   private val parser = JsonResponseParser()
 
+  @Test
+  fun parseArtistCandidates_readsWikidataSearchResults() {
+    val candidates =
+        parser.parseArtistCandidates(
+            """
+            {
+              "searchinfo": {"search": "Picasso"},
+              "search": [
+                {"id": "Q21431120", "label": "Picasso", "description": "family name"},
+                {
+                  "id": "Q5593",
+                  "label": "Pablo Picasso",
+                  "description": "Spanish painter and sculptor (1881–1973)",
+                  "aliases": ["Picasso"]
+                },
+                {"id": "Q131541684", "label": "Picasso", "description": "2020 song by Lacrim"},
+                {"id": "Q153031", "label": "4221 Picasso", "description": "asteroid"},
+                {
+                  "id": "Q7190531",
+                  "label": "Picasso",
+                  "description": "Japanese rock band"
+                }
+              ],
+              "search-continue": 5,
+              "success": 1
+            }
+            """
+        )
+
+    val other =
+        parser.parseArtistCandidates(
+            """{"searchinfo":{"search":"Picasso"},"search":[{"id":"Q21431120","title":"Q21431120","pageid":23476795,"concepturi":"http://www.wikidata.org/entity/Q21431120","repository":"wikidata","url":"//www.wikidata.org/wiki/Q21431120","display":{"label":{"value":"Picasso","language":"en"},"description":{"value":"family name","language":"en"}},"label":"Picasso","description":"family name","match":{"type":"label","language":"en","text":"Picasso"}},{"id":"Q5593","title":"Q5593","pageid":6639,"concepturi":"http://www.wikidata.org/entity/Q5593","repository":"wikidata","url":"//www.wikidata.org/wiki/Q5593","display":{"label":{"value":"Pablo Picasso","language":"en"},"description":{"value":"Spanish painter and sculptor (1881\u20131973)","language":"en"}},"label":"Pablo Picasso","description":"Spanish painter and sculptor (1881\u20131973)","match":{"type":"alias","language":"mul","text":"Picasso"},"aliases":["Picasso"]},{"id":"Q131541684","title":"Q131541684","pageid":125452859,"concepturi":"http://www.wikidata.org/entity/Q131541684","repository":"wikidata","url":"//www.wikidata.org/wiki/Q131541684","display":{"label":{"value":"Picasso","language":"en"},"description":{"value":"2020 song by Lacrim","language":"en"}},"label":"Picasso","description":"2020 song by Lacrim","match":{"type":"label","language":"en","text":"Picasso"}},{"id":"Q153031","title":"Q153031","pageid":154427,"concepturi":"http://www.wikidata.org/entity/Q153031","repository":"wikidata","url":"//www.wikidata.org/wiki/Q153031","display":{"label":{"value":"4221 Picasso","language":"mul"},"description":{"value":"asteroid","language":"en"}},"label":"4221 Picasso","description":"asteroid","match":{"type":"alias","language":"en","text":"Picasso"},"aliases":["Picasso"]},{"id":"Q7190531","title":"Q7190531","pageid":7092460,"concepturi":"http://www.wikidata.org/entity/Q7190531","repository":"wikidata","url":"//www.wikidata.org/wiki/Q7190531","display":{"label":{"value":"Picasso","language":"en"},"description":{"value":"Japanese rock band which made its debut in 1984 with Honki! Tricky Lady","language":"en"}},"label":"Picasso","description":"Japanese rock band which made its debut in 1984 with Honki! Tricky Lady","match":{"type":"label","language":"en","text":"Picasso"}}],"search-continue":5,"success":1}"""
+        )
+
+    assertEquals(
+        listOf(
+            ArtistCandidate("Q21431120", "Picasso", "family name"),
+            ArtistCandidate(
+                "Q5593",
+                "Pablo Picasso",
+                "Spanish painter and sculptor (1881–1973)",
+            ),
+            ArtistCandidate("Q131541684", "Picasso", "2020 song by Lacrim"),
+            ArtistCandidate("Q153031", "4221 Picasso", "asteroid"),
+            ArtistCandidate("Q7190531", "Picasso", "Japanese rock band"),
+        ),
+        candidates,
+    )
+  }
+
+  @Test
+  fun parseCuratedArtistQid_readsQidFromArtistUri() {
+    val response =
+        """
+        {
+          "head": {"vars": ["artist", "sitelinks"]},
+          "results": {
+            "bindings": [
+              {
+                "artist": {
+                  "type": "uri",
+                  "value": "http://www.wikidata.org/entity/Q5593"
+                },
+                "sitelinks": {
+                  "datatype": "http://www.w3.org/2001/XMLSchema#integer",
+                  "type": "literal",
+                  "value": "265"
+                }
+              }
+            ]
+          }
+        }
+        """
+
+    assertEquals("Q5593", parser.parseCuratedArtistQid(response))
+  }
+
+  @Test
+  fun parseCuratedArtistQid_returnsNullWhenThereAreNoBindings() {
+    assertNull(parser.parseCuratedArtistQid("""{"results":{"bindings":[]}}"""))
+  }
+
   private companion object {
     const val MONA_LISA_IMAGE_URL =
         "https://commons.wikimedia.org/wiki/Special:FilePath/" +
