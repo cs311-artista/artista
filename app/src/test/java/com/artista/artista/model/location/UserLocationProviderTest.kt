@@ -3,6 +3,7 @@ package com.artista.artista.model.location
 import android.location.Location
 import com.artista.artista.model.error.AppException
 import com.artista.artista.model.map.UserLocation
+import com.google.android.gms.location.CurrentLocationRequest
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationToken
@@ -25,16 +26,19 @@ import org.robolectric.annotation.Config
 @Config(sdk = [34])
 class UserLocationProviderTest {
 
-  /** Builds a client whose getCurrentLocation(Int, CancellationToken) is handled by [handler]. */
+  /**
+   * Builds a client whose getCurrentLocation(CurrentLocationRequest, CancellationToken) is handled
+   * by [handler].
+   */
   private fun fakeClient(
-      handler: (priority: Int, token: CancellationToken) -> Task<Location>
+      handler: (request: CurrentLocationRequest, token: CancellationToken) -> Task<Location>
   ): FusedLocationProviderClient =
       Proxy.newProxyInstance(
           javaClass.classLoader,
           arrayOf(FusedLocationProviderClient::class.java),
           InvocationHandler { _, method, args ->
-            if (method.name == "getCurrentLocation" && args[0] is Int) {
-              handler(args[0] as Int, args[1] as CancellationToken)
+            if (method.name == "getCurrentLocation" && args[0] is CurrentLocationRequest) {
+              handler(args[0] as CurrentLocationRequest, args[1] as CancellationToken)
             } else {
               throw UnsupportedOperationException("Unexpected call: ${method.name}")
             }
@@ -45,7 +49,7 @@ class UserLocationProviderTest {
       UserLocationProvider(fakeClient { _, _ -> task })
 
   @Test
-  fun `returns mapped location on success`() = runTest {
+  fun getUserLocation_returnsMappedLocation_onSuccess() = runTest {
     val location =
         Location("test").apply {
           latitude = 46.72
@@ -57,12 +61,12 @@ class UserLocationProviderTest {
   }
 
   @Test
-  fun `requests high accuracy`() = runTest {
+  fun getUserLocation_requestsHighAccuracy() = runTest {
     var requestedPriority = -1
     val provider =
         UserLocationProvider(
-            fakeClient { priority, _ ->
-              requestedPriority = priority
+            fakeClient { request, _ ->
+              requestedPriority = request.priority
               Tasks.forResult(Location("test"))
             }
         )
@@ -73,14 +77,14 @@ class UserLocationProviderTest {
   }
 
   @Test
-  fun `throws UserLocationError when location is null`() = runTest {
+  fun getUserLocation_whenLocationIsNull_throwsUserLocationError() = runTest {
     val provider = providerReturning(Tasks.forResult(null))
 
     assertThrowsSuspend<AppException.UserLocationError> { provider.getUserLocation() }
   }
 
   @Test
-  fun `wraps task failure in UserLocationError`() = runTest {
+  fun getUserLocation_wrapsTaskFailureInUserLocationError() = runTest {
     val boom = RuntimeException("boom")
     val provider = providerReturning(Tasks.forException(boom))
 
@@ -89,7 +93,7 @@ class UserLocationProviderTest {
   }
 
   @Test
-  fun `maps SecurityException thrown synchronously to PermissionsError`() = runTest {
+  fun getUserLocation_whenSecurityExceptionIsHit_throwsSynchronouslyPermissionsError() = runTest {
     val denied = SecurityException("no permission")
     val provider = UserLocationProvider(fakeClient { _, _ -> throw denied })
 
@@ -98,14 +102,14 @@ class UserLocationProviderTest {
   }
 
   @Test
-  fun `maps SecurityException from the task to PermissionsError`() = runTest {
+  fun getUserLocation_mapsSecurityException_toPermissionsError() = runTest {
     val provider = providerReturning(Tasks.forException(SecurityException("denied")))
 
     assertThrowsSuspend<AppException.PermissionsError> { provider.getUserLocation() }
   }
 
   @Test
-  fun `cancels the token when the caller is cancelled`() = runTest {
+  fun getUserLocation_whenTokenIsCancelled_cancelsTokenCorrectly() = runTest {
     var token: CancellationToken? = null
     val tcs = TaskCompletionSource<Location>() // never completed
     val provider =
