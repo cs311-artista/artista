@@ -7,6 +7,7 @@ import android.graphics.Path
 import androidx.compose.ui.graphics.toArgb
 import androidx.core.graphics.createBitmap
 import com.artista.artista.ui.theme.ArtistaColors
+import com.google.android.gms.maps.model.BitmapDescriptor
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.maps.android.compose.Marker
 
@@ -63,6 +64,8 @@ object ArtworkMarker {
         }
       }
 
+  private val iconCache = mutableMapOf<MarkerType, BitmapDescriptor>()
+
   /**
    * Creates a map-compatible pin icon using the supplied centralized artwork color.
    *
@@ -74,9 +77,11 @@ object ArtworkMarker {
    * @author 5kyPhy
    */
   fun artworkMarkerIcon(markerType: MarkerType = MarkerType.RemoteArtwork) =
-      when (markerType) {
-        MarkerType.SavedArtwork -> BitmapDescriptorFactory.fromBitmap(SAVED_ARTWORK_BITMAP)
-        MarkerType.RemoteArtwork ->
-            BitmapDescriptorFactory.fromBitmap(DEFAULT_ARTWORK_MARKER_BITMAP)
+      iconCache.getOrPut(markerType) {
+        when (markerType) {
+          MarkerType.SavedArtwork -> BitmapDescriptorFactory.fromBitmap(SAVED_ARTWORK_BITMAP)
+          MarkerType.RemoteArtwork ->
+              BitmapDescriptorFactory.fromBitmap(DEFAULT_ARTWORK_MARKER_BITMAP)
+        }
       }
 }

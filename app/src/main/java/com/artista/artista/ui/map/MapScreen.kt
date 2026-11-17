@@ -466,13 +466,14 @@ private fun DisplayArtworkMarker(
         remember(key1 = artwork.uid) {
           MarkerState(position = LatLng(artwork.location.latitude, artwork.location.longitude))
         }
+    val icon = remember(markerType) { ArtworkMarker.artworkMarkerIcon(markerType) }
     Marker(
         tag = markerTag(markerType),
         state = artworkMarkerState,
         title = artwork.name,
         snippet = stringResource(R.string.map_marker_navigate_to),
         onInfoWindowClick = { onArtworkMarkerClick(artwork) },
-        icon = ArtworkMarker.artworkMarkerIcon(markerType),
+        icon = icon,
     )
   }
 }
