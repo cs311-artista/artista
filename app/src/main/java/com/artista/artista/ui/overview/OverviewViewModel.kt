@@ -166,6 +166,12 @@ class OverviewViewModel(
     toggleJob.invokeOnCompletion { pendingSavedArtworkIds.remove(artwork.uid) }
   }
 
+  /**
+   * Sets an error message to be displayed in the Overview screen.
+   *
+   * @param error the [AppException] that contains the error message resource
+   * @author 5kyPhy
+   */
   fun setErrorMessage(error: AppException) {
     _uiState.update { it.copy(errorMessageRes = error.toMessageRes()) }
   }
