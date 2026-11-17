@@ -27,6 +27,7 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -501,6 +502,85 @@ class MapViewModelTest {
 
     assertEquals(RouteUiState.Success(route, second), viewModel.routeUiState)
   }
+
+  @Test
+  fun routeProgress_remainingShrinksAndDurationScales() = runTest {
+    val viewModel = createRouteViewModel(northRepository())
+    viewModel.updateUserLocation(UserLocation(46.0, 6.0))
+    viewModel.loadRouteTo(northDestination)
+    advanceUntilIdle()
+    val atStart = viewModel.routeProgressUiState!!
+
+    viewModel.updateUserLocation(UserLocation(46.0015, 6.0)) // halfway
+    val halfway = viewModel.routeProgressUiState!!
+
+    assertTrue(halfway.remainingDistanceMeters < atStart.remainingDistanceMeters)
+    assertEquals(atStart.remainingDistanceMeters / 2, halfway.remainingDistanceMeters, 1.0)
+    assertEquals(300.0, halfway.remainingDurationSeconds, 2.0) // half of 10 minutes
+    assertEquals(46.0015, halfway.path.first().latitude, 1e-6)
+  }
+
+  @Test
+  fun routeProgress_doesNotMoveBackwards() = runTest {
+    val viewModel = createRouteViewModel(northRepository())
+    viewModel.updateUserLocation(UserLocation(46.0025, 6.0))
+    viewModel.loadRouteTo(northDestination)
+    advanceUntilIdle()
+    val ahead = viewModel.routeProgressUiState!!
+
+    viewModel.updateUserLocation(UserLocation(46.0005, 6.0))
+    assertEquals(
+        ahead.remainingDistanceMeters,
+        viewModel.routeProgressUiState!!.remainingDistanceMeters,
+        1.0,
+    )
+  }
+
+  @Test
+  fun routeProgress_makesNoExtraRoutingCalls() = runTest {
+    val repository = northRepository()
+    val viewModel = createRouteViewModel(repository)
+    viewModel.updateUserLocation(UserLocation(46.0, 6.0))
+    viewModel.loadRouteTo(northDestination)
+    advanceUntilIdle()
+
+    viewModel.updateUserLocation(UserLocation(46.001, 6.0))
+    viewModel.updateUserLocation(UserLocation(46.002, 6.0))
+    assertEquals(1, repository.callCount)
+  }
+
+  @Test
+  fun routeProgress_resetsOnClearRoute() = runTest {
+    val viewModel = createRouteViewModel(northRepository())
+    viewModel.updateUserLocation(UserLocation(46.0, 6.0))
+    viewModel.loadRouteTo(northDestination)
+    advanceUntilIdle()
+    assertNotNull(viewModel.routeProgressUiState)
+
+    viewModel.clearRoute()
+    assertNull(viewModel.routeProgressUiState)
+  }
+
+  private val northPath =
+      listOf(
+          Coordinate(46.000, 6.0),
+          Coordinate(46.001, 6.0),
+          Coordinate(46.002, 6.0),
+          Coordinate(46.003, 6.0),
+      )
+  private val northDestination = artworkWithLocation("north", latitude = 46.003, longitude = 6.0)
+
+  private fun northRepository() =
+      FakeWalkingRouteRepository(route = WalkingRoute(northPath, 10.minutes, 333))
+
+  private fun createRouteViewModel(
+      walkingRouteRepository: WalkingRouteRepository = FakeWalkingRouteRepository()
+  ) =
+      MapViewModel(
+          wikiDataRepository = FakeWikiDataRepository(listOf()),
+          savedArtworksRepository = EmptySavedArtworksRepository(),
+          walkingRouteRepository = walkingRouteRepository,
+      )
 
   private fun fakeLocationProvider(location: Location?): LocationProvider =
       LocationProvider { callback ->
