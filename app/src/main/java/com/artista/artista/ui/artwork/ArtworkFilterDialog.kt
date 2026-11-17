@@ -69,7 +69,7 @@ fun ArtworkFilterDialog(
   AlertDialog(
       onDismissRequest = onDismiss,
       modifier = Modifier.testTag(ArtworkFilterTestTags.DIALOG),
-      title = { Text(text = stringResource(R.string.overview_filter_title)) },
+      title = { Text(text = stringResource(R.string.artwork_filter_title)) },
       text = {
         Column(
             modifier =
@@ -79,21 +79,21 @@ fun ArtworkFilterDialog(
             verticalArrangement = Arrangement.spacedBy(Dimensions.overviewFilterFieldSpacing),
         ) {
           MultiSelectField(
-              label = stringResource(R.string.overview_filter_artist),
+              label = stringResource(R.string.artwork_filter_artist),
               options = artistOptions,
               selected = artists,
               onSelectedChange = { artists = it },
               tagPrefix = ArtworkFilterTestTags.ARTIST,
           )
           MultiSelectField(
-              label = stringResource(R.string.overview_filter_museum),
+              label = stringResource(R.string.artwork_filter_museum),
               options = museumOptions,
               selected = museums,
               onSelectedChange = { museums = it },
               tagPrefix = ArtworkFilterTestTags.MUSEUM,
           )
           MultiSelectField(
-              label = stringResource(R.string.overview_filter_location),
+              label = stringResource(R.string.artwork_filter_location),
               options = locationOptions,
               selected = locations,
               onSelectedChange = { locations = it },
@@ -103,21 +103,21 @@ fun ArtworkFilterDialog(
             YearField(
                 value = fromYear,
                 onValueChange = { fromYear = it.filter(Char::isDigit) },
-                label = stringResource(R.string.overview_filter_from_year),
+                label = stringResource(R.string.artwork_filter_from_year),
                 tag = ArtworkFilterTestTags.FROM_YEAR,
                 modifier = Modifier.weight(1f),
             )
             YearField(
                 value = toYear,
                 onValueChange = { toYear = it.filter(Char::isDigit) },
-                label = stringResource(R.string.overview_filter_to_year),
+                label = stringResource(R.string.artwork_filter_to_year),
                 tag = ArtworkFilterTestTags.TO_YEAR,
                 modifier = Modifier.weight(1f),
             )
           }
           if (invalidRange) {
             Text(
-                text = stringResource(R.string.overview_filter_invalid_year_range),
+                text = stringResource(R.string.artwork_filter_invalid_year_range),
                 modifier = Modifier.testTag(ArtworkFilterTestTags.YEAR_ERROR),
             )
           }
@@ -139,7 +139,7 @@ fun ArtworkFilterDialog(
             enabled = !invalidRange,
             modifier = Modifier.testTag(ArtworkFilterTestTags.APPLY_BUTTON),
         ) {
-          Text(text = stringResource(R.string.overview_filter_apply))
+          Text(text = stringResource(R.string.artwork_filter_apply))
         }
       },
       dismissButton = {
@@ -147,7 +147,7 @@ fun ArtworkFilterDialog(
             onClick = onClear,
             modifier = Modifier.testTag(ArtworkFilterTestTags.CLEAR_BUTTON),
         ) {
-          Text(text = stringResource(R.string.overview_filter_clear))
+          Text(text = stringResource(R.string.artwork_filter_clear))
         }
       },
   )
@@ -180,7 +180,7 @@ private fun MultiSelectField(
           trailingIcon = {
             Icon(
                 Icons.Default.Close,
-                contentDescription = stringResource(R.string.overview_filter_remove),
+                contentDescription = stringResource(R.string.artwork_filter_remove),
             )
           },
           modifier = Modifier.testTag("$tagPrefix-chip-$value"),

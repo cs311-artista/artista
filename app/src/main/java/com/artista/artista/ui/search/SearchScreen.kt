@@ -379,7 +379,7 @@ private fun ArtworkTypeFilter(
     IconButton(onClick = { isFilterMenuExpanded = true }) {
       Icon(
           imageVector = Icons.Outlined.FilterList,
-          contentDescription = stringResource(R.string.overview_filter_open),
+          contentDescription = stringResource(R.string.artwork_filter_open),
           tint = MaterialTheme.colorScheme.onSurface,
       )
     }
