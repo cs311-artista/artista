@@ -200,7 +200,7 @@ fun ArtworkScreen(
               onClick = artworkScreenViewModel::retryArtwork,
               modifier = Modifier.testTag(ArtworkTestTags.ARTWORK_RETRY_BUTTON),
           ) {
-            Text(text = stringResource(R.string.artwork_try_again))
+            Text(text = stringResource(R.string.try_again))
           }
         }
         return@Column

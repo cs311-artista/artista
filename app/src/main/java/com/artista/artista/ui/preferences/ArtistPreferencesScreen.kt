@@ -264,7 +264,7 @@ private fun PopularArtistsLoadErrorState(onRetry: () -> Unit, modifier: Modifier
                 contentColor = MaterialTheme.colorScheme.primary,
             ),
     ) {
-      Text(text = stringResource(R.string.artist_preferences_try_again))
+      Text(text = stringResource(R.string.try_again))
     }
   }
 }

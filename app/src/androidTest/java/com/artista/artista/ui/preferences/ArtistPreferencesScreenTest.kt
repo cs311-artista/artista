@@ -363,7 +363,7 @@ class ArtistPreferencesScreenTest {
     composeTestRule
         .onNodeWithTag(ArtistPreferencesTestTags.RETRY_BUTTON)
         .assertIsDisplayed()
-        .assertTextContains(stringOf(R.string.artist_preferences_try_again))
+        .assertTextContains(stringOf(R.string.try_again))
     composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.ARTISTS_GRID).assertDoesNotExist()
     // The load is over, so the spinner must not stay next to the error state.
     composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.LOADING_STATE).assertDoesNotExist()
