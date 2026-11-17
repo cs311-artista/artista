@@ -1,5 +1,5 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
-// Co-authored-by: DeepSeek Flash
+// Co-authored-by: DeepSeek Flash <noreply@deepseek.com>
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.authentication
 
@@ -14,7 +14,6 @@ import com.artista.artista.model.authentication.AuthRepository
 import com.artista.artista.model.authentication.AuthUser
 import com.artista.artista.model.error.AppException
 import com.artista.artista.model.user.User
-import com.artista.artista.model.user.UserId
 import com.artista.artista.model.user.UserPreference
 import com.artista.artista.model.user.UserRepository
 import com.artista.artista.ui.error.launchCatching
@@ -147,7 +146,7 @@ class AuthViewModel(
         // repository is reported as is, anything else becomes AppException.Unknown, and both are
         // logged.
         val authUser = repository.signIn(idToken).getOrThrow()
-        ensureProfileExists(authUser.uid)
+        ensureProfileExists(authUser)
       } finally {
         // Reset however the operation ends, so a failure does not leave the button spinning.
         _uiState.update { it.copy(isLoading = false) }
@@ -156,23 +155,23 @@ class AuthViewModel(
   }
 
   /**
-   * Ensures that a user profile document exists in [userRepository] for the given [uid].
+   * Ensures that a user profile document exists in [userRepository] for the given [user].
    *
-   * If no profile exists for [uid], a default user profile with empty preferences is created. If a
+   * If no profile exists for [user], a default user profile with empty preferences is created. If a
    * profile already exists, it is left untouched. Only [AppException.NotFound] means that the
    * profile is absent; other failures keep the user signed in and expose a retry action.
    *
-   * @param uid identifier of the signed-in user
+   * @param user the signed-in user, as reported by the authentication repository
    * @author hixeum
    */
-  private suspend fun ensureProfileExists(uid: UserId) {
+  private suspend fun ensureProfileExists(user: AuthUser) {
     _uiState.update { it.copy(isProfileInitializationInProgress = true) }
     try {
       try {
-        userRepository.getUser(uid)
+        userRepository.getUser(user.uid)
       } catch (_: AppException.NotFound) {
         // A missing profile is the only lookup result that justifies creating a default one.
-        userRepository.createUser(User(uid = uid, preference = UserPreference()))
+        userRepository.createUser(User(uid = user.uid, preference = UserPreference()))
       }
       _uiState.update { it.copy(profileInitializationFailed = false) }
     } catch (exception: CancellationException) {
@@ -200,7 +199,7 @@ class AuthViewModel(
     // Let a later failed attempt transition back to true and display a fresh snackbar.
     _uiState.update { it.copy(profileInitializationFailed = false) }
     viewModelScope.launchCatching(tag = TAG, onError = ::report) {
-      ensureProfileExists(session.user.uid)
+      ensureProfileExists(session.user)
     }
   }
 

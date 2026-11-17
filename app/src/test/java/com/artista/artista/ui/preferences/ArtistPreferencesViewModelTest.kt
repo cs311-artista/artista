@@ -11,6 +11,7 @@ import com.artista.artista.model.error.AppException
 import com.artista.artista.model.user.FakeUserRepository
 import com.artista.artista.model.user.User
 import com.artista.artista.model.user.UserPreference
+import com.artista.artista.utils.TEST_PICTURE_URL
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
@@ -27,6 +28,7 @@ import org.junit.Rule
 import org.junit.Test
 
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
+// Co-authored-by: DeepSeek Flash <noreply@deepseek.com>
 /**
  * Tests the state exposed by [ArtistPreferencesViewModel].
  *
@@ -389,6 +391,23 @@ class ArtistPreferencesViewModelTest {
     )
     assertEquals(setOf(PICASSO.uid), viewModel.uiState.value.savedArtists)
     assertFalse(viewModel.uiState.value.isSaving)
+  }
+
+  /**
+   * Verifies that saving the preferences keeps the picture stored in the profile.
+   *
+   * @author timo-by
+   */
+  @Test
+  fun savePreferences_keepsTheStoredPicture() = runTest {
+    userRepository.store(userWithArtists(listOf(KLIMT.uid)).copy(photoUrl = TEST_PICTURE_URL))
+    signIn()
+    viewModel.toggleArtist(PICASSO.uid)
+
+    viewModel.saveSelectedArtists()
+    advanceUntilIdle()
+
+    assertEquals(TEST_PICTURE_URL, userRepository.storedUser(UID)?.photoUrl)
   }
 
   /** Verifies that saving creates the profile of a user who has none yet. */

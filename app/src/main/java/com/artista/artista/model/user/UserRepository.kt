@@ -56,6 +56,21 @@ interface UserRepository {
   suspend fun updateUsername(userId: UserId, userName: String)
 
   /**
+   * Updates only the profile picture of an existing User, leaving its other fields untouched.
+   *
+   * Screens that read a profile and write it back rewrite all of its fields, so a picture written
+   * through [updateUser] could revert a name or a preference saved meanwhile, and their save could
+   * revert the picture. Writing the one field is what lets the picture follow the identity provider
+   * without taking part in those read-then-write cycles.
+   *
+   * @param userId The unique identifier of the user to edit.
+   * @param photoUrl The URL of the picture to store.
+   * @throws AppException.NotFound if the user is not found.
+   * @author timo-by
+   */
+  suspend fun updatePhotoUrl(userId: UserId, photoUrl: String)
+
+  /**
    * Deletes a User object from the repository.
    *
    * @param userId The unique identifier of the user to delete.

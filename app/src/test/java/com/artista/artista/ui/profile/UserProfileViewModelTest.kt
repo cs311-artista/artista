@@ -12,6 +12,7 @@ import com.artista.artista.model.user.UserId
 import com.artista.artista.model.user.UserPreference
 import com.artista.artista.model.user.UsernameCache
 import com.artista.artista.model.user.UsernameCacheInMemory
+import com.artista.artista.utils.TEST_PICTURE_URL
 import com.artista.artista.utils.userNamed
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -23,6 +24,7 @@ import org.junit.Rule
 import org.junit.Test
 
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
+// Co-authored-by: DeepSeek Flash <noreply@deepseek.com>
 /**
  * Tests the state exposed by [UserProfileViewModel], the saving of the username for the signed-in
  * user, and the username validation rule.
@@ -183,6 +185,22 @@ class UserProfileViewModelTest {
     runPendingCoroutines()
 
     assertEquals(preference, userRepository.storedUser(UID)?.preference)
+  }
+
+  /**
+   * Checks that saving the username keeps the stored picture unchanged.
+   *
+   * @author timo-by
+   */
+  @Test
+  fun updateUsername_keepsTheStoredPicture() {
+    userRepository.store(userNamed("Alice").copy(photoUrl = TEST_PICTURE_URL))
+    signIn()
+
+    viewModel.updateUsername("Bob")
+    runPendingCoroutines()
+
+    assertEquals(TEST_PICTURE_URL, userRepository.storedUser(UID)?.photoUrl)
   }
 
   /** Checks that the first username of a user with no stored profile creates that profile. */

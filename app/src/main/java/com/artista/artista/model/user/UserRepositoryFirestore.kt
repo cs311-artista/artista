@@ -112,6 +112,24 @@ class UserRepositoryFirestore(
       }
 
   /**
+   * Updates only the picture URL of an existing user profile.
+   *
+   * Firestore writes the single field named, so this write cannot revert a name or a preference
+   * saved by another screen while it is in flight, and those saves cannot revert the picture.
+   * update() reports a missing document itself, which reaches callers as [AppException.NotFound].
+   *
+   * @param userId the unique identifier of the user to update
+   * @param photoUrl the URL of the picture to store
+   * @throws AppException.NotFound if the user does not exist
+   * @throws AppException if Firestore cannot update the profile
+   * @author timo-by
+   */
+  override suspend fun updatePhotoUrl(userId: String, photoUrl: String): Unit =
+      translateFirestoreErrors {
+        db.collection(collectionPath).document(userId).update("photoUrl", photoUrl).await()
+      }
+
+  /**
    * Deletes a user profile.
    *
    * @param userId the unique identifier of the user to delete

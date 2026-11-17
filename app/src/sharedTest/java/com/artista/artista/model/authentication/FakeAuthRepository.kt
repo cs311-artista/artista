@@ -1,12 +1,14 @@
-// Co-authored-by: DeepSeek Flash
+// Co-authored-by: DeepSeek Flash <noreply@deepseek.com>
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.model.authentication
 
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onStart
 
@@ -22,6 +24,13 @@ import kotlinx.coroutines.flow.onStart
 class FakeAuthRepository(initialUser: AuthUser? = null) : AuthRepository {
 
   private val state = MutableStateFlow(initialUser)
+
+  /**
+   * Re-notifications of the current state, which [state] would drop as an unchanged value.
+   *
+   * See [reemitAuthState].
+   */
+  private val reemissions = MutableSharedFlow<AuthUser?>(extraBufferCapacity = 64)
 
   /**
    * The user that a successful [signIn] produces.
@@ -95,7 +104,9 @@ class FakeAuthRepository(initialUser: AuthUser? = null) : AuthRepository {
   override val authState: Flow<AuthUser?> = flow {
     authStateError?.let { throw it }
     if (authStateIsPending) awaitCancellation()
-    emitAll(state)
+    // The re-emissions are merged in so that a test can notify the same user twice, as the backend
+    // does on a token refresh.
+    emitAll(merge(state, reemissions))
   }
       .onStart { activeAuthStateCollectors++ }
       .onCompletion { activeAuthStateCollectors-- }
@@ -129,12 +140,29 @@ class FakeAuthRepository(initialUser: AuthUser? = null) : AuthRepository {
   fun setAuthState(user: AuthUser?) {
     state.value = user
   }
+
+  /**
+   * Reports the current authentication state again, as the backend does when it notifies its
+   * listeners for an unchanged user, for example on a token refresh.
+   *
+   * A state holder drops a value equal to the one it already holds, so without this a test could
+   * not tell "the same user arrived again" apart from "nothing happened".
+   *
+   * @author timo-by
+   */
+  fun reemitAuthState() {
+    reemissions.tryEmit(state.value)
+  }
 }
 
 /**
  * Trivial [AuthUser] implementation used by tests.
  *
  * @param uid the unique identifier to expose
+ * @param photoUrl the picture URL the fake provider reports, `null` by default
  * @author timo-by
  */
-data class FakeAuthUser(override val uid: String) : AuthUser
+data class FakeAuthUser(
+    override val uid: String,
+    override val photoUrl: String? = null,
+) : AuthUser
