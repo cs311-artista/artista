@@ -67,6 +67,7 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.MapProperties
+import com.google.maps.android.compose.MapUiSettings
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.Polyline
@@ -225,6 +226,7 @@ fun MapScreen(
         cameraPositionState = cameraPositionState,
         onMapLoaded = { mapLoaded = true },
         properties = MapProperties(isMyLocationEnabled = uiState.hasLocationPermission),
+        uiSettings = MapUiSettings(mapToolbarEnabled = false),
         contentPadding =
             PaddingValues(
                 bottom = Dimensions.bottomMapToolBarPadding,
