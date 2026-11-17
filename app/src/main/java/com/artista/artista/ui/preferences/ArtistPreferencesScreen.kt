@@ -251,7 +251,7 @@ private fun PopularArtistsLoadErrorState(onRetry: () -> Unit, modifier: Modifier
     Text(
         text = stringResource(R.string.artist_preferences_load_error_state),
         style = MaterialTheme.typography.bodyLarge,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        color = MaterialTheme.colorScheme.error,
         textAlign = TextAlign.Center,
     )
     Spacer(modifier = Modifier.height(Dimensions.artistPreferencesRetryButtonSpacing))
