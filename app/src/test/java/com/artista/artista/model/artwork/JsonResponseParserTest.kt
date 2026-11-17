@@ -91,6 +91,14 @@ class JsonResponseParserTest {
   }
 
   @Test
+  fun parseArtistCandidates_returnsNullDescriptionWhenMissing() {
+    val candidates =
+        parser.parseArtistCandidates("""{"search":[{"id":"Q5593","label":"Pablo Picasso"}]}""")
+
+    assertEquals(listOf(ArtistCandidate("Q5593", "Pablo Picasso", null)), candidates)
+  }
+
+  @Test
   fun parseArtistResults_parsesFirstArtistBinding() {
     val response =
         """
@@ -132,6 +140,20 @@ class JsonResponseParserTest {
   fun parseArtistResults_throwsNotFoundWhenResultsAreMissing() {
     assertThrows(AppException.NotFound::class.java) {
       parser.parseArtistResults("""{"head":{"vars":["artist"]}}""")
+    }
+  }
+
+  @Test
+  fun parseArtistResults_throwsNotFoundWhenBindingsAreMissing() {
+    assertThrows(AppException.NotFound::class.java) {
+      parser.parseArtistResults("""{"results":{}}""")
+    }
+  }
+
+  @Test
+  fun parseArtworkResults_throwsNotFoundWhenResultsObjectIsMissing() {
+    assertThrows(AppException.NotFound::class.java) {
+      parser.parseArtworkResults("""{"head":{"vars":["item"]}}""")
     }
   }
 
