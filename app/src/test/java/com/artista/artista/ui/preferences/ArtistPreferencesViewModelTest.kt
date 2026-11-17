@@ -19,6 +19,7 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -186,6 +187,8 @@ class ArtistPreferencesViewModelTest {
     val repository = ControllableWikiDataRepository().apply { failure = AppException.Network() }
     val viewModel = ArtistPreferencesViewModel(repository, authRepository, userRepository)
     advanceUntilIdle()
+    // Otherwise the test would pass even if the failure never set a message to clear.
+    assertNotNull(viewModel.uiState.value.messageResId)
 
     viewModel.clearMessage()
 
