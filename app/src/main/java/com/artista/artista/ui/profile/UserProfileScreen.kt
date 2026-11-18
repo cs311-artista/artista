@@ -47,8 +47,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil3.compose.AsyncImage
-import coil3.compose.AsyncImagePainter
 import com.artista.artista.R
 import com.artista.artista.model.authentication.AuthRepository
 import com.artista.artista.model.authentication.AuthUser
@@ -56,6 +54,7 @@ import com.artista.artista.model.user.User
 import com.artista.artista.model.user.UserPreference
 import com.artista.artista.model.user.UserRepositoryLocal
 import com.artista.artista.model.user.UsernameCacheInMemory
+import com.artista.artista.ui.components.RemoteImage
 import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaTheme
@@ -277,11 +276,15 @@ private fun LogoutButton(onClick: () -> Unit) {
  */
 @Composable
 private fun ProfilePicture(photoUrl: String?) {
-  // Reset when the link changes, so a picture is never carried over to the next profile, and the
-  // placeholder comes back while the new one downloads.
-  var isImageLoaded by remember(photoUrl) { mutableStateOf(false) }
-
-  Box(
+  RemoteImage(
+      imageUrl = photoUrl,
+      contentDescription = stringResource(R.string.profile_picture_description),
+      // Crop fills the circle with the square bitmap instead of letterboxing it inside.
+      contentScale = ContentScale.Crop,
+      imageTestTag = UserProfileTestTags.PROFILE_PICTURE_IMAGE,
+      fallbackTestTag = UserProfileTestTags.PROFILE_PICTURE_PLACEHOLDER,
+      // The area owns its size, its shape and its background: the picture and the placeholder must
+      // fill the same circle so that loading never changes the outline.
       modifier =
           Modifier.fillMaxWidth(0.75f)
               .aspectRatio(1f)
@@ -289,34 +292,17 @@ private fun ProfilePicture(photoUrl: String?) {
               .clip(CircleShape)
               .background(MaterialTheme.colorScheme.surface)
               .testTag(UserProfileTestTags.PROFILE_PICTURE),
-      contentAlignment = Alignment.Center,
-  ) {
-    // Without a link nothing is requested over the network: the placeholder below stays alone.
-    if (photoUrl != null) {
-      AsyncImage(
-          model = photoUrl,
-          // Described only once loaded: while loading or after a failed download the user sees the
-          // placeholder, so announcing the picture would describe something that is not shown.
-          contentDescription =
-              if (isImageLoaded) stringResource(R.string.profile_picture_description) else null,
-          modifier = Modifier.fillMaxSize().testTag(UserProfileTestTags.PROFILE_PICTURE_IMAGE),
-          // Crop fills the circle with the square bitmap instead of letterboxing it inside.
-          contentScale = ContentScale.Crop,
-          onState = { state -> isImageLoaded = state is AsyncImagePainter.State.Success },
-      )
-    }
-    // Covers loading, a failed download and a user without a picture alike: in every case there is
-    // nothing to look at yet, and an empty box would look broken.
-    if (!isImageLoaded) {
-      Text(
-          text = stringResource(R.string.profile_picture_placeholder),
-          modifier = Modifier.testTag(UserProfileTestTags.PROFILE_PICTURE_PLACEHOLDER),
-          style = MaterialTheme.typography.headlineMedium,
-          textAlign = TextAlign.Center,
-          color = MaterialTheme.colorScheme.primary,
-      )
-    }
-  }
+      // The words stand in for the picture; the artwork screens pass an icon instead.
+      fallback = { fallbackModifier ->
+        Text(
+            text = stringResource(R.string.profile_picture_placeholder),
+            modifier = fallbackModifier,
+            style = MaterialTheme.typography.headlineMedium,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.primary,
+        )
+      },
+  )
 }
 
 /**
