@@ -21,17 +21,25 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Ignore
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
 /**
  * Unit tests for [WikiDataRepositoryRemote].
  *
  * @author IJJA3141
  */
+@RunWith(RobolectricTestRunner::class)
 class WikiDataRepositoryRemoteTest {
   class fakeParser : JsonResponseParser() {
     override fun parseArtworkResults(responseBody: String): List<Artwork> {
       println("Response body: $responseBody")
       return listOf()
+    }
+
+    override fun parseArtistResults(responseBody: String): Artist? {
+      println("Response body: $responseBody")
+      return null
     }
   }
 
@@ -95,6 +103,56 @@ class WikiDataRepositoryRemoteTest {
     } catch (e: Exception) {
       println(e)
     }
+  }
+
+  @Ignore(
+      "This test performs real network requests to the Wikidata SPARQL endpoint. It is intended to verify the correctness of the SPARQL query and the ability to fetch data from the remote API."
+  )
+  @Test
+  fun runRealRequestForArtist() = runTest {
+    val repository = WikiDataRepositoryRemote()
+
+    try {
+      // println(repository.getArtistFromName("Picasso"))
+      println(repository.getArtistFromName("leonardo"))
+    } catch (e: NotImplementedError) {
+      // Handle NotImplementedError if needed
+    } catch (e: Exception) {
+      println(e)
+    }
+  }
+
+  @Test
+  fun getArtist_parsesSearchResponseWhenCalledFromRunTest() = runTest {
+    val requests = mutableListOf<Request>()
+    val client = FakeCallClient { request ->
+      requests += request
+      val body =
+          if (request.url.encodedPath.endsWith("/w/api.php")) {
+            """{"search":[{"id":"Q5593","label":"Pablo Picasso","description":"Spanish painter"}]}"""
+          } else {
+            """{"results":{"bindings":[]}}"""
+          }
+      Response.Builder()
+          .request(request)
+          .protocol(Protocol.HTTP_1_1)
+          .code(200)
+          .message("OK")
+          .body(body.toResponseBody())
+          .build()
+    }
+    val parser =
+        object : JsonResponseParser() {
+          override fun parseArtistResults(responseBody: String): Artist? = null
+        }
+    val repository = WikiDataRepositoryRemote(client, jsonResponseParser = parser)
+
+    assertNull(repository.getArtistFromName("Picasso"))
+
+    assertEquals(2, requests.size)
+    assertEquals("application/json", requests[0].header("Accept"))
+    assertEquals("application/sparql-results+json", requests[1].header("Accept"))
+    assertTrue(requests[1].url.queryParameter("query")!!.contains("wd:Q5593"))
   }
 
   @Test
@@ -226,7 +284,7 @@ class WikiDataRepositoryRemoteTest {
     val client = testClient()
     val repository = WikiDataRepositoryRemote(client)
 
-    assertThrowsSuspend<AppException.NotFound> { repository.searchArtworks("Monét") }
+    assertTrue(repository.searchArtworks("Monét").isEmpty())
 
     val sparql = requireNotNull(client.lastRequest).url.queryParameter("query")
     assertTrue(sparql!!.contains("monet* OR monét*"))
@@ -713,13 +771,15 @@ class WikiDataRepositoryRemoteTest {
     val client = testClient()
     val repository = WikiDataRepositoryRemote(client)
 
-    assertThrowsSuspend<AppException.NotFound> {
-      repository.getArtworksNearLocation(
-          searchArea = SearchArea(latitude = 46.5, longitude = 6.6, radiusKm = 12.0),
-          typeValues = listOf(ArtworkType.PAINTING, ArtworkType.DRAWING),
-          limit = 20,
-      )
-    }
+    assertTrue(
+        repository
+            .getArtworksNearLocation(
+                searchArea = SearchArea(latitude = 46.5, longitude = 6.6, radiusKm = 12.0),
+                typeValues = listOf(ArtworkType.PAINTING, ArtworkType.DRAWING),
+                limit = 20,
+            )
+            .isEmpty()
+    )
 
     val query = requireNotNull(client.lastRequest).url.queryParameter("query")
     assertTrue(query!!.contains("Point(6.6 46.5)"))
@@ -792,13 +852,15 @@ class WikiDataRepositoryRemoteTest {
     val client = testClient()
     val repository = WikiDataRepositoryRemote(client)
 
-    assertThrowsSuspend<AppException.NotFound> {
-      repository.searchArtworks(
-          artworkTitle = "Mona Lisa",
-          typeValues = listOf(ArtworkType.PAINTING, ArtworkType.SCULPTURE),
-          limit = 25,
-      )
-    }
+    assertTrue(
+        repository
+            .searchArtworks(
+                artworkTitle = "Mona Lisa",
+                typeValues = listOf(ArtworkType.PAINTING, ArtworkType.SCULPTURE),
+                limit = 25,
+            )
+            .isEmpty()
+    )
 
     val request = requireNotNull(client.lastRequest)
     val sparql = requireNotNull(request.url.queryParameter("query"))
@@ -822,9 +884,7 @@ class WikiDataRepositoryRemoteTest {
     val client = testClient()
     val repository = WikiDataRepositoryRemote(client)
 
-    assertThrowsSuspend<AppException.NotFound> {
-      repository.searchArtworks("a\\b\"c", listOf(ArtworkType.PAINTING), 10)
-    }
+    assertTrue(repository.searchArtworks("a\\b\"c", listOf(ArtworkType.PAINTING), 10).isEmpty())
 
     val query = requireNotNull(client.lastRequest).url.queryParameter("query")
     assertTrue(query!!.contains("mwapi:gsrsearch \"haswbstatement:P31=Q3305213 abc*\""))
