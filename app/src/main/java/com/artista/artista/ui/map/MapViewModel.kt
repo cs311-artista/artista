@@ -164,6 +164,7 @@ class MapViewModel(
 
   private val _routeProgressUiState = MutableStateFlow<RouteProgressUiState?>(null)
   private var routeProgress: RouteProgress? = null
+  private var locationUpdatesJob: Job? = null
 
   /** Exposes the remaining part of the active route, or null when no route is shown. */
   val routeProgressUiStateFlow: StateFlow<RouteProgressUiState?> =
@@ -215,6 +216,32 @@ class MapViewModel(
   private fun resetRouteProgress() {
     routeProgress = null
     _routeProgressUiState.value = null
+  }
+
+  /**
+   * Starts continuous location updates, forwarding each one to [applyLocation].
+   *
+   * Calling it while updates are already running does nothing, so repeated lifecycle events cannot
+   * create several collectors.
+   *
+   * @author patrickmcdan
+   */
+  fun startLocationUpdates() {
+    if (locationUpdatesJob?.isActive == true) return
+    locationUpdatesJob =
+        viewModelScope.launchCatching(tag = TAG, onError = ::setLocationError) {
+          locationProvider.locationUpdates().collect { applyLocation(it) }
+        }
+  }
+
+  /**
+   * Stops continuous location updates.
+   *
+   * @author patrickmcdan
+   */
+  fun stopLocationUpdates() {
+    locationUpdatesJob?.cancel()
+    locationUpdatesJob = null
   }
 
   /**
@@ -373,6 +400,7 @@ class MapViewModel(
     pendingRouteArtwork = null
     lastRouteArtwork = null
     resetRouteProgress()
+    stopLocationUpdates()
     _routeUiState.value = RouteUiState.Idle
   }
 
