@@ -143,8 +143,8 @@ class UserRepositoryFirestoreTest : FirebaseEmulatedTest() {
   }
 
   /**
-   * Checks that a document without preferences loads with empty ones, because a profile created by
-   * a rename has no preference field yet.
+   * Checks that a document without preferences loads with empty ones, as happens when a rename is
+   * the first write of a profile or when only Firestore's local copy of an offline rename is known.
    */
   @Test
   fun getUserReturnsEmptyPreferencesWhenStoredUserIsMissingPreferences() = runTest {
