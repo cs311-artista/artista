@@ -10,7 +10,6 @@ import com.artista.artista.model.authentication.AuthUser
 import com.artista.artista.model.error.AppException
 import com.artista.artista.model.user.User
 import com.artista.artista.model.user.UserId
-import com.artista.artista.model.user.UserPreference
 import com.artista.artista.model.user.UserRepository
 import com.artista.artista.model.user.UsernameCache
 import com.artista.artista.ui.error.launchCatching
@@ -236,9 +235,10 @@ class UserProfileViewModel(
    * Replaces the displayed username with the one entered by the user, and saves it for the
    * signed-in user.
    *
-   * The new name is displayed and cached at once, and replaces a save still running. If saving it
-   * fails, the last name really saved is displayed and cached again and an error message is
-   * exposed. When nobody is signed in, the name is only kept in memory.
+   * The new name is displayed and cached at once, and replaces a save still running. Only the name
+   * is written, so the other fields of the profile are kept and a profile is created if the user
+   * has none yet. If saving it fails, the last name really saved is displayed and cached again and
+   * an error message is exposed. When nobody is signed in, the name is only kept in memory.
    *
    * @param newName the username as typed by the user; ignored if [isValidUsername] rejects it.
    * @author Timz3rr
@@ -269,7 +269,10 @@ class UserProfileViewModel(
       // Written before Firestore because offline set().await() does not complete until the
       // connection returns, so a write placed after it would be lost on a cold start.
       usernameCache.saveUsername(uid, username)
-      saveUsername(uid, username)
+      // Only the name is written, without reading the profile first: offline, reading a profile
+      // missing from Firestore's local cache fails, while a write alone is queued until the
+      // connection returns, and the preferences saved by other screens are left untouched.
+      userRepository.updateUsername(uid, username)
       lastSavedUsername = username
     }
   }
@@ -281,31 +284,6 @@ class UserProfileViewModel(
    */
   fun clearErrorMessage() {
     _uiState.update { it.copy(errorMessageResId = null) }
-  }
-
-  /**
-   * Saves the username of a user, creating their profile if they have none yet.
-   *
-   * Two cases:
-   * - the user has no stored profile yet, as after their first sign-in: a profile is created with
-   *   this username and empty preferences;
-   * - the user already has one: only its username is replaced, its other fields are kept.
-   *
-   * @param uid identifier of the user
-   * @param username the username to save, already cleaned up by [normalizeUsername] (trimmed and in
-   *   NFC form), so the stored name is exactly the one displayed
-   */
-  private suspend fun saveUsername(uid: UserId, username: String) {
-    // The stored profile is read first so that the fields saved by other screens, such as the
-    // preferences, are written back unchanged instead of being reset.
-    val storedUser = findUser(uid)
-    if (storedUser == null) {
-      // Kept as a fallback for accounts created before initial profile creation was added at
-      // sign-in or in case initial profile creation at sign-in failed.
-      userRepository.createUser(User(uid = uid, userName = username, preference = UserPreference()))
-    } else {
-      userRepository.updateUser(uid, storedUser.copy(userName = username))
-    }
   }
 
   /**

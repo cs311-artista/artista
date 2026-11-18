@@ -427,20 +427,192 @@ class UserProfileViewModelTest {
 
   /**
    * Checks that a cached name shown after an offline start counts as the earlier name, so that a
-   * failed rename does not wipe the only copy the device has.
+   * failed rename does not wipe the only copy the device has. The write is refused for another
+   * reason than the network, so the reported message proves the write failed, not a profile read.
    */
   @Test
   fun updateUsername_whenSaveFailsAfterOfflineStart_rollsBackToCachedUsername() {
     usernameCache.seed(UID, "Cached")
     userRepository.readFailure = AppException.Network()
     signIn()
-    userRepository.writeFailure = AppException.Network()
+    userRepository.writeFailure = AppException.Unauthorized()
 
     viewModel.updateUsername("Bob")
     runPendingCoroutines()
 
     assertEquals("Cached", viewModel.uiState.value.username)
     assertEquals("Cached", usernameCache.stored(UID))
+    assertEquals(R.string.error_unauthorized, viewModel.uiState.value.errorMessageResId)
+  }
+
+  /**
+   * Checks that an offline rename succeeds when the profile is not in Firestore's local cache, so
+   * that reading it fails: the rename writes only the name, without reading the profile first.
+   */
+  @Test
+  fun updateUsername_whenProfileCannotBeRead_savesNameWithoutError() {
+    userRepository.store(userNamed("Alice"))
+    signIn()
+    userRepository.readFailure = AppException.Network()
+
+    viewModel.updateUsername("Bob")
+    runPendingCoroutines()
+
+    assertEquals("Bob", viewModel.uiState.value.username)
+    assertEquals("Bob", usernameCache.stored(UID))
+    assertEquals("Bob", userRepository.storedUser(UID)?.userName)
+    assertNull(viewModel.uiState.value.errorMessageResId)
+  }
+
+  /**
+   * Checks that renaming keeps the stored preferences even when the profile cannot be read, since
+   * the rename must not write back a profile it never loaded.
+   */
+  @Test
+  fun updateUsername_whenProfileCannotBeRead_keepsStoredPreferences() {
+    val preference = UserPreference(artists = listOf("VanGogh"))
+    userRepository.store(userNamed("Alice").copy(preference = preference))
+    signIn()
+    userRepository.readFailure = AppException.Network()
+
+    viewModel.updateUsername("Bob")
+    runPendingCoroutines()
+
+    assertEquals(
+        User(uid = UID, userName = "Bob", preference = preference),
+        userRepository.storedUser(UID),
+    )
+  }
+
+  /**
+   * Checks that the first rename of a user with no profile creates it even offline, when reading
+   * the missing profile fails with a network error instead of reporting it as missing.
+   */
+  @Test
+  fun updateUsername_whenOfflineWithoutStoredUser_createsUser() {
+    usernameCache.seed(UID, "Cached")
+    userRepository.readFailure = AppException.Network()
+    signIn()
+
+    viewModel.updateUsername("Bob")
+    runPendingCoroutines()
+
+    assertEquals(
+        User(uid = UID, userName = "Bob", preference = UserPreference()),
+        userRepository.storedUser(UID),
+    )
+    assertNull(viewModel.uiState.value.errorMessageResId)
+  }
+
+  /**
+   * Checks that an offline rename whose write has not completed yet stays on screen and in the
+   * cache with no error: offline, Firestore's write waits for the connection instead of failing.
+   */
+  @Test
+  fun updateUsername_offlineWhileWriteIsPending_keepsNameWithoutError() {
+    usernameCache.seed(UID, "Cached")
+    userRepository.readFailure = AppException.Network()
+    signIn()
+    userRepository.writeDelays[UID] = 1_000
+
+    viewModel.updateUsername("Bob")
+    mainDispatcherRule.testDispatcher.scheduler.runCurrent()
+
+    assertEquals("Bob", viewModel.uiState.value.username)
+    assertEquals("Bob", usernameCache.stored(UID))
+    assertNull(viewModel.uiState.value.errorMessageResId)
+  }
+
+  /**
+   * Checks that an offline rename still pending when the app is closed is displayed at the next
+   * start, which is still offline, from the cache.
+   */
+  @Test
+  fun updateUsername_offlinePendingThenColdStart_displaysNewName() {
+    usernameCache.seed(UID, "Cached")
+    userRepository.readFailure = AppException.Network()
+    signIn()
+    userRepository.writeDelays[UID] = 1_000
+    viewModel.updateUsername("Bob")
+    mainDispatcherRule.testDispatcher.scheduler.runCurrent()
+
+    // A new ViewModel on the same cache plays the app started again while the write is pending.
+    val restarted = UserProfileViewModel(authRepository, userRepository, usernameCache)
+    mainDispatcherRule.testDispatcher.scheduler.runCurrent()
+
+    assertEquals("Bob", restarted.uiState.value.username)
+    assertNull(restarted.uiState.value.errorMessageResId)
+  }
+
+  /**
+   * Checks that the ViewModel replaces a pending offline rename with the newer one: one write
+   * reaches the fake repository, and the second name is shown and cached, with no error. Real
+   * Firestore would queue both writes and the last one wins, so `writeCount == 1` reflects the
+   * ViewModel's cancellation, not Firestore's queue.
+   */
+  @Test
+  fun updateUsername_twiceOffline_keepsOnlySecondName() {
+    usernameCache.seed(UID, "Cached")
+    userRepository.store(userNamed("Alice"))
+    userRepository.readFailure = AppException.Network()
+    signIn()
+    userRepository.writeDelays[UID] = 1_000
+    val scheduler = mainDispatcherRule.testDispatcher.scheduler
+
+    viewModel.updateUsername("Bob")
+    scheduler.runCurrent()
+    viewModel.updateUsername("Carol")
+    runPendingCoroutines()
+
+    assertEquals(1, userRepository.writeCount)
+    assertEquals("Carol", userRepository.storedUser(UID)?.userName)
+    assertEquals("Carol", viewModel.uiState.value.username)
+    assertEquals("Carol", usernameCache.stored(UID))
+    assertNull(viewModel.uiState.value.errorMessageResId)
+  }
+
+  /**
+   * Checks that signing out during a pending offline rename clears the cached name of the user who
+   * left, stops the ViewModel's save (the fake cancels the write before it happens) and shows no
+   * error. A real Firestore write already queued stays in that user's own queue and is sent when
+   * they sign in again, so this test covers the ViewModel, not Firestore's queue.
+   */
+  @Test
+  fun signOut_duringPendingOfflineRename_dropsRename() {
+    usernameCache.seed(UID, "Cached")
+    userRepository.store(userNamed("Alice"))
+    userRepository.readFailure = AppException.Network()
+    signIn()
+    userRepository.writeDelays[UID] = 1_000
+    val scheduler = mainDispatcherRule.testDispatcher.scheduler
+
+    viewModel.updateUsername("Bob")
+    scheduler.runCurrent()
+    authRepository.setAuthState(null)
+    runPendingCoroutines()
+
+    assertNull(usernameCache.stored(UID))
+    assertEquals(0, userRepository.writeCount)
+    assertEquals("Alice", userRepository.storedUser(UID)?.userName)
+    assertNull(viewModel.uiState.value.errorMessageResId)
+  }
+
+  /**
+   * Checks that a rename refused for another reason than the network is reported to the user and
+   * rolled back, since only being offline is meant to leave a rename pending silently.
+   */
+  @Test
+  fun updateUsername_whenSaveIsRefused_rollsBackAndShowsError() {
+    userRepository.store(userNamed("Alice"))
+    signIn()
+    userRepository.writeFailure = AppException.Unauthorized()
+
+    viewModel.updateUsername("Bob")
+    runPendingCoroutines()
+
+    assertEquals("Alice", viewModel.uiState.value.username)
+    assertEquals("Alice", usernameCache.stored(UID))
+    assertEquals(R.string.error_unauthorized, viewModel.uiState.value.errorMessageResId)
   }
 
   /** Checks that a rename with nobody signed in stays in memory and leaves the cache untouched. */
