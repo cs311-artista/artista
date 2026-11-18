@@ -98,11 +98,13 @@ class UserRepositoryFirestore(
    */
   override suspend fun updateUsername(userId: UserId, userName: String): Unit =
       translateFirestoreErrors {
-        // No read first: offline, a read of a profile missing from the local cache fails, while a
-        // write alone is queued on disk and sent once the connection returns. The merge leaves the
-        // other fields, such as the preferences, untouched, and creates the profile if it is
-        // missing. The UID is written too because the security rules require
-        // request.resource.data.uid == uid, and a rename can be the write that creates the profile.
+        // No read first: offline, reading a profile missing from the local cache fails, while a
+        // write alone is queued and sent once the connection returns. The merge keeps the other
+        // fields, such as the preferences.
+        // The UID is written on every rename because, when the profile is missing from the local
+        // cache, Firestore's local copy holds only the fields written here, and getUser needs the
+        // UID to read it. The security rules also require it if this write creates the profile,
+        // for example after its creation at sign-in failed.
         db.collection(collectionPath)
             .document(userId)
             .set(mapOf("uid" to userId, "userName" to userName), SetOptions.merge())

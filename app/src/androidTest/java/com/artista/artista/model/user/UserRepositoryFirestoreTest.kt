@@ -176,8 +176,10 @@ class UserRepositoryFirestoreTest : FirebaseEmulatedTest() {
   }
 
   /**
-   * Checks that renaming a user with no profile creates one that loads with empty preferences, as
-   * when the first rename of an account is the write that creates its profile.
+   * Checks that renaming a user with no profile creates one that loads with empty preferences. This
+   * happens when creating the profile at sign-in failed, for example because the connection dropped
+   * right after the Google sign-in: the user stays signed in without a profile, and the merge write
+   * of the rename then creates it.
    */
   @Test
   fun updateUsernameCreatesMissingUserWithEmptyPreferences() = runTest {

@@ -101,6 +101,8 @@ class FakeUserRepository : UserRepository {
    * @author Timz3rr
    */
   override suspend fun updateUsername(userId: UserId, userName: String) {
+    // Same order as createUser and updateUser: a write cancelled during its delay is not counted,
+    // while a failed one is, as writeCount documents.
     waitForWrite(userId)
     writeCount++
     writeFailure?.let { throw it }

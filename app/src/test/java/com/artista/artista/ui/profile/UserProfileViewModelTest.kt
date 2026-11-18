@@ -1,3 +1,4 @@
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.profile
 
 import com.artista.artista.MainDispatcherRule
@@ -578,7 +579,7 @@ class UserProfileViewModelTest {
    * they sign in again, so this test covers the ViewModel, not Firestore's queue.
    */
   @Test
-  fun signOut_duringPendingOfflineRename_dropsRename() {
+  fun signOut_duringPendingOfflineRename_clearsCacheWithoutError() {
     usernameCache.seed(UID, "Cached")
     userRepository.store(userNamed("Alice"))
     userRepository.readFailure = AppException.Network()
@@ -599,7 +600,10 @@ class UserProfileViewModelTest {
 
   /**
    * Checks that a rename refused for another reason than the network is reported to the user and
-   * rolled back, since only being offline is meant to leave a rename pending silently.
+   * rolled back, since only being offline is meant to leave a rename pending silently. Firestore
+   * refuses it as Unauthorized when the session of the user has expired or been revoked, or if a
+   * future security rule rejects the name. An invalid name never gets here: the ViewModel ignores
+   * it before writing anything.
    */
   @Test
   fun updateUsername_whenSaveIsRefused_rollsBackAndShowsError() {

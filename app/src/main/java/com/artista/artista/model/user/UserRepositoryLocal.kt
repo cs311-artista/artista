@@ -40,7 +40,9 @@ class UserRepositoryLocal : UserRepository {
    */
   override suspend fun updateUsername(userId: UserId, userName: String) {
     users[userId] =
+        // Like the Firestore merge: only the name changes, every other field is kept.
         users[userId]?.copy(userName = userName)
+            // Like the Firestore merge on a missing document: the profile is created.
             ?: User(uid = userId, userName = userName, preference = UserPreference())
   }
 
