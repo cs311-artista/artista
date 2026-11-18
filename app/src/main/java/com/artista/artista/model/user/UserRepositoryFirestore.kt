@@ -5,6 +5,7 @@ import com.artista.artista.model.error.AppException
 import com.artista.artista.model.error.translateFirestoreErrors
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.tasks.await
 
 /** The Firestore collection containing application user profiles. */
@@ -88,6 +89,27 @@ class UserRepositoryFirestore(
   }
 
   /**
+   * Saves only the username of a user profile, creating the profile when it does not exist yet.
+   *
+   * @param userId the unique identifier of the user to rename
+   * @param userName the new username
+   * @throws AppException if Firestore refuses or cannot complete the write
+   * @author Timz3rr
+   */
+  override suspend fun updateUsername(userId: UserId, userName: String): Unit =
+      translateFirestoreErrors {
+        // No read first: offline, a read of a profile missing from the local cache fails, while a
+        // write alone is queued on disk and sent once the connection returns. The merge leaves the
+        // other fields, such as the preferences, untouched, and creates the profile if it is
+        // missing. The UID is written too because the security rules require
+        // request.resource.data.uid == uid, and a rename can be the write that creates the profile.
+        db.collection(collectionPath)
+            .document(userId)
+            .set(mapOf("uid" to userId, "userName" to userName), SetOptions.merge())
+            .await()
+      }
+
+  /**
    * Deletes a user profile.
    *
    * @param userId the unique identifier of the user to delete
@@ -109,7 +131,7 @@ class UserRepositoryFirestore(
    *
    * @param document the Firestore document to convert
    * @return the `user` represented by the document
-   * @throws AppException.InvalidData if required fields are missing or have invalid types
+   * @throws AppException.InvalidData if required fields are missing or fields have invalid types
    */
   private fun documentToUser(document: DocumentSnapshot): User {
     // The UID is required because it is the stable identity shared with Firebase Authentication.
@@ -117,12 +139,18 @@ class UserRepositoryFirestore(
         document.getString("uid")
             ?: throw AppException.InvalidData("User document '${document.id}' is missing its UID")
 
-    // Preferences are stored as a nested map, so validate that structure before reading its fields.
+    // A missing preference field means no preference chosen yet: a profile created by
+    // updateUsername, or Firestore's local copy of a rename queued offline, only holds the UID and
+    // the name. Preferences are stored as a nested map, so any other present value is malformed.
     val preferenceData =
-        document.get("preference") as? Map<*, *>
-            ?: throw AppException.InvalidData(
-                "User document '${document.id}' is missing its preferences"
-            )
+        when (val value = document.get("preference")) {
+          null -> emptyMap<String, Any>()
+          is Map<*, *> -> value
+          else ->
+              throw AppException.InvalidData(
+                  "User document '${document.id}' has invalid preferences"
+              )
+        }
 
     // Validate every stored preference item before exposing it as a typed domain list.
     fun readStringList(fieldName: String): List<String> {
