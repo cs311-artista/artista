@@ -138,9 +138,8 @@ open class JsonResponseParser {
   /**
    * Parses Wikidata entity-search results into artist candidates.
    *
-   * @param responseBody raw JSON body returned by the Wikidata entity-search API
-   * Invalid individual candidates are skipped; valid candidates retain Wikidata's order.
-   *
+   * @param responseBody raw JSON body returned by the Wikidata entity-search API Invalid individual
+   *   candidates are skipped; valid candidates retain Wikidata's order.
    * @return valid candidates in the order returned by Wikidata
    * @throws AppException.InvalidData if the response is malformed or missing its search array
    * @author IJJA3141
