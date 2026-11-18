@@ -25,6 +25,7 @@ import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextInputSelection
 import androidx.compose.ui.text.TextRange
 import com.artista.artista.model.artist.Artist
+import com.artista.artista.model.artist.ArtistId
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.ArtworkType
@@ -233,6 +234,11 @@ class SearchScreenTest {
     val delayedWikiRepository =
         object : WikiDataRepository {
           override suspend fun getArtwork(uid: ArtworkId) = wikiRepository.getArtwork(uid)
+
+          override suspend fun getArtist(uid: ArtistId): Artist? = wikiRepository.getArtist(uid)
+
+          override suspend fun getArtistFromName(query: String): Artist? =
+              wikiRepository.getArtistFromName(query)
 
           override suspend fun searchArtworks(
               artworkTitle: String,
