@@ -698,27 +698,239 @@ class ArtistPreferencesViewModelTest {
     assertNull(viewModel.uiState.value.messageResId)
   }
 
-  /**
-   * Verifies that a failed load exposes an error, leaves the selection empty, and that the user can
-   * still select artists and save them once the backend answers again.
-   */
+  /** Verifies that a failed load of the saved artists is reported, with the matching message. */
   @Test
-  fun signIn_loadFails_keepsScreenUsableAndExposesError() = runTest {
+  fun signIn_loadFails_reportsFailureWithMessage() = runTest {
     userRepository.readFailure = AppException.Network()
 
     signIn()
 
-    assertEquals(R.string.error_network, viewModel.uiState.value.messageResId)
-    assertTrue(viewModel.uiState.value.selectedArtists.isEmpty())
-    assertFalse(viewModel.uiState.value.isLoadingSavedArtists)
+    val state = viewModel.uiState.value
+    assertTrue(state.hasSavedArtistsLoadFailed)
+    assertFalse(state.isLoadingSavedArtists)
+    assertEquals(R.string.error_network, state.messageResId)
+    assertTrue(state.selectedArtists.isEmpty())
+  }
 
-    // The backend is reachable again, as when the user retries after the error.
+  /**
+   * Verifies that, after a failed load of the saved artists, the selection cannot be edited or
+   * saved, even once the backend answers again, so artists that could not be read are never
+   * replaced.
+   */
+  @Test
+  fun signIn_loadFails_locksSelectionAndSave() = runTest {
+    userRepository.store(userWithArtists(listOf(KLIMT.uid)))
+    userRepository.readFailure = AppException.Network()
+    signIn()
+    // The backend is reachable again, but the user has not retried yet.
     userRepository.readFailure = null
+
     viewModel.toggleArtist(PICASSO.uid)
     viewModel.saveSelectedArtists()
     advanceUntilIdle()
 
-    assertEquals(listOf(PICASSO.uid), userRepository.storedUser(UID)?.preference?.artists)
+    assertTrue(viewModel.uiState.value.selectedArtists.isEmpty())
+    assertFalse(viewModel.uiState.value.canSave)
+    assertFalse(viewModel.uiState.value.canSearch)
+    assertEquals(0, userRepository.writeCount)
+    assertEquals(listOf(KLIMT.uid), userRepository.storedUser(UID)?.preference?.artists)
+  }
+
+  /** Verifies that a successful retry pre-selects the saved artists and unlocks the selection. */
+  @Test
+  fun retryFailedLoads_afterSavedArtistsLoadFails_preselectsThem() = runTest {
+    userRepository.store(userWithArtists(listOf(KLIMT.uid)))
+    userRepository.readFailure = AppException.Network()
+    signIn()
+
+    userRepository.readFailure = null
+    viewModel.retryFailedLoads()
+    advanceUntilIdle()
+
+    val state = viewModel.uiState.value
+    assertEquals(setOf(KLIMT.uid), state.selectedArtists)
+    assertFalse(state.hasSavedArtistsLoadFailed)
+    assertTrue(state.canSearch)
+    viewModel.toggleArtist(PICASSO.uid)
+    assertTrue(viewModel.uiState.value.canSave)
+  }
+
+  /** Verifies that a retry shows the loading state as soon as it is called. */
+  @Test
+  fun retryFailedLoads_afterSavedArtistsLoadFails_showsLoadingWhileRetrying() = runTest {
+    userRepository.readFailure = AppException.Network()
+    signIn()
+
+    userRepository.readFailure = null
+    userRepository.readDelays[UID] = 1_000
+    viewModel.retryFailedLoads()
+
+    // Checked before the read ends: the state changes as soon as the user taps.
+    assertTrue(viewModel.uiState.value.isLoadingSavedArtists)
+    assertFalse(viewModel.uiState.value.hasSavedArtistsLoadFailed)
+  }
+
+  /** Verifies that a retry of the saved artists that fails again reports the failure again. */
+  @Test
+  fun retryFailedLoads_savedArtistsFailAgain_reportsFailureAgain() = runTest {
+    userRepository.readFailure = AppException.Network()
+    signIn()
+    viewModel.clearMessage()
+
+    viewModel.retryFailedLoads()
+    advanceUntilIdle()
+
+    assertTrue(viewModel.uiState.value.hasSavedArtistsLoadFailed)
+    assertEquals(R.string.error_network, viewModel.uiState.value.messageResId)
+  }
+
+  /** Verifies that, when both loads failed, one retry reruns both of them. */
+  @Test
+  fun retryFailedLoads_bothLoadsFailed_retriesBoth() = runTest {
+    val repository = ControllableWikiDataRepository().apply { failure = AppException.Network() }
+    val viewModel = ArtistPreferencesViewModel(repository, authRepository, userRepository)
+    userRepository.store(userWithArtists(listOf(KLIMT.uid)))
+    userRepository.readFailure = AppException.Network()
+    signIn()
+    assertTrue(viewModel.uiState.value.hasPopularArtistsLoadFailed)
+    assertTrue(viewModel.uiState.value.hasSavedArtistsLoadFailed)
+
+    repository.failure = null
+    userRepository.readFailure = null
+    viewModel.retryFailedLoads()
+    advanceUntilIdle()
+
+    val state = viewModel.uiState.value
+    assertEquals(ALL_ARTISTS, state.popularArtists)
+    assertEquals(setOf(KLIMT.uid), state.selectedArtists)
+    assertFalse(state.hasLoadFailed)
+  }
+
+  /** Verifies that a retry only reruns the loads that failed. */
+  @Test
+  fun retryFailedLoads_onlyPopularArtistsFailed_keepsSavedArtistsLoaded() = runTest {
+    val repository = ControllableWikiDataRepository().apply { failure = AppException.Network() }
+    val viewModel = ArtistPreferencesViewModel(repository, authRepository, userRepository)
+    userRepository.store(userWithArtists(listOf(KLIMT.uid)))
+    signIn()
+    // A slow read would keep the saved artists loading if the retry reloaded them.
+    userRepository.readDelays[UID] = 1_000
+
+    repository.failure = null
+    viewModel.retryFailedLoads()
+    runCurrent()
+
+    assertFalse(viewModel.uiState.value.isLoadingSavedArtists)
+    assertEquals(setOf(KLIMT.uid), viewModel.uiState.value.selectedArtists)
+  }
+
+  /** Verifies that signing out clears the failure of the user who left. */
+  @Test
+  fun signOut_afterSavedArtistsLoadFails_clearsFailure() = runTest {
+    userRepository.readFailure = AppException.Network()
+    signIn()
+
+    authRepository.setAuthState(null)
+    advanceUntilIdle()
+
+    assertFalse(viewModel.uiState.value.hasSavedArtistsLoadFailed)
+    assertTrue(viewModel.uiState.value.canSearch)
+  }
+
+  /** Verifies that another user signing in clears the failure and loads their artists. */
+  @Test
+  fun signIn_otherUser_afterSavedArtistsLoadFails_clearsFailure() = runTest {
+    userRepository.store(userWithArtists(listOf(MONET.uid), uid = OTHER_UID))
+    userRepository.readFailure = AppException.Network()
+    signIn()
+
+    userRepository.readFailure = null
+    authRepository.setAuthState(FakeAuthUser(OTHER_UID))
+    advanceUntilIdle()
+
+    assertFalse(viewModel.uiState.value.hasSavedArtistsLoadFailed)
+    assertEquals(setOf(MONET.uid), viewModel.uiState.value.selectedArtists)
+  }
+
+  /** Verifies that the search field is disabled while the saved artists load. */
+  @Test
+  fun canSearch_whileSavedArtistsLoad_isFalse() {
+    assertFalse(ArtistPreferencesUiState(isLoadingSavedArtists = true).canSearch)
+  }
+
+  /** Verifies that the search field is disabled after the saved artists failed to load. */
+  @Test
+  fun canSearch_afterSavedArtistsLoadFails_isFalse() {
+    assertFalse(ArtistPreferencesUiState(hasSavedArtistsLoadFailed = true).canSearch)
+  }
+
+  /** Verifies that Save is disabled after any load failed, even with a changed selection. */
+  @Test
+  fun canSave_afterALoadFails_isFalse() {
+    val selection = setOf(PICASSO.uid)
+
+    assertFalse(
+        ArtistPreferencesUiState(selectedArtists = selection, hasPopularArtistsLoadFailed = true)
+            .canSave
+    )
+    assertFalse(
+        ArtistPreferencesUiState(selectedArtists = selection, hasSavedArtistsLoadFailed = true)
+            .canSave
+    )
+  }
+
+  /** Verifies that the screen counts as loading while either load runs. */
+  @Test
+  fun isLoading_whileEitherLoadRuns_isTrue() {
+    assertTrue(
+        ArtistPreferencesUiState(isLoadingPopularArtists = true, isLoadingSavedArtists = false)
+            .isLoading
+    )
+    assertTrue(
+        ArtistPreferencesUiState(isLoadingPopularArtists = false, isLoadingSavedArtists = true)
+            .isLoading
+    )
+    assertTrue(
+        ArtistPreferencesUiState(isLoadingPopularArtists = true, isLoadingSavedArtists = true)
+            .isLoading
+    )
+    assertFalse(
+        ArtistPreferencesUiState(isLoadingPopularArtists = false, isLoadingSavedArtists = false)
+            .isLoading
+    )
+  }
+
+  /** Verifies that the screen counts as failed when either load failed. */
+  @Test
+  fun hasLoadFailed_whenEitherLoadFailed_isTrue() {
+    assertTrue(
+        ArtistPreferencesUiState(
+                hasPopularArtistsLoadFailed = true,
+                hasSavedArtistsLoadFailed = false,
+            )
+            .hasLoadFailed
+    )
+    assertTrue(
+        ArtistPreferencesUiState(
+                hasPopularArtistsLoadFailed = false,
+                hasSavedArtistsLoadFailed = true,
+            )
+            .hasLoadFailed
+    )
+    assertTrue(
+        ArtistPreferencesUiState(
+                hasPopularArtistsLoadFailed = true,
+                hasSavedArtistsLoadFailed = true,
+            )
+            .hasLoadFailed
+    )
+    assertFalse(
+        ArtistPreferencesUiState(
+                hasPopularArtistsLoadFailed = false,
+                hasSavedArtistsLoadFailed = false,
+            )
+            .hasLoadFailed
+    )
   }
 
   /** Verifies that a saved artist missing from the popular artists is still selected. */

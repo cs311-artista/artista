@@ -46,6 +46,7 @@
     <string name="artist_preferences_save">Save Preferences</string>
     <string name="artist_preferences_saved">Your favorite artists have been saved.</string>
     <string name="artist_preferences_load_error_state">Popular artists couldn\'t be loaded.</string>
+    <string name="artist_preferences_saved_artists_load_error">Your saved artists couldn\'t be loaded.</string>
     <!-- Map screen -->
     <string name="map_marker_navigate_to">Navigate to</string>
     <string name="map_route_loading">Finding a walking route...</string>
