@@ -76,14 +76,8 @@ class JsonResponseParserTest {
   }
 
   @Test
-  fun parseArtistCandidates_throwsInvalidDataForInvalidResponses() {
-    val invalidResponses =
-        listOf(
-            """{}""",
-            """{"search":[{"id":"not-a-qid","label":"Artist"}]}""",
-            """{"search":[{"id":"Q123","label":" "}]}""",
-            """{"search":[{"id":"Q123","label":"Artist"}""",
-        )
+  fun parseArtistCandidates_throwsInvalidDataForMalformedResponseOrMissingSearchArray() {
+    val invalidResponses = listOf("""{}""", """{"search":[{"id":"Q123","label":"Artist"}""")
 
     invalidResponses.forEach { response ->
       assertThrows(AppException.InvalidData::class.java) { parser.parseArtistCandidates(response) }
@@ -91,9 +85,44 @@ class JsonResponseParserTest {
   }
 
   @Test
+  fun parseArtistCandidates_dropsInvalidCandidatesAndKeepsValidOnes() {
+    val candidates =
+        parser.parseArtistCandidates(
+            """
+            {
+              "search": [
+                {"id": "Q5593", "label": "Pablo Picasso"},
+                {"id": "not-a-qid", "label": "Invalid ID"},
+                {"id": "Q123", "label": " "},
+                {"id": "Q124"},
+                "not an object"
+              ]
+            }
+            """
+        )
+
+    assertEquals(listOf(ArtistCandidate("Q5593", "Pablo Picasso", null)), candidates)
+  }
+
+  @Test
   fun parseArtistCandidates_returnsNullDescriptionWhenMissing() {
     val candidates =
         parser.parseArtistCandidates("""{"search":[{"id":"Q5593","label":"Pablo Picasso"}]}""")
+
+    assertEquals(listOf(ArtistCandidate("Q5593", "Pablo Picasso", null)), candidates)
+  }
+
+  @Test
+  fun parseArtistCandidates_returnsEmptyListForEmptySearchArray() {
+    assertEquals(emptyList<ArtistCandidate>(), parser.parseArtistCandidates("""{"search":[]}"""))
+  }
+
+  @Test
+  fun parseArtistCandidates_returnsNullDescriptionWhenDescriptionIsNull() {
+    val candidates =
+        parser.parseArtistCandidates(
+            """{"search":[{"id":"Q5593","label":"Pablo Picasso","description":null}]}"""
+        )
 
     assertEquals(listOf(ArtistCandidate("Q5593", "Pablo Picasso", null)), candidates)
   }
@@ -132,20 +161,99 @@ class JsonResponseParserTest {
   }
 
   @Test
+  fun parseArtistResults_parsesImageUrl() {
+    val response =
+        """
+        {
+          "results": {
+            "bindings": [
+              {
+                "artist": {"value": "http://www.wikidata.org/entity/Q5593"},
+                "artistLabel": {"value": "Pablo Picasso"},
+                "image": {"value": "$FIRST_IMAGE"}
+              }
+            ]
+          }
+        }
+        """
+
+    val artist = parser.parseArtistResults(response)
+
+    assertEquals(
+        "https://commons.wikimedia.org/wiki/Special:FilePath/First.JPG?width=800",
+        artist?.imageUrl,
+    )
+  }
+
+  @Test
+  fun parseArtistResults_returnsNullWhenArtistLabelIsMissing() {
+    val response =
+        """
+        {
+          "results": {
+            "bindings": [
+              {"artist": {"value": "http://www.wikidata.org/entity/Q5593"}}
+            ]
+          }
+        }
+        """
+
+    assertNull(parser.parseArtistResults(response))
+  }
+
+  @Test
+  fun parseArtistResults_returnsNullDescriptionWhenDescriptionIsMissing() {
+    val response =
+        """
+        {
+          "results": {
+            "bindings": [
+              {
+                "artist": {"value": "http://www.wikidata.org/entity/Q5593"},
+                "artistLabel": {"value": "Pablo Picasso"}
+              }
+            ]
+          }
+        }
+        """
+
+    assertEquals(
+        Artist(uid = "Q5593", name = "Pablo Picasso"),
+        parser.parseArtistResults(response),
+    )
+  }
+
+  @Test
+  fun parseArtistResults_throwsInvalidDataWhenArtistBindingIsMissing() {
+    val response =
+        """
+        {
+          "results": {
+            "bindings": [
+              {"artistLabel": {"value": "Pablo Picasso"}}
+            ]
+          }
+        }
+        """
+
+    assertThrows(AppException.InvalidData::class.java) { parser.parseArtistResults(response) }
+  }
+
+  @Test
   fun parseArtistResults_returnsNullWhenThereAreNoBindings() {
     assertNull(parser.parseArtistResults("""{"results":{"bindings":[]}}"""))
   }
 
   @Test
   fun parseArtistResults_throwsNotFoundWhenResultsAreMissing() {
-    assertThrows(AppException.NotFound::class.java) {
+    assertThrows(AppException.InvalidData::class.java) {
       parser.parseArtistResults("""{"head":{"vars":["artist"]}}""")
     }
   }
 
   @Test
   fun parseArtistResults_throwsNotFoundWhenBindingsAreMissing() {
-    assertThrows(AppException.NotFound::class.java) {
+    assertThrows(AppException.InvalidData::class.java) {
       parser.parseArtistResults("""{"results":{}}""")
     }
   }
