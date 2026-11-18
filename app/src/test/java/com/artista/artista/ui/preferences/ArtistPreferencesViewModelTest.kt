@@ -882,17 +882,55 @@ class ArtistPreferencesViewModelTest {
   /** Verifies that the screen counts as loading while either load runs. */
   @Test
   fun isLoading_whileEitherLoadRuns_isTrue() {
-    assertTrue(ArtistPreferencesUiState(isLoadingPopularArtists = true).isLoading)
-    assertTrue(ArtistPreferencesUiState(isLoadingSavedArtists = true).isLoading)
-    assertFalse(ArtistPreferencesUiState().isLoading)
+    assertTrue(
+        ArtistPreferencesUiState(isLoadingPopularArtists = true, isLoadingSavedArtists = false)
+            .isLoading
+    )
+    assertTrue(
+        ArtistPreferencesUiState(isLoadingPopularArtists = false, isLoadingSavedArtists = true)
+            .isLoading
+    )
+    assertTrue(
+        ArtistPreferencesUiState(isLoadingPopularArtists = true, isLoadingSavedArtists = true)
+            .isLoading
+    )
+    assertFalse(
+        ArtistPreferencesUiState(isLoadingPopularArtists = false, isLoadingSavedArtists = false)
+            .isLoading
+    )
   }
 
   /** Verifies that the screen counts as failed when either load failed. */
   @Test
   fun hasLoadFailed_whenEitherLoadFailed_isTrue() {
-    assertTrue(ArtistPreferencesUiState(hasPopularArtistsLoadFailed = true).hasLoadFailed)
-    assertTrue(ArtistPreferencesUiState(hasSavedArtistsLoadFailed = true).hasLoadFailed)
-    assertFalse(ArtistPreferencesUiState().hasLoadFailed)
+    assertTrue(
+        ArtistPreferencesUiState(
+                hasPopularArtistsLoadFailed = true,
+                hasSavedArtistsLoadFailed = false,
+            )
+            .hasLoadFailed
+    )
+    assertTrue(
+        ArtistPreferencesUiState(
+                hasPopularArtistsLoadFailed = false,
+                hasSavedArtistsLoadFailed = true,
+            )
+            .hasLoadFailed
+    )
+    assertTrue(
+        ArtistPreferencesUiState(
+                hasPopularArtistsLoadFailed = true,
+                hasSavedArtistsLoadFailed = true,
+            )
+            .hasLoadFailed
+    )
+    assertFalse(
+        ArtistPreferencesUiState(
+                hasPopularArtistsLoadFailed = false,
+                hasSavedArtistsLoadFailed = false,
+            )
+            .hasLoadFailed
+    )
   }
 
   /** Verifies that a saved artist missing from the popular artists is still selected. */
