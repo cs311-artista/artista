@@ -3,6 +3,8 @@
 // Co-authored-by: DeepSeek Flash
 package com.artista.artista.model.artwork
 
+import com.artista.artista.model.artist.Artist
+import com.artista.artista.model.error.AppException
 import com.artista.artista.model.map.Location
 import java.time.Instant
 import java.time.LocalDate
@@ -11,6 +13,7 @@ import java.util.Date
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -26,6 +29,287 @@ import org.robolectric.RobolectricTestRunner
 class JsonResponseParserTest {
 
   private val parser = JsonResponseParser()
+
+  @Test
+  fun parseArtistCandidates_readsWikidataSearchResults() {
+    val candidates =
+        parser.parseArtistCandidates(
+            """
+            {
+              "searchinfo": {"search": "Picasso"},
+              "search": [
+                {"id": "Q21431120", "label": "Picasso", "description": "family name"},
+                {
+                  "id": "Q5593",
+                  "label": "Pablo Picasso",
+                  "description": "Spanish painter and sculptor (1881–1973)",
+                  "aliases": ["Picasso"]
+                },
+                {"id": "Q131541684", "label": "Picasso", "description": "2020 song by Lacrim"},
+                {"id": "Q153031", "label": "4221 Picasso", "description": "asteroid"},
+                {
+                  "id": "Q7190531",
+                  "label": "Picasso",
+                  "description": "Japanese rock band"
+                }
+              ],
+              "search-continue": 5,
+              "success": 1
+            }
+            """
+        )
+
+    assertEquals(
+        listOf(
+            ArtistCandidate("Q21431120", "Picasso", "family name"),
+            ArtistCandidate(
+                "Q5593",
+                "Pablo Picasso",
+                "Spanish painter and sculptor (1881–1973)",
+            ),
+            ArtistCandidate("Q131541684", "Picasso", "2020 song by Lacrim"),
+            ArtistCandidate("Q153031", "4221 Picasso", "asteroid"),
+            ArtistCandidate("Q7190531", "Picasso", "Japanese rock band"),
+        ),
+        candidates,
+    )
+  }
+
+  @Test
+  fun parseArtistCandidates_throwsInvalidDataForMalformedResponseOrMissingSearchArray() {
+    val invalidResponses = listOf("""{}""", """{"search":[{"id":"Q123","label":"Artist"}""")
+
+    invalidResponses.forEach { response ->
+      assertThrows(AppException.InvalidData::class.java) { parser.parseArtistCandidates(response) }
+    }
+  }
+
+  @Test
+  fun parseArtistCandidates_dropsInvalidCandidatesAndKeepsValidOnes() {
+    val candidates =
+        parser.parseArtistCandidates(
+            """
+            {
+              "search": [
+                {"id": "Q5593", "label": "Pablo Picasso"},
+                {"id": "not-a-qid", "label": "Invalid ID"},
+                {"id": "Q123", "label": " "},
+                {"id": "Q124"},
+                "not an object"
+              ]
+            }
+            """
+        )
+
+    assertEquals(listOf(ArtistCandidate("Q5593", "Pablo Picasso", null)), candidates)
+  }
+
+  @Test
+  fun parseArtistCandidates_returnsNullDescriptionWhenMissing() {
+    val candidates =
+        parser.parseArtistCandidates("""{"search":[{"id":"Q5593","label":"Pablo Picasso"}]}""")
+
+    assertEquals(listOf(ArtistCandidate("Q5593", "Pablo Picasso", null)), candidates)
+  }
+
+  @Test
+  fun parseArtistCandidates_returnsEmptyListForEmptySearchArray() {
+    assertEquals(emptyList<ArtistCandidate>(), parser.parseArtistCandidates("""{"search":[]}"""))
+  }
+
+  @Test
+  fun parseArtistCandidates_returnsNullDescriptionWhenDescriptionIsNull() {
+    val candidates =
+        parser.parseArtistCandidates(
+            """{"search":[{"id":"Q5593","label":"Pablo Picasso","description":null}]}"""
+        )
+
+    assertEquals(listOf(ArtistCandidate("Q5593", "Pablo Picasso", null)), candidates)
+  }
+
+  @Test
+  fun parseArtistResults_parsesFirstArtistBinding() {
+    val response =
+        """
+        {
+          "results": {
+            "bindings": [
+              {
+                "artist": {
+                  "type": "uri",
+                  "value": "http://www.wikidata.org/entity/Q5593"
+                },
+                "artistLabel": {"type": "literal", "value": "Pablo Picasso"},
+                "description": {
+                  "type": "literal",
+                  "value": "Spanish painter and sculptor"
+                }
+              }
+            ]
+          }
+        }
+        """
+
+    assertEquals(
+        Artist(
+            uid = "Q5593",
+            name = "Pablo Picasso",
+            description = "Spanish painter and sculptor",
+        ),
+        parser.parseArtistResults(response),
+    )
+  }
+
+  @Test
+  fun parseArtistResults_parsesImageUrl() {
+    val response =
+        """
+        {
+          "results": {
+            "bindings": [
+              {
+                "artist": {"value": "http://www.wikidata.org/entity/Q5593"},
+                "artistLabel": {"value": "Pablo Picasso"},
+                "image": {"value": "$FIRST_IMAGE"}
+              }
+            ]
+          }
+        }
+        """
+
+    val artist = parser.parseArtistResults(response)
+
+    assertEquals(
+        "https://commons.wikimedia.org/wiki/Special:FilePath/First.JPG?width=800",
+        artist?.imageUrl,
+    )
+  }
+
+  @Test
+  fun parseArtistResults_returnsNullWhenArtistLabelIsMissing() {
+    val response =
+        """
+        {
+          "results": {
+            "bindings": [
+              {"artist": {"value": "http://www.wikidata.org/entity/Q5593"}}
+            ]
+          }
+        }
+        """
+
+    assertNull(parser.parseArtistResults(response))
+  }
+
+  @Test
+  fun parseArtistResults_returnsNullDescriptionWhenDescriptionIsMissing() {
+    val response =
+        """
+        {
+          "results": {
+            "bindings": [
+              {
+                "artist": {"value": "http://www.wikidata.org/entity/Q5593"},
+                "artistLabel": {"value": "Pablo Picasso"}
+              }
+            ]
+          }
+        }
+        """
+
+    assertEquals(
+        Artist(uid = "Q5593", name = "Pablo Picasso"),
+        parser.parseArtistResults(response),
+    )
+  }
+
+  @Test
+  fun parseArtistResults_throwsInvalidDataWhenArtistBindingIsMissing() {
+    val response =
+        """
+        {
+          "results": {
+            "bindings": [
+              {"artistLabel": {"value": "Pablo Picasso"}}
+            ]
+          }
+        }
+        """
+
+    assertThrows(AppException.InvalidData::class.java) { parser.parseArtistResults(response) }
+  }
+
+  @Test
+  fun parseArtistResults_returnsNullWhenThereAreNoBindings() {
+    assertNull(parser.parseArtistResults("""{"results":{"bindings":[]}}"""))
+  }
+
+  @Test
+  fun parseArtistResults_throwsNotFoundWhenResultsAreMissing() {
+    assertThrows(AppException.InvalidData::class.java) {
+      parser.parseArtistResults("""{"head":{"vars":["artist"]}}""")
+    }
+  }
+
+  @Test
+  fun parseArtistResults_throwsNotFoundWhenBindingsAreMissing() {
+    assertThrows(AppException.InvalidData::class.java) {
+      parser.parseArtistResults("""{"results":{}}""")
+    }
+  }
+
+  @Test
+  fun parseArtworkResults_throwsNotFoundWhenResultsObjectIsMissing() {
+    assertThrows(AppException.NotFound::class.java) {
+      parser.parseArtworkResults("""{"head":{"vars":["item"]}}""")
+    }
+  }
+
+  @Test
+  fun parseCuratedArtistQid_readsQidFromArtistUri() {
+    val response =
+        """
+        {
+          "head": {"vars": ["artist", "sitelinks"]},
+          "results": {
+            "bindings": [
+              {
+                "artist": {
+                  "type": "uri",
+                  "value": "http://www.wikidata.org/entity/Q5593"
+                },
+                "sitelinks": {
+                  "datatype": "http://www.w3.org/2001/XMLSchema#integer",
+                  "type": "literal",
+                  "value": "265"
+                }
+              }
+            ]
+          }
+        }
+        """
+
+    assertEquals("Q5593", parser.parseCuratedArtistQid(response))
+  }
+
+  @Test
+  fun parseCuratedArtistQid_returnsNullWhenThereAreNoBindings() {
+    assertNull(parser.parseCuratedArtistQid("""{"results":{"bindings":[]}}"""))
+  }
+
+  @Test
+  fun parseCuratedArtistQid_throwsInvalidDataForMalformedResponseOrInvalidArtistUri() {
+    val malformedResponse = """{"results":{}}"""
+    val invalidArtistUri =
+        """{"results":{"bindings":[{"artist":{"value":"http://www.wikidata.org/entity/not-a-qid"}}]}}"""
+
+    assertThrows(AppException.InvalidData::class.java) {
+      parser.parseCuratedArtistQid(malformedResponse)
+    }
+    assertThrows(AppException.InvalidData::class.java) {
+      parser.parseCuratedArtistQid(invalidArtistUri)
+    }
+  }
 
   private companion object {
     const val MONA_LISA_IMAGE_URL =

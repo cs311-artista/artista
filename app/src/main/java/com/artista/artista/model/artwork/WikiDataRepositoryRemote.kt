@@ -3,6 +3,7 @@
 package com.artista.artista.model.artwork
 
 import com.artista.artista.model.artist.Artist
+import com.artista.artista.model.artist.ArtistId
 import com.artista.artista.model.error.AppException
 import java.text.Normalizer
 import java.util.LinkedHashMap
@@ -113,6 +114,16 @@ enum class WikiDataProperty(val id: String) {
 
   override fun toString(): String = id
 }
+
+/**
+ * A matching artist returned by the Wikidata entity-search API.
+ *
+ * @property id Wikidata item identifier, such as `Q5593`
+ * @property label artist's display name
+ * @property description optional Wikidata description of the matching item
+ * @author IJJA3141
+ */
+data class ArtistCandidate(val id: ArtistId, val label: String, val description: String?)
 
 /**
  * Remote implementation of [WikiDataRepository] backed by the Wikidata SPARQL API.
