@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -38,6 +39,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -45,6 +47,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil3.compose.AsyncImage
+import coil3.compose.AsyncImagePainter
 import com.artista.artista.R
 import com.artista.artista.model.authentication.AuthRepository
 import com.artista.artista.model.authentication.AuthUser
@@ -113,6 +117,7 @@ fun UserProfileScreen(
   ) { innerPadding ->
     ProfileContent(
         username = uiState.username,
+        photoUrl = uiState.photoUrl,
         onUsernameSave = userProfileViewModel::updateUsername,
         onPreferencesClick = onPreferencesClick,
         onSavedArtworkClick = onSavedArtworkClick,
@@ -148,6 +153,7 @@ private fun ProfileTopBar(onLogoutClick: () -> Unit) {
  * Profile picture and fields of the profile screen, scrollable when they do not fit on the screen.
  *
  * @param username Name of the user, or null to display the placeholder.
+ * @param photoUrl Link of the picture of the user, or null to display the placeholder.
  * @param onUsernameSave Callback invoked with the username saved from the edit dialog.
  * @param onPreferencesClick Callback invoked when the preferences button is clicked.
  * @param onSavedArtworkClick Callback invoked when the saved artwork button is clicked.
@@ -156,6 +162,7 @@ private fun ProfileTopBar(onLogoutClick: () -> Unit) {
 @Composable
 private fun ProfileContent(
     username: String?,
+    photoUrl: String?,
     onUsernameSave: (String) -> Unit,
     onPreferencesClick: () -> Unit,
     onSavedArtworkClick: () -> Unit,
@@ -194,7 +201,7 @@ private fun ProfileContent(
               ),
       horizontalAlignment = Alignment.CenterHorizontally,
   ) {
-    ProfilePicturePlaceholder()
+    ProfilePicture(photoUrl = photoUrl)
     Spacer(modifier = Modifier.height(Dimensions.profilePictureFieldsSpacing))
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -257,24 +264,58 @@ private fun LogoutButton(onClick: () -> Unit) {
   }
 }
 
-/** Static placeholder shown until users can upload a profile picture. */
+/**
+ * Displays the picture of the user in the picture area, with the placeholder while there is no
+ * picture to show.
+ *
+ * The area is circular because Google composes an avatar for the inscribed circle of a square
+ * bitmap: the corners hold whatever the original photo had there, which is the part nobody framed
+ * for, and Google never shows that bitmap any other way. The house shape stays a rounded square for
+ * cards, fields and buttons; this is the one view whose shape the provider dictates.
+ *
+ * @param photoUrl link of the picture to download, or null when the user has none
+ */
 @Composable
-private fun ProfilePicturePlaceholder() {
+private fun ProfilePicture(photoUrl: String?) {
+  // Reset when the link changes, so a picture is never carried over to the next profile, and the
+  // placeholder comes back while the new one downloads.
+  var isImageLoaded by remember(photoUrl) { mutableStateOf(false) }
+
   Box(
       modifier =
           Modifier.fillMaxWidth(0.75f)
               .aspectRatio(1f)
-              .clip(RoundedCornerShape(Dimensions.cornerRadiusLarge))
+              // Clipped before the background so the surface fills the circle, not its square.
+              .clip(CircleShape)
               .background(MaterialTheme.colorScheme.surface)
               .testTag(UserProfileTestTags.PROFILE_PICTURE),
       contentAlignment = Alignment.Center,
   ) {
-    Text(
-        text = stringResource(R.string.profile_picture_placeholder),
-        style = MaterialTheme.typography.headlineMedium,
-        textAlign = TextAlign.Center,
-        color = MaterialTheme.colorScheme.primary,
-    )
+    // Without a link nothing is requested over the network: the placeholder below stays alone.
+    if (photoUrl != null) {
+      AsyncImage(
+          model = photoUrl,
+          // Described only once loaded: while loading or after a failed download the user sees the
+          // placeholder, so announcing the picture would describe something that is not shown.
+          contentDescription =
+              if (isImageLoaded) stringResource(R.string.profile_picture_description) else null,
+          modifier = Modifier.fillMaxSize().testTag(UserProfileTestTags.PROFILE_PICTURE_IMAGE),
+          // Crop fills the circle with the square bitmap instead of letterboxing it inside.
+          contentScale = ContentScale.Crop,
+          onState = { state -> isImageLoaded = state is AsyncImagePainter.State.Success },
+      )
+    }
+    // Covers loading, a failed download and a user without a picture alike: in every case there is
+    // nothing to look at yet, and an empty box would look broken.
+    if (!isImageLoaded) {
+      Text(
+          text = stringResource(R.string.profile_picture_placeholder),
+          modifier = Modifier.testTag(UserProfileTestTags.PROFILE_PICTURE_PLACEHOLDER),
+          style = MaterialTheme.typography.headlineMedium,
+          textAlign = TextAlign.Center,
+          color = MaterialTheme.colorScheme.primary,
+      )
+    }
   }
 }
 
