@@ -148,7 +148,18 @@ class WikiDataRepositoryRemote(
       "This function will be moved outside of WikiDataRepository since the popularity isn't a Wikidata metric."
   )
   override suspend fun getPopularArtists(): List<Artist> {
-    throw NotImplementedError("Not yet implemented")
+    throw NotImplementedError("This function shouldn't be used")
+  }
+
+  override suspend fun getArtistFromName(query: String): Artist? {
+    val candidates = searchArtistCandidates(query)
+    val id = pickArtist(candidates.map { it.id }) ?: return null
+    return getArtistProfile(id) // the ID-based query from my previous message
+  }
+
+  override suspend fun getArtist(uid: ArtistId): Artist? {
+    if (!uid.matches(ITEM_ID_REGEX)) throw AppException.InvalidInput("uid is invalid")
+    return getArtistProfile(uid) // the ID-based query from my previous message
   }
 
   /**
@@ -422,6 +433,97 @@ class WikiDataRepositoryRemote(
   private fun List<ArtworkType>.toSparqlValueList(): String =
       joinToString(separator = " ") { "wd:${it.qid}" }
 
+  private suspend fun searchArtistCandidates(name: String, limit: Int = 5): List<ArtistCandidate> {
+    val text = name.trim()
+    if (text.isEmpty()) return emptyList()
+
+    val url =
+        "https://www.wikidata.org/w/api.php"
+            .toHttpUrl()
+            .newBuilder()
+            .addQueryParameter("action", "wbsearchentities")
+            .addQueryParameter("search", text) // the builder URL-encodes it
+            .addQueryParameter("language", "en")
+            .addQueryParameter("uselang", "en")
+            .addQueryParameter("type", "item")
+            .addQueryParameter("limit", limit.toString())
+            .addQueryParameter("format", "json")
+            .build()
+
+    val body = executeGet(url, accept = "application/json")
+    return jsonResponseParser.parseArtistCandidates(body)
+  }
+
+  private suspend fun pickArtist(ids: List<ArtistId>): ArtistId? {
+    if (ids.isEmpty()) return null
+    if (ids.size == 1) return ids.first()
+
+    val query = buildArtistPickQuery(ids)
+    val artist = executeSparqlRequest(query)
+    return jsonResponseParser.parseCuratedArtistQid(artist)
+  }
+
+  private fun buildArtistPickQuery(candidateIds: List<String>): String {
+    require(candidateIds.all(ITEM_ID_REGEX::matches)) { "invalid candidate id" }
+
+    return """
+    SELECT ?artist ?sitelinks WHERE {
+      VALUES ?artist { ${candidateIds.joinToString(" ") { "wd:$it" }} }
+      ?artist wdt:${WikiDataProperty.INSTANCE_OF} wd:Q5 ;
+              wdt:P106 ?occupation ;
+              wikibase:sitelinks ?sitelinks .
+      VALUES ?occupation { ${ArtistOccupation.entries.map { it.qid }.joinToString(" ") { "wd:$it" }} }
+    }
+    ORDER BY DESC(?sitelinks)
+    LIMIT 1
+  """
+        .trimIndent()
+  }
+
+  private suspend fun getArtistProfile(qId: String, limit: Int = 5): Artist? {
+    require(qId.matches(ITEM_ID_REGEX)) { "invalid Qid" }
+
+    val query =
+        """
+        SELECT ?artist ?artistLabel ?description ?image ?birthDate ?deathDate
+        ?birthPlaceLabel ?deathPlaceLabel ?website ?wikipedia ?sitelinks
+        ?occupations ?citizenships ?movements
+        WHERE {
+            VALUES ?artist { wd:${qId} }
+            ?artist wikibase:sitelinks ?sitelinks .
+            OPTIONAL { ?artist rdfs:label ?artistLabel . FILTER(LANG(?artistLabel) = "en") }
+            OPTIONAL { ?artist schema:description ?description . FILTER(LANG(?description) = "en") }
+            OPTIONAL { ?artist wdt:P18 ?image . }
+            OPTIONAL { ?artist wdt:P569 ?birthDate . }
+            OPTIONAL { ?artist wdt:P570 ?deathDate . }
+            OPTIONAL { ?artist wdt:P19 ?birthPlace . ?birthPlace rdfs:label ?birthPlaceLabel . FILTER(LANG(?birthPlaceLabel) = "en") }
+            OPTIONAL { ?artist wdt:P20 ?deathPlace . ?deathPlace rdfs:label ?deathPlaceLabel . FILTER(LANG(?deathPlaceLabel) = "en") }
+            OPTIONAL { ?artist wdt:P856 ?website . }
+            OPTIONAL { ?wikipedia schema:about ?artist ; schema:isPartOf <https://en.wikipedia.org/> . }
+                OPTIONAL {
+                    SELECT (GROUP_CONCAT(DISTINCT ?l; separator=" | ") AS ?occupations) WHERE {
+                    wd:Q5593 wdt:P106 ?o . ?o rdfs:label ?l . FILTER(LANG(?l) = "en")
+                }
+                }
+                OPTIONAL {
+                    SELECT (GROUP_CONCAT(DISTINCT ?l; separator=" | ") AS ?citizenships) WHERE {
+                    wd:Q5593 wdt:P27 ?c . ?c rdfs:label ?l . FILTER(LANG(?l) = "en")
+                }
+                }
+                OPTIONAL {
+                    SELECT (GROUP_CONCAT(DISTINCT ?l; separator=" | ") AS ?movements) WHERE {
+                    wd:Q5593 wdt:P135 ?m . ?m rdfs:label ?l . FILTER(LANG(?l) = "en")
+                }
+                }
+            }
+            LIMIT $limit
+           """
+            .trimIndent()
+
+    val body = executeSparqlRequest(query)
+    return jsonResponseParser.parseArtistResults(body)
+  }
+
   private fun buildArtworkNearLocationQuery(
       searchArea: SearchArea,
       typeValues: List<ArtworkType>,
@@ -497,17 +599,23 @@ class WikiDataRepositoryRemote(
   }
 
   internal suspend fun executeSparqlRequest(sparqlQuery: String): String =
+      executeGet(
+          endpoint
+              .newBuilder()
+              .addQueryParameter("format", "json")
+              .addQueryParameter("query", sparqlQuery)
+              .build()
+      )
+
+  internal suspend fun executeGet(
+      url: HttpUrl,
+      accept: String = "application/sparql-results+json",
+  ): String =
       withContext(Dispatchers.IO) {
-        val url =
-            endpoint
-                .newBuilder()
-                .addQueryParameter("format", "json")
-                .addQueryParameter("query", sparqlQuery)
-                .build()
         val request =
             Request.Builder()
                 .url(url)
-                .header("Accept", "application/sparql-results+json")
+                .header("Accept", accept)
                 .header("User-Agent", WIKIMEDIA_USER_AGENT)
                 .get()
                 .build()
@@ -516,18 +624,18 @@ class WikiDataRepositoryRemote(
           client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
               throw AppException.Network(
-                  "Wikidata request failed with status ${response.code}: ${response.message}"
+                  "Wikidata GET request failed with status ${response.code}: ${response.message}"
               )
             }
             response.body?.string()
-                ?: throw AppException.InvalidData("Wikidata response body was empty")
+                ?: throw AppException.InvalidData("Wikidata GET response body was empty")
           }
         } catch (exception: AppException) {
           throw exception
         } catch (exception: CancellationException) {
           throw exception
         } catch (exception: Exception) {
-          throw AppException.Network("Unable to read Wikidata response", exception)
+          throw AppException.Network("Unable to read Wikidata GET response", exception)
         }
       }
 }
