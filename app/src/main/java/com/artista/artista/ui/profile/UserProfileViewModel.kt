@@ -1,4 +1,5 @@
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
+// Co-authored-by: DeepSeek Flash <noreply@deepseek.com>
 package com.artista.artista.ui.profile
 
 import androidx.annotation.StringRes
@@ -62,12 +63,16 @@ fun isValidUsername(name: String): Boolean {
  * UI state of the user profile screen.
  *
  * @property username the display name of the user, or null when the user has not chosen one.
+ * @property photoUrl link of the profile picture of the user, or null when they have none, so that
+ *   the screen shows its placeholder whatever the reason the picture is missing (absent from the
+ *   profile, still loading, or failed to download).
  * @property errorMessageResId string resource of the message shown when loading or saving the
  *   profile fails, or null when there is nothing to show.
  * @author Timz3rr
  */
 data class UserProfileUiState(
     val username: String? = null,
+    val photoUrl: String? = null,
     @param:StringRes val errorMessageResId: Int? = null,
 )
 

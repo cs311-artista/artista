@@ -1,6 +1,7 @@
 package com.artista.artista.ui.profile
 
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
+// Co-authored-by: DeepSeek Flash <noreply@deepseek.com>
 /**
  * Provides stable semantics tags for the user profile screen UI tests.
  *
@@ -14,8 +15,17 @@ object UserProfileTestTags {
   /** Tag identifying the button signing the user out. */
   const val LOGOUT_BUTTON = "user_profile_logout_button"
 
-  /** Tag identifying the profile picture placeholder. */
+  /** Tag identifying the picture area, which holds the image or its placeholder. */
   const val PROFILE_PICTURE = "user_profile_picture"
+
+  /** Tag identifying the picture of the user, shown instead of the placeholder once loaded. */
+  const val PROFILE_PICTURE_IMAGE = "user_profile_picture_image"
+
+  /**
+   * Tag identifying the placeholder shown in the picture area while there is no picture to display,
+   * or once its download has failed.
+   */
+  const val PROFILE_PICTURE_PLACEHOLDER = "user_profile_picture_placeholder"
 
   /** Tag identifying the field displaying the username, which opens its edit dialog on click. */
   const val USERNAME = "user_profile_username"

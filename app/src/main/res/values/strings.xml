@@ -1,5 +1,6 @@
 <!-- Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com> -->
 <!-- Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com> -->
+<!-- Co-authored-by: DeepSeek Flash <noreply@deepseek.com> -->
 <resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name">Artista</string>
 
@@ -29,6 +30,7 @@
     <!-- User profile screen -->
     <string name="profile_logout">Logout</string>
     <string name="profile_picture_placeholder">Profile\nPicture</string>
+    <string name="profile_picture_description">Profile picture</string>
     <string name="profile_username_placeholder">USERNAME</string>
     <string name="profile_preferences">ARTIST PREFERENCES</string>
     <string name="profile_saved_artwork">SAVED ARTWORKS</string>
