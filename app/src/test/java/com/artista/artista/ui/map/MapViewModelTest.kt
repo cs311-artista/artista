@@ -5,6 +5,7 @@ package com.artista.artista.ui.map
 import com.artista.artista.MainDispatcherRule
 import com.artista.artista.R
 import com.artista.artista.model.artist.Artist
+import com.artista.artista.model.artist.ArtistId
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
@@ -565,6 +566,14 @@ class MapViewModelTest {
 
     @Deprecated("Only required by the repository interface.")
     override suspend fun getPopularArtists(): List<Artist> = emptyList()
+
+    override suspend fun getArtistFromName(query: String): Artist? {
+      throw NotImplementedError("Shouldn't be used in this test.")
+    }
+
+    override suspend fun getArtist(uid: ArtistId): Artist? {
+      throw NotImplementedError("Shouldn't be used in this test.")
+    }
 
     override suspend fun getArtwork(uid: ArtworkId): Artwork {
       return artworks.first { it.uid == uid }

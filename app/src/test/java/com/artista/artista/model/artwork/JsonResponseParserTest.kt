@@ -161,6 +161,43 @@ class JsonResponseParserTest {
   }
 
   @Test
+  fun parseArtistResults_parsesBirthDeathPlacesCitizenshipsAndMovements() {
+    val response =
+        """
+        {
+          "results": {
+            "bindings": [
+              {
+                "artist": {"value": "http://www.wikidata.org/entity/Q5593"},
+                "artistLabel": {"value": "Pablo Picasso"},
+                "birthDate": {"value": "1881-10-25T00:00:00Z"},
+                "deathDate": {"value": "1973-04-08T00:00:00Z"},
+                "birthPlaceLabel": {"value": "Málaga"},
+                "deathPlaceLabel": {"value": "Mougins"},
+                "citizenships": {"value": "Spain | France"},
+                "movements": {"value": "Cubism | Surrealism"}
+              }
+            ]
+          }
+        }
+        """
+
+    assertEquals(
+        Artist(
+            uid = "Q5593",
+            name = "Pablo Picasso",
+            birthInstant = Date.from(Instant.parse("1881-10-25T00:00:00Z")),
+            birthPlace = "Málaga",
+            deathInstant = Date.from(Instant.parse("1973-04-08T00:00:00Z")),
+            deathPlace = "Mougins",
+            citizenships = listOf("Spain", "France"),
+            movements = listOf("Cubism", "Surrealism"),
+        ),
+        parser.parseArtistResults(response),
+    )
+  }
+
+  @Test
   fun parseArtistResults_parsesImageUrl() {
     val response =
         """

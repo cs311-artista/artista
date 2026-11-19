@@ -208,6 +208,19 @@ open class JsonResponseParser {
         val description = binding.optJSONObject("description")
         val image = binding.optJSONObject("image")
         val uid = binding.getJSONObject("artist").getString("value").substringAfterLast('/')
+
+        val birthDate = binding.optJSONObject("birthDate")?.getString("value")
+        val birthInstant = birthDate?.let(::parseDate)
+
+        val deathDate = binding.optJSONObject("deathDate")?.getString("value")
+        val deathInstant = deathDate?.let(::parseDate)
+
+        val birthPlace = binding.optJSONObject("birthPlaceLabel")?.getString("value")
+        val deathPlace = binding.optJSONObject("deathPlaceLabel")?.getString("value")
+
+        val citizenships = binding.optJSONObject("citizenships")?.getString("value")?.split(" | ")
+        val movements = binding.optJSONObject("movements")?.getString("value")?.split(" | ")
+
         if (!uid.matches(WikiDataRepositoryRemote.ITEM_ID_REGEX))
             throw AppException.InvalidData("Artist response contains an invalid artist URI")
         val name = artistLabel?.getString("value") ?: return null
@@ -225,6 +238,12 @@ open class JsonResponseParser {
             name = name,
             description = descriptionText,
             imageUrl = imageUrl,
+            birthInstant = birthInstant,
+            birthPlace = birthPlace,
+            deathInstant = deathInstant,
+            deathPlace = deathPlace,
+            citizenships = citizenships,
+            movements = movements,
         )
       } catch (exception: JSONException) {
         throw AppException.InvalidData("Invalid curated artist response", exception)

@@ -7,6 +7,7 @@ import com.artista.artista.model.error.AppException
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -16,6 +17,37 @@ import org.junit.Test
  * @author 5kyPhy
  */
 class ArtworkRepositoryLocalTest {
+
+  @Test
+  fun getArtistFromName_returnsCaseInsensitivePartialNameMatch() = runTest {
+    val repository = ArtworkRepositoryLocal()
+    val expected = mockPopularArtists.first { it.name == "Pablo Picasso" }
+
+    assertEquals(expected, repository.getArtistFromName("PICASSO"))
+  }
+
+  @Test
+  fun getArtistFromName_returnsNullWhenNoNameMatches() = runTest {
+    val repository = ArtworkRepositoryLocal()
+
+    assertNull(repository.getArtistFromName("Unknown artist"))
+  }
+
+  @Test
+  fun getArtist_returnsArtistWithExactUidMatch() = runTest {
+    val repository = ArtworkRepositoryLocal()
+    val expected = mockPopularArtists.first { it.uid == "mock-artist-001" }
+
+    assertEquals(expected, repository.getArtist("mock-artist-001"))
+  }
+
+  @Test
+  fun getArtist_returnsNullWhenUidDoesNotMatchExactly() = runTest {
+    val repository = ArtworkRepositoryLocal()
+
+    assertNull(repository.getArtist("MOCK-ARTIST-001"))
+    assertNull(repository.getArtist("unknown"))
+  }
 
   @Test
   fun getArtwork_returnsArtworkWithMatchingUid() = runTest {

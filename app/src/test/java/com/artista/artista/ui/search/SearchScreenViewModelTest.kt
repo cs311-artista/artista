@@ -6,6 +6,7 @@ import androidx.compose.ui.text.TextRange
 import androidx.lifecycle.ViewModel
 import com.artista.artista.R
 import com.artista.artista.model.artist.Artist
+import com.artista.artista.model.artist.ArtistId
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.ArtworkType
@@ -131,6 +132,14 @@ class SearchScreenViewModelTest {
             throw NotImplementedError("Should not be used in this test")
           }
 
+          override suspend fun getArtist(uid: ArtistId): Artist? {
+            throw NotImplementedError("Should not be used in this test")
+          }
+
+          override suspend fun getArtistFromName(query: String): Artist? {
+            throw NotImplementedError("Should not be used in this test")
+          }
+
           override suspend fun getPopularArtists(): List<Artist> {
             throw NotImplementedError("Should not be used in this test")
           }
@@ -241,6 +250,14 @@ class SearchScreenViewModelTest {
     val wikiRepository =
         object : WikiDataRepository {
 
+          override suspend fun getArtistFromName(query: String): Artist? {
+            throw NotImplementedError("Should not be used in this test")
+          }
+
+          override suspend fun getArtist(uid: ArtistId): Artist? {
+            throw NotImplementedError("Should not be used in this test")
+          }
+
           override suspend fun getArtworksNearLocation(
               searchArea: SearchArea,
               typeValues: List<ArtworkType>,
@@ -281,6 +298,14 @@ class SearchScreenViewModelTest {
     val vanGoghResults = CompletableDeferred<List<Artwork>>()
     val wikiRepository =
         object : WikiDataRepository {
+          override suspend fun getArtistFromName(query: String): Artist? {
+            throw NotImplementedError("Should not be used in this test")
+          }
+
+          override suspend fun getArtist(uid: ArtistId): Artist? {
+            throw NotImplementedError("Should not be used in this test")
+          }
+
           override suspend fun getArtworksNearLocation(
               searchArea: SearchArea,
               typeValues: List<ArtworkType>,
