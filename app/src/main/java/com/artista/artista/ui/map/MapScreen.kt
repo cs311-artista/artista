@@ -39,6 +39,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntSize
+import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.artista.artista.R
@@ -160,6 +161,7 @@ fun MapScreen(
   val uiState by mapViewModel.uiStateFlow.collectAsStateWithLifecycle()
   val routeUiState by mapViewModel.routeUiStateFlow.collectAsStateWithLifecycle()
   val routeProgressUiState by mapViewModel.routeProgressUiStateFlow.collectAsStateWithLifecycle()
+  val isRouteActive = routeUiState is RouteUiState.Success
   val context = LocalContext.current
   val userLocation = uiState.userLocation
   val latestRouteUiState by rememberUpdatedState(routeUiState)
@@ -185,6 +187,13 @@ fun MapScreen(
       },
       hasPermissions = hasLocationPermissions,
   )
+
+  // Keyed on route and permission, so tracking runs only while a route is shown and the screen is
+  // started, and is stopped on route close, backgrounding or leaving composition.
+  LifecycleStartEffect(isRouteActive, hasLocationPermissions) {
+    if (isRouteActive && hasLocationPermissions(context)) mapViewModel.startLocationUpdates()
+    onStopOrDispose { mapViewModel.stopLocationUpdates() }
+  }
 
   LaunchedEffect(errorMessage) {
     errorMessage?.let { Toast.makeText(context, it, Toast.LENGTH_LONG).show() }

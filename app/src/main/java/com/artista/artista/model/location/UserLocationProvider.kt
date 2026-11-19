@@ -1,25 +1,37 @@
+// Co-authored-by: Claude Sonnet 5.5 <noreply@anthropic.com>
 package com.artista.artista.model.location
 
+import android.os.Looper
 import com.artista.artista.model.error.AppException
 import com.artista.artista.model.map.UserLocation
 import com.google.android.gms.location.CurrentLocationRequest
 import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 
 /**
  * Provides the user's current location.
  *
  * @param locationClient the client used to fetch the user's location
- * @author 5kyPhy
+ * @author 5kyPhy, patrickmcdan
  */
 class UserLocationProvider(private val locationClient: FusedLocationProviderClient) :
     LocationProvider {
   companion object {
     private const val LOCATION_ACQUISITION_TIMEOUT = 10_000L
     private const val LOCATION_CACHE_MAX_AGE = 30_000L
+
+    private const val UPDATE_INTERVAL_MS = 3_000L
+    // Skips tiny GPS wobbles so a standing user does not trigger needless route recomputation.
+    private const val MIN_UPDATE_DISTANCE_METERS = 5f
   }
 
   /**
@@ -54,5 +66,55 @@ class UserLocationProvider(private val locationClient: FusedLocationProviderClie
     } finally {
       cts.cancel()
     }
+  }
+
+  /**
+   * Streams the user's location as it changes.
+   *
+   * Collecting the flow registers a high-accuracy location callback with the fused client, which
+   * delivers a fix every [UPDATE_INTERVAL_MS] once the user has moved at least
+   * [MIN_UPDATE_DISTANCE_METERS]. Cancelling the collection unregisters the callback, which turns
+   * location updates off.
+   *
+   * @return a flow of the user's locations
+   * @throws [AppException.UserLocationError] (thrown on collection) if updates cannot be started
+   * @throws [AppException.PermissionsError] (thrown on collection) if the user has not granted the
+   *   necessary permissions
+   * @author patrickmcdan
+   */
+  override fun locationUpdates(): Flow<UserLocation> = callbackFlow {
+    val request =
+        LocationRequest.Builder(
+                Priority.PRIORITY_HIGH_ACCURACY,
+                UPDATE_INTERVAL_MS,
+            )
+            .setMinUpdateDistanceMeters(MIN_UPDATE_DISTANCE_METERS)
+            .build()
+
+    val callback =
+        object : LocationCallback() {
+          override fun onLocationResult(result: LocationResult) {
+            result.lastLocation?.let { trySend(UserLocation(it.latitude, it.longitude)) }
+          }
+        }
+
+    try {
+      locationClient
+          .requestLocationUpdates(request, callback, Looper.getMainLooper())
+          .addOnFailureListener {
+            close(
+                if (it is SecurityException) {
+                  AppException.PermissionsError("Permissions are not granted.", it)
+                } else {
+                  AppException.UserLocationError("Failed to start location updates.", it)
+                }
+            )
+          }
+    } catch (e: SecurityException) {
+      close(AppException.PermissionsError("Permissions are not granted.", e))
+    }
+
+    // Unregister the callback when collection is cancelled or the flow closes.
+    awaitClose { locationClient.removeLocationUpdates(callback) }
   }
 }

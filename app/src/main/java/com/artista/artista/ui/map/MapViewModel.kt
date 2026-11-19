@@ -164,6 +164,7 @@ class MapViewModel(
 
   private val _routeProgressUiState = MutableStateFlow<RouteProgressUiState?>(null)
   private var routeProgress: RouteProgress? = null
+  private var locationUpdatesJob: Job? = null
 
   /** Exposes the remaining part of the active route, or null when no route is shown. */
   val routeProgressUiStateFlow: StateFlow<RouteProgressUiState?> =
@@ -218,6 +219,32 @@ class MapViewModel(
   }
 
   /**
+   * Starts continuous location updates, forwarding each one to [applyLocation].
+   *
+   * Calling it while updates are already running does nothing, so repeated lifecycle events cannot
+   * create several collectors.
+   *
+   * @author patrickmcdan
+   */
+  fun startLocationUpdates() {
+    if (locationUpdatesJob?.isActive == true) return
+    locationUpdatesJob =
+        viewModelScope.launchCatching(tag = TAG, onError = ::setLocationError) {
+          locationProvider.locationUpdates().collect { applyLocation(it) }
+        }
+  }
+
+  /**
+   * Stops continuous location updates.
+   *
+   * @author patrickmcdan
+   */
+  fun stopLocationUpdates() {
+    locationUpdatesJob?.cancel()
+    locationUpdatesJob = null
+  }
+
+  /**
    * Handles permission result callback from the UI layer. Call this when activity result returns to
    * update ViewModel state.
    *
@@ -234,14 +261,23 @@ class MapViewModel(
   }
 
   /**
-   * Updates the location shown on the map.
+   * Updates the location shown on the map also searching for nearby artworks.
    *
    * @param location Latest location reported by the device.
    * @author Felix Burchardt, patrickmcdan
    */
   fun updateUserLocation(location: UserLocation) {
-    _uiState.update { it.copy(userLocation = location, errorMsg = null) }
+    applyLocation(location)
     loadRemoteArtworks(location)
+  }
+
+  /**
+   * Stores [location] and refreshes what depends on it (route progress, pending route), without
+   * searching for artworks. Live updates use it directly: the artworks around the start of the
+   * route are already loaded, and one Wikidata request per fix hits the rate limit.
+   */
+  private fun applyLocation(location: UserLocation) {
+    _uiState.update { it.copy(userLocation = location, errorMsg = null) }
     locationFailed = false
     updateRouteProgress(location)
     pendingRouteArtwork?.let { artwork ->
@@ -364,6 +400,7 @@ class MapViewModel(
     pendingRouteArtwork = null
     lastRouteArtwork = null
     resetRouteProgress()
+    stopLocationUpdates()
     _routeUiState.value = RouteUiState.Idle
   }
 

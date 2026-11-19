@@ -524,7 +524,7 @@ class MapViewModelTest {
 
   @Test
   fun routeProgress_remainingShrinksAndDurationScales() = runTest {
-    val viewModel = createRouteViewModel(northRepository())
+    val viewModel = createRouteViewModel(walkingRouteRepository = northRepository())
     viewModel.updateUserLocation(UserLocation(46.0, 6.0))
     viewModel.loadRouteTo(northDestination)
     advanceUntilIdle()
@@ -541,7 +541,7 @@ class MapViewModelTest {
 
   @Test
   fun routeProgress_doesNotMoveBackwards() = runTest {
-    val viewModel = createRouteViewModel(northRepository())
+    val viewModel = createRouteViewModel(walkingRouteRepository = northRepository())
     viewModel.updateUserLocation(UserLocation(46.0025, 6.0))
     viewModel.loadRouteTo(northDestination)
     advanceUntilIdle()
@@ -558,7 +558,7 @@ class MapViewModelTest {
   @Test
   fun routeProgress_makesNoExtraRoutingCalls() = runTest {
     val repository = northRepository()
-    val viewModel = createRouteViewModel(repository)
+    val viewModel = createRouteViewModel(walkingRouteRepository = repository)
     viewModel.updateUserLocation(UserLocation(46.0, 6.0))
     viewModel.loadRouteTo(northDestination)
     advanceUntilIdle()
@@ -570,7 +570,7 @@ class MapViewModelTest {
 
   @Test
   fun routeProgress_resetsOnClearRoute() = runTest {
-    val viewModel = createRouteViewModel(northRepository())
+    val viewModel = createRouteViewModel(walkingRouteRepository = northRepository())
     viewModel.updateUserLocation(UserLocation(46.0, 6.0))
     viewModel.loadRouteTo(northDestination)
     advanceUntilIdle()
@@ -578,6 +578,87 @@ class MapViewModelTest {
 
     viewModel.clearRoute()
     assertNull(viewModel.routeProgressUiState)
+  }
+
+  @Test
+  fun locationUpdates_areForwardedToUserLocation() = runTest {
+    val provider = FakeLocationProvider()
+    val viewModel = createRouteViewModel(provider, walkingRouteRepository = northRepository())
+    viewModel.startLocationUpdates()
+    advanceUntilIdle()
+
+    provider.updates.tryEmit(UserLocation(46.0015, 6.0))
+    advanceUntilIdle()
+    assertEquals(UserLocation(46.0015, 6.0), viewModel.uiState.userLocation)
+  }
+
+  @Test
+  fun startLocationUpdates_twiceCreatesOneCollector() = runTest {
+    val provider = FakeLocationProvider()
+    val viewModel = createRouteViewModel(provider, walkingRouteRepository = northRepository())
+    viewModel.startLocationUpdates()
+    viewModel.startLocationUpdates()
+    advanceUntilIdle()
+    assertEquals(1, provider.activeCollectors)
+  }
+
+  @Test
+  fun stopLocationUpdates_cancelsCollectionAndIgnoresLaterLocations() = runTest {
+    val provider = FakeLocationProvider()
+    val viewModel = createRouteViewModel(provider, walkingRouteRepository = northRepository())
+    viewModel.startLocationUpdates()
+    advanceUntilIdle()
+
+    viewModel.stopLocationUpdates()
+    advanceUntilIdle()
+    assertEquals(0, provider.activeCollectors)
+
+    provider.updates.tryEmit(UserLocation(46.0015, 6.0))
+    advanceUntilIdle()
+    assertNull(viewModel.uiState.userLocation)
+  }
+
+  @Test
+  fun clearRoute_stopsLocationUpdates() = runTest {
+    val provider = FakeLocationProvider()
+    val viewModel = createRouteViewModel(provider, walkingRouteRepository = northRepository())
+    viewModel.updateUserLocation(UserLocation(46.0, 6.0))
+    viewModel.loadRouteTo(northDestination)
+    viewModel.startLocationUpdates()
+    advanceUntilIdle()
+    assertEquals(1, provider.activeCollectors)
+
+    viewModel.clearRoute()
+    advanceUntilIdle()
+    assertEquals(0, provider.activeCollectors)
+  }
+
+  @Test
+  fun locationUpdates_trimTheActiveRoute() = runTest {
+    val provider = FakeLocationProvider()
+    val viewModel = createRouteViewModel(provider, walkingRouteRepository = northRepository())
+    viewModel.updateUserLocation(UserLocation(46.0, 6.0))
+    viewModel.loadRouteTo(northDestination)
+    viewModel.startLocationUpdates()
+    advanceUntilIdle()
+    val atStart = viewModel.routeProgressUiState!!
+
+    provider.updates.tryEmit(UserLocation(46.0015, 6.0))
+    advanceUntilIdle()
+    assertEquals(
+        atStart.remainingDistanceMeters / 2,
+        viewModel.routeProgressUiState!!.remainingDistanceMeters,
+        1.0,
+    )
+  }
+
+  @Test
+  fun locationUpdates_failureSetsErrorInsteadOfCrashing() = runTest {
+    val provider = FakeLocationProvider(errorType = AppException.UserLocationError())
+    val viewModel = createRouteViewModel(provider, walkingRouteRepository = northRepository())
+    viewModel.startLocationUpdates()
+    advanceUntilIdle()
+    assertNotNull(viewModel.uiState.errorMsg)
   }
 
   private val northPath =
@@ -593,13 +674,14 @@ class MapViewModelTest {
       FakeWalkingRouteRepository(route = WalkingRoute(northPath, 10.minutes, 333))
 
   private fun createRouteViewModel(
-      walkingRouteRepository: WalkingRouteRepository = FakeWalkingRouteRepository()
+      provider: FakeLocationProvider = FakeLocationProvider(),
+      walkingRouteRepository: WalkingRouteRepository = FakeWalkingRouteRepository(),
   ) =
       MapViewModel(
           wikiDataRepository = FakeWikiDataRepository(listOf()),
           savedArtworksRepository = EmptySavedArtworksRepository(),
           walkingRouteRepository = walkingRouteRepository,
-          locationProvider = FakeLocationProvider(),
+          locationProvider = provider,
       )
 
   private companion object {
