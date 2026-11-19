@@ -103,10 +103,11 @@ class UserLocationProvider(private val locationClient: FusedLocationProviderClie
           .requestLocationUpdates(request, callback, Looper.getMainLooper())
           .addOnFailureListener {
             close(
-                AppException.UserLocationError(
-                    "Failed to start location updates.",
-                    it,
-                ),
+                if (it is SecurityException) {
+                  AppException.PermissionsError("Permissions are not granted.", it)
+                } else {
+                  AppException.UserLocationError("Failed to start location updates.", it)
+                }
             )
           }
     } catch (e: SecurityException) {
