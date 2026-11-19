@@ -80,7 +80,9 @@ class SavedArtworksViewModel(
    * @author krfpn, hixeum
    */
   fun refreshSavedArtworks() {
-    _uiState.update { it.copy(isLoading = allSavedArtworks.isEmpty(), loadErrorMessageResId = null) }
+    _uiState.update {
+      it.copy(isLoading = allSavedArtworks.isEmpty(), loadErrorMessageResId = null)
+    }
     // A previous load may still be waiting for the repository. Its answer is older than the one
     // we are about to request, so stop it: otherwise, if it arrived last, it would replace the
     // newer list on screen (e.g. showing an artwork the user just unsaved). The stopped load ends
@@ -190,8 +192,8 @@ class SavedArtworksViewModel(
    * Puts back an artwork that was optimistically removed from the displayed list.
    *
    * @param artwork artwork to restore
-   * @return the list containing the artwork at its previous position, clamped to the list bounds
    * @param index position the artwork occupied before its removal
+   * @return the list containing the artwork at its previous position, clamped to the list bounds
    */
   private fun List<Artwork>.restore(artwork: Artwork, index: Int): List<Artwork> {
     // A concurrent refresh may already have brought the artwork back, so avoid duplicating it.
