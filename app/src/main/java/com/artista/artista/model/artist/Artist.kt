@@ -11,6 +11,8 @@ package com.artista.artista.model.artist
 data class Artist(
     val uid: ArtistId,
     val name: String,
+    val description: String? = null,
+    val imageUrl: String? = null,
 )
 
 /** Stable identifier type for an artist. */
