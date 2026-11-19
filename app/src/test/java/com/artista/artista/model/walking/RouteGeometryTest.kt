@@ -115,4 +115,22 @@ class RouteGeometryTest {
     // 1.5 of the 3 equal segments are left.
     assertEquals(full / 2, remaining, 1.0)
   }
+
+  @Test
+  fun advanceProgress_movesOntoTheNextSegment_whenTheCurrentOneIsLongerThanTheLookahead() {
+    // The first segment is about 556 m, far longer than the 100 m lookahead.
+    val path = listOf(Coordinate(46.000, 6.0), Coordinate(46.005, 6.0), Coordinate(46.005, 6.01))
+    val nearTheCorner = advanceProgress(path, Coordinate(46.0049, 6.0), lookaheadMeters = 100.0)!!
+    assertEquals(0, nearTheCorner.segmentIndex)
+
+    val pastTheCorner =
+        advanceProgress(
+            path,
+            Coordinate(46.005, 6.0005),
+            previous = nearTheCorner,
+            lookaheadMeters = 100.0,
+        )!!
+
+    assertEquals(1, pastTheCorner.segmentIndex)
+  }
 }

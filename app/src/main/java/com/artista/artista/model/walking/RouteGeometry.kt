@@ -126,7 +126,7 @@ fun projectOntoSegment(
  * @param path ordered route vertices
  * @param location the user's current location
  * @param previous the last known progress, or null at the start of a route
- * @param lookaheadMeters how far along the route a match is allowed
+ * @param lookaheadMeters how far along the route, from the previous position, a match is allowed
  * @return the new progress, or null when the path has fewer than two points
  * @author patrickmcdan
  */
@@ -147,7 +147,9 @@ fun advanceProgress(
     if (best == null || projection.distanceMeters < best.offRouteMeters) {
       best = RouteProgress(i, projection.fraction, projection.coordinate, projection.distanceMeters)
     }
-    scanned += distanceMeters(path[i], path[i + 1])
+    // Measure the window from the previous position: on the first segment only the part ahead of
+    // it counts, so a segment longer than the lookahead cannot stop progress at its end.
+    scanned += distanceMeters(path[i], path[i + 1]) * (1.0 - minFraction)
     if (scanned > lookaheadMeters) break
   }
   return best
