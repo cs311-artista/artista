@@ -3,6 +3,7 @@
 package com.artista.artista.model.artwork
 
 import com.artista.artista.model.artist.Artist
+import com.artista.artista.model.artist.ArtistId
 import com.artista.artista.model.error.AppException
 
 /**
@@ -33,6 +34,14 @@ class ArtworkRepositoryLocal : SavedArtworksRepository, WikiDataRepository {
       "This function will be moved outside of WikiDataRepository since the popularity isn't a Wikidata metric."
   )
   override suspend fun getPopularArtists(): List<Artist> = mockPopularArtists
+
+  override suspend fun getArtistFromName(query: String): Artist? {
+    return mockPopularArtists.find { it.name.contains(query, ignoreCase = true) }
+  }
+
+  override suspend fun getArtist(uid: ArtistId): Artist? {
+    return mockPopularArtists.find { it.uid == uid }
+  }
 
   override suspend fun getArtwork(uid: ArtworkId): Artwork {
     if (uid.isBlank()) throw AppException.InvalidInput("uid is blank")

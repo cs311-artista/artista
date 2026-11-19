@@ -3,6 +3,7 @@
 package com.artista.artista.model.artwork
 
 import com.artista.artista.model.artist.Artist
+import com.artista.artista.model.artist.ArtistId
 import com.artista.artista.model.error.AppException
 
 /**
@@ -25,6 +26,16 @@ enum class ArtworkType(val qid: String) {
   MOSAIC("Q133067");
 
   override fun toString(): String = qid
+}
+
+enum class ArtistOccupation(val qid: String) {
+  PAINTER("Q1028181"), // painter
+  SCULPTOR("Q1281618"), // sculptor
+  PHOTOGRAPHER("Q33231"), // photographer
+  VISUAL_ARTIST("Q3391743"), // visual artist, a common generic value
+  ARTIST("Q483501"), // artist, the most generic value
+  ILLUSTRATOR("Q644687"), // illustrator
+  ARCHITECT("Q42973"), // architect
 }
 
 /**
@@ -85,6 +96,25 @@ interface WikiDataRepository {
       "This function will be moved outside of WikiDataRepository since the popularity isn't a Wikidata metric."
   )
   suspend fun getPopularArtists(): List<Artist>
+
+  /**
+   * Might return searched artist in natural language query
+   *
+   * @param query search query
+   * @return matching artist
+   * @author IJJA3141
+   */
+  suspend fun getArtistFromName(query: String): Artist?
+
+  /**
+   * return searched artist by qid it is the responsibility of the caller to call with a valid
+   * artist Qid
+   *
+   * @param qid searched artist qid
+   * @return matching artist
+   * @author IJJA3141
+   */
+  suspend fun getArtist(qid: ArtistId): Artist?
 
   /**
    * Returns the [Artwork] associated with the provided Wikidata identifier.

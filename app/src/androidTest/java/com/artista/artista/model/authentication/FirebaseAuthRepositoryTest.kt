@@ -1,9 +1,12 @@
 package com.artista.artista.model.authentication
 
+import android.net.Uri
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.artista.artista.model.error.AppException
 import com.artista.artista.utils.FakeJwtGenerator
 import com.artista.artista.utils.FirebaseEmulator
+import com.artista.artista.utils.TEST_PICTURE_URL
+import com.google.firebase.auth.UserProfileChangeRequest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.test.runTest
@@ -18,7 +21,7 @@ import org.junit.Test
 import org.junit.rules.Timeout
 import org.junit.runner.RunWith
 
-// Co-authored-by: DeepSeek Flash
+// Co-authored-by: DeepSeek Flash <noreply@deepseek.com>
 /**
  * Instrumented tests for [FirebaseAuthRepository], run against the local Authentication emulator.
  *
@@ -128,6 +131,50 @@ class FirebaseAuthRepositoryTest {
     assertTrue(failure is AppException.Unauthorized)
   }
 
+  /**
+   * Verifies that the picture stored on the account is reported by the state flow.
+   *
+   * The picture is set through the SDK rather than through a `picture` claim of a generated token,
+   * so what is tested is the mapping the repository performs, not an assumption about how the
+   * emulator fills the photo URL of an account.
+   */
+  @Test
+  fun authState_reportsThePictureSetOnTheAccount() = runTest {
+    FirebaseEmulator.auth.signInAnonymously().await()
+    setPictureOfTheCurrentAccount(TEST_PICTURE_URL)
+
+    val observed = repository.authState.first { it != null }
+
+    assertEquals(TEST_PICTURE_URL, observed?.photoUrl)
+  }
+
+  /** Verifies that an account without a picture reports none. */
+  @Test
+  fun authState_withoutPicture_reportsNoPicture() = runTest {
+    FirebaseEmulator.auth.signInAnonymously().await()
+
+    assertNull(repository.authState.first { it != null }?.photoUrl)
+  }
+
+  /**
+   * Verifies that the user a sign-in returns carries the picture of the account.
+   *
+   * A returned user without the picture would leave a fresh sign-in with nothing to store, while a
+   * restored session (covered above) had it: the two paths must not disagree.
+   */
+  @Test
+  fun signIn_reportsThePictureOfTheSignedInAccount() = runTest {
+    val token = FakeJwtGenerator.generateFakeJwt()
+    val account = repository.signIn(token).getOrThrow()
+    setPictureOfTheCurrentAccount(TEST_PICTURE_URL)
+    repository.signOut()
+
+    val signedIn = repository.signIn(token).getOrThrow()
+
+    assertEquals(account.uid, signedIn.uid)
+    assertEquals(TEST_PICTURE_URL, signedIn.photoUrl)
+  }
+
   /** Verifies that signing out clears the session the state flow reports. */
   @Test
   fun signOut_clearsTheSession() = runTest {
@@ -143,6 +190,17 @@ class FirebaseAuthRepositoryTest {
   fun signOut_succeedsWhenAlreadySignedOut() = runTest {
     assertTrue(repository.signOut().isSuccess)
     assertNull(repository.authState.first())
+  }
+
+  /**
+   * Stores a picture on the account of the current session.
+   *
+   * @param photoUrl the URL to store on the account
+   * @author timo-by
+   */
+  private suspend fun setPictureOfTheCurrentAccount(photoUrl: String) {
+    val request = UserProfileChangeRequest.Builder().setPhotoUri(Uri.parse(photoUrl)).build()
+    checkNotNull(FirebaseEmulator.auth.currentUser).updateProfile(request).await()
   }
 
   private companion object {

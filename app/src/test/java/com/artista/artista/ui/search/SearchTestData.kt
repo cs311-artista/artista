@@ -3,6 +3,7 @@
 package com.artista.artista.ui.search
 
 import com.artista.artista.model.artist.Artist
+import com.artista.artista.model.artist.ArtistId
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.ArtworkType
@@ -105,6 +106,14 @@ internal class FakeWikiDataRepository(
 ) : WikiDataRepository {
   val searchedQueries = mutableListOf<String>()
   val searchedTypeValues = mutableListOf<List<ArtworkType>>()
+
+  override suspend fun getArtistFromName(query: String): Artist? {
+    throw NotImplementedError("Should not be used in this test")
+  }
+
+  override suspend fun getArtist(uid: ArtistId): Artist? {
+    throw NotImplementedError("Should not be used in this test")
+  }
 
   override suspend fun getArtworksNearLocation(
       searchArea: SearchArea,

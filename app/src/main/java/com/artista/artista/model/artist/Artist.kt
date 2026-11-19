@@ -2,19 +2,34 @@
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.model.artist
 
+import java.util.Date
+
 /**
  * Represents an artist identified independently of their display name.
  *
  * @property uid stable identifier of the artist
  * @property name display name of the artist
+ * @property description description of the artist
  * @property imageUrl link to a picture of the artist, or null when no picture is known
- * @author patrickmcdan, Timz3rr
+ * @property birthInstant instant of the artist's birth
+ * @property birthPlace place of the artist's birth
+ * @property deathInstant instant of the artist's death
+ * @property deathPlace place of the artist's death
+ * @property citizenships list of the artist's citizenships
+ * @property movements list of the artist's movements
+ * @author patrickmcdan, Timz3rr, IJJA3141
  */
 data class Artist(
     val uid: ArtistId,
     val name: String,
     val description: String? = null,
     val imageUrl: String? = null,
+    val birthInstant: Date? = null,
+    val birthPlace: String? = null,
+    val deathInstant: Date? = null,
+    val deathPlace: String? = null,
+    val citizenships: List<String>? = null,
+    val movements: List<String>? = null,
 )
 
 /** Stable identifier type for an artist. */
