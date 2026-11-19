@@ -18,6 +18,9 @@ private const val EARTH_RADIUS_METERS = 6_371_000.0
  */
 const val ROUTE_LOOKAHEAD_METERS = 300.0
 
+/** Fractions this close to a segment end are treated as the end itself. */
+private const val FRACTION_EPSILON = 1e-9
+
 /**
  * The result of projecting a point onto one route segment.
  *
@@ -102,7 +105,15 @@ fun projectOntoSegment(
   val py = (point.latitude - start.latitude) * metersPerDegreeLat
   val lengthSquared = bx * bx + by * by
   val raw = if (lengthSquared == 0.0) 0.0 else (px * bx + py * by) / lengthSquared
-  val fraction = raw.coerceIn(minFraction.coerceIn(0.0, 1.0), 1.0)
+  val clamped = raw.coerceIn(minFraction.coerceIn(0.0, 1.0), 1.0)
+  // Snap to the ends: rounding can leave the fraction a hair away from 0 or 1 even when the point
+  // is on a vertex, and an exact comparison would then create a near-duplicate point.
+  val fraction =
+      when {
+        clamped <= FRACTION_EPSILON -> 0.0
+        clamped >= 1.0 - FRACTION_EPSILON -> 1.0
+        else -> clamped
+      }
   // Return the exact vertex at the ends so trimmed paths never contain near-duplicate points.
   val coordinate =
       when (fraction) {

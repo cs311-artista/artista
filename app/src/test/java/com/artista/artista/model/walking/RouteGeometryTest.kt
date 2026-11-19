@@ -133,4 +133,26 @@ class RouteGeometryTest {
 
     assertEquals(1, pastTheCorner.segmentIndex)
   }
+
+  @Test
+  fun projectOntoSegment_snapsToTheEnd_whenRoundingLeavesAHairGap() {
+    val start = Coordinate(46.000, 6.0)
+    val end = Coordinate(46.005, 6.0)
+
+    val projection = projectOntoSegment(Coordinate(46.005 - 1e-12, 6.0), start, end)
+
+    assertEquals(1.0, projection.fraction, 0.0)
+    assertEquals(end, projection.coordinate)
+  }
+
+  @Test
+  fun projectOntoSegment_snapsToTheStart_whenRoundingLeavesAHairGap() {
+    val start = Coordinate(46.000, 6.0)
+    val end = Coordinate(46.005, 6.0)
+
+    val projection = projectOntoSegment(Coordinate(46.000 + 1e-12, 6.0), start, end)
+
+    assertEquals(0.0, projection.fraction, 0.0)
+    assertEquals(start, projection.coordinate)
+  }
 }
