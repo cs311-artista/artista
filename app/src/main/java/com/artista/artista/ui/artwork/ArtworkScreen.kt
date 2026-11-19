@@ -146,7 +146,7 @@ fun ArtworkScreen(
             actions = {
               IconButton(
                   onClick = { artworkScreenViewModel.toggleSaveArtwork() },
-                  enabled = !uiState.isSaveInProgress,
+                  enabled = !uiState.isSaveInProgress && (artwork != null),
                   modifier = Modifier.testTag(ArtworkTestTags.SAVE_BUTTON),
               ) {
                 Icon(
