@@ -52,6 +52,17 @@ class FakeUserRepository : UserRepository {
     private set
 
   /**
+   * Number of calls to [getUser] that reached the backend, failed ones included.
+   *
+   * A repeated notification of the same session must not cost a read, which is the only cost a
+   * profile initialization per emission would pay, so tests count reads to check that it does not.
+   *
+   * @author timo-by
+   */
+  var readCount: Int = 0
+    private set
+
+  /**
    * Stores a user directly, without counting as a write, to set up the state a test starts from.
    *
    * @param user the user to store
@@ -80,6 +91,7 @@ class FakeUserRepository : UserRepository {
 
   override suspend fun getUser(userId: UserId): User {
     readDelays[userId]?.let { delay(it) }
+    readCount++
     readFailure?.let { throw it }
     return users[userId] ?: throw AppException.NotFound("No user with uid $userId")
   }
@@ -109,6 +121,22 @@ class FakeUserRepository : UserRepository {
     users[userId] =
         users[userId]?.copy(userName = userName)
             ?: User(uid = userId, userName = userName, preference = UserPreference())
+  }
+
+  /**
+   * Replaces the picture of a stored user, counting the write like the other writes of the fake.
+   *
+   * @param userId the identifier of the user to update
+   * @param photoUrl the URL of the picture to store
+   * @throws AppException.NotFound if the user does not exist
+   * @author timo-by
+   */
+  override suspend fun updatePhotoUrl(userId: UserId, photoUrl: String) {
+    waitForWrite(userId)
+    writeCount++
+    writeFailure?.let { throw it }
+    val stored = users[userId] ?: throw AppException.NotFound("No user with uid $userId")
+    users[userId] = stored.copy(photoUrl = photoUrl)
   }
 
   override suspend fun deleteUser(userId: UserId) {

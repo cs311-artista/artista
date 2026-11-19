@@ -1,4 +1,5 @@
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
+// Co-authored-by: DeepSeek Flash <noreply@deepseek.com>
 package com.artista.artista.model.user
 
 import com.artista.artista.model.error.AppException
@@ -112,6 +113,36 @@ class UserRepositoryFirestore(
       }
 
   /**
+   * Updates only the picture URL of an existing user profile.
+   *
+   * Firestore writes the single field named, so this write cannot revert a name or a preference
+   * saved by another screen while it is in flight.
+   *
+   * The document is read first, as [updateUser] and [deleteUser] do, because the security rule of a
+   * user compares `request.resource.data.uid`: on a document that does not exist, a one-field
+   * update leaves that key out, so the rule denies the write and Firestore reports
+   * PERMISSION_DENIED. The caller would then receive [AppException.Unauthorized] instead of the
+   * [AppException.NotFound] it needs to tell "this user has no profile" from "this user could not
+   * be read".
+   *
+   * @param userId the unique identifier of the user to update
+   * @param photoUrl the URL of the picture to store
+   * @throws AppException.NotFound if the user does not exist
+   * @throws AppException if Firestore cannot update the profile
+   * @author timo-by
+   */
+  override suspend fun updatePhotoUrl(userId: String, photoUrl: String): Unit =
+      translateFirestoreErrors {
+        // Check existence first because update() on a missing document is denied by the rules
+        // rather than reported as missing.
+        val document = db.collection(collectionPath).document(userId).get().await()
+        if (!document.exists()) {
+          throw AppException.NotFound("User '$userId' was not found")
+        }
+        document.reference.update("photoUrl", photoUrl).await()
+      }
+
+  /**
    * Deletes a user profile.
    *
    * @param userId the unique identifier of the user to delete
@@ -172,6 +203,30 @@ class UserRepositoryFirestore(
       }
     }
 
+    /**
+     * Reads the picture URL stored on the document.
+     *
+     * The field is read by hand: getString() casts blindly, and its failure would escape as a plain
+     * RuntimeException, which translateFirestoreErrors does not translate, since it only handles
+     * FirebaseFirestoreException.
+     *
+     * @return the picture URL of the document, or `null` when it has none
+     * @author timo-by
+     */
+    fun readPhotoUrl(): String? =
+        when (val value = document.get("photoUrl")) {
+          // Documents written before the picture existed have no such field, and must keep loading:
+          // no migration is needed.
+          null -> null
+          // A blank URL is no picture, so it is exposed as none rather than as an empty address.
+          is String -> value.takeIf { it.isNotBlank() }
+          // Anything else carries nothing displayable. The picture is cosmetic, while the name
+          // and the preferences are not, and the app could not repair the value: the refresh
+          // that would overwrite it reads the profile first. An unreadable picture is read as
+          // no picture, not as a reason to hide the whole profile.
+          else -> null
+        }
+
     return User(
         uid = uid,
         // A username is optional in the domain model, so a missing field remains null.
@@ -182,6 +237,7 @@ class UserRepositoryFirestore(
                 type = readStringList("type"),
                 timePeriod = readStringList("timePeriod"),
             ),
+        photoUrl = readPhotoUrl(),
     )
   }
 }

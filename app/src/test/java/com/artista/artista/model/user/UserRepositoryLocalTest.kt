@@ -1,8 +1,11 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
+// Co-authored-by: DeepSeek Flash <noreply@deepseek.com>
 package com.artista.artista.model.user
 
 import com.artista.artista.model.error.AppException
+import com.artista.artista.utils.TEST_OTHER_PICTURE_URL
+import com.artista.artista.utils.TEST_PICTURE_URL
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -23,6 +26,31 @@ class UserRepositoryLocalTest {
     repository.createUser(user)
 
     assertEquals(user, repository.getUser("user-1"))
+  }
+
+  /** Checks that the picture URL survives a round trip through the local repository. */
+  @Test
+  fun createUser_keepsThePictureUrl() = runTest {
+    val repository = UserRepositoryLocal()
+
+    repository.createUser(userWith("user-1", photoUrl = TEST_PICTURE_URL))
+
+    assertEquals(TEST_PICTURE_URL, repository.getUser("user-1").photoUrl)
+  }
+
+  /** Checks that updating the picture replaces it and leaves the rest of the profile as it was. */
+  @Test
+  fun updatePhotoUrl_replacesThePictureUrl() = runTest {
+    val repository = UserRepositoryLocal()
+    repository.createUser(userWith("user-1", photoUrl = TEST_PICTURE_URL))
+    val stored = repository.getUser("user-1")
+
+    repository.updatePhotoUrl("user-1", TEST_OTHER_PICTURE_URL)
+
+    assertEquals(
+        stored.copy(photoUrl = TEST_OTHER_PICTURE_URL),
+        repository.getUser("user-1"),
+    )
   }
 
   @Test
@@ -128,9 +156,14 @@ class UserRepositoryLocalTest {
    *
    * @param uid the unique identifier assigned to the user.
    * @param userName the display name assigned to the user.
+   * @param photoUrl the URL of the profile picture of the user, if any.
    * @return a user with deterministic preferences.
    */
-  private fun userWith(uid: UserId, userName: String = "Test User"): User =
+  private fun userWith(
+      uid: UserId,
+      userName: String = "Test User",
+      photoUrl: String? = null,
+  ): User =
       User(
           uid = uid,
           userName = userName,
@@ -140,5 +173,6 @@ class UserRepositoryLocalTest {
                   type = listOf("Painting"),
                   timePeriod = listOf("19th century"),
               ),
+          photoUrl = photoUrl,
       )
 }

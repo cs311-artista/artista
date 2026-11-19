@@ -15,7 +15,7 @@ import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.tasks.await
 
-// Co-authored-by: DeepSeek Flash
+// Co-authored-by: DeepSeek Flash <noreply@deepseek.com>
 /**
  * Firebase Authentication implementation of [AuthRepository], using the Google provider.
  *
@@ -91,10 +91,18 @@ class FirebaseAuthRepository(private val auth: FirebaseAuth) : AuthRepository {
   /**
    * Adapts a Firebase user to the domain's thin [AuthUser] abstraction.
    *
+   * The Google provider reports the picture of the account as a URI, which becomes the picture URL
+   * of the session. A blank value is "no picture" rather than a picture nobody can display, and
+   * reading a URI cannot fail, so a malformed picture field can never fail a sign-in.
+   *
    * @return the domain representation of this Firebase user
    * @author timo-by
    */
-  private fun FirebaseUser.toAuthUser(): AuthUser = FirebaseAuthUser(uid)
+  private fun FirebaseUser.toAuthUser(): AuthUser =
+      FirebaseAuthUser(
+          uid = uid,
+          photoUrl = photoUrl?.toString()?.takeIf { it.isNotBlank() },
+      )
 }
 
 /**
@@ -126,6 +134,10 @@ internal fun Throwable.toAppException(): AppException =
  * [AuthUser] backed by a Firebase Authentication account.
  *
  * @param uid the stable identifier Firebase assigns to the account
+ * @param photoUrl the URL of the picture of the account, or `null` when it has none
  * @author timo-by
  */
-data class FirebaseAuthUser(override val uid: String) : AuthUser
+data class FirebaseAuthUser(
+    override val uid: String,
+    override val photoUrl: String? = null,
+) : AuthUser

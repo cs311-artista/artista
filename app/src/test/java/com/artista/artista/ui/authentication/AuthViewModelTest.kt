@@ -1,4 +1,4 @@
-// Co-authored-by: DeepSeek Flash
+// Co-authored-by: DeepSeek Flash <noreply@deepseek.com>
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.authentication
 
@@ -12,10 +12,13 @@ import com.artista.artista.model.error.AppException
 import com.artista.artista.model.user.FakeUserRepository
 import com.artista.artista.model.user.User
 import com.artista.artista.model.user.UserPreference
+import com.artista.artista.utils.TEST_OTHER_PICTURE_URL
+import com.artista.artista.utils.TEST_PICTURE_URL
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -410,21 +413,27 @@ class AuthViewModelTest {
   /**
    * Checks that the factory uses the user repository supplied by its caller.
    *
+   * The factory gets its own authentication repository: a session is now initialized by every
+   * ViewModel that observes it, so sharing the one of this test with the second ViewModel would let
+   * it write to [userRepository] as well, and the assertions below would no longer say which
+   * repository the factory used.
+   *
    * @author hixeum
    */
   @Test
   fun provideFactoryUsesThePassedUserRepository() {
     runTest {
       val providedUserRepository = FakeUserRepository()
+      val factoryRepository = FakeAuthRepository()
       val viewModelStore = ViewModelStore()
       val factory =
           AuthViewModel.provideFactory(
-              repository = repository,
+              repository = factoryRepository,
               userRepository = providedUserRepository,
           )
       val factoryViewModel = ViewModelProvider(viewModelStore, factory)[AuthViewModel::class.java]
 
-      repository.user = FakeAuthUser(userId)
+      factoryRepository.user = FakeAuthUser(userId)
       factoryViewModel.signIn(token1)
       advanceUntilIdle()
 
@@ -434,6 +443,448 @@ class AuthViewModelTest {
       )
       assertNull(userRepository.storedUser(userId))
       viewModelStore.clear()
+    }
+  }
+
+  /** Checks that a first sign-in creates the profile with the picture the provider reported. */
+  @Test
+  fun signIn_withoutStoredProfile_createsItWithTheProviderPicture() {
+    runTest {
+      givenProviderPicture(TEST_PICTURE_URL)
+
+      viewModel.signIn(token1)
+      advanceUntilIdle()
+
+      assertEquals(TEST_PICTURE_URL, userRepository.storedUser(userId)?.photoUrl)
+    }
+  }
+
+  /**
+   * Checks that a first sign-in creates the profile without a picture when the provider reports
+   * none.
+   */
+  @Test
+  fun signIn_withoutStoredProfileAndNoProviderPicture_createsItWithoutPicture() {
+    runTest {
+      givenProviderPicture(photoUrl = null)
+
+      viewModel.signIn(token1)
+      advanceUntilIdle()
+
+      assertNull(userRepository.storedUser(userId)?.photoUrl)
+    }
+  }
+
+  /** Checks that a stored profile without a picture is given the one the provider reports. */
+  @Test
+  fun signIn_withStoredProfileWithoutPicture_storesTheProviderPicture() {
+    runTest {
+      userRepository.store(User(uid = userId, userName = "Alice", preference = UserPreference()))
+      givenProviderPicture(TEST_PICTURE_URL)
+
+      viewModel.signIn(token1)
+      advanceUntilIdle()
+
+      assertEquals(TEST_PICTURE_URL, userRepository.storedUser(userId)?.photoUrl)
+      assertEquals(1, userRepository.writeCount)
+    }
+  }
+
+  /** Checks that a stored picture the provider disagrees with is replaced. */
+  @Test
+  fun signIn_withDifferentStoredPicture_replacesIt() {
+    runTest {
+      userRepository.store(
+          User(uid = userId, preference = UserPreference(), photoUrl = TEST_OTHER_PICTURE_URL)
+      )
+      givenProviderPicture(TEST_PICTURE_URL)
+
+      viewModel.signIn(token1)
+      advanceUntilIdle()
+
+      assertEquals(TEST_PICTURE_URL, userRepository.storedUser(userId)?.photoUrl)
+    }
+  }
+
+  /**
+   * Checks that a provider reporting no picture leaves the stored one untouched.
+   *
+   * @author timo-by
+   */
+  @Test
+  fun signIn_whenProviderReportsNoPicture_keepsTheStoredOne() {
+    runTest {
+      userRepository.store(
+          User(uid = userId, preference = UserPreference(), photoUrl = TEST_PICTURE_URL)
+      )
+      givenProviderPicture(photoUrl = null)
+
+      viewModel.signIn(token1)
+      advanceUntilIdle()
+
+      assertEquals(TEST_PICTURE_URL, userRepository.storedUser(userId)?.photoUrl)
+      assertEquals(0, userRepository.writeCount)
+    }
+  }
+
+  /** Checks that refreshing the picture keeps the username and the preferences of the user. */
+  @Test
+  fun signIn_refreshingThePicture_keepsUsernameAndPreferences() {
+    runTest {
+      val preference = UserPreference(artists = listOf("VanGogh"), type = listOf("Painting"))
+      userRepository.store(
+          User(
+              uid = userId,
+              userName = "Alice",
+              preference = preference,
+              photoUrl = TEST_OTHER_PICTURE_URL,
+          )
+      )
+      givenProviderPicture(TEST_PICTURE_URL)
+
+      viewModel.signIn(token1)
+      advanceUntilIdle()
+
+      assertEquals(
+          User(
+              uid = userId,
+              userName = "Alice",
+              preference = preference,
+              photoUrl = TEST_PICTURE_URL,
+          ),
+          userRepository.storedUser(userId),
+      )
+    }
+  }
+
+  /** Checks that a picture refresh still counts as a completed profile initialization. */
+  @Test
+  fun signIn_withPictureChange_stillCompletesProfileInitialization() {
+    runTest {
+      userRepository.store(
+          User(uid = userId, preference = UserPreference(), photoUrl = TEST_OTHER_PICTURE_URL)
+      )
+      givenProviderPicture(TEST_PICTURE_URL)
+
+      viewModel.signIn(token1)
+      advanceUntilIdle()
+
+      assertFalse(viewModel.uiState.value.profileInitializationFailed)
+      assertFalse(viewModel.uiState.value.isProfileInitializationInProgress)
+    }
+  }
+
+  /** Checks that a failed picture refresh is retryable and keeps the session signed in. */
+  @Test
+  fun signIn_whenPictureRefreshFails_reportsRetryableFailureWithoutSigningOut() {
+    runTest {
+      userRepository.store(
+          User(uid = userId, preference = UserPreference(), photoUrl = TEST_OTHER_PICTURE_URL)
+      )
+      givenProviderPicture(TEST_PICTURE_URL)
+      userRepository.writeFailure = AppException.Network("offline")
+
+      viewModel.signIn(token1)
+      advanceUntilIdle()
+
+      assertTrue(viewModel.uiState.value.profileInitializationFailed)
+      assertEquals(userId, viewModel.signedInUid())
+      assertEquals(0, repository.signOutCallCount)
+    }
+  }
+
+  /**
+   * Checks that the backend notifying the same user again does not make the profile be read again.
+   *
+   * The read is the cost a repeated emission would pay: a write it would not, since a picture that
+   * already matches the provider is never written, so counting writes here would pass whether the
+   * per-session guard works or not.
+   */
+  @Test
+  fun signIn_withRepeatedAuthEmissionsOfSameUser_readsTheProfileOnce() {
+    runTest {
+      userRepository.store(
+          User(uid = userId, preference = UserPreference(), photoUrl = TEST_OTHER_PICTURE_URL)
+      )
+      givenProviderPicture(TEST_PICTURE_URL)
+      viewModel.signIn(token1)
+      advanceUntilIdle()
+
+      repeat(3) { repository.reemitAuthState() }
+      advanceUntilIdle()
+
+      assertEquals(1, userRepository.readCount)
+      assertEquals(TEST_PICTURE_URL, userRepository.storedUser(userId)?.photoUrl)
+    }
+  }
+
+  /**
+   * Checks that a new session refreshes the picture again.
+   *
+   * The stored picture is stale at the second sign-in, so a refresh that did not run would leave it
+   * as it was: the per-session guard of the first one must not outlive the session.
+   */
+  @Test
+  fun signIn_afterARevokedSession_refreshesThePictureAgain() {
+    runTest {
+      userRepository.store(
+          User(uid = userId, preference = UserPreference(), photoUrl = TEST_OTHER_PICTURE_URL)
+      )
+      givenProviderPicture(TEST_PICTURE_URL)
+      viewModel.signIn(token1)
+      advanceUntilIdle()
+
+      viewModel.signOut()
+      advanceUntilIdle()
+      // The provider reports another picture by the time the user signs in again.
+      givenProviderPicture(TEST_OTHER_PICTURE_URL)
+      viewModel.signIn(token2)
+      advanceUntilIdle()
+
+      assertEquals(TEST_OTHER_PICTURE_URL, userRepository.storedUser(userId)?.photoUrl)
+      assertEquals(2, userRepository.writeCount)
+    }
+  }
+
+  /**
+   * Checks that a session restored from the device cache stores the provider's picture, without a
+   * sign-in to drive it.
+   */
+  @Test
+  fun restoredSession_withoutStoredProfile_storesTheProviderPicture() {
+    runTest {
+      givenRestoredSession(TEST_PICTURE_URL)
+
+      assertEquals(TEST_PICTURE_URL, userRepository.storedUser(userId)?.photoUrl)
+      assertEquals(0, repository.signInCallCount)
+    }
+  }
+
+  /** Checks that a restored session whose stored picture already matches does not write. */
+  @Test
+  fun restoredSession_withStoredPictureAlreadyMatching_doesNotWrite() {
+    runTest {
+      userRepository.store(
+          User(uid = userId, preference = UserPreference(), photoUrl = TEST_PICTURE_URL)
+      )
+
+      givenRestoredSession(TEST_PICTURE_URL)
+
+      assertEquals(0, userRepository.writeCount)
+    }
+  }
+
+  /**
+   * Checks that the refresh does not run again when the provider reports another picture during the
+   * session: it happens once per session, not on every emission.
+   */
+  @Test
+  fun restoredSession_whenTheProviderPictureChangesMidSession_doesNotWriteAgain() {
+    runTest {
+      userRepository.store(
+          User(uid = userId, preference = UserPreference(), photoUrl = TEST_OTHER_PICTURE_URL)
+      )
+      givenRestoredSession(TEST_PICTURE_URL)
+
+      repository.setAuthState(FakeAuthUser(uid = userId, photoUrl = TEST_OTHER_PICTURE_URL))
+      advanceUntilIdle()
+
+      assertEquals(TEST_PICTURE_URL, userRepository.storedUser(userId)?.photoUrl)
+      assertEquals(1, userRepository.writeCount)
+    }
+  }
+
+  /**
+   * Checks that a refresh failing because the profile disappeared is retried, and never answered by
+   * creating a default profile over the name and the preferences already stored.
+   *
+   * A NotFound from the lookup means the profile is absent; the same failure from the write means
+   * the document vanished between the read and the write, which is a failure to retry, not a fresh
+   * start.
+   */
+  @Test
+  fun signIn_whenThePictureWriteFailsAsNotFound_doesNotRecreateTheProfile() {
+    runTest {
+      val storedProfile =
+          User(
+              uid = userId,
+              userName = "Alice",
+              preference = UserPreference(artists = listOf("VanGogh")),
+              photoUrl = TEST_OTHER_PICTURE_URL,
+          )
+      userRepository.store(storedProfile)
+      givenProviderPicture(TEST_PICTURE_URL)
+      userRepository.writeFailure = AppException.NotFound("deleted by another device")
+
+      viewModel.signIn(token1)
+      advanceUntilIdle()
+
+      // Only the refresh was attempted: creating a profile would have been a second write.
+      assertEquals(1, userRepository.writeCount)
+      assertEquals(storedProfile, userRepository.storedUser(userId))
+      assertTrue(viewModel.uiState.value.profileInitializationFailed)
+      assertEquals(userId, viewModel.signedInUid())
+    }
+  }
+
+  /**
+   * Checks that retrying after a failed refresh at launch stores the picture and keeps the rest of
+   * the profile.
+   *
+   * A restored session never goes through [AuthViewModel.signIn], so the retry action is the only
+   * way out of a failed initialization, which is what makes it worth a test of its own.
+   */
+  @Test
+  fun restoredSession_whenTheRefreshFails_retryingStoresThePicture() {
+    runTest {
+      val preference = UserPreference(artists = listOf("VanGogh"), type = listOf("Painting"))
+      userRepository.store(
+          User(
+              uid = userId,
+              userName = "Alice",
+              preference = preference,
+              photoUrl = TEST_OTHER_PICTURE_URL,
+          )
+      )
+      userRepository.writeFailure = AppException.InvalidData("corrupt profile")
+      givenRestoredSession(TEST_PICTURE_URL)
+      assertTrue(viewModel.uiState.value.profileInitializationFailed)
+
+      userRepository.writeFailure = null
+      viewModel.retryProfileInitialization()
+      advanceUntilIdle()
+
+      assertEquals(
+          User(
+              uid = userId,
+              userName = "Alice",
+              preference = preference,
+              photoUrl = TEST_PICTURE_URL,
+          ),
+          userRepository.storedUser(userId),
+      )
+      assertFalse(viewModel.uiState.value.profileInitializationFailed)
+      assertFalse(viewModel.uiState.value.isProfileInitializationInProgress)
+      assertEquals(0, repository.signInCallCount)
+    }
+  }
+
+  /** Checks that retrying while nobody is signed in neither reads nor writes a profile. */
+  @Test
+  fun retryProfileInitialization_whenSignedOut_doesNothing() {
+    runTest {
+      advanceUntilIdle()
+
+      viewModel.retryProfileInitialization()
+      advanceUntilIdle()
+
+      assertEquals(0, userRepository.readCount)
+      assertEquals(0, userRepository.writeCount)
+    }
+  }
+
+  /**
+   * Checks that a retry failing again runs the initialization again and raises the failure again,
+   * so the snackbar offering the retry is shown once more.
+   */
+  @Test
+  fun retryProfileInitialization_failingAgain_raisesTheFailureAgain() {
+    runTest {
+      userRepository.store(
+          User(uid = userId, preference = UserPreference(), photoUrl = TEST_OTHER_PICTURE_URL)
+      )
+      userRepository.writeFailure = AppException.InvalidData("corrupt profile")
+      givenRestoredSession(TEST_PICTURE_URL)
+      assertTrue(viewModel.uiState.value.profileInitializationFailed)
+
+      viewModel.retryProfileInitialization()
+      advanceUntilIdle()
+
+      assertEquals(2, userRepository.writeCount)
+      assertTrue(viewModel.uiState.value.profileInitializationFailed)
+      assertFalse(viewModel.uiState.value.isProfileInitializationInProgress)
+    }
+  }
+
+  /**
+   * Checks that a refresh failing for lack of a connection during a restored session raises no
+   * failure, and that the picture is left to the retry to heal.
+   *
+   * Being offline at launch is the normal state of a returning user rather than something they did,
+   * and the profile screen stays quiet about it for the same reason: a snackbar at every start
+   * without a connection would only be noise. The stored picture is healed by the next session that
+   * has a connection, or by the retry.
+   */
+  @Test
+  fun restoredSession_whenTheRefreshFailsWithNetwork_staysSilent() {
+    runTest {
+      userRepository.store(
+          User(uid = userId, preference = UserPreference(), photoUrl = TEST_OTHER_PICTURE_URL)
+      )
+      userRepository.writeFailure = AppException.Network("offline")
+
+      givenRestoredSession(TEST_PICTURE_URL)
+
+      assertFalse(viewModel.uiState.value.profileInitializationFailed)
+      assertEquals(userId, viewModel.signedInUid())
+
+      // The retry is a deliberate action, so it reports; here it succeeds, which heals the picture.
+      userRepository.writeFailure = null
+      viewModel.retryProfileInitialization()
+      advanceUntilIdle()
+
+      assertEquals(TEST_PICTURE_URL, userRepository.storedUser(userId)?.photoUrl)
+      assertFalse(viewModel.uiState.value.profileInitializationFailed)
+    }
+  }
+
+  /**
+   * Checks that signing out cancels a refresh still in flight, so it neither writes the profile nor
+   * reports a failure for a session that is over.
+   */
+  @Test
+  fun signOut_duringAnInFlightRefresh_cancelsTheWrite() {
+    runTest {
+      userRepository.store(
+          User(uid = userId, preference = UserPreference(), photoUrl = TEST_OTHER_PICTURE_URL)
+      )
+      userRepository.writeDelays[userId] = 1_000
+
+      givenRestoredSessionPending(TEST_PICTURE_URL)
+      viewModel.signOut()
+      advanceUntilIdle()
+
+      // The cancelled write never reached the backend, so it cannot store a picture for a session
+      // that has ended, nor fail and raise the snackbar for the next one.
+      assertEquals(0, userRepository.writeCount)
+      assertFalse(viewModel.uiState.value.profileInitializationFailed)
+      assertNull(viewModel.signedInUid())
+    }
+  }
+
+  /**
+   * Checks that a session signed in after an interrupted one initializes its profile in its turn.
+   */
+  @Test
+  fun signOutDuringTheRefresh_thenSigningInAgain_refreshesThePicture() {
+    runTest {
+      userRepository.store(
+          User(uid = userId, preference = UserPreference(), photoUrl = TEST_OTHER_PICTURE_URL)
+      )
+      userRepository.writeDelays[userId] = 1_000
+      givenRestoredSessionPending(TEST_PICTURE_URL)
+
+      viewModel.signOut()
+      advanceUntilIdle()
+      userRepository.writeDelays.clear()
+      givenProviderPicture(TEST_PICTURE_URL)
+
+      viewModel.signIn(token1)
+      advanceUntilIdle()
+
+      assertEquals(TEST_PICTURE_URL, userRepository.storedUser(userId)?.photoUrl)
+      assertEquals(1, userRepository.writeCount)
+      assertFalse(viewModel.uiState.value.profileInitializationFailed)
     }
   }
 
@@ -457,5 +908,44 @@ class AuthViewModelTest {
     repository = FakeAuthRepository(FakeAuthUser(uid))
     viewModel = AuthViewModel(repository, userRepository)
     advanceUntilIdle()
+  }
+
+  /**
+   * Makes the next sign-in succeed as a user whose provider reports the given picture.
+   *
+   * @param photoUrl the picture URL the provider reports, or `null` when it reports none
+   * @author timo-by
+   */
+  private fun givenProviderPicture(photoUrl: String?) {
+    repository.user = FakeAuthUser(uid = userId, photoUrl = photoUrl)
+  }
+
+  /**
+   * Rebuilds the repository and ViewModel as if a session had been restored from the on-device
+   * cache, so [AuthViewModel.signIn] is never called.
+   *
+   * @param photoUrl the picture URL the restored session carries
+   * @author timo-by
+   */
+  private fun TestScope.givenRestoredSession(photoUrl: String?) {
+    repository = FakeAuthRepository(FakeAuthUser(uid = userId, photoUrl = photoUrl))
+    viewModel = AuthViewModel(repository, userRepository)
+    advanceUntilIdle()
+  }
+
+  /**
+   * Rebuilds the repository and ViewModel as if a session had been restored, and stops before the
+   * initialization it starts completes, so that a test can act while it is in flight.
+   *
+   * Only what is due now runs: the collector receives the session and the refresh reaches the delay
+   * of its write, which is not advanced past.
+   *
+   * @param photoUrl the picture URL the restored session carries
+   * @author timo-by
+   */
+  private fun TestScope.givenRestoredSessionPending(photoUrl: String?) {
+    repository = FakeAuthRepository(FakeAuthUser(uid = userId, photoUrl = photoUrl))
+    viewModel = AuthViewModel(repository, userRepository)
+    runCurrent()
   }
 }

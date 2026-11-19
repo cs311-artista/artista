@@ -1,16 +1,20 @@
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+// Co-authored-by: DeepSeek Flash <noreply@deepseek.com>
 package com.artista.artista.model.user
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.artista.artista.model.error.AppException
 import com.artista.artista.utils.FirebaseEmulatedTest
 import com.artista.artista.utils.FirebaseEmulator
+import com.artista.artista.utils.TEST_OTHER_PICTURE_URL
+import com.artista.artista.utils.TEST_PICTURE_URL
 import kotlin.reflect.KClass
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -218,6 +222,138 @@ class UserRepositoryFirestoreTest : FirebaseEmulatedTest() {
     assertRepositoryThrows(AppException.InvalidData::class) { repository.getUser(testUserId) }
   }
 
+  /** Checks that the picture URL of a created profile reaches Firestore. */
+  @Test
+  fun createUser_storesThePictureUrl() = runTest {
+    repository.createUser(userWith(uid = testUserId, photoUrl = TEST_PICTURE_URL))
+
+    val stored =
+        FirebaseEmulator.firestore
+            .collection(USER_COLLECTION_PATH)
+            .document(testUserId)
+            .get()
+            .await()
+
+    assertEquals(TEST_PICTURE_URL, stored.getString("photoUrl"))
+  }
+
+  /** Checks that the stored picture URL is read back through the repository. */
+  @Test
+  fun getUser_returnsTheStoredPictureUrl() = runTest {
+    repository.createUser(userWith(uid = testUserId, photoUrl = TEST_PICTURE_URL))
+
+    assertEquals(TEST_PICTURE_URL, repository.getUser(testUserId).photoUrl)
+  }
+
+  /**
+   * Checks that a document written before the picture existed still loads, as a user without a
+   * picture: no migration is needed.
+   */
+  @Test
+  fun getUser_withoutPictureField_returnsNoPicture() = runTest {
+    seedRawUserDocument(mapOf("uid" to testUserId, "preference" to validPreferenceData()))
+
+    assertNull(repository.getUser(testUserId).photoUrl)
+  }
+
+  /** Checks that a blank picture URL is read as no picture. */
+  @Test
+  fun getUser_withBlankPictureField_returnsNoPicture() = runTest {
+    seedRawUserDocument(
+        mapOf(
+            "uid" to testUserId,
+            "preference" to validPreferenceData(),
+            "photoUrl" to "   ",
+        )
+    )
+
+    assertNull(repository.getUser(testUserId).photoUrl)
+  }
+
+  /**
+   * Checks that a picture URL that is not a string is read as no picture, and that the rest of the
+   * profile still loads.
+   *
+   * The picture is cosmetic while the name and the preferences are not, and the app could not
+   * repair an unreadable value either, since the refresh that would overwrite it reads the profile
+   * first: failing the lookup would hide those fields for good.
+   */
+  @Test
+  fun getUser_withNonStringPictureField_returnsNoPicture() = runTest {
+    seedRawUserDocument(
+        mapOf(
+            "uid" to testUserId,
+            "userName" to "Test User",
+            "preference" to validPreferenceData(),
+            "photoUrl" to 42,
+        )
+    )
+
+    val stored = repository.getUser(testUserId)
+
+    assertNull(stored.photoUrl)
+    assertEquals("Test User", stored.userName)
+    assertEquals(listOf("Van Gogh"), stored.preference.artists)
+  }
+
+  /** Checks that an update replaces the stored picture URL. */
+  @Test
+  fun updateUser_replacesThePictureUrl() = runTest {
+    repository.createUser(userWith(uid = testUserId, photoUrl = TEST_PICTURE_URL))
+
+    repository.updateUser(testUserId, userWith(uid = testUserId, photoUrl = TEST_OTHER_PICTURE_URL))
+
+    assertEquals(TEST_OTHER_PICTURE_URL, repository.getUser(testUserId).photoUrl)
+  }
+
+  /**
+   * Checks that a save which does not touch the picture keeps the stored one, which is what every
+   * other screen of the app relies on when it reads a profile and writes it back.
+   */
+  @Test
+  fun updateUser_withoutTouchingIt_keepsThePictureUrl() = runTest {
+    repository.createUser(userWith(uid = testUserId, photoUrl = TEST_PICTURE_URL))
+    val stored = repository.getUser(testUserId)
+
+    repository.updateUser(testUserId, stored.copy(userName = "Renamed User"))
+
+    assertEquals(TEST_PICTURE_URL, repository.getUser(testUserId).photoUrl)
+  }
+
+  /** Checks that a picture update stores the URL in the field the lookup reads. */
+  @Test
+  fun updatePhotoUrl_storesThePictureUrl() = runTest {
+    repository.createUser(userWith(uid = testUserId))
+
+    repository.updatePhotoUrl(testUserId, TEST_PICTURE_URL)
+
+    assertEquals(TEST_PICTURE_URL, repository.getUser(testUserId).photoUrl)
+  }
+
+  /**
+   * Checks that a picture update leaves every other field of the profile as it was, which is what
+   * lets it run while another screen is saving the same profile.
+   */
+  @Test
+  fun updatePhotoUrl_keepsTheOtherFields() = runTest {
+    repository.createUser(userWith(uid = testUserId))
+
+    repository.updatePhotoUrl(testUserId, TEST_PICTURE_URL)
+
+    assertEquals(
+        userWith(uid = testUserId, photoUrl = TEST_PICTURE_URL),
+        repository.getUser(testUserId),
+    )
+  }
+
+  /** Checks that updating the picture of a profile that does not exist reports a missing user. */
+  @Test
+  fun updatePhotoUrl_withoutProfile_throwsNotFound() = runTest {
+    assertRepositoryThrows(AppException.NotFound::class) {
+      repository.updatePhotoUrl(testUserId, TEST_PICTURE_URL)
+    }
+  }
+
   /**
    * Asserts that a suspending repository operation throws the expected exception type.
    *
@@ -250,6 +386,7 @@ class UserRepositoryFirestoreTest : FirebaseEmulatedTest() {
    *   no types are selected.
    * @param timePeriods the preferred time periods; defaults to a one-item list, and an empty list
    *   means no time periods are selected.
+   * @param photoUrl the URL of the profile picture of the user, if any.
    * @return a user containing the supplied values and a test display name.
    */
   private fun userWith(
@@ -257,6 +394,7 @@ class UserRepositoryFirestoreTest : FirebaseEmulatedTest() {
       artists: List<String> = listOf("Van Gogh"),
       types: List<String> = listOf("Drawing"),
       timePeriods: List<String> = listOf("19th century"),
+      photoUrl: String? = null,
   ): User =
       User(
           uid = uid,
@@ -267,6 +405,7 @@ class UserRepositoryFirestoreTest : FirebaseEmulatedTest() {
                   type = types,
                   timePeriod = timePeriods,
               ),
+          photoUrl = photoUrl,
       )
 
   /**
