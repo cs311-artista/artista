@@ -80,7 +80,9 @@ class SavedArtworksViewModel(
    * @author krfpn, hixeum
    */
   fun refreshSavedArtworks() {
-    _uiState.update { it.copy(isLoading = allSavedArtworks.isEmpty(), loadErrorMessageResId = null) }
+    _uiState.update {
+      it.copy(isLoading = allSavedArtworks.isEmpty(), loadErrorMessageResId = null)
+    }
     // A previous load may still be waiting for the repository. Its answer is older than the one
     // we are about to request, so stop it: otherwise, if it arrived last, it would replace the
     // newer list on screen (e.g. showing an artwork the user just unsaved). The stopped load ends
