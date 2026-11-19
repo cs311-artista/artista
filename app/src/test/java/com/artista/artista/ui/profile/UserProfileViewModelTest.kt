@@ -61,6 +61,16 @@ class UserProfileViewModelTest {
     assertEquals("Alice", viewModel.uiState.value.username)
   }
 
+  /** Checks that the picture stored in the profile is displayed once the profile is loaded. */
+  @Test
+  fun signIn_displaysStoredPicture() {
+    userRepository.store(userNamed("Alice").copy(photoUrl = TEST_PICTURE_URL))
+
+    signIn()
+
+    assertEquals(TEST_PICTURE_URL, viewModel.uiState.value.photoUrl)
+  }
+
   /**
    * Checks that a first sign-in, with no profile stored yet, shows the placeholder and no error.
    */
@@ -82,6 +92,21 @@ class UserProfileViewModelTest {
     assertEquals(R.string.error_network, viewModel.uiState.value.errorMessageResId)
   }
 
+  /**
+   * Checks that a failed load leaves the picture empty and reports the failure through the existing
+   * error message. The image itself never produces an error state of its own.
+   */
+  @Test
+  fun signIn_whenLoadFails_keepsPictureEmptyAndReportsError() {
+    userRepository.store(userNamed("Alice").copy(photoUrl = TEST_PICTURE_URL))
+    userRepository.readFailure = AppException.Network()
+
+    signIn()
+
+    assertNull(viewModel.uiState.value.photoUrl)
+    assertEquals(R.string.error_network, viewModel.uiState.value.errorMessageResId)
+  }
+
   /** Checks that signing in as another user replaces the username with theirs. */
   @Test
   fun signIn_asAnotherUser_displaysTheirUsername() {
@@ -92,6 +117,23 @@ class UserProfileViewModelTest {
     signIn(OTHER_UID)
 
     assertEquals("Bob", viewModel.uiState.value.username)
+  }
+
+  /**
+   * Checks that the picture of the user who left is cleared as soon as another user signs in, so
+   * that their face never stays on screen while the new profile loads.
+   */
+  @Test
+  fun signIn_asAnotherUser_clearsThePreviousPicture() {
+    userRepository.store(userNamed("Alice").copy(photoUrl = TEST_PICTURE_URL))
+    userRepository.store(User(uid = OTHER_UID, userName = "Bob", preference = UserPreference()))
+    userRepository.readDelays[OTHER_UID] = 1_000
+    signIn()
+
+    authRepository.setAuthState(FakeAuthUser(OTHER_UID))
+    mainDispatcherRule.testDispatcher.scheduler.runCurrent()
+
+    assertNull(viewModel.uiState.value.photoUrl)
   }
 
   /**
@@ -149,6 +191,18 @@ class UserProfileViewModelTest {
     assertNull(viewModel.uiState.value.username)
   }
 
+  /** Checks that signing out clears the picture of the user who left, as it clears their name. */
+  @Test
+  fun signOut_clearsThePicture() {
+    userRepository.store(userNamed("Alice").copy(photoUrl = TEST_PICTURE_URL))
+    signIn()
+
+    authRepository.setAuthState(null)
+    runPendingCoroutines()
+
+    assertNull(viewModel.uiState.value.photoUrl)
+  }
+
   /**
    * Checks that being signed out from the start does not clear a username already displayed, since
    * no user left.
@@ -185,6 +239,18 @@ class UserProfileViewModelTest {
     runPendingCoroutines()
 
     assertEquals(preference, userRepository.storedUser(UID)?.preference)
+  }
+
+  /** Checks that renaming the user leaves their picture on screen. */
+  @Test
+  fun updateUsername_keepsTheDisplayedPicture() {
+    userRepository.store(userNamed("Alice").copy(photoUrl = TEST_PICTURE_URL))
+    signIn()
+
+    viewModel.updateUsername("Bob")
+    runPendingCoroutines()
+
+    assertEquals(TEST_PICTURE_URL, viewModel.uiState.value.photoUrl)
   }
 
   /**
@@ -280,6 +346,27 @@ class UserProfileViewModelTest {
     mainDispatcherRule.testDispatcher.scheduler.runCurrent()
 
     assertEquals("Cached", viewModel.uiState.value.username)
+  }
+
+  /**
+   * Checks that a cached name does not bring a picture with it: the picture is only known once the
+   * profile has been read, so the screen shows its placeholder until then.
+   */
+  @Test
+  fun signIn_withCachedUsernameButNoPictureYet_exposesNoPicture() {
+    usernameCache.seed(UID, "Cached")
+    userRepository.store(userNamed("Alice").copy(photoUrl = TEST_PICTURE_URL))
+    userRepository.readDelays[UID] = 1_000
+
+    authRepository.setAuthState(FakeAuthUser(UID))
+    mainDispatcherRule.testDispatcher.scheduler.runCurrent()
+
+    assertEquals("Cached", viewModel.uiState.value.username)
+    assertNull(viewModel.uiState.value.photoUrl)
+
+    runPendingCoroutines()
+
+    assertEquals(TEST_PICTURE_URL, viewModel.uiState.value.photoUrl)
   }
 
   /** Checks that the Firestore name replaces the cached one on screen and in the cache. */
@@ -755,6 +842,13 @@ class UserProfileViewModelTest {
     assertNull(viewModel.uiState.value.username)
   }
 
+  /** Verifies that no picture is displayed before a user is provided. */
+  @Test
+  fun initialState_hasNoPicture() {
+    assertNull(viewModel.uiState.value.photoUrl)
+    assertNull(viewModel.uiState.value.errorMessageResId)
+  }
+
   /** Verifies that the username of the provided user is exposed. */
   @Test
   fun setUser_exposesUsername() {
@@ -778,6 +872,31 @@ class UserProfileViewModelTest {
     viewModel.setUser(userNamed("   "))
 
     assertNull(viewModel.uiState.value.username)
+  }
+
+  /** Verifies that the picture of the provided user is exposed to the screen. */
+  @Test
+  fun setUser_exposesThePicture() {
+    viewModel.setUser(userNamed("Alice").copy(photoUrl = TEST_PICTURE_URL))
+
+    assertEquals(TEST_PICTURE_URL, viewModel.uiState.value.photoUrl)
+  }
+
+  /** Verifies that a user without a picture exposes no picture, so the placeholder is shown. */
+  @Test
+  fun setUser_withoutPicture_exposesNoPicture() {
+    viewModel.setUser(userNamed("Alice").copy(photoUrl = TEST_PICTURE_URL))
+    viewModel.setUser(userNamed("Alice"))
+
+    assertNull(viewModel.uiState.value.photoUrl)
+  }
+
+  /** Verifies that a blank picture link is treated as missing, as a blank username is. */
+  @Test
+  fun setUser_withBlankPicture_exposesNoPicture() {
+    viewModel.setUser(userNamed("Alice").copy(photoUrl = "   "))
+
+    assertNull(viewModel.uiState.value.photoUrl)
   }
 
   /** Verifies that providing another user replaces the previously displayed username. */

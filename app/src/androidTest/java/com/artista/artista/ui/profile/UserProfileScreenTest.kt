@@ -3,10 +3,13 @@ package com.artista.artista.ui.profile
 
 import androidx.activity.ComponentActivity
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -21,28 +24,54 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.text.AnnotatedString
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import coil3.ColorImage
+import coil3.SingletonImageLoader
+import coil3.annotation.DelicateCoilApi
+import coil3.annotation.ExperimentalCoilApi
+import coil3.test.FakeImageLoaderEngine
 import com.artista.artista.R
 import com.artista.artista.model.authentication.FakeAuthRepository
+import com.artista.artista.model.user.User
 import com.artista.artista.model.user.UserRepositoryLocal
 import com.artista.artista.model.user.UsernameCacheInMemory
+import com.artista.artista.ui.artwork.failingImageEngine
+import com.artista.artista.ui.artwork.installFakeImageLoader
+import com.artista.artista.ui.artwork.waitUntilFallbackDisappears
 import com.artista.artista.ui.navigation.NavigationTestTags
 import com.artista.artista.ui.navigation.Tab
+import com.artista.artista.utils.TEST_OTHER_PICTURE_URL
+import com.artista.artista.utils.TEST_PICTURE_URL
 import com.artista.artista.utils.userNamed
+import org.junit.After
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
+// Co-authored-by: DeepSeek Flash <noreply@deepseek.com>
 /**
  * Verifies the user-visible behavior of the user profile screen.
  *
  * @author Timz3rr
  */
+@OptIn(DelicateCoilApi::class, ExperimentalCoilApi::class)
 @RunWith(AndroidJUnit4::class)
 class UserProfileScreenTest {
 
   @get:Rule val composeTestRule = createAndroidComposeRule<ComponentActivity>()
+
+  private companion object {
+    /** Time the tests let a fake download take before failing, in milliseconds. */
+    const val PICTURE_TIMEOUT_MILLIS = 5_000L
+  }
+
+  // The image loader is a process-wide singleton, so each test that replaces it must restore it.
+  @After
+  fun resetImageLoader() {
+    SingletonImageLoader.reset()
+  }
 
   /** Verifies that the profile preview renders the profile and username. */
   @Test
@@ -283,14 +312,133 @@ class UserProfileScreenTest {
     saveButton.assertIsEnabled()
   }
 
+  /** Checks that the picture of the user replaces the placeholder once it has been downloaded. */
+  @Test
+  fun profileWithPicture_displaysTheImage() {
+    installPictureImageLoader()
+    setProfileContentFor(userWithPicture(TEST_PICTURE_URL))
+
+    scrollToPictureArea()
+    composeTestRule.waitUntilFallbackDisappears(UserProfileTestTags.PROFILE_PICTURE_PLACEHOLDER)
+
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.PROFILE_PICTURE_IMAGE, useUnmergedTree = true)
+        .assertIsDisplayed()
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.PROFILE_PICTURE_PLACEHOLDER, useUnmergedTree = true)
+        .assertDoesNotExist()
+  }
+
+  /** Checks that a user without a picture gets the placeholder and no image. */
+  @Test
+  fun profileWithoutPicture_displaysThePlaceholder() {
+    setProfileContentFor(userWithPicture(null))
+
+    scrollToPictureArea()
+
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.PROFILE_PICTURE_PLACEHOLDER, useUnmergedTree = true)
+        .assertIsDisplayed()
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.PROFILE_PICTURE_IMAGE, useUnmergedTree = true)
+        .assertDoesNotExist()
+  }
+
   /**
-   * Simulates the user clicking the username field, which opens the dialog used to edit the
-   * username. Shared by the dialog tests so that each of them starts from an open dialog.
+   * Checks that the picture is drawn inside the picture area, so that it is neither offset nor
+   * clipped away by the shape of the area.
    */
-  private fun openUsernameDialog() {
-    // The profile content is scrollable: on a small screen the field may be off screen, and a click
-    // on a node that is not displayed fails.
-    composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME).performScrollTo().performClick()
+  @Test
+  fun profilePicture_isDisplayedInsideThePictureArea() {
+    installPictureImageLoader()
+    setProfileContentFor(userWithPicture(TEST_PICTURE_URL))
+
+    scrollToPictureArea()
+    composeTestRule.waitUntilFallbackDisappears(UserProfileTestTags.PROFILE_PICTURE_PLACEHOLDER)
+
+    val area =
+        composeTestRule
+            .onNodeWithTag(UserProfileTestTags.PROFILE_PICTURE)
+            .fetchSemanticsNode()
+            .boundsInRoot
+    val picture =
+        composeTestRule
+            .onNodeWithTag(UserProfileTestTags.PROFILE_PICTURE_IMAGE, useUnmergedTree = true)
+            .fetchSemanticsNode()
+            .boundsInRoot
+
+    assertTrue("the picture starts before its area", picture.left >= area.left)
+    assertTrue("the picture starts above its area", picture.top >= area.top)
+    assertTrue("the picture ends after its area", picture.right <= area.right)
+    assertTrue("the picture ends below its area", picture.bottom <= area.bottom)
+  }
+
+  /**
+   * Checks that a picture whose download fails leaves the placeholder on screen, without reporting
+   * an error of its own: a missing picture is not something the user must act on.
+   */
+  @Test
+  fun profilePicture_whenTheDownloadFails_showsThePlaceholder() {
+    var imageRequested = false
+    installFakeImageLoader(failingImageEngine(TEST_PICTURE_URL) { imageRequested = true })
+    val viewModel = setProfileContentFor(userWithPicture(TEST_PICTURE_URL))
+
+    scrollToPictureArea()
+    // Waits for the attempt, so the assertions below run once the failure is known.
+    composeTestRule.waitUntil(PICTURE_TIMEOUT_MILLIS) { imageRequested }
+    composeTestRule.waitForIdle()
+
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.PROFILE_PICTURE_PLACEHOLDER, useUnmergedTree = true)
+        .assertIsDisplayed()
+    assertNull(viewModel.uiState.value.errorMessageResId)
+  }
+
+  /** Checks that a loaded picture is announced to accessibility services. */
+  @Test
+  fun profilePicture_whenItLoads_hasAnAccessibilityDescription() {
+    installPictureImageLoader()
+    setProfileContentFor(userWithPicture(TEST_PICTURE_URL))
+
+    scrollToPictureArea()
+    composeTestRule.waitUntilFallbackDisappears(UserProfileTestTags.PROFILE_PICTURE_PLACEHOLDER)
+
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.PROFILE_PICTURE_IMAGE, useUnmergedTree = true)
+        .assertContentDescriptionEquals(
+            composeTestRule.activity.getString(R.string.profile_picture_description),
+        )
+  }
+
+  /** Checks that no download is attempted while the user has no picture. */
+  @Test
+  fun profileWithoutPicture_requestsNoImage() {
+    val requested = mutableListOf<Any?>()
+    installFakeImageLoader(recordingImageEngine(requested))
+    setProfileContentFor(userWithPicture(null))
+
+    scrollToPictureArea()
+    composeTestRule.waitForIdle()
+
+    assertTrue("an image was requested: $requested", requested.isEmpty())
+  }
+
+  /** Checks that the picture on screen follows the profile it is displaying. */
+  @Test
+  fun changingUser_replacesTheDisplayedPicture() {
+    val requested = mutableListOf<Any?>()
+    installFakeImageLoader(recordingImageEngine(requested))
+    val viewModel = setProfileContentFor(userWithPicture(TEST_PICTURE_URL))
+
+    scrollToPictureArea()
+    composeTestRule.waitUntilFallbackDisappears(UserProfileTestTags.PROFILE_PICTURE_PLACEHOLDER)
+
+    composeTestRule.runOnIdle { viewModel.setUser(userWithPicture(TEST_OTHER_PICTURE_URL)) }
+    composeTestRule.waitUntil(PICTURE_TIMEOUT_MILLIS) { TEST_OTHER_PICTURE_URL in requested }
+
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.PROFILE_PICTURE_IMAGE, useUnmergedTree = true)
+        .assertIsDisplayed()
   }
 
   /**
@@ -312,6 +460,72 @@ class UserProfileScreenTest {
         // comparable with it.
         SemanticsMatcher.expectValue(SemanticsProperties.EditableText, AnnotatedString(expected))
     )
+  }
+
+  /**
+   * Builds a profile carrying the given picture link, so that the picture tests drive the screen
+   * through the state its ViewModel really exposes.
+   *
+   * @param photoUrl link of the picture, or null for a user without one
+   */
+  private fun userWithPicture(photoUrl: String?): User =
+      userNamed("Alice").copy(photoUrl = photoUrl)
+
+  /**
+   * Replaces Coil's process-wide loader with one serving a picture for [TEST_PICTURE_URL], so the
+   * avatar loads without reaching the network.
+   */
+  private fun installPictureImageLoader() {
+    installFakeImageLoader(
+        FakeImageLoaderEngine.Builder()
+            .intercept(TEST_PICTURE_URL, ColorImage(Color.Red.toArgb()))
+            .build()
+    )
+  }
+
+  /**
+   * Builds a fake engine that answers every request with an image and records what it was asked
+   * for, so a test can tell which links the screen requested.
+   *
+   * @param requested collects the data of each request
+   */
+  private fun recordingImageEngine(requested: MutableList<Any?>): FakeImageLoaderEngine =
+      FakeImageLoaderEngine.Builder()
+          .intercept(
+              predicate = { data ->
+                requested += data
+                true
+              },
+              image = ColorImage(Color.Red.toArgb()),
+          )
+          .build()
+
+  /**
+   * Displays a profile screen whose ViewModel holds the given user, with nobody signed in so the
+   * tests never reach Firebase.
+   *
+   * @param user the profile displayed by the screen
+   * @return the ViewModel driving the screen
+   */
+  private fun setProfileContentFor(user: User): UserProfileViewModel {
+    val viewModel = signedOutViewModel().apply { setUser(user) }
+    setProfileContent(viewModel = viewModel)
+    return viewModel
+  }
+
+  /** Scrolls the picture area into view, since it starts off screen on small displays. */
+  private fun scrollToPictureArea() {
+    composeTestRule.onNodeWithTag(UserProfileTestTags.PROFILE_PICTURE).performScrollTo()
+  }
+
+  /**
+   * Simulates the user clicking the username field, which opens the dialog used to edit the
+   * username. Shared by the dialog tests so that each of them starts from an open dialog.
+   */
+  private fun openUsernameDialog() {
+    // The profile content is scrollable: on a small screen the field may be off screen, and a click
+    // on a node that is not displayed fails.
+    composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME).performScrollTo().performClick()
   }
 
   /**

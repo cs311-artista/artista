@@ -1,4 +1,5 @@
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
+// Co-authored-by: DeepSeek Flash <noreply@deepseek.com>
 package com.artista.artista.ui.profile
 
 import androidx.annotation.StringRes
@@ -62,12 +63,16 @@ fun isValidUsername(name: String): Boolean {
  * UI state of the user profile screen.
  *
  * @property username the display name of the user, or null when the user has not chosen one.
+ * @property photoUrl link of the profile picture of the user, or null when they have none, so that
+ *   the screen shows its placeholder whatever the reason the picture is missing (absent from the
+ *   profile, still loading, or failed to download).
  * @property errorMessageResId string resource of the message shown when loading or saving the
  *   profile fails, or null when there is nothing to show.
  * @author Timz3rr
  */
 data class UserProfileUiState(
     val username: String? = null,
+    val photoUrl: String? = null,
     @param:StringRes val errorMessageResId: Int? = null,
 )
 
@@ -133,8 +138,9 @@ class UserProfileViewModel(
       return
     }
     signedInUid = authUser.uid
-    // Clears the previous user's name, so it is not displayed while the new profile loads.
-    _uiState.update { it.copy(username = null) }
+    // Clears the previous user's name and picture, so neither is displayed while the new profile
+    // loads: on a shared phone, their face must not stay on the next user's screen.
+    _uiState.update { it.copy(username = null, photoUrl = null) }
     launchProfileJob(
         onError = { error ->
           // Being offline is expected when a cached name is displayed: the user has what they need
@@ -155,7 +161,7 @@ class UserProfileViewModel(
    * @param uid identifier of the user who left
    */
   private fun forgetUser(uid: UserId) {
-    _uiState.update { it.copy(username = null) }
+    _uiState.update { it.copy(username = null, photoUrl = null) }
     // Cleared so that no name stays on a shared phone and a rename cancelled by the sign-out cannot
     // leave a stale value. Not part of profileJob, which the next sign-in would cancel.
     viewModelScope.launch { usernameCache.clearUsername(uid) }
@@ -225,10 +231,17 @@ class UserProfileViewModel(
    * @author Timz3rr
    */
   fun setUser(user: User) {
-    // A blank name carries no information, if username null then USERNAME is displayed, else the
-    // name is.
-    _uiState.update { state -> state.copy(username = user.userName?.takeIf { it.isNotBlank() }) }
     // copy() keeps the other state fields instead of resetting them to their defaults.
+    _uiState.update { state ->
+      state.copy(
+          // A blank name carries no information: no displayed name means the placeholder is shown
+          // instead.
+          username = user.userName?.takeIf { it.isNotBlank() },
+          // A blank link names no picture, so it counts as no picture, as a blank name counts as no
+          // name. A blank link would otherwise be requested over the network and fail.
+          photoUrl = user.photoUrl?.takeIf { it.isNotBlank() },
+      )
+    }
   }
 
   /**

@@ -1,4 +1,5 @@
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
+// Co-authored-by: DeepSeek Flash <noreply@deepseek.com>
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 import com.ncorti.ktfmt.gradle.tasks.KtfmtCheckTask
 import com.ncorti.ktfmt.gradle.tasks.KtfmtFormatTask
@@ -222,7 +223,9 @@ dependencies {
   // Loads artwork images from Wikimedia Commons, reusing OkHttp for the network layer.
   implementation(libs.coil.compose)
   implementation(libs.coil.network.okhttp)
-  testImplementation(libs.coil.test)
+  // The fake engine is used by the Robolectric and the instrumented tests alike, so a screen's
+  // picture is tested the same way on a device, without ever reaching the network.
+  globalTestImplementation(libs.coil.test)
 
   // --------- Kaspresso test framework ----------
   globalTestImplementation(libs.kaspresso)
