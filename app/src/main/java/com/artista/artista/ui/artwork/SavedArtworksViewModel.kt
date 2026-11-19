@@ -191,7 +191,7 @@ class SavedArtworksViewModel(
    *
    * @param artwork artwork to restore
    * @return the list containing the artwork at its previous position, clamped to the list bounds
-   * @index position the artwork occupied before its removal
+   * @param index position the artwork occupied before its removal
    */
   private fun List<Artwork>.restore(artwork: Artwork, index: Int): List<Artwork> {
     // A concurrent refresh may already have brought the artwork back, so avoid duplicating it.
