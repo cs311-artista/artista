@@ -42,6 +42,20 @@ interface UserRepository {
   suspend fun updateUser(userId: UserId, newValue: User)
 
   /**
+   * Saves the username of a user without reading their profile first, so that a rename made offline
+   * can be queued even when the profile has never been read on this device.
+   *
+   * Every other field of the profile, such as the preferences, is left unchanged. When the user has
+   * no profile yet, one is created with this username and empty preferences.
+   *
+   * @param userId The unique identifier of the user to rename.
+   * @param userName The new username, already normalized by the caller.
+   * @throws AppException if the backend refuses or cannot complete the write.
+   * @author Timz3rr
+   */
+  suspend fun updateUsername(userId: UserId, userName: String)
+
+  /**
    * Deletes a User object from the repository.
    *
    * @param userId The unique identifier of the user to delete.

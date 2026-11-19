@@ -1,4 +1,5 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.model.artwork
 
 import com.artista.artista.model.artist.Artist
@@ -59,12 +60,56 @@ object ArtworkRepositoryProvider {
   }
 }
 
-private val mockPabloPicasso = Artist("mock-artist-001", "Pablo Picasso")
-private val mockVincentVanGogh = Artist("mock-artist-002", "Vincent van Gogh")
-private val mockPierreAugusteRenoir = Artist("mock-artist-003", "Pierre-Auguste Renoir")
-private val mockClaudeMonet = Artist("mock-artist-004", "Claude Monet")
-private val mockGustavKlimt = Artist("mock-artist-005", "Gustav Klimt")
-private val mockHenriMatisse = Artist("mock-artist-006", "Henri Matisse")
+// The popular artists link to their Wikidata portrait (P18) on Wikimedia Commons, in the same
+// 800 px thumbnail format as the artwork links parsed by JsonResponseParser, so the preferences
+// screen shows real pictures without downloading the original files. The link is a named argument
+// because Artist declares other optional String fields before imageUrl, where a positional link
+// would silently land.
+private val mockPabloPicasso =
+    Artist(
+        "mock-artist-001",
+        "Pablo Picasso",
+        imageUrl =
+            "https://commons.wikimedia.org/wiki/Special:FilePath/Pablo%20picasso%201.jpg?width=800",
+    )
+private val mockVincentVanGogh =
+    Artist(
+        "mock-artist-002",
+        "Vincent van Gogh",
+        imageUrl =
+            "https://commons.wikimedia.org/wiki/Special:FilePath/" +
+                "Self-portrait%20-%20Vincent%20van%20Gogh.jpg?width=800",
+    )
+private val mockPierreAugusteRenoir =
+    Artist(
+        "mock-artist-003",
+        "Pierre-Auguste Renoir",
+        imageUrl =
+            "https://commons.wikimedia.org/wiki/Special:FilePath/" +
+                "Pierre%20Auguste%20Renoir%2C%20uncropped%20image.jpg?width=800",
+    )
+private val mockClaudeMonet =
+    Artist(
+        "mock-artist-004",
+        "Claude Monet",
+        imageUrl =
+            "https://commons.wikimedia.org/wiki/Special:FilePath/" +
+                "Claude%20Monet%201899%20Nadar%20crop.jpg?width=800",
+    )
+private val mockGustavKlimt =
+    Artist(
+        "mock-artist-005",
+        "Gustav Klimt",
+        imageUrl = "https://commons.wikimedia.org/wiki/Special:FilePath/Klimt.jpg?width=800",
+    )
+private val mockHenriMatisse =
+    Artist(
+        "mock-artist-006",
+        "Henri Matisse",
+        imageUrl =
+            "https://commons.wikimedia.org/wiki/Special:FilePath/" +
+                "Portrait%20of%20Henri%20Matisse%201933%20May%2020.jpg?width=800",
+    )
 private val mockAugusteRodin = Artist("mock-artist-007", "Auguste Rodin")
 private val mockEdwardHopper = Artist("mock-artist-008", "Edward Hopper")
 private val mockMayaOConnell = Artist("mock-artist-009", "Maya O'Connell")

@@ -1,3 +1,4 @@
+// Co-authored-by: Gemini <gemini@google.com>
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.artwork
@@ -189,8 +190,8 @@ class SavedArtworksViewModel(
    * Puts back an artwork that was optimistically removed from the displayed list.
    *
    * @param artwork artwork to restore
+   * @param index position the artwork occupied before its removal
    * @return the list containing the artwork at its previous position, clamped to the list bounds
-   * @index position the artwork occupied before its removal
    */
   private fun List<Artwork>.restore(artwork: Artwork, index: Int): List<Artwork> {
     // A concurrent refresh may already have brought the artwork back, so avoid duplicating it.

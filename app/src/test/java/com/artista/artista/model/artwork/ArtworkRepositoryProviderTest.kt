@@ -1,4 +1,5 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.model.artwork
 
 import kotlinx.coroutines.test.runTest
@@ -12,7 +13,7 @@ import org.junit.Test
 /**
  * Unit tests for [ArtworkRepositoryProvider].
  *
- * @author Copilot
+ * @author Copilot, Timz3rr
  */
 class ArtworkRepositoryProviderTest {
   private val repository: ArtworkRepositoryLocal
@@ -76,5 +77,34 @@ class ArtworkRepositoryProviderTest {
     ArtworkRepositoryProvider.populateSaved(listOf(artwork))
     assertTrue(repository.isArtworkSaved(artwork.uid))
     assertEquals(artwork, repository.getArtwork(artwork.uid))
+  }
+
+  /** Checks that every mock popular artist has a Wikimedia Commons picture link. */
+  @Test
+  fun mockPopularArtists_allHaveWikimediaCommonsPicture() {
+    mockPopularArtists.forEach { artist ->
+      val imageUrl = artist.imageUrl
+      assertFalse("${artist.name} has no picture", imageUrl.isNullOrBlank())
+      assertTrue(
+          "${artist.name} has an unexpected picture link: $imageUrl",
+          imageUrl!!.startsWith("https://commons.wikimedia.org/"),
+      )
+    }
+  }
+
+  /** Checks that adding pictures kept the mock popular artists' identifiers and order. */
+  @Test
+  fun mockPopularArtists_keepIdentifiersInOrder() {
+    assertEquals(
+        listOf(
+            "mock-artist-001",
+            "mock-artist-002",
+            "mock-artist-003",
+            "mock-artist-004",
+            "mock-artist-005",
+            "mock-artist-006",
+        ),
+        mockPopularArtists.map { it.uid },
+    )
   }
 }

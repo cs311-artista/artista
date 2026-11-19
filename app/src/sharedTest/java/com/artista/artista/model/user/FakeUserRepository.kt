@@ -30,8 +30,8 @@ class FakeUserRepository : UserRepository {
   val readDelays = mutableMapOf<UserId, Long>()
 
   /**
-   * Delay in milliseconds before [createUser] and [updateUser] reach the backend, per user, to
-   * simulate a write that has not completed yet, as with Firestore while offline.
+   * Delay in milliseconds before [createUser], [updateUser] and [updateUsername] reach the backend,
+   * per user, to simulate a write that has not completed yet, as with Firestore while offline.
    */
   val writeDelays = mutableMapOf<UserId, Long>()
 
@@ -41,12 +41,12 @@ class FakeUserRepository : UserRepository {
    */
   var writesIgnoreCancellation: Boolean = false
 
-  /** When set, [createUser] and [updateUser] throw it instead of writing. */
+  /** When set, [createUser], [updateUser] and [updateUsername] throw it instead of writing. */
   var writeFailure: Throwable? = null
 
   /**
-   * Number of calls to [createUser] and [updateUser] that reached the backend, failed ones
-   * included. A write cancelled during its [writeDelays] does not count.
+   * Number of calls to [createUser], [updateUser] and [updateUsername] that reached the backend,
+   * failed ones included. A write cancelled during its [writeDelays] does not count.
    */
   var writeCount: Int = 0
     private set
@@ -90,6 +90,25 @@ class FakeUserRepository : UserRepository {
     writeFailure?.let { throw it }
     if (userId !in users) throw AppException.NotFound("No user with uid $userId")
     users[userId] = newValue
+  }
+
+  /**
+   * Replaces the username of a user without reading the profile, so [readFailure] and [readDelays]
+   * do not apply, and creates the user with empty preferences when there is none yet.
+   *
+   * @param userId identifier of the user to rename
+   * @param userName the new username
+   * @author Timz3rr
+   */
+  override suspend fun updateUsername(userId: UserId, userName: String) {
+    // Same order as createUser and updateUser: a write cancelled during its delay is not counted,
+    // while a failed one is, as writeCount documents.
+    waitForWrite(userId)
+    writeCount++
+    writeFailure?.let { throw it }
+    users[userId] =
+        users[userId]?.copy(userName = userName)
+            ?: User(uid = userId, userName = userName, preference = UserPreference())
   }
 
   override suspend fun deleteUser(userId: UserId) {

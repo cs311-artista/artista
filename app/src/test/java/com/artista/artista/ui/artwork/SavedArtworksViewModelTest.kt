@@ -1,4 +1,5 @@
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
+// Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 package com.artista.artista.ui.artwork
 
 import com.artista.artista.MainDispatcherRule
@@ -123,6 +124,25 @@ class SavedArtworksViewModelTest {
     assertEquals(listOf(monaLisa), viewModel.uiState.value.artworks)
   }
 
+  /** Verifies that refreshing reapplies the active filter to the newly loaded artworks. */
+  @Test
+  fun refreshSavedArtworks_withActiveFilterReappliesFilterToLoadedArtworks() {
+    repository.savedList = listOf(monaLisa)
+    viewModel.refreshSavedArtworks()
+    runPendingCoroutines()
+
+    val filter = ArtworkFilter(artists = setOf("Pablo Picasso"))
+    viewModel.applyFilter(filter)
+    assertTrue(viewModel.uiState.value.artworks.isEmpty())
+
+    repository.savedList = listOf(monaLisa, guernica)
+    viewModel.refreshSavedArtworks()
+    runPendingCoroutines()
+
+    assertEquals(filter, viewModel.uiState.value.activeFilter)
+    assertEquals(listOf(guernica), viewModel.uiState.value.artworks)
+  }
+
   /** Verifies that options lists (artists, museums, locations) are populated on refresh. */
   @Test
   fun refreshSavedArtworks_populatesArtistMuseumAndLocationOptions() {
@@ -173,22 +193,29 @@ class SavedArtworksViewModelTest {
     assertEquals(listOf("Reina Sofia"), viewModel.uiState.value.museumOptions)
   }
 
-  /** Verifies that an unsave failure restores the artwork within the active filter view. */
+  /** Verifies that an unsave failure restores the artwork in its original unfiltered position. */
   @Test
-  fun onArtworkUnsave_onFailure_restoresArtworkUnderActiveFilter() {
+  fun onArtworkUnsave_onFailure_restoresArtworkAtOriginalPosition() {
     repository.savedList = listOf(monaLisa, guernica)
     viewModel.refreshSavedArtworks()
     runPendingCoroutines()
 
-    viewModel.applyFilter(ArtworkFilter(artists = setOf("Leonardo da Vinci")))
-    assertEquals(listOf(monaLisa), viewModel.uiState.value.artworks)
+    viewModel.applyFilter(ArtworkFilter(artists = setOf("Pablo Picasso")))
+    assertEquals(listOf(guernica), viewModel.uiState.value.artworks)
 
     repository.removeFailure = AppException.Network()
-    viewModel.onArtworkUnsave(monaLisa)
+    viewModel.onArtworkUnsave(guernica)
     runPendingCoroutines()
 
-    assertEquals(listOf(monaLisa), viewModel.uiState.value.artworks)
     assertEquals(R.string.error_network, viewModel.uiState.value.unsaveErrorMessageResId)
+    assertEquals(
+        listOf("Leonardo da Vinci", "Pablo Picasso"),
+        viewModel.uiState.value.artistOptions,
+    )
+
+    viewModel.clearFilter()
+
+    assertEquals(listOf(monaLisa, guernica), viewModel.uiState.value.artworks)
   }
 
   /** Verifies that an unsave failing with an [AppException] stores that type's message. */

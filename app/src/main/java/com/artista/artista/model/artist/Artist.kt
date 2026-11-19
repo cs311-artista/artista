@@ -1,4 +1,5 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.model.artist
 
 /**
@@ -6,7 +7,8 @@ package com.artista.artista.model.artist
  *
  * @property uid stable identifier of the artist
  * @property name display name of the artist
- * @author patrickmcdan
+ * @property imageUrl link to a picture of the artist, or null when no picture is known
+ * @author patrickmcdan, Timz3rr
  */
 data class Artist(
     val uid: ArtistId,

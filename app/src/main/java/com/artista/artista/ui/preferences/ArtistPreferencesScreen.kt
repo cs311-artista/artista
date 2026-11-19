@@ -23,7 +23,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -44,6 +43,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -61,6 +61,7 @@ import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.authentication.AuthRepository
 import com.artista.artista.model.authentication.AuthUser
 import com.artista.artista.model.user.UserRepositoryLocal
+import com.artista.artista.ui.artwork.ArtworkImage
 import com.artista.artista.ui.navigation.BackButton
 import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
@@ -353,8 +354,21 @@ private fun ArtistCard(artist: Artist, selected: Boolean, onToggle: () -> Unit) 
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
       Box {
-        // TODO(#104): replace the placeholder with the artist picture once images are available.
-        ArtistImagePlaceholder()
+        // Reuses the artwork image, which already handles loading, failed downloads and missing
+        // links by showing a fallback icon, so artist pictures behave like artwork pictures.
+        ArtworkImage(
+            imageUrl = artist.imageUrl,
+            contentDescription =
+                stringResource(R.string.artist_preferences_artist_picture_description, artist.name),
+            contentScale = ContentScale.Crop,
+            imageTestTag = ArtistPreferencesTestTags.getArtistImageTestTag(artist.uid),
+            fallbackTestTag = ArtistPreferencesTestTags.getArtistImageFallbackTestTag(artist.uid),
+            modifier =
+                Modifier.fillMaxWidth()
+                    .aspectRatio(4f / 3f)
+                    .clip(RoundedCornerShape(Dimensions.cornerRadiusSmall))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+        )
         SelectionIndicator(
             selected = selected,
             modifier =
@@ -373,25 +387,6 @@ private fun ArtistCard(artist: Artist, selected: Boolean, onToggle: () -> Unit) 
           overflow = TextOverflow.Ellipsis,
       )
     }
-  }
-}
-
-/** Static placeholder shown until artist pictures are available. */
-@Composable
-private fun ArtistImagePlaceholder() {
-  Box(
-      modifier =
-          Modifier.fillMaxWidth()
-              .aspectRatio(4f / 3f)
-              .clip(RoundedCornerShape(Dimensions.cornerRadiusSmall))
-              .background(MaterialTheme.colorScheme.surfaceVariant),
-      contentAlignment = Alignment.Center,
-  ) {
-    Icon(
-        imageVector = Icons.Outlined.Image,
-        contentDescription = null,
-        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
   }
 }
 
