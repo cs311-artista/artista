@@ -2,6 +2,7 @@ package com.artista.artista.ui.preferences
 
 import androidx.activity.ComponentActivity
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -14,7 +15,9 @@ import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextClearance
@@ -28,6 +31,8 @@ import com.artista.artista.model.authentication.FakeAuthRepository
 import com.artista.artista.model.authentication.FakeAuthUser
 import com.artista.artista.model.error.AppException
 import com.artista.artista.model.user.FakeUserRepository
+import com.artista.artista.model.user.User
+import com.artista.artista.model.user.UserPreference
 import com.artista.artista.model.user.UserRepositoryLocal
 import com.artista.artista.ui.navigation.NavigationTestTags
 import com.artista.artista.ui.navigation.Tab
@@ -313,18 +318,80 @@ class ArtistPreferencesScreenTest {
   }
 
   /**
-   * Verifies that the artist cards cannot be clicked while the stored artists load, so a tap is not
-   * replaced by the loaded selection.
+   * Verifies that the spinner replaces the cards while the stored artists load, so no tap can be
+   * replaced by the loaded selection, and that the search bar and the save button are disabled.
    */
   @Test
-  fun artistCards_whileLoading_areDisabled() {
+  fun savedArtists_whileLoading_showsSpinnerAndDisablesSearchAndSave() {
     // The load never returns, so the screen stays loading for the whole test.
     val userRepository = FakeUserRepository().apply { readDelays[UID] = Long.MAX_VALUE }
     setPreferencesContent(viewModel = signedInViewModel(userRepository))
 
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.LOADING_STATE).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.ARTISTS_GRID).assertDoesNotExist()
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SEARCH_BAR).assertIsNotEnabled()
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SAVE_BUTTON).assertIsNotEnabled()
+  }
+
+  /**
+   * Verifies that a failed load of the saved artists replaces the grid with the error state and its
+   * message, and keeps the search bar and the save button disabled.
+   */
+  @Test
+  fun savedArtists_loadFails_showsErrorStateAndDisablesSearchAndSave() {
+    val userRepository = FakeUserRepository().apply { readFailure = AppException.Network() }
+    setPreferencesContent(viewModel = signedInViewModel(userRepository))
+
+    composeTestRule.waitUntil(TIMEOUT_MS) { existsNodeWithTag(LOAD_ERROR_STATE_TAG) }
     composeTestRule
-        .onNodeWithTag(ArtistPreferencesTestTags.getArtistCardTestTag(testArtists.first().uid))
-        .assertIsNotEnabled()
+        .onNodeWithText(stringOf(R.string.artist_preferences_saved_artists_load_error))
+        .assertIsDisplayed()
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.RETRY_BUTTON).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.ARTISTS_GRID).assertDoesNotExist()
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SEARCH_BAR).assertIsNotEnabled()
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SAVE_BUTTON).assertIsNotEnabled()
+  }
+
+  /**
+   * Verifies that tapping Try again after a failed load shows the saved artists selected, and
+   * enables the search bar again.
+   */
+  @Test
+  fun retryButton_afterSavedArtistsLoadFails_showsSavedArtistsSelected() {
+    val savedArtist = testArtists.first()
+    val userRepository =
+        FakeUserRepository().apply {
+          store(User(uid = UID, preference = UserPreference(artists = listOf(savedArtist.uid))))
+          readFailure = AppException.Network()
+        }
+    setPreferencesContent(viewModel = signedInViewModel(userRepository))
+    composeTestRule.waitUntil(TIMEOUT_MS) { existsNodeWithTag(LOAD_ERROR_STATE_TAG) }
+
+    userRepository.readFailure = null
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.RETRY_BUTTON).performClick()
+
+    composeTestRule.waitUntil(TIMEOUT_MS) {
+      existsNodeWithTag(ArtistPreferencesTestTags.ARTISTS_GRID)
+    }
+    composeTestRule
+        .onNodeWithTag(ArtistPreferencesTestTags.getArtistCardTestTag(savedArtist.uid))
+        .assertIsOn()
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SEARCH_BAR).assertIsEnabled()
+  }
+
+  /** Verifies that, when both loads fail, a single error state shows the saved-artists message. */
+  @Test
+  fun bothLoadsFail_showsSingleErrorStateWithSavedArtistsMessage() {
+    val wikiRepository = ControllableWikiRepository().apply { failure = AppException.Network() }
+    val userRepository = FakeUserRepository().apply { readFailure = AppException.Network() }
+    setPreferencesContent(viewModel = signedInViewModel(userRepository, wikiRepository))
+
+    // Waits for the saved-artists message, since the popular artists may fail first.
+    val savedArtistsMessage = stringOf(R.string.artist_preferences_saved_artists_load_error)
+    composeTestRule.waitUntil(TIMEOUT_MS) {
+      composeTestRule.onAllNodesWithText(savedArtistsMessage).fetchSemanticsNodes().isNotEmpty()
+    }
+    composeTestRule.onAllNodesWithTag(LOAD_ERROR_STATE_TAG).assertCountEquals(1)
   }
 
   /** Verifies that a spinner replaces the grid while the popular artists load. */
@@ -536,11 +603,15 @@ class ArtistPreferencesScreenTest {
    * Creates the ViewModel under test for a user signed in as [UID].
    *
    * @param userRepository the storage the selection is saved to
-   * @return a ViewModel backed by [fakeWikiRepository] and [userRepository]
+   * @param wikiRepository the catalog the popular artists are loaded from
+   * @return a ViewModel backed by [wikiRepository] and [userRepository]
    */
-  private fun signedInViewModel(userRepository: FakeUserRepository): ArtistPreferencesViewModel =
+  private fun signedInViewModel(
+      userRepository: FakeUserRepository,
+      wikiRepository: WikiDataRepository = fakeWikiRepository(),
+  ): ArtistPreferencesViewModel =
       ArtistPreferencesViewModel(
-          fakeWikiRepository(),
+          wikiRepository,
           FakeAuthRepository(initialUser = FakeAuthUser(UID)),
           userRepository,
       )
