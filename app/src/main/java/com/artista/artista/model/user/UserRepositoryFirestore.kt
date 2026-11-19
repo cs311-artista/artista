@@ -116,7 +116,7 @@ class UserRepositoryFirestore(
    * Updates only the picture URL of an existing user profile.
    *
    * Firestore writes the single field named, so this write cannot revert a name or a preference
-   * saved by another screen while it is in flight, and those saves cannot revert the picture.
+   * saved by another screen while it is in flight.
    *
    * The document is read first, as [updateUser] and [deleteUser] do, because the security rule of a
    * user compares `request.resource.data.uid`: on a document that does not exist, a one-field

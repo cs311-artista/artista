@@ -60,8 +60,7 @@ interface UserRepository {
    *
    * Screens that read a profile and write it back rewrite all of its fields, so a picture written
    * through [updateUser] could revert a name or a preference saved meanwhile, and their save could
-   * revert the picture. Writing the one field is what lets the picture follow the identity provider
-   * without taking part in those read-then-write cycles.
+   * revert the picture.
    *
    * @param userId The unique identifier of the user to edit.
    * @param photoUrl The URL of the picture to store.
