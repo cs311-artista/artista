@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.*
@@ -233,6 +234,23 @@ class UserLocationProviderTest {
     val e =
         assertThrowsSuspend<AppException.PermissionsError> { provider.locationUpdates().first() }
     assertTrue(e.hasInCauseChain(denied))
+  }
+
+  @Test
+  fun locationUpdates_whenPermissionFailsAsynchronously_throwsPermissionsError() = runTest {
+    val denied = SecurityException("no permission, asynchronously")
+    val provider =
+        UserLocationProvider(
+            updatesClient(onRequest = { _, _ -> Tasks.forException<Void>(denied) })
+        )
+
+    val result = async { runCatching { provider.locationUpdates().first() }.exceptionOrNull() }
+    advanceUntilIdle()
+    shadowOf(Looper.getMainLooper()).idle()
+
+    val e = result.await()
+    assertTrue(e is AppException.PermissionsError)
+    assertTrue(e!!.hasInCauseChain(denied))
   }
 
   /**
