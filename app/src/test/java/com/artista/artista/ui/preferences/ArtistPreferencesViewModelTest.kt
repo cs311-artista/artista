@@ -47,14 +47,16 @@ class ArtistPreferencesViewModelTest {
     viewModel = ArtistPreferencesViewModel(artworkRepository, authRepository, userRepository)
   }
 
-  /** Verifies that the popular artists of the mockup are exposed, in their display order. */
+  /** Checks that the popular artists of the mockup are exposed, in their display order. */
   @Test
   fun initialState_exposesPopularArtists() = runTest {
     advanceUntilIdle()
 
+    // Compared by id and name: the mock artists also carry picture links, which this ViewModel
+    // only passes through and which are checked by ArtworkRepositoryProviderTest.
     assertEquals(
-        listOf(PICASSO, VAN_GOGH, RENOIR, MONET, KLIMT, MATISSE),
-        viewModel.uiState.value.popularArtists,
+        listOf(PICASSO, VAN_GOGH, RENOIR, MONET, KLIMT, MATISSE).map { it.uid to it.name },
+        viewModel.uiState.value.popularArtists.map { it.uid to it.name },
     )
   }
 

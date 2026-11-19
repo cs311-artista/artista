@@ -51,4 +51,24 @@ object ArtistPreferencesTestTags {
    * @author Timz3rr, patrickmcdan
    */
   fun getArtistCardTestTag(artistId: ArtistId): String = "artist_preferences_card_$artistId"
+
+  /**
+   * Returns the tag identifying the picture shown in the card of a specific artist.
+   *
+   * @param artistId the identifier of the artist whose picture is shown.
+   * @return the tag of the picture, unique for each artist.
+   * @author Timz3rr
+   */
+  fun getArtistImageTestTag(artistId: ArtistId): String = "artist_preferences_image_$artistId"
+
+  /**
+   * Returns the tag identifying the icon shown instead of an artist's picture while it is missing,
+   * loading or failed to load.
+   *
+   * @param artistId the identifier of the artist whose card shows the icon.
+   * @return the tag of the fallback icon, unique for each artist.
+   * @author Timz3rr
+   */
+  fun getArtistImageFallbackTestTag(artistId: ArtistId): String =
+      "artist_preferences_image_fallback_$artistId"
 }

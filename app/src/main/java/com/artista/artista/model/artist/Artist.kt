@@ -1,4 +1,5 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.model.artist
 
 import java.util.Date
@@ -9,14 +10,14 @@ import java.util.Date
  * @property uid stable identifier of the artist
  * @property name display name of the artist
  * @property description description of the artist
- * @property imageUrl URL of the artist's image
+ * @property imageUrl link to a picture of the artist, or null when no picture is known
  * @property birthInstant instant of the artist's birth
  * @property birthPlace place of the artist's birth
  * @property deathInstant instant of the artist's death
  * @property deathPlace place of the artist's death
  * @property citizenships list of the artist's citizenships
  * @property movements list of the artist's movements
- * @author patrickmcdan, IJJA3141
+ * @author patrickmcdan, Timz3rr, IJJA3141
  */
 data class Artist(
     val uid: ArtistId,
