@@ -30,6 +30,22 @@ class UserRepositoryLocal : UserRepository {
     users.replace(prevUser.uid, newValue)
   }
 
+  /**
+   * Replaces the username of a user and keeps their preferences, creating the user with empty
+   * preferences when there is none yet.
+   *
+   * @param userId the unique identifier of the user to rename
+   * @param userName the new username
+   * @author Timz3rr
+   */
+  override suspend fun updateUsername(userId: UserId, userName: String) {
+    users[userId] =
+        // Like the Firestore merge: only the name changes, every other field is kept.
+        users[userId]?.copy(userName = userName)
+            // Like the Firestore merge on a missing document: the profile is created.
+            ?: User(uid = userId, userName = userName, preference = UserPreference())
+  }
+
   override suspend fun deleteUser(userId: UserId) {
     if (!users.keys.contains(userId))
         throw AppException.NotFound("No user with uid $userId was found")

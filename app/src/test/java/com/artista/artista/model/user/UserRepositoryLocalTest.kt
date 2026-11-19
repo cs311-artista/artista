@@ -62,6 +62,30 @@ class UserRepositoryLocalTest {
     }
   }
 
+  /** Checks that renaming a user replaces only their username and keeps their preferences. */
+  @Test
+  fun updateUsernameKeepsStoredPreferences() = runTest {
+    val repository = UserRepositoryLocal()
+    repository.createUser(userWith("user-1", userName = "Original User"))
+
+    repository.updateUsername("user-1", "Renamed User")
+
+    assertEquals(userWith("user-1", userName = "Renamed User"), repository.getUser("user-1"))
+  }
+
+  /** Checks that renaming a user with no profile creates it with empty preferences. */
+  @Test
+  fun updateUsernameCreatesMissingUserWithEmptyPreferences() = runTest {
+    val repository = UserRepositoryLocal()
+
+    repository.updateUsername("user-1", "New User")
+
+    assertEquals(
+        User(uid = "user-1", userName = "New User", preference = UserPreference()),
+        repository.getUser("user-1"),
+    )
+  }
+
   @Test
   fun deleteUserThenGetUserThrowsForTheDeletedUser() = runTest {
     val repository = UserRepositoryLocal()

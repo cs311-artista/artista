@@ -142,12 +142,53 @@ class UserRepositoryFirestoreTest : FirebaseEmulatedTest() {
     assertRepositoryThrows(AppException.InvalidData::class) { repository.getUser(testUserId) }
   }
 
-  /** Checks that reading a document without preferences throws an exception. */
+  /**
+   * Checks that a document without preferences loads with empty ones, as happens when a rename is
+   * the first write of a profile or when only Firestore's local copy of an offline rename is known.
+   */
   @Test
-  fun getUserThrowsWhenStoredUserIsMissingPreferences() = runTest {
-    seedRawUserDocument(mapOf("uid" to testUserId, "userName" to "Malformed User"))
+  fun getUserReturnsEmptyPreferencesWhenStoredUserIsMissingPreferences() = runTest {
+    seedRawUserDocument(mapOf("uid" to testUserId, "userName" to "Partial User"))
+
+    assertEquals(
+        User(uid = testUserId, userName = "Partial User", preference = UserPreference()),
+        repository.getUser(testUserId),
+    )
+  }
+
+  /** Checks that a preference field that is present but not a map still throws an exception. */
+  @Test
+  fun getUserThrowsWhenPreferencesAreNotAMap() = runTest {
+    seedRawUserDocument(mapOf("uid" to testUserId, "preference" to "not-a-map"))
 
     assertRepositoryThrows(AppException.InvalidData::class) { repository.getUser(testUserId) }
+  }
+
+  /** Checks that renaming a user replaces only their username and keeps their preferences. */
+  @Test
+  fun updateUsernameKeepsStoredPreferences() = runTest {
+    val user = userWith(uid = testUserId, artists = listOf("Monet", "Renoir"))
+    repository.createUser(user)
+
+    repository.updateUsername(testUserId, "Renamed User")
+
+    assertEquals(user.copy(userName = "Renamed User"), repository.getUser(testUserId))
+  }
+
+  /**
+   * Checks that renaming a user with no profile creates one that loads with empty preferences. This
+   * happens when creating the profile at sign-in failed, for example because the connection dropped
+   * right after the Google sign-in: the user stays signed in without a profile, and the merge write
+   * of the rename then creates it.
+   */
+  @Test
+  fun updateUsernameCreatesMissingUserWithEmptyPreferences() = runTest {
+    repository.updateUsername(testUserId, "New User")
+
+    assertEquals(
+        User(uid = testUserId, userName = "New User", preference = UserPreference()),
+        repository.getUser(testUserId),
+    )
   }
 
   /** Checks that a preference field with an invalid value type throws an exception. */
