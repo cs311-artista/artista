@@ -105,16 +105,14 @@ class WikiDataRepositoryRemoteTest {
     }
   }
 
-  @Ignore(
-      "This test performs real network requests to the Wikidata SPARQL endpoint. It is intended to verify the correctness of the SPARQL query and the ability to fetch data from the remote API."
-  )
   @Test
   fun runRealRequestForArtist() = runTest {
     val repository = WikiDataRepositoryRemote()
 
     try {
-      // println(repository.getArtistFromName("Picasso"))
       println(repository.getArtistFromName("leonardo"))
+      println(repository.getArtistFromName("Picasso"))
+      println(repository.getArtistFromName("tinguely"))
     } catch (e: NotImplementedError) {
       // Handle NotImplementedError if needed
     } catch (e: Exception) {
@@ -156,13 +154,168 @@ class WikiDataRepositoryRemoteTest {
   }
 
   @Test
+  fun getArtistFromName_returnsNullWhenThereAreNoCandidates() = runTest {
+    val requests = mutableListOf<Request>()
+    val client = FakeCallClient { request ->
+      requests += request
+      Response.Builder()
+          .request(request)
+          .protocol(Protocol.HTTP_1_1)
+          .code(200)
+          .message("OK")
+          .body("""{"search":[]}""".toResponseBody())
+          .build()
+    }
+    val repository = WikiDataRepositoryRemote(client)
+
+    assertNull(repository.getArtistFromName("Unknown artist"))
+    assertEquals(1, requests.size)
+  }
+
+  @Test
+  fun getArtistFromName_selectsArtistFromMultipleCandidates() = runTest {
+    val requests = mutableListOf<Request>()
+    val client = FakeCallClient { request ->
+      requests += request
+      val body =
+          when (requests.size) {
+            1 ->
+                """
+                {
+                  "search": [
+                    {"id": "Q21431120", "label": "Picasso"},
+                    {"id": "Q5593", "label": "Pablo Picasso"}
+                  ]
+                }
+                """
+            2 ->
+                """
+                {
+                  "results": {
+                    "bindings": [
+                      {
+                        "artist": {
+                          "type": "uri",
+                          "value": "http://www.wikidata.org/entity/Q5593"
+                        },
+                        "sitelinks": {
+                          "type": "literal",
+                          "value": "265"
+                        }
+                      }
+                    ]
+                  }
+                }
+                """
+            else ->
+                """
+                {
+                  "results": {
+                    "bindings": [
+                      {
+                        "artist": {
+                          "type": "uri",
+                          "value": "http://www.wikidata.org/entity/Q5593"
+                        },
+                        "artistLabel": {"type": "literal", "value": "Pablo Picasso"}
+                      }
+                    ]
+                  }
+                }
+                """
+          }
+      Response.Builder()
+          .request(request)
+          .protocol(Protocol.HTTP_1_1)
+          .code(200)
+          .message("OK")
+          .body(body.trimIndent().toResponseBody())
+          .build()
+    }
+    val repository = WikiDataRepositoryRemote(client)
+
+    val artist = repository.getArtistFromName("Picasso")
+
+    assertEquals(Artist(uid = "Q5593", name = "Pablo Picasso"), artist)
+    assertEquals(3, requests.size)
+    val selectionQuery = requireNotNull(requests[1].url.queryParameter("query"))
+    assertTrue(selectionQuery.contains("wd:Q21431120"))
+    assertTrue(selectionQuery.contains("wd:Q5593"))
+    assertTrue(requests[2].url.queryParameter("query")!!.contains("wd:Q5593"))
+  }
+
+  @Test
+  fun getArtist_fetchesProfileForValidQid() = runTest {
+    val client = FakeCallClient { request ->
+      Response.Builder()
+          .request(request)
+          .protocol(Protocol.HTTP_1_1)
+          .code(200)
+          .message("OK")
+          .body(
+              """
+              {
+                "results": {
+                  "bindings": [
+                    {
+                      "artist": {
+                        "type": "uri",
+                        "value": "http://www.wikidata.org/entity/Q5593"
+                      },
+                      "artistLabel": {"type": "literal", "value": "Pablo Picasso"},
+                      "description": {
+                        "type": "literal",
+                        "value": "Spanish painter and sculptor"
+                      }
+                    }
+                  ]
+                }
+              }
+              """
+                  .trimIndent()
+                  .toResponseBody()
+          )
+          .build()
+    }
+    val repository = WikiDataRepositoryRemote(client)
+
+    val artist = repository.getArtist("Q5593")
+
+    assertEquals(
+        Artist(
+            uid = "Q5593",
+            name = "Pablo Picasso",
+            description = "Spanish painter and sculptor",
+        ),
+        artist,
+    )
+  }
+
+  @Test
+  fun getArtist_rejectsInvalidQidWithoutRequest() = runTest {
+    val client = testClient()
+    val repository = WikiDataRepositoryRemote(client)
+
+    assertThrowsSuspend<AppException.InvalidInput> { repository.getArtist("not-a-qid") }
+
+    assertNull(client.lastRequest)
+  }
+
+  @Test
   fun wikidataEnums_haveValidUniqueIdentifiers() {
     val itemIds = ArtworkType.entries.map { it.qid }
+    val occupationIds = ArtistOccupation.entries.map { it.qid }
     val propertyIds = WikiDataProperty.entries.map { it.id }
 
     itemIds.forEach { assertTrue("$it is not an item ID", it.matches(Regex("Q\\d+"))) }
+    occupationIds.forEach { assertTrue("$it is not an item ID", it.matches(Regex("Q\\d+"))) }
     propertyIds.forEach { assertTrue("$it is not a property ID", it.matches(Regex("P\\d+"))) }
     assertEquals("Artwork type IDs must be unique", itemIds.size, itemIds.toSet().size)
+    assertEquals(
+        "Artist occupation IDs must be unique",
+        occupationIds.size,
+        occupationIds.toSet().size,
+    )
     assertEquals("Property IDs must be unique", propertyIds.size, propertyIds.toSet().size)
     assertEquals("P31", WikiDataProperty.INSTANCE_OF.toString())
   }
