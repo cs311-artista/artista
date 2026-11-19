@@ -281,6 +281,8 @@ class CurrentAppUserJourneyTest {
   private fun openPreferences() {
     composeTestRule.onNodeWithTag(UserProfileTestTags.PREFERENCES_BUTTON).performClick()
     waitUntilDisplayed(ArtistPreferencesTestTags.SCREEN)
+    // The grid only appears once the saved artists have loaded; a spinner replaces it until then.
+    waitUntilDisplayed(ArtistPreferencesTestTags.ARTISTS_GRID)
 
     val artistCard = ArtistPreferencesTestTags.getArtistCardTestTag("mock-artist-001")
     composeTestRule

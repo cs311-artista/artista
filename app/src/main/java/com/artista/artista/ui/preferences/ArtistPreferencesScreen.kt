@@ -3,6 +3,7 @@
 package com.artista.artista.ui.preferences
 
 import android.widget.Toast
+import androidx.annotation.StringRes
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -151,6 +152,7 @@ fun ArtistPreferencesScreen(
       SearchField(
           query = uiState.searchQuery,
           onQueryChange = artistPreferencesViewModel::onSearchQueryChange,
+          enabled = uiState.canSearch,
       )
       Text(
           text = stringResource(R.string.artist_preferences_popular_artists),
@@ -159,14 +161,22 @@ fun ArtistPreferencesScreen(
           color = MaterialTheme.colorScheme.primary,
       )
       // The loading and error states take the grid's place with the same weight, so the save
-      // button does not move.
-      if (uiState.isLoadingPopularArtists) {
-        // Without it, the grid stays empty during a slow load and a retry looks like it did
-        // nothing.
+      // button does not move. Only one of them is shown, whichever load it comes from, and the
+      // loading state comes first, so a retry replaces the error state at once.
+      if (uiState.isLoading) {
+        // Without it, the grid stays empty during a slow load, and the saved artists would appear
+        // selected only after the cards were shown.
         PopularArtistsLoadingState(modifier = Modifier.weight(1f).fillMaxWidth())
-      } else if (uiState.hasPopularArtistsLoadFailed) {
+      } else if (uiState.hasLoadFailed) {
         PopularArtistsLoadErrorState(
-            onRetry = artistPreferencesViewModel::loadPopularArtists,
+            // The saved artists' failure is shown first: it is the one that locks the selection.
+            messageResId =
+                if (uiState.hasSavedArtistsLoadFailed) {
+                  R.string.artist_preferences_saved_artists_load_error
+                } else {
+                  R.string.artist_preferences_load_error_state
+                },
+            onRetry = artistPreferencesViewModel::retryFailedLoads,
             modifier = Modifier.weight(1f).fillMaxWidth(),
         )
       } else {
@@ -186,7 +196,6 @@ fun ArtistPreferencesScreen(
             ArtistCard(
                 artist = artist,
                 selected = artist.uid in uiState.selectedArtists,
-                enabled = !uiState.isLoadingSavedArtists,
                 onToggle = { artistPreferencesViewModel.toggleArtist(artist.uid) },
             )
           }
@@ -218,7 +227,7 @@ fun ArtistPreferencesScreen(
 }
 
 /**
- * Displays a spinner while the popular artists are loading.
+ * Displays a spinner while the popular artists or the saved artists are loading.
  *
  * @param modifier modifier applied to the loading-state container
  * @author krfpn
@@ -234,22 +243,26 @@ private fun PopularArtistsLoadingState(modifier: Modifier = Modifier) {
 }
 
 /**
- * Displays the popular-artists load error with a Retry button, so the user can retry after the
- * toast is gone.
+ * Displays a load error with a Try again button, so the user can retry after the toast is gone.
  *
- * @param onRetry called when the user taps Retry
+ * @param messageResId string resource of the message explaining what could not be loaded
+ * @param onRetry called when the user taps Try again
  * @param modifier modifier applied to the error-state container
  * @author krfpn
  */
 @Composable
-private fun PopularArtistsLoadErrorState(onRetry: () -> Unit, modifier: Modifier = Modifier) {
+private fun PopularArtistsLoadErrorState(
+    @StringRes messageResId: Int,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
   Column(
       modifier = modifier.testTag(ArtistPreferencesTestTags.LOAD_ERROR_STATE),
       verticalArrangement = Arrangement.Center,
       horizontalAlignment = Alignment.CenterHorizontally,
   ) {
     Text(
-        text = stringResource(R.string.artist_preferences_load_error_state),
+        text = stringResource(messageResId),
         style = MaterialTheme.typography.bodyLarge,
         color = MaterialTheme.colorScheme.error,
         textAlign = TextAlign.Center,
@@ -274,18 +287,22 @@ private fun PopularArtistsLoadErrorState(onRetry: () -> Unit, modifier: Modifier
  *
  * @param query Text currently displayed in the field.
  * @param onQueryChange Callback invoked with the new text when the user types.
+ * @param enabled Whether the field can be used; false while the saved artists are loading or failed
+ *   to load.
  */
 @Composable
-private fun SearchField(query: String, onQueryChange: (String) -> Unit) {
+private fun SearchField(query: String, onQueryChange: (String) -> Unit, enabled: Boolean) {
   TextField(
       value = query,
       onValueChange = onQueryChange,
+      enabled = enabled,
       modifier = Modifier.fillMaxWidth().testTag(ArtistPreferencesTestTags.SEARCH_BAR),
       placeholder = { Text(stringResource(R.string.artist_preferences_search_placeholder)) },
       leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
       singleLine = true,
       shape = PillShape,
-      // The mockup shows a pill without an underline, whether the field has focus.
+      // The mockup shows a pill without an underline, whether the field has focus or is disabled.
+      // When disabled, the default dimmed text, placeholder and icon show it.
       colors =
           TextFieldDefaults.colors(
               focusedContainerColor = MaterialTheme.colorScheme.surface,
@@ -296,6 +313,8 @@ private fun SearchField(query: String, onQueryChange: (String) -> Unit) {
               unfocusedLeadingIconColor = MaterialTheme.colorScheme.primary,
               focusedIndicatorColor = ArtistaColors.Transparent,
               unfocusedIndicatorColor = ArtistaColors.Transparent,
+              disabledContainerColor = MaterialTheme.colorScheme.surface,
+              disabledIndicatorColor = ArtistaColors.Transparent,
           ),
   )
 }
@@ -305,16 +324,14 @@ private fun SearchField(query: String, onQueryChange: (String) -> Unit) {
  *
  * @param artist Artist displayed by the card.
  * @param selected Whether the artist is currently selected.
- * @param enabled Whether the card can be clicked; false while the saved artists load.
  * @param onToggle Callback invoked when the card is clicked.
  */
 @Composable
-private fun ArtistCard(artist: Artist, selected: Boolean, enabled: Boolean, onToggle: () -> Unit) {
+private fun ArtistCard(artist: Artist, selected: Boolean, onToggle: () -> Unit) {
   // A checkable Surface, unlike a clickable one, exposes the on/off state used by assertIsOn.
   Surface(
       checked = selected,
       onCheckedChange = { onToggle() },
-      enabled = enabled,
       modifier =
           Modifier.fillMaxWidth()
               // Lets accessibility services announce the card as a checkbox with its state.

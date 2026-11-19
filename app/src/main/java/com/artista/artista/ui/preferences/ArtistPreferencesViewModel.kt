@@ -45,6 +45,10 @@ import kotlinx.coroutines.launch
  * @property hasPopularArtistsLoadFailed whether the last load of the popular artists failed. Unlike
  *   [messageResId], it stays set after the error has been shown, so the screen can keep offering a
  *   retry.
+ * @property hasSavedArtistsLoadFailed whether the last load of the signed-in user's stored artists
+ *   failed. Like [hasPopularArtistsLoadFailed], it stays set after the error has been shown. While
+ *   it is set, the selection cannot be edited or saved, so an empty selection never replaces
+ *   artists that could not be read.
  * @property messageResId string resource of the message shown once a save succeeds or fails, or
  *   when loading the popular or saved artists fails; null when there is nothing to show.
  * @author Timz3rr, patrickmcdan, krfpn
@@ -58,22 +62,35 @@ data class ArtistPreferencesUiState(
     val isLoadingSavedArtists: Boolean = false,
     val isLoadingPopularArtists: Boolean = false,
     val hasPopularArtistsLoadFailed: Boolean = false,
+    val hasSavedArtistsLoadFailed: Boolean = false,
     @param:StringRes val messageResId: Int? = null,
 ) {
+  /** Whether any load is running: the popular artists or the saved artists. */
+  val isLoading: Boolean
+    get() = isLoadingPopularArtists || isLoadingSavedArtists
+
+  /** Whether any load failed: the popular artists or the saved artists. */
+  val hasLoadFailed: Boolean
+    get() = hasPopularArtistsLoadFailed || hasSavedArtistsLoadFailed
+
   /**
    * Whether the Save button can be used: the selection differs from the last saved one, no save is
-   * running, and nothing is loading.
+   * running, nothing is loading, and no load failed.
    *
    * Comparing with the saved selection, rather than tracking toggles, makes the button disabled
    * again when the user undoes their changes. Checking the loads does not rely on the selection
-   * being unchanged while they run, so a save can never start before the screen is ready.
+   * being unchanged while they run or after they fail, so a save can never start before the screen
+   * is ready.
    */
   val canSave: Boolean
-    get() =
-        selectedArtists != savedArtists &&
-            !isSaving &&
-            !isLoadingPopularArtists &&
-            !isLoadingSavedArtists
+    get() = selectedArtists != savedArtists && !isSaving && !isLoading && !hasLoadFailed
+
+  /**
+   * Whether the search field can be used: not while the saved artists are loading or failed to
+   * load, since the selection they are part of cannot be edited then.
+   */
+  val canSearch: Boolean
+    get() = !isLoadingSavedArtists && !hasSavedArtistsLoadFailed
 
   /**
    * The popular artists whose name matches [searchQuery], in display order.
@@ -125,16 +142,32 @@ class ArtistPreferencesViewModel(
     loadPopularArtists()
     // A plain launch is enough: collecting the auth state only listens to sign-ins and sign-outs
     // and does not fail (see AuthRepository.authState). The load of the saved artists, which can
-    // fail, is protected by launchCatching in onAuthStateChanged.
+    // fail, is protected by launchCatching in loadSavedArtists.
     viewModelScope.launch { authRepository.authState.collect(::onAuthStateChanged) }
+  }
+
+  /**
+   * Reruns every load that failed: the popular artists, the saved artists of the signed-in user, or
+   * both.
+   *
+   * Called when the user taps Try again. A load that did not fail is left as it is, and a double
+   * tap starts no second request, since each load clears its failed flag as soon as it starts.
+   *
+   * @author krfpn
+   */
+  fun retryFailedLoads() {
+    val state = _uiState.value
+    if (state.hasPopularArtistsLoadFailed) loadPopularArtists()
+    val uid = signedInUid
+    if (state.hasSavedArtistsLoadFailed && uid != null) loadSavedArtists(uid)
   }
 
   /**
    * Loads the popular artists suggested to the user.
    *
-   * Called when the ViewModel is created and when the user taps Retry after a failed load. On
-   * failure, [ArtistPreferencesUiState.hasPopularArtistsLoadFailed] is set and an error message is
-   * exposed. The call is ignored while a load is already running, so a double tap on Retry does not
+   * Called when the ViewModel is created and by [retryFailedLoads]. On failure,
+   * [ArtistPreferencesUiState.hasPopularArtistsLoadFailed] is set and an error message is exposed.
+   * The call is ignored while a load is already running, so a double tap on Try again does not
    * start a second request.
    *
    * @author krfpn
@@ -175,30 +208,47 @@ class ArtistPreferencesViewModel(
       // is kept. After a sign-out, the previous user's choices are cleared.
       if (signedInUid != null) clearSelection()
       signedInUid = null
-      // The canceled load cannot reset the flag itself, so the screen would stay locked.
-      _uiState.update { it.copy(isLoadingSavedArtists = false) }
+      // The canceled load cannot reset the flags itself, so the screen would stay locked. A
+      // failure belonged to the user who left, so it is cleared too.
+      _uiState.update { it.copy(isLoadingSavedArtists = false, hasSavedArtistsLoadFailed = false) }
       return
     }
     signedInUid = authUser.uid
     // Clears the previous user's selection, so it is not shown while the new one loads.
     clearSelection()
-    _uiState.update { it.copy(isLoadingSavedArtists = true) }
+    loadSavedArtists(authUser.uid)
+  }
+
+  /**
+   * Loads the stored artists of a user and pre-selects them.
+   *
+   * On failure, [ArtistPreferencesUiState.hasSavedArtistsLoadFailed] is set and an error message is
+   * exposed; the selection then stays locked until a retry succeeds.
+   *
+   * @param uid identifier of the user whose artists are loaded
+   */
+  private fun loadSavedArtists(uid: UserId) {
+    // Clears the failure of the previous user or attempt, so the screen shows the loading state.
+    _uiState.update { it.copy(isLoadingSavedArtists = true, hasSavedArtistsLoadFailed = false) }
     loadJob =
         viewModelScope.launchCatching(
             tag = TAG,
             onError = { error ->
-              // The cards are enabled again with an empty selection, so the screen stays usable.
-              // The message warns the user that saving now could replace artists they saved
-              // before.
+              // The selection stays empty and locked: saving it now could replace artists the user
+              // saved before but could not see.
               _uiState.update {
-                it.copy(isLoadingSavedArtists = false, messageResId = error.toMessageRes())
+                it.copy(
+                    isLoadingSavedArtists = false,
+                    hasSavedArtistsLoadFailed = true,
+                    messageResId = error.toMessageRes(),
+                )
               }
             },
         ) {
           // No profile yet means no saved artists, so the selection stays empty. toSet() keeps the
           // saved order, and artists that are not popular stay selected, so the next save does not
           // drop them.
-          val artists = findUser(authUser.uid)?.preference?.artists.orEmpty().toSet()
+          val artists = findUser(uid)?.preference?.artists.orEmpty().toSet()
           _uiState.update {
             it.copy(
                 selectedArtists = artists,
@@ -217,15 +267,15 @@ class ArtistPreferencesViewModel(
   /**
    * Selects the given artist, or deselects it if it is already selected.
    *
-   * Ignored while the saved artists load.
+   * Ignored while the saved artists load or after they failed to load.
    *
    * @param artistId the identifier of the artist to toggle.
    * @author Timz3rr, patrickmcdan, krfpn
    */
   fun toggleArtist(artistId: ArtistId) {
-    // The cards are disabled while loading; checking here keeps the state valid whatever the
-    // caller.
-    if (_uiState.value.isLoadingSavedArtists) return
+    // The cards are hidden then; checking here keeps the state valid whatever the caller.
+    val state = _uiState.value
+    if (state.isLoadingSavedArtists || state.hasSavedArtistsLoadFailed) return
     _uiState.update { state ->
       val selectedArtists =
           if (artistId in state.selectedArtists) state.selectedArtists - artistId
