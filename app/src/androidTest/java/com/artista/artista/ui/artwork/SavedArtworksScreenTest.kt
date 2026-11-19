@@ -18,6 +18,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.artista.artista.R
 import com.artista.artista.model.artist.Artist
@@ -61,6 +62,13 @@ class SavedArtworksScreenTest {
           location = null,
           dimension = null,
       )
+
+  private val vermeerArtwork =
+      createPearlEarringArtwork(
+          uid = "vermeerId",
+          artist = Artist("test-vermeer", "Johannes Vermeer"),
+      )
+  private val alternatePearlEarringArtwork = createPearlEarringArtwork(uid = "girlId")
 
   @Before
   fun setUp() {
@@ -106,6 +114,72 @@ class SavedArtworksScreenTest {
     composeTestRule.onNodeWithText(artistName).assertIsDisplayed()
     val title = checkNotNull(savedArtwork.name)
     composeTestRule.onNodeWithText(title).assertIsDisplayed()
+  }
+
+  /** Verifies that the filter action opens the shared artwork filter dialog. */
+  @Test
+  fun savedArtworksScreen_filterButton_opensFilterDialog() {
+    fakeRepository.savedArtworks.add(savedArtwork)
+    setScreenContent()
+
+    composeTestRule.waitForIdle()
+    composeTestRule.onNodeWithTag(SavedArtworksTestTags.FILTER_BUTTON).performClick()
+
+    composeTestRule.onNodeWithTag(ArtworkFilterTestTags.DIALOG).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(ArtworkFilterTestTags.APPLY_BUTTON).assertIsDisplayed()
+  }
+
+  /** Verifies that applying a saved-artwork filter updates the displayed cards. */
+  @Test
+  fun savedArtworksScreen_applyingFilter_updatesSavedArtworkList() {
+    fakeRepository.savedArtworks.addAll(listOf(savedArtwork, vermeerArtwork))
+    setScreenContent()
+
+    composeTestRule.waitForIdle()
+    composeTestRule.onNodeWithTag(SavedArtworksTestTags.FILTER_BUTTON).performClick()
+    composeTestRule.onNodeWithTag("${ArtworkFilterTestTags.ARTIST}-input").performTextInput("vin")
+    composeTestRule
+        .onNodeWithTag("${ArtworkFilterTestTags.ARTIST}-option-Vincent van Gogh")
+        .performClick()
+    composeTestRule.onNodeWithTag(ArtworkFilterTestTags.APPLY_BUTTON).performClick()
+
+    composeTestRule.onNodeWithTag(SavedArtworksTestTags.card(savedArtwork)).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(SavedArtworksTestTags.card(vermeerArtwork)).assertDoesNotExist()
+  }
+
+  /** Verifies that a filter with no matching saved artworks shows the empty-result state. */
+  @Test
+  fun savedArtworksScreen_filterWithNoMatches_showsEmptyResultState() {
+    fakeRepository.savedArtworks.add(savedArtwork)
+    setScreenContent()
+
+    composeTestRule.waitForIdle()
+    composeTestRule.onNodeWithTag(SavedArtworksTestTags.FILTER_BUTTON).performClick()
+    composeTestRule.onNodeWithTag(ArtworkFilterTestTags.FROM_YEAR).performTextInput("3000")
+    composeTestRule.onNodeWithTag(ArtworkFilterTestTags.APPLY_BUTTON).performClick()
+
+    composeTestRule.onNodeWithTag(SavedArtworksTestTags.EMPTY_FILTER_RESULTS).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(SavedArtworksTestTags.LIST).assertDoesNotExist()
+  }
+
+  /** Verifies that clearing a saved-artwork filter restores the complete list. */
+  @Test
+  fun savedArtworksScreen_clearingFilter_restoresSavedArtworkList() {
+    fakeRepository.savedArtworks.addAll(listOf(savedArtwork, vermeerArtwork))
+    setScreenContent()
+
+    composeTestRule.waitForIdle()
+    composeTestRule.onNodeWithTag(SavedArtworksTestTags.FILTER_BUTTON).performClick()
+    composeTestRule.onNodeWithTag("${ArtworkFilterTestTags.ARTIST}-input").performTextInput("vin")
+    composeTestRule
+        .onNodeWithTag("${ArtworkFilterTestTags.ARTIST}-option-Vincent van Gogh")
+        .performClick()
+    composeTestRule.onNodeWithTag(ArtworkFilterTestTags.APPLY_BUTTON).performClick()
+    composeTestRule.onNodeWithTag(SavedArtworksTestTags.FILTER_BUTTON).performClick()
+    composeTestRule.onNodeWithTag(ArtworkFilterTestTags.CLEAR_BUTTON).performClick()
+
+    composeTestRule.onNodeWithTag(SavedArtworksTestTags.card(savedArtwork)).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(SavedArtworksTestTags.card(vermeerArtwork)).assertIsDisplayed()
   }
 
   /** Verifies that an artwork without an artist name displays the shared fallback text. */
@@ -368,8 +442,7 @@ class SavedArtworksScreenTest {
   /** Verifies that unsaving an artwork already absent from the repository is not an error. */
   @Test
   fun savedArtworksScreen_whenArtworkIsAlreadyAbsentFromRepository_keepsCardRemoved() {
-    val otherArtwork = savedArtwork.copy(uid = "girlId", name = "Girl with a Pearl Earring")
-    fakeRepository.savedArtworks.addAll(listOf(savedArtwork, otherArtwork))
+    fakeRepository.savedArtworks.addAll(listOf(savedArtwork, alternatePearlEarringArtwork))
     setScreenContent()
 
     composeTestRule.waitForIdle()
@@ -380,8 +453,10 @@ class SavedArtworksScreenTest {
 
     // A failed unsave would restore the card, so its absence shows no error path was taken.
     composeTestRule.onNodeWithTag(SavedArtworksTestTags.card(savedArtwork)).assertDoesNotExist()
-    composeTestRule.onNodeWithTag(SavedArtworksTestTags.card(otherArtwork)).assertIsDisplayed()
-    assertEquals(listOf(otherArtwork), fakeRepository.savedArtworks)
+    composeTestRule
+        .onNodeWithTag(SavedArtworksTestTags.card(alternatePearlEarringArtwork))
+        .assertIsDisplayed()
+    assertEquals(listOf(alternatePearlEarringArtwork), fakeRepository.savedArtworks)
   }
 
   /** Verifies that a failed unsave restores the card at the position it had before. */
@@ -553,6 +628,13 @@ class SavedArtworksScreenTest {
       }
     }
   }
+
+  private fun createPearlEarringArtwork(uid: ArtworkId, artist: Artist? = savedArtwork.artist) =
+      savedArtwork.copy(
+          uid = uid,
+          name = "Girl with a Pearl Earring",
+          artist = artist,
+      )
 
   /** In-memory test double implementing [SavedArtworksRepository]. */
   private class FakeArtworkRepository : SavedArtworksRepository {
