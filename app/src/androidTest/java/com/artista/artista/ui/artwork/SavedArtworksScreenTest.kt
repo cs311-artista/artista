@@ -63,6 +63,13 @@ class SavedArtworksScreenTest {
           dimension = null,
       )
 
+  private val vermeerArtwork =
+      createPearlEarringArtwork(
+          uid = "vermeerId",
+          artist = Artist("test-vermeer", "Johannes Vermeer"),
+      )
+  private val alternatePearlEarringArtwork = createPearlEarringArtwork(uid = "girlId")
+
   @Before
   fun setUp() {
     fakeRepository = FakeArtworkRepository()
@@ -125,13 +132,7 @@ class SavedArtworksScreenTest {
   /** Verifies that applying a saved-artwork filter updates the displayed cards. */
   @Test
   fun savedArtworksScreen_applyingFilter_updatesSavedArtworkList() {
-    val otherArtwork =
-        savedArtwork.copy(
-            uid = "vermeerId",
-            name = "Girl with a Pearl Earring",
-            artist = Artist("test-vermeer", "Johannes Vermeer"),
-        )
-    fakeRepository.savedArtworks.addAll(listOf(savedArtwork, otherArtwork))
+    fakeRepository.savedArtworks.addAll(listOf(savedArtwork, vermeerArtwork))
     setScreenContent()
 
     composeTestRule.waitForIdle()
@@ -143,7 +144,7 @@ class SavedArtworksScreenTest {
     composeTestRule.onNodeWithTag(ArtworkFilterTestTags.APPLY_BUTTON).performClick()
 
     composeTestRule.onNodeWithTag(SavedArtworksTestTags.card(savedArtwork)).assertIsDisplayed()
-    composeTestRule.onNodeWithTag(SavedArtworksTestTags.card(otherArtwork)).assertDoesNotExist()
+    composeTestRule.onNodeWithTag(SavedArtworksTestTags.card(vermeerArtwork)).assertDoesNotExist()
   }
 
   /** Verifies that a filter with no matching saved artworks shows the empty-result state. */
@@ -164,13 +165,7 @@ class SavedArtworksScreenTest {
   /** Verifies that clearing a saved-artwork filter restores the complete list. */
   @Test
   fun savedArtworksScreen_clearingFilter_restoresSavedArtworkList() {
-    val otherArtwork =
-        savedArtwork.copy(
-            uid = "vermeerId",
-            name = "Girl with a Pearl Earring",
-            artist = Artist("test-vermeer", "Johannes Vermeer"),
-        )
-    fakeRepository.savedArtworks.addAll(listOf(savedArtwork, otherArtwork))
+    fakeRepository.savedArtworks.addAll(listOf(savedArtwork, vermeerArtwork))
     setScreenContent()
 
     composeTestRule.waitForIdle()
@@ -184,7 +179,7 @@ class SavedArtworksScreenTest {
     composeTestRule.onNodeWithTag(ArtworkFilterTestTags.CLEAR_BUTTON).performClick()
 
     composeTestRule.onNodeWithTag(SavedArtworksTestTags.card(savedArtwork)).assertIsDisplayed()
-    composeTestRule.onNodeWithTag(SavedArtworksTestTags.card(otherArtwork)).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(SavedArtworksTestTags.card(vermeerArtwork)).assertIsDisplayed()
   }
 
   /** Verifies that an artwork without an artist name displays the shared fallback text. */
@@ -447,8 +442,7 @@ class SavedArtworksScreenTest {
   /** Verifies that unsaving an artwork already absent from the repository is not an error. */
   @Test
   fun savedArtworksScreen_whenArtworkIsAlreadyAbsentFromRepository_keepsCardRemoved() {
-    val otherArtwork = savedArtwork.copy(uid = "girlId", name = "Girl with a Pearl Earring")
-    fakeRepository.savedArtworks.addAll(listOf(savedArtwork, otherArtwork))
+    fakeRepository.savedArtworks.addAll(listOf(savedArtwork, alternatePearlEarringArtwork))
     setScreenContent()
 
     composeTestRule.waitForIdle()
@@ -459,8 +453,10 @@ class SavedArtworksScreenTest {
 
     // A failed unsave would restore the card, so its absence shows no error path was taken.
     composeTestRule.onNodeWithTag(SavedArtworksTestTags.card(savedArtwork)).assertDoesNotExist()
-    composeTestRule.onNodeWithTag(SavedArtworksTestTags.card(otherArtwork)).assertIsDisplayed()
-    assertEquals(listOf(otherArtwork), fakeRepository.savedArtworks)
+    composeTestRule
+        .onNodeWithTag(SavedArtworksTestTags.card(alternatePearlEarringArtwork))
+        .assertIsDisplayed()
+    assertEquals(listOf(alternatePearlEarringArtwork), fakeRepository.savedArtworks)
   }
 
   /** Verifies that a failed unsave restores the card at the position it had before. */
@@ -632,6 +628,13 @@ class SavedArtworksScreenTest {
       }
     }
   }
+
+  private fun createPearlEarringArtwork(uid: ArtworkId, artist: Artist? = savedArtwork.artist) =
+      savedArtwork.copy(
+          uid = uid,
+          name = "Girl with a Pearl Earring",
+          artist = artist,
+      )
 
   /** In-memory test double implementing [SavedArtworksRepository]. */
   private class FakeArtworkRepository : SavedArtworksRepository {
