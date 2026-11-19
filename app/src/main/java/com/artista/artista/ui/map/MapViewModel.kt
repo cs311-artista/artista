@@ -14,10 +14,15 @@ import com.artista.artista.model.error.AppException
 import com.artista.artista.model.location.LocationProvider
 import com.artista.artista.model.map.Coordinate
 import com.artista.artista.model.map.UserLocation
+import com.artista.artista.model.walking.RouteProgress
 import com.artista.artista.model.walking.WalkingRoute
 import com.artista.artista.model.walking.WalkingRouteRepository
+import com.artista.artista.model.walking.advanceProgress
+import com.artista.artista.model.walking.pathLengthMeters
+import com.artista.artista.model.walking.trimPath
 import com.artista.artista.ui.error.launchCatching
 import com.artista.artista.ui.error.toMessageRes
+import kotlin.time.DurationUnit
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -78,6 +83,20 @@ sealed interface RouteUiState {
    */
   data class Error(val kind: RouteErrorKind, @StringRes val messageRes: Int) : RouteUiState
 }
+
+/**
+ * The part of the active walking route that is still ahead of the user.
+ *
+ * @property path remaining route geometry, starting at the user's projected position
+ * @property remainingDistanceMeters length of [path]
+ * @property remainingDurationSeconds walking time left, proportional to the remaining distance
+ * @author patrickmcdan
+ */
+data class RouteProgressUiState(
+    val path: List<Coordinate>,
+    val remainingDistanceMeters: Double,
+    val remainingDurationSeconds: Double,
+)
 
 /**
  * Categories of route failures that have different UI and retry behavior.
@@ -143,6 +162,17 @@ class MapViewModel(
   val routeUiState: RouteUiState
     get() = _routeUiState.value
 
+  private val _routeProgressUiState = MutableStateFlow<RouteProgressUiState?>(null)
+  private var routeProgress: RouteProgress? = null
+
+  /** Exposes the remaining part of the active route, or null when no route is shown. */
+  val routeProgressUiStateFlow: StateFlow<RouteProgressUiState?> =
+      _routeProgressUiState.asStateFlow()
+
+  /** Returns the remaining route for synchronous consumers such as tests. */
+  val routeProgressUiState: RouteProgressUiState?
+    get() = _routeProgressUiState.value
+
   init {
     viewModelScope.launchCatching(
         tag = TAG,
@@ -155,6 +185,36 @@ class MapViewModel(
         )
       }
     }
+  }
+
+  /**
+   * Trims the active route to the user's location, without calling the routing API again.
+   *
+   * @param location the user's latest location
+   */
+  private fun updateRouteProgress(location: UserLocation) {
+    val route = (_routeUiState.value as? RouteUiState.Success)?.route ?: return
+    val path = route.path
+    val progress =
+        advanceProgress(path, Coordinate(location.latitude, location.longitude), routeProgress)
+            ?: return
+    routeProgress = progress
+    val trimmed = trimPath(path, progress)
+    val remaining = pathLengthMeters(trimmed)
+    // Scale against the polyline length so distance and duration stay consistent with each other.
+    val total = pathLengthMeters(path)
+    val ratio = if (total > 0.0) (remaining / total).coerceIn(0.0, 1.0) else 0.0
+    _routeProgressUiState.value =
+        RouteProgressUiState(
+            trimmed,
+            remaining,
+            route.duration.toDouble(DurationUnit.SECONDS) * ratio,
+        )
+  }
+
+  private fun resetRouteProgress() {
+    routeProgress = null
+    _routeProgressUiState.value = null
   }
 
   /**
@@ -183,6 +243,7 @@ class MapViewModel(
     _uiState.update { it.copy(userLocation = location, errorMsg = null) }
     loadRemoteArtworks(location)
     locationFailed = false
+    updateRouteProgress(location)
     pendingRouteArtwork?.let { artwork ->
       pendingRouteArtwork = null
       startRouteRequest(artwork, location)
@@ -272,6 +333,7 @@ class MapViewModel(
   private fun requestRoute(artwork: Artwork) {
     lastRouteArtwork = artwork
     routeRequestJob?.cancel()
+    resetRouteProgress()
     pendingRouteArtwork = null
     _routeUiState.value = RouteUiState.Loading
     val userLocation = uiState.userLocation
@@ -301,6 +363,7 @@ class MapViewModel(
     routeRequestJob = null
     pendingRouteArtwork = null
     lastRouteArtwork = null
+    resetRouteProgress()
     _routeUiState.value = RouteUiState.Idle
   }
 
@@ -325,6 +388,7 @@ class MapViewModel(
                   destination = Coordinate(destination.latitude, destination.longitude),
               )
           _routeUiState.value = RouteUiState.Success(route, artwork)
+          uiState.userLocation?.let { updateRouteProgress(it) }
         }
   }
 
