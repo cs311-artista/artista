@@ -67,10 +67,13 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.MapProperties
+import com.google.maps.android.compose.MapUiSettings
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberCameraPositionState
+import kotlin.math.roundToInt
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Contains test tags used by the map screen.
@@ -156,6 +159,7 @@ fun MapScreen(
 ) {
   val uiState by mapViewModel.uiStateFlow.collectAsStateWithLifecycle()
   val routeUiState by mapViewModel.routeUiStateFlow.collectAsStateWithLifecycle()
+  val routeProgressUiState by mapViewModel.routeProgressUiStateFlow.collectAsStateWithLifecycle()
   val context = LocalContext.current
   val userLocation = uiState.userLocation
   val latestRouteUiState by rememberUpdatedState(routeUiState)
@@ -222,6 +226,7 @@ fun MapScreen(
         cameraPositionState = cameraPositionState,
         onMapLoaded = { mapLoaded = true },
         properties = MapProperties(isMyLocationEnabled = uiState.hasLocationPermission),
+        uiSettings = MapUiSettings(mapToolbarEnabled = false),
         contentPadding =
             PaddingValues(
                 bottom = Dimensions.bottomMapToolBarPadding,
@@ -238,9 +243,11 @@ fun MapScreen(
 
       val success = routeUiState as? RouteUiState.Success
       success?.let { routeState ->
-        if (routeState.route.path.isNotEmpty()) {
+        // Fall back to the full path until the first progress is computed.
+        val path = routeProgressUiState?.path ?: routeState.route.path
+        if (path.isNotEmpty()) {
           Polyline(
-              points = routeState.route.path.map { LatLng(it.latitude, it.longitude) },
+              points = path.map { LatLng(it.latitude, it.longitude) },
               color = ArtistaColors.Primary,
               width = Dimensions.POLY_LINE_WIDTH,
           )
@@ -262,6 +269,7 @@ fun MapScreen(
 
     RouteOverlay(
         routeUiState = routeUiState,
+        routeProgressUiState = routeProgressUiState,
         onClearRoute = mapViewModel::clearRoute,
         onRetryRoute = mapViewModel::retryRoute,
         modifier =
@@ -307,6 +315,8 @@ internal fun routeBounds(
  * Displays the route summary or the current route request state.
  *
  * @param routeUiState current walking route state
+ * @param routeProgressUiState remaining part of the route; when null the full route values are
+ *   shown
  * @param onClearRoute called when the route is dismissed
  * @param onRetryRoute called when a retry is requested
  * @param modifier modifier applied to the overlay
@@ -315,6 +325,7 @@ internal fun routeBounds(
 @Composable
 internal fun RouteOverlay(
     routeUiState: RouteUiState,
+    routeProgressUiState: RouteProgressUiState? = null,
     onClearRoute: () -> Unit,
     onRetryRoute: () -> Unit,
     modifier: Modifier = Modifier,
@@ -348,10 +359,17 @@ internal fun RouteOverlay(
             Text(
                 modifier = Modifier.testTag(MapScreenTestTags.ROUTE_SUMMARY),
                 text =
-                    formatWalkingRouteSummary(
-                        routeUiState.route.duration,
-                        routeUiState.route.distanceMeters,
-                    ),
+                    if (routeProgressUiState != null) {
+                      formatWalkingRouteSummary(
+                          routeProgressUiState.remainingDurationSeconds.seconds,
+                          routeProgressUiState.remainingDistanceMeters.roundToInt(),
+                      )
+                    } else {
+                      formatWalkingRouteSummary(
+                          routeUiState.route.duration,
+                          routeUiState.route.distanceMeters,
+                      )
+                    },
                 style = MaterialTheme.typography.bodyMedium,
             )
           }
