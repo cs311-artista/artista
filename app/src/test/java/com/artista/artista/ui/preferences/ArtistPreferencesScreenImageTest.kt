@@ -54,7 +54,7 @@ class ArtistPreferencesScreenImageTest {
 
   private val context: Context = ApplicationProvider.getApplicationContext()
 
-  private val artistWithPicture = Artist("test-picasso", "Pablo Picasso", IMAGE_URL)
+  private val artistWithPicture = Artist("test-picasso", "Pablo Picasso", imageUrl = IMAGE_URL)
 
   // The image loader is a process-wide singleton, so each test that replaces it must restore it.
   @After
@@ -127,7 +127,7 @@ class ArtistPreferencesScreenImageTest {
   fun artistCard_whenPictureFailsToLoad_keepsFallback() {
     var imageRequested = false
     installFakeImageLoader(failingImageEngine(BROKEN_IMAGE_URL) { imageRequested = true })
-    val artist = Artist("test-van-gogh", "Vincent van Gogh", BROKEN_IMAGE_URL)
+    val artist = Artist("test-van-gogh", "Vincent van Gogh", imageUrl = BROKEN_IMAGE_URL)
 
     setScreenContent(listOf(artist))
     composeTestRule.waitUntil(IMAGE_TIMEOUT_MS) { imageRequested }
