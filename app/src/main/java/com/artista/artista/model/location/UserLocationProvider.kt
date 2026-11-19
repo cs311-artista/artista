@@ -21,7 +21,7 @@ import kotlinx.coroutines.tasks.await
  * Provides the user's current location.
  *
  * @param locationClient the client used to fetch the user's location
- * @author 5kyPhy
+ * @author 5kyPhy, patrickmcdan
  */
 class UserLocationProvider(private val locationClient: FusedLocationProviderClient) :
     LocationProvider {
@@ -68,6 +68,20 @@ class UserLocationProvider(private val locationClient: FusedLocationProviderClie
     }
   }
 
+  /**
+   * Streams the user's location as it changes.
+   *
+   * Collecting the flow registers a high-accuracy location callback with the fused client, which
+   * delivers a fix every [UPDATE_INTERVAL_MS] once the user has moved at least
+   * [MIN_UPDATE_DISTANCE_METERS]. Cancelling the collection unregisters the callback, which turns
+   * location updates off.
+   *
+   * @return a flow of the user's locations
+   * @throws [AppException.UserLocationError] (thrown on collection) if updates cannot be started
+   * @throws [AppException.PermissionsError] (thrown on collection) if the user has not granted the
+   *   necessary permissions
+   * @author patrickmcdan
+   */
   override fun locationUpdates(): Flow<UserLocation> = callbackFlow {
     val request =
         LocationRequest.Builder(
