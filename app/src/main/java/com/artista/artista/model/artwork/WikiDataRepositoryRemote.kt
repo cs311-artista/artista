@@ -153,13 +153,13 @@ class WikiDataRepositoryRemote(
 
   override suspend fun getArtistFromName(query: String): Artist? {
     val candidates = searchArtistCandidates(query)
-    val id = pickArtist(candidates.map { it.id }) ?: return null
-    return getArtistProfile(id) // the ID-based query from my previous message
+    val qid = pickArtist(candidates.map { it.id }) ?: return null
+    return getArtistProfile(qid) // query info of qid received from previous call to wikidata
   }
 
-  override suspend fun getArtist(uid: ArtistId): Artist? {
-    if (!uid.matches(ITEM_ID_REGEX)) throw AppException.InvalidInput("uid is invalid")
-    return getArtistProfile(uid) // the ID-based query from my previous message
+  override suspend fun getArtist(qid: ArtistId): Artist? {
+    if (!qid.matches(ITEM_ID_REGEX)) throw AppException.InvalidInput("uid is invalid")
+    return getArtistProfile(qid)
   }
 
   /**
@@ -279,6 +279,8 @@ class WikiDataRepositoryRemote(
     private const val NO_TITLE_PENALTY = 150
     private const val NO_ARTIST_PENALTY = 100
     private const val NO_LOCATION_PENALTY = 5
+
+    private const val MEDIAWIKI_API_URL = "https://www.wikidata.org/w/api.php"
 
     const val SELECT_LINE =
         "SELECT ?item ?itemLabel ?artistLabel ?image ?inception ?collectionLabel ?locationLabel ?width ?height ?description ?locationCoordinates ?coordinateSource"
@@ -438,8 +440,7 @@ class WikiDataRepositoryRemote(
     if (text.isEmpty()) return emptyList()
 
     val url =
-        "https://www.wikidata.org/w/api.php"
-            .toHttpUrl()
+        MEDIAWIKI_API_URL.toHttpUrl()
             .newBuilder()
             .addQueryParameter("action", "wbsearchentities")
             .addQueryParameter("search", text) // the builder URL-encodes it
@@ -502,17 +503,17 @@ class WikiDataRepositoryRemote(
             OPTIONAL { ?wikipedia schema:about ?artist ; schema:isPartOf <https://en.wikipedia.org/> . }
                 OPTIONAL {
                     SELECT (GROUP_CONCAT(DISTINCT ?l; separator=" | ") AS ?occupations) WHERE {
-                    wd:Q5593 wdt:P106 ?o . ?o rdfs:label ?l . FILTER(LANG(?l) = "en")
+                    wd:${qId} wdt:P106 ?o . ?o rdfs:label ?l . FILTER(LANG(?l) = "en")
                 }
                 }
                 OPTIONAL {
                     SELECT (GROUP_CONCAT(DISTINCT ?l; separator=" | ") AS ?citizenships) WHERE {
-                    wd:Q5593 wdt:P27 ?c . ?c rdfs:label ?l . FILTER(LANG(?l) = "en")
+                    wd:${qId} wdt:P27 ?c . ?c rdfs:label ?l . FILTER(LANG(?l) = "en")
                 }
                 }
                 OPTIONAL {
                     SELECT (GROUP_CONCAT(DISTINCT ?l; separator=" | ") AS ?movements) WHERE {
-                    wd:Q5593 wdt:P135 ?m . ?m rdfs:label ?l . FILTER(LANG(?l) = "en")
+                    wd:${qId} wdt:P135 ?m . ?m rdfs:label ?l . FILTER(LANG(?l) = "en")
                 }
                 }
             }

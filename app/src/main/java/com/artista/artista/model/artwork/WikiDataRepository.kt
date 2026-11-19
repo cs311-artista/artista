@@ -35,7 +35,7 @@ enum class ArtistOccupation(val qid: String) {
   VISUAL_ARTIST("Q3391743"), // visual artist, a common generic value
   ARTIST("Q483501"), // artist, the most generic value
   ILLUSTRATOR("Q644687"), // illustrator
-  ARCHITECT("Q42973"), // architect, only if buildings count as art
+  ARCHITECT("Q42973"), // architect
 }
 
 /**
@@ -107,13 +107,14 @@ interface WikiDataRepository {
   suspend fun getArtistFromName(query: String): Artist?
 
   /**
-   * return searched artist by qid
+   * return searched artist by qid it is the responsibility of the caller to call with a valid
+   * artist Qid
    *
-   * @param id searched artist qid
+   * @param qid searched artist qid
    * @return matching artist
    * @author IJJA3141
    */
-  suspend fun getArtist(uid: ArtistId): Artist?
+  suspend fun getArtist(qid: ArtistId): Artist?
 
   /**
    * Returns the [Artwork] associated with the provided Wikidata identifier.
