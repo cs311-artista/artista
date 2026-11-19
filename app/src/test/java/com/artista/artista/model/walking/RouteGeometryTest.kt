@@ -102,9 +102,10 @@ class RouteGeometryTest {
   }
 
   @Test
-  fun trimPath_atDestinationKeepsTwoPoints() {
+  fun trimPath_atDestinationReturnsNothingToDraw() {
     val progress = advanceProgress(path, path.last(), previous = advanceProgress(path, path[2]))!!
-    assertEquals(2, trimPath(path, progress).size)
+    assertEquals(path.last(), progress.position)
+    assertTrue(trimPath(path, progress).isEmpty())
   }
 
   @Test

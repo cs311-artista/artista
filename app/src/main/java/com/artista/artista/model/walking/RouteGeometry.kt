@@ -175,8 +175,7 @@ fun advanceProgress(
  * @author patrickmcdan
  */
 fun trimPath(path: List<Coordinate>, progress: RouteProgress): List<Coordinate> {
+  if (progress.position == path.lastOrNull()) return emptyList()
   val rest = path.drop(progress.segmentIndex + 1)
-  val trimmed =
-      if (rest.firstOrNull() == progress.position) rest else listOf(progress.position) + rest
-  return if (trimmed.size > 2) trimmed else listOf(progress.position, path.last())
+  return if (rest.firstOrNull() == progress.position) rest else listOf(progress.position) + rest
 }
