@@ -237,8 +237,11 @@ class UserProfileViewModel(
    *
    * The new name is displayed and cached at once, and replaces a save still running. Only the name
    * is written, so the other fields of the profile are kept and a profile is created if the user
-   * has none yet. If saving it fails, the last name really saved is displayed and cached again and
-   * an error message is exposed. When nobody is signed in, the name is only kept in memory.
+   * has none yet. Offline, the save does not fail: it stays pending until the connection returns.
+   * If the server refuses the write during the session, the last name really saved is displayed and
+   * cached again and an error message is exposed. If the app is closed while a rename is still
+   * pending, a later refusal is never shown to the user (follow-up issue #350: "Report a sync
+   * failure after a cold start"). When nobody is signed in, the name is only kept in memory.
    *
    * @param newName the username as typed by the user; ignored if [isValidUsername] rejects it.
    * @author Timz3rr
