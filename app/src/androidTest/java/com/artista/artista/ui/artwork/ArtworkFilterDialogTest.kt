@@ -2,9 +2,14 @@
 package com.artista.artista.ui.artwork
 
 import androidx.activity.ComponentActivity
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
@@ -17,6 +22,7 @@ import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.artista.artista.model.artwork.ArtworkFilter
 import com.artista.artista.ui.theme.ArtistaTheme
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -46,12 +52,18 @@ class ArtworkFilterDialogTest {
           "Salvador Dali",
       )
 
+  private var primary = Color.Unspecified
+  private var onPrimary = Color.Unspecified
+
   private fun setDialog(
       filter: ArtworkFilter = ArtworkFilter(),
       artists: List<String> = manyArtists,
+      darkTheme: Boolean = false,
   ) {
     composeTestRule.setContent {
-      ArtistaTheme {
+      ArtistaTheme(darkTheme = darkTheme) {
+        primary = MaterialTheme.colorScheme.primary
+        onPrimary = MaterialTheme.colorScheme.onPrimary
         ArtworkFilterDialog(
             filter = filter,
             artistOptions = artists,
@@ -111,5 +123,32 @@ class ArtworkFilterDialogTest {
 
     composeTestRule.onAllNodesWithTag("$artistTag-chip-Frida Kahlo").assertCountEquals(0)
     composeTestRule.onAllNodesWithTag(selectedRowTag).assertCountEquals(0)
+  }
+
+  @Test
+  fun selectedChip_isFilledWithPrimaryInLightTheme() {
+    assertChipUsesPrimaryRoles(darkTheme = false)
+  }
+
+  @Test
+  fun selectedChip_isFilledWithPrimaryInDarkTheme() {
+    assertChipUsesPrimaryRoles(darkTheme = true)
+  }
+
+  // The chip node also covers its touch-target padding and its glyphs, so a large share of
+  // primary pixels shows the fill, and any onPrimary pixel shows the label is drawn on top of it.
+  private fun assertChipUsesPrimaryRoles(darkTheme: Boolean) {
+    setDialog(filter = ArtworkFilter(artists = setOf("Claude Monet")), darkTheme = darkTheme)
+
+    val pixels =
+        composeTestRule.onNodeWithTag("$artistTag-chip-Claude Monet").captureToImage().toPixelMap()
+    val colors =
+        (0 until pixels.width).flatMap { x ->
+          (0 until pixels.height).map { y -> pixels[x, y].toArgb() }
+        }
+    val primaryShare = colors.count { it == primary.toArgb() }.toFloat() / colors.size
+
+    assertTrue("primary covers only ${primaryShare * 100}% of the chip", primaryShare > 0.3f)
+    assertTrue("no onPrimary pixel in the chip", colors.any { it == onPrimary.toArgb() })
   }
 }
