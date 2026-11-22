@@ -16,6 +16,7 @@ import androidx.compose.ui.test.onChildAt
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
@@ -24,6 +25,7 @@ import com.artista.artista.R
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkId
+import com.artista.artista.model.artwork.ArtworkType
 import com.artista.artista.model.artwork.SavedArtworksRepository
 import com.artista.artista.model.error.AppException
 import com.artista.artista.model.map.Location
@@ -145,6 +147,27 @@ class SavedArtworksScreenTest {
 
     composeTestRule.onNodeWithTag(SavedArtworksTestTags.card(savedArtwork)).assertIsDisplayed()
     composeTestRule.onNodeWithTag(SavedArtworksTestTags.card(vermeerArtwork)).assertDoesNotExist()
+  }
+
+  /** Verifies that selecting a type in the filter dialog keeps only saved artworks of that type. */
+  @Test
+  fun savedArtworksScreen_applyingTypeFilter_updatesSavedArtworkList() {
+    val painting = savedArtwork.copy(types = setOf(ArtworkType.PAINTING))
+    // An artwork saved before types existed has none, so it must not match an active type filter.
+    val untyped = vermeerArtwork.copy(types = emptySet())
+    fakeRepository.savedArtworks.addAll(listOf(painting, untyped))
+    setScreenContent()
+
+    composeTestRule.waitForIdle()
+    composeTestRule.onNodeWithTag(SavedArtworksTestTags.FILTER_BUTTON).performClick()
+    composeTestRule
+        .onNodeWithTag(ArtworkFilterTestTags.typeOption(ArtworkType.PAINTING))
+        .performScrollTo()
+        .performClick()
+    composeTestRule.onNodeWithTag(ArtworkFilterTestTags.APPLY_BUTTON).performClick()
+
+    composeTestRule.onNodeWithTag(SavedArtworksTestTags.card(painting)).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(SavedArtworksTestTags.card(untyped)).assertDoesNotExist()
   }
 
   /** Verifies that a filter with no matching saved artworks shows the empty-result state. */

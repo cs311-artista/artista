@@ -16,6 +16,7 @@ import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.lifecycle.Lifecycle
@@ -26,6 +27,7 @@ import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artist.failingWikiDataRepository
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
+import com.artista.artista.model.artwork.ArtworkType
 import com.artista.artista.model.location.FakeLocationProvider
 import com.artista.artista.model.map.Location
 import com.artista.artista.ui.artwork.ArtworkCardTestTag
@@ -284,6 +286,32 @@ class OverviewScreenTest {
     composeTestRule.onAllNodesWithTag(OverviewTestTags.ARTWORK_ITEM).assertCountEquals(1)
     composeTestRule.onNodeWithText("Girl with a Pearl Earring").assertIsDisplayed()
     // assertExists() never passes without useUnmergedTree = true
+    composeTestRule
+        .onNodeWithTag(OverviewTestTags.FILTER_ACTIVE, useUnmergedTree = true)
+        .assertExists()
+  }
+
+  /** Verifies that selecting a type in the filter dialog keeps only artworks of that type. */
+  @Test
+  fun overviewScreen_applyingTypeFilter_updatesArtworkList() {
+    setOverviewContent(
+        listOf(
+            artwork(name = "The Starry Night", artistName = "Vincent van Gogh")
+                .copy(types = setOf(ArtworkType.PAINTING, ArtworkType.OIL_PAINTING)),
+            artwork(name = "The Thinker", artistName = "Auguste Rodin")
+                .copy(types = setOf(ArtworkType.SCULPTURE)),
+        )
+    )
+
+    composeTestRule.onNodeWithTag(OverviewTestTags.FILTER_BUTTON).performClick()
+    composeTestRule
+        .onNodeWithTag(ArtworkFilterTestTags.typeOption(ArtworkType.SCULPTURE))
+        .performScrollTo()
+        .performClick()
+    composeTestRule.onNodeWithTag(ArtworkFilterTestTags.APPLY_BUTTON).performClick()
+
+    composeTestRule.onAllNodesWithTag(OverviewTestTags.ARTWORK_ITEM).assertCountEquals(1)
+    composeTestRule.onNodeWithText("The Thinker").assertIsDisplayed()
     composeTestRule
         .onNodeWithTag(OverviewTestTags.FILTER_ACTIVE, useUnmergedTree = true)
         .assertExists()
