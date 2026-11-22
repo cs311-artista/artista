@@ -1,4 +1,5 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.model.artwork
 
 import java.time.ZoneOffset
@@ -9,14 +10,17 @@ import java.time.ZoneOffset
  * Artist, museum and location values match exactly; locations compare against
  * [com.artista.artista.model.map.Location.name], so artworks without a location name never match an
  * active location criterion. Year bounds are inclusive, and artworks with no determinable
- * conception year are excluded while either bound is set.
+ * conception year are excluded while either bound is set. An artwork matches the type criterion
+ * when at least one of its [Artwork.types] is selected, so artworks with no known type never match
+ * an active type criterion.
  *
  * @property artists selected artist names
  * @property museums selected museum names
  * @property locations selected location names
  * @property fromYear inclusive lower conception-year bound
  * @property toYear inclusive upper conception-year bound
- * @author patrickmcdan
+ * @property types selected artwork types
+ * @author patrickmcdan, hixeum
  */
 data class ArtworkFilter(
     val artists: Set<String> = emptySet(),
@@ -24,6 +28,7 @@ data class ArtworkFilter(
     val locations: Set<String> = emptySet(),
     val fromYear: Int? = null,
     val toYear: Int? = null,
+    val types: Set<ArtworkType> = emptySet(),
 ) {
   /** Returns whether at least one criterion is active. */
   fun isActive(): Boolean =
@@ -31,7 +36,8 @@ data class ArtworkFilter(
           museums.isNotEmpty() ||
           locations.isNotEmpty() ||
           fromYear != null ||
-          toYear != null
+          toYear != null ||
+          types.isNotEmpty()
 }
 
 /**
@@ -39,13 +45,14 @@ data class ArtworkFilter(
  *
  * @param criteria criteria to apply
  * @return artworks matching every active criterion
- * @author patrickmcdan
+ * @author patrickmcdan, hixeum
  */
 fun List<Artwork>.applyFilter(criteria: ArtworkFilter): List<Artwork> = filter {
   (criteria.artists.isEmpty() || it.artist?.name in criteria.artists) &&
       (criteria.museums.isEmpty() || it.museum in criteria.museums) &&
       (criteria.locations.isEmpty() || it.location?.name in criteria.locations) &&
-      matchesYear(it, criteria.fromYear, criteria.toYear)
+      matchesYear(it, criteria.fromYear, criteria.toYear) &&
+      (criteria.types.isEmpty() || it.types.any { type -> type in criteria.types })
 }
 
 /**
