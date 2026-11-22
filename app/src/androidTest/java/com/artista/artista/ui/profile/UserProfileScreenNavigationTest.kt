@@ -20,6 +20,7 @@ import com.artista.artista.ArtistaNavHost
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
 import com.artista.artista.model.authentication.AuthRepositoryProvider
 import com.artista.artista.model.authentication.FakeAuthRepository
+import com.artista.artista.model.map.FakeAddressRepository
 import com.artista.artista.model.walking.WalkingRouteRepositoryRemote
 import com.artista.artista.resources.C
 import com.artista.artista.ui.artwork.SavedArtworksTestTags
@@ -84,6 +85,7 @@ class UserProfileScreenNavigationTest {
           wikiDataRepository = artworkRepository,
           savedArtworksRepository = artworkRepository,
           walkingRouteRepository = WalkingRouteRepositoryRemote(),
+          addressRepository = FakeAddressRepository(),
           navController = navController,
           startDestination = C.Constants.PROFILE_GRAPH_ROUTE,
       )
@@ -113,6 +115,7 @@ class UserProfileScreenNavigationTest {
           wikiDataRepository = artworkRepository,
           savedArtworksRepository = artworkRepository,
           walkingRouteRepository = WalkingRouteRepositoryRemote(),
+          addressRepository = FakeAddressRepository(),
           navController = navController,
           startDestination = C.Constants.PROFILE_GRAPH_ROUTE,
       )
@@ -157,6 +160,7 @@ class UserProfileScreenNavigationTest {
             wikiDataRepository = artworkRepository,
             savedArtworksRepository = artworkRepository,
             walkingRouteRepository = WalkingRouteRepositoryRemote(),
+            addressRepository = FakeAddressRepository(),
         )
       }
 

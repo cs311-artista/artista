@@ -54,6 +54,8 @@ import com.artista.artista.BuildConfig
 import com.artista.artista.R
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.artwork.mockArtworks
+import com.artista.artista.model.map.AddressRepository
+import com.artista.artista.model.map.Coordinate
 import com.artista.artista.model.map.Location
 import com.artista.artista.resources.C
 import com.artista.artista.ui.navigation.BackButton
@@ -420,6 +422,11 @@ internal fun ArtworkPreview() {
                   sampleArtwork.uid,
                   ArtworkRepositoryProvider.mockRepository,
                   ArtworkRepositoryProvider.mockRepository,
+                  // FakeAddressRepository lives in sharedTest, which main code cannot see.
+                  object : AddressRepository {
+                    override suspend fun getAddress(coordinate: Coordinate) =
+                        "77 Rue de Varenne, 75007 Paris, France"
+                  },
               )
             },
         modifier = Modifier,

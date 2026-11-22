@@ -1,5 +1,6 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 // Co-authored-by: DeepSeek Flash
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.preferences
 
 import androidx.activity.ComponentActivity
@@ -12,6 +13,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.artista.artista.ArtistaNavHost
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
+import com.artista.artista.model.map.FakeAddressRepository
 import com.artista.artista.model.walking.WalkingRouteRepositoryRemote
 import com.artista.artista.resources.C
 import com.artista.artista.ui.navigation.Screen
@@ -48,6 +50,7 @@ class ArtistPreferencesNavigationTest {
           wikiDataRepository = ArtworkRepositoryProvider.mockRepository,
           savedArtworksRepository = ArtworkRepositoryProvider.mockRepository,
           walkingRouteRepository = WalkingRouteRepositoryRemote(),
+          addressRepository = FakeAddressRepository(),
       )
     }
 
