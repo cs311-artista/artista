@@ -5,6 +5,9 @@ import android.location.Address
 import android.location.Geocoder
 import com.artista.artista.model.error.AppException
 import java.util.Locale
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -91,6 +94,26 @@ class AddressRepositoryGeocoderTest {
     shadowOf(geocoder).setFromLocation(listOf(address(MUSEE_RODIN_ADDRESS)))
 
     assertGetAddressThrows<AppException.Unknown>(INVALID_COORDINATE)
+  }
+
+  /**
+   * Checks that a cancelled lookup stops with a [CancellationException] instead of being reported
+   * as a failure: CancellationException is an Exception, so it would otherwise end up as
+   * [AppException.Unknown], and a screen the user left would show an error.
+   */
+  @Test
+  fun getAddress_whenCancelled_rethrowsCancellation() = runTest {
+    shadowOf(geocoder).setFromLocation(listOf(address(MUSEE_RODIN_ADDRESS)))
+
+    val error = runCatching {
+      coroutineScope {
+        cancel()
+        repository.getAddress(MUSEE_RODIN)
+      }
+    }
+        .exceptionOrNull()
+
+    assertTrue("Expected a CancellationException but got $error", error is CancellationException)
   }
 
   private fun address(line: String): Address = Address(Locale.US).apply { setAddressLine(0, line) }
