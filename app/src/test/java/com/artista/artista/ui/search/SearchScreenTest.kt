@@ -14,10 +14,8 @@ import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
-import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextClearance
@@ -27,6 +25,7 @@ import androidx.compose.ui.text.TextRange
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artist.ArtistId
 import com.artista.artista.model.artwork.Artwork
+import com.artista.artista.model.artwork.ArtworkFilter
 import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.ArtworkType
 import com.artista.artista.model.artwork.SearchArea
@@ -89,25 +88,50 @@ class SearchScreenTest {
     composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT).assertIsFocused()
   }
 
+  /**
+   * Checks that the filter button is badged only while a filter is active.
+   *
+   * Opening the dialog is covered by an instrumented test, as the dialog never gets idle under
+   * Robolectric.
+   */
   @Test
-  fun searchFilter_opensTypePopupAndUpdatesSelection() = runTest {
+  fun searchFilter_showsBadgeOnlyWhileAFilterIsActive() = runTest {
     val viewModel = createViewModel()
 
     composeTestRule.setContent {
       MaterialTheme { SearchScreen(onTabSelected = {}, viewModel = viewModel) }
     }
 
-    composeTestRule.waitForIdle()
-    composeTestRule.onNodeWithContentDescription("Filter artworks").performClick()
+    composeTestRule.onNodeWithTag(SearchScreenTestTags.FILTER_BUTTON).assertIsDisplayed()
+    // The badge has no semantics of its own, so it is only found in the unmerged tree.
     composeTestRule
-        .onNodeWithTag(SearchScreenTestTags.filterType(ArtworkType.PAINTING))
-        .assertIsDisplayed()
-        .performClick()
+        .onNodeWithTag(SearchScreenTestTags.FILTER_ACTIVE, useUnmergedTree = true)
+        .assertDoesNotExist()
 
     composeTestRule.runOnIdle {
-      assertTrue(ArtworkType.PAINTING !in viewModel.uiState.value.typeValues)
-      assertTrue(viewModel.uiState.value.typeValues.isNotEmpty())
+      viewModel.applyFilter(ArtworkFilter(types = setOf(ArtworkType.PAINTING)))
     }
+
+    composeTestRule
+        .onNodeWithTag(SearchScreenTestTags.FILTER_ACTIVE, useUnmergedTree = true)
+        .assertExists()
+  }
+
+  /** Checks that a filter hiding every result says so, instead of claiming nothing was found. */
+  @Test
+  fun searchResults_whenFilterHidesEveryResult_showsFilterEmptyState() = runTest {
+    val viewModel = createViewModel()
+    advanceUntilIdle()
+    viewModel.onSearchSubmitted("van gogh")
+    advanceUntilIdle()
+    viewModel.applyFilter(ArtworkFilter(artists = setOf("Johannes Vermeer")))
+
+    composeTestRule.setContent {
+      MaterialTheme { SearchScreen(onTabSelected = {}, viewModel = viewModel) }
+    }
+
+    composeTestRule.onNodeWithTag(SearchScreenTestTags.EMPTY_FILTER_RESULTS).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(SearchScreenTestTags.EMPTY_RESULTS).assertDoesNotExist()
   }
 
   @Test

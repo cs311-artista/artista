@@ -8,10 +8,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.artista.artista.model.artwork.Artwork
+import com.artista.artista.model.artwork.ArtworkFilter
 import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.ArtworkType
 import com.artista.artista.model.artwork.SavedArtworksRepository
 import com.artista.artista.model.artwork.WikiDataRepository
+import com.artista.artista.model.artwork.applyFilter
+import com.artista.artista.model.artwork.artistOptions
+import com.artista.artista.model.artwork.locationOptions
+import com.artista.artista.model.artwork.museumOptions
 import com.artista.artista.model.error.AppException
 import com.artista.artista.ui.error.launchCatching
 import com.artista.artista.ui.error.toMessageRes
@@ -27,9 +32,13 @@ import kotlinx.coroutines.flow.update
  * @property query current text entered in the search field
  * @property selection current cursor or text selection range
  * @property savedArtworks artworks saved by the current user
- * @property typeValues artwork types included in submitted searches
+ * @property activeFilter criteria applied to the search: its types restrict the query sent to
+ *   Wikidata, and its other criteria filter the returned results
+ * @property artistOptions distinct artists from the unfiltered results
+ * @property museumOptions distinct museums from the unfiltered results
+ * @property locationOptions distinct location names from the unfiltered results
  * @property recommendations saved artworks matching the current query
- * @property artworks results returned for the submitted query
+ * @property artworks results returned for the submitted query, filtered by [activeFilter]
  * @property isLoading whether submitted search results are being fetched
  * @property hasInvalidSearchInput whether the last search failed because its input was invalid
  * @property hasAlreadySearched whether a search as already been submitted
@@ -37,13 +46,16 @@ import kotlinx.coroutines.flow.update
  *   fails
  * @property saveErrorMessageResId string resource of the message shown when saving or unsaving an
  *   artwork fails
- * @author IJJA3141
+ * @author IJJA3141, hixeum
  */
 data class SearchScreenUiState(
     val query: String = "",
     val selection: TextRange = TextRange.Zero,
     val savedArtworks: List<Artwork> = emptyList(),
-    val typeValues: List<ArtworkType> = ArtworkType.entries,
+    val activeFilter: ArtworkFilter = ArtworkFilter(),
+    val artistOptions: List<String> = emptyList(),
+    val museumOptions: List<String> = emptyList(),
+    val locationOptions: List<String> = emptyList(),
     val recommendations: List<Artwork> = emptyList(),
     val artworks: List<Artwork> = emptyList(),
     val isLoading: Boolean = false,
@@ -58,7 +70,7 @@ data class SearchScreenUiState(
  *
  * @param savedArtworksRepository provides the current user's saved artworks for suggestions
  * @param wikiDataRepository searches Wikidata for submitted queries
- * @author IJJA3141
+ * @author IJJA3141, hixeum
  */
 class SearchScreenViewModel(
     private val savedArtworksRepository: SavedArtworksRepository,
@@ -68,6 +80,14 @@ class SearchScreenViewModel(
   private val _pendingSaveIds = mutableSetOf<ArtworkId>()
   private var searchJob: Job? = null
   private var searchRequestId = 0
+
+  // Results of the last search before the client-side criteria, so that changing those criteria
+  // does not need a new request.
+  private var allResults: List<Artwork> = emptyList()
+
+  // The query of the last search, kept apart from the field's text, which may have been edited
+  // since. A changed type selection re-runs this query, not the unsubmitted text.
+  private var lastSubmittedQuery: String? = null
 
   /** Current state displayed by the Search screen. */
   val uiState: StateFlow<SearchScreenUiState> = _uiState.asStateFlow()
@@ -124,34 +144,66 @@ class SearchScreenViewModel(
    * Handles a query submitted from the search field.
    *
    * @param query the submitted search text
-   * @author IJJA3141
+   * @author IJJA3141, hixeum
    */
   fun onSearchSubmitted(query: String) {
     if (query.isBlank()) return
+    _uiState.update { it.copy(query = query, recommendations = emptyList()) }
+    search(query)
+  }
+
+  /**
+   * Applies filter criteria to the search.
+   *
+   * The types restrict what Wikidata returns, so a changed type selection re-runs the last
+   * submitted query. The other criteria only filter the results already fetched, so they apply at
+   * once without a new request.
+   *
+   * @param filter criteria to apply
+   * @author hixeum
+   */
+  fun applyFilter(filter: ArtworkFilter) {
+    val typesChanged = filter.types != _uiState.value.activeFilter.types
+    _uiState.update {
+      it.copy(activeFilter = filter, artworks = allResults.applyClientSideCriteria(filter))
+    }
+    val query = lastSubmittedQuery
+    if (typesChanged && query != null) search(query)
+  }
+
+  /**
+   * Fetches the artworks matching [query] and the active types, replacing the current results.
+   *
+   * Only the latest request may update the state: an earlier one still running is cancelled, and a
+   * result arriving after a newer request started is ignored.
+   */
+  private fun search(query: String) {
+    lastSubmittedQuery = query
     searchRequestId++
     val requestId = searchRequestId
     searchJob?.cancel()
     searchJob = null
-    _uiState.value =
-        _uiState.value.copy(
-            query = query,
-            recommendations = emptyList(),
-            artworks = if (query.isBlank()) emptyList() else _uiState.value.artworks,
-            isLoading = query.isNotBlank(),
-            fetchErrorMessageResId = null,
-            hasInvalidSearchInput = false,
-            hasAlreadySearched = true,
-        )
-    val typeValues = _uiState.value.typeValues
+    _uiState.update {
+      it.copy(
+          isLoading = true,
+          fetchErrorMessageResId = null,
+          hasInvalidSearchInput = false,
+          hasAlreadySearched = true,
+      )
+    }
+    val types = _uiState.value.activeFilter.types
+    // Keeps the enum order so the same selection always builds the same, cacheable, query. No
+    // selected type means no type criterion, but the repository needs at least one type.
+    val typeValues = ArtworkType.entries.filter { it in types }.ifEmpty { ArtworkType.entries }
 
     searchJob =
         viewModelScope.launchCatching(
             tag = TAG,
             onError = { error ->
               if (requestId == searchRequestId) {
+                showResults(emptyList())
                 _uiState.update {
                   it.copy(
-                      artworks = emptyList(),
                       isLoading = false,
                       fetchErrorMessageResId = error.toMessageRes(),
                       hasInvalidSearchInput = error is AppException.InvalidInput,
@@ -162,9 +214,9 @@ class SearchScreenViewModel(
         ) {
           val results = wikiDataRepository.searchArtworks(query, typeValues)
           if (requestId == searchRequestId) {
+            showResults(results)
             _uiState.update {
               it.copy(
-                  artworks = results,
                   isLoading = false,
                   fetchErrorMessageResId = null,
                   hasInvalidSearchInput = false,
@@ -174,27 +226,27 @@ class SearchScreenViewModel(
         }
   }
 
-  /**
-   * Toggles an artwork type included in submitted searches.
-   *
-   * The selection always retains at least one type because the repository requires a non-empty type
-   * list.
-   *
-   * @param type artwork type to add or remove
-   * @author IJJA3141
-   */
-  fun toggleArtworkType(type: ArtworkType) {
-    _uiState.update { state ->
-      val updatedTypes =
-          if (type in state.typeValues) {
-            if (state.typeValues.size == 1) return@update state
-            state.typeValues - type
-          } else {
-            ArtworkType.entries.filter { it in state.typeValues || it == type }
-          }
-      state.copy(typeValues = updatedTypes)
+  /** Replaces the results, filtering them by the active criteria and rebuilding the options. */
+  private fun showResults(results: List<Artwork>) {
+    allResults = results
+    _uiState.update {
+      it.copy(
+          artworks = results.applyClientSideCriteria(it.activeFilter),
+          artistOptions = artistOptions(results),
+          museumOptions = museumOptions(results),
+          locationOptions = locationOptions(results),
+      )
     }
   }
+
+  /**
+   * Applies every criterion of [filter] except the types.
+   *
+   * Wikidata already restricted the results to the selected types, so filtering them again here
+   * would only drop results whose type the app failed to parse.
+   */
+  private fun List<Artwork>.applyClientSideCriteria(filter: ArtworkFilter): List<Artwork> =
+      applyFilter(filter.copy(types = emptySet()))
 
   /**
    * Saves or removes an artwork from the current user's saved collection.

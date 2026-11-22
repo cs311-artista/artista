@@ -8,6 +8,7 @@ import com.artista.artista.R
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artist.ArtistId
 import com.artista.artista.model.artwork.Artwork
+import com.artista.artista.model.artwork.ArtworkFilter
 import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.ArtworkType
 import com.artista.artista.model.artwork.SavedArtworksRepository
@@ -213,22 +214,108 @@ class SearchScreenViewModelTest {
     )
   }
 
+  /** Checks that the selected types reach the repository, in a stable order. */
   @Test
-  fun onSearchSubmitted_passesSelectedArtworkTypesToRepository() = runTest {
+  fun onSearchSubmitted_passesSelectedTypesToRepositoryInEnumOrder() = runTest {
     val wikiRepository = SearchTestData.wikiDataRepository()
     val viewModel = SearchScreenViewModel(SearchTestData.savedArtworksRepository(), wikiRepository)
-    val selectedTypes = listOf(ArtworkType.PAINTING, ArtworkType.MURAL)
 
     advanceUntilIdle()
-    ArtworkType.entries.filterNot { it in selectedTypes }.forEach(viewModel::toggleArtworkType)
+    viewModel.applyFilter(ArtworkFilter(types = setOf(ArtworkType.MURAL, ArtworkType.PAINTING)))
+    advanceUntilIdle()
+    // Nothing was searched yet, so there is no query to re-run.
+    assertTrue(wikiRepository.searchedQueries.isEmpty())
+
     viewModel.onSearchSubmitted("star")
     advanceUntilIdle()
 
-    assertEquals(selectedTypes, wikiRepository.searchedTypeValues.single())
+    assertEquals(
+        listOf(ArtworkType.PAINTING, ArtworkType.MURAL),
+        wikiRepository.searchedTypeValues.single(),
+    )
   }
 
+  /** Checks that no selected type means no type restriction, since the repository needs one. */
   @Test
-  fun toggleArtworkType_doesNotAllowRemovingLastSelectedType() = runTest {
+  fun onSearchSubmitted_withoutSelectedTypes_searchesAllTypes() = runTest {
+    val wikiRepository = SearchTestData.wikiDataRepository()
+    val viewModel = SearchScreenViewModel(SearchTestData.savedArtworksRepository(), wikiRepository)
+
+    advanceUntilIdle()
+    viewModel.onSearchSubmitted("star")
+    advanceUntilIdle()
+
+    assertEquals(ArtworkType.entries, wikiRepository.searchedTypeValues.single())
+  }
+
+  /**
+   * Checks that changing the types re-runs the last submitted query, not the text edited since, and
+   * leaves that text untouched.
+   */
+  @Test
+  fun applyFilter_withChangedTypes_reRunsLastSubmittedQuery() = runTest {
+    val wikiRepository = SearchTestData.wikiDataRepository()
+    val viewModel = SearchScreenViewModel(SearchTestData.savedArtworksRepository(), wikiRepository)
+
+    advanceUntilIdle()
+    viewModel.onSearchSubmitted("star")
+    advanceUntilIdle()
+    viewModel.onSearchInputChanged("sun", TextRange(3))
+    viewModel.applyFilter(ArtworkFilter(types = setOf(ArtworkType.SCULPTURE)))
+    advanceUntilIdle()
+
+    assertEquals(listOf("star", "star"), wikiRepository.searchedQueries)
+    assertEquals(listOf(ArtworkType.SCULPTURE), wikiRepository.searchedTypeValues.last())
+    assertEquals("sun", viewModel.uiState.value.query)
+  }
+
+  /** Checks that removing every type re-runs the query without type restriction. */
+  @Test
+  fun applyFilter_clearingTypes_reRunsQueryWithAllTypes() = runTest {
+    val wikiRepository = SearchTestData.wikiDataRepository()
+    val viewModel = SearchScreenViewModel(SearchTestData.savedArtworksRepository(), wikiRepository)
+
+    advanceUntilIdle()
+    viewModel.applyFilter(ArtworkFilter(types = setOf(ArtworkType.PAINTING)))
+    viewModel.onSearchSubmitted("star")
+    advanceUntilIdle()
+    viewModel.applyFilter(ArtworkFilter())
+    advanceUntilIdle()
+
+    assertEquals(2, wikiRepository.searchedQueries.size)
+    assertEquals(ArtworkType.entries, wikiRepository.searchedTypeValues.last())
+  }
+
+  /**
+   * Checks that criteria other than types filter the current results at once, without a new
+   * request, while the options still list every result.
+   */
+  @Test
+  fun applyFilter_withSameTypes_filtersCurrentResultsWithoutNewRequest() = runTest {
+    val wikiRepository = SearchTestData.wikiDataRepository()
+    val viewModel = SearchScreenViewModel(SearchTestData.savedArtworksRepository(), wikiRepository)
+
+    advanceUntilIdle()
+    // "e" matches every sample artwork, so the results hold several artists.
+    viewModel.onSearchSubmitted("e")
+    advanceUntilIdle()
+    viewModel.applyFilter(ArtworkFilter(artists = setOf("Vincent van Gogh")))
+    advanceUntilIdle()
+
+    assertEquals(1, wikiRepository.searchedQueries.size)
+    assertEquals(
+        listOf("The Starry Night", "Sunflowers"),
+        viewModel.uiState.value.artworks.map { it.name },
+    )
+    assertEquals(
+        listOf("Johannes Vermeer", "Vincent van Gogh"),
+        viewModel.uiState.value.artistOptions,
+    )
+  }
+
+  /** Checks that criteria other than types also apply to the results of a later search. */
+  @Test
+  fun onSearchSubmitted_appliesActiveCriteriaToNewResults() = runTest {
     val viewModel =
         SearchScreenViewModel(
             SearchTestData.savedArtworksRepository(),
@@ -236,12 +323,39 @@ class SearchScreenViewModelTest {
         )
 
     advanceUntilIdle()
-    ArtworkType.entries.drop(1).forEach(viewModel::toggleArtworkType)
-    assertEquals(listOf(ArtworkType.PAINTING), viewModel.uiState.value.typeValues)
+    viewModel.applyFilter(ArtworkFilter(artists = setOf("Johannes Vermeer")))
+    viewModel.onSearchSubmitted("e")
+    advanceUntilIdle()
 
-    viewModel.toggleArtworkType(ArtworkType.PAINTING)
+    assertEquals(
+        listOf("Girl with a Pearl Earring"),
+        viewModel.uiState.value.artworks.map { it.name },
+    )
+  }
 
-    assertEquals(listOf(ArtworkType.PAINTING), viewModel.uiState.value.typeValues)
+  /**
+   * Checks that results are not filtered by type again on the device: Wikidata already restricted
+   * them, and an artwork whose type was not parsed must not disappear.
+   */
+  @Test
+  fun applyFilter_doesNotFilterResultsByTypeLocally() = runTest {
+    // The fake ignores the requested types and its artworks carry none.
+    val viewModel =
+        SearchScreenViewModel(
+            SearchTestData.savedArtworksRepository(),
+            SearchTestData.wikiDataRepository(),
+        )
+
+    advanceUntilIdle()
+    viewModel.onSearchSubmitted("van gogh")
+    advanceUntilIdle()
+    viewModel.applyFilter(ArtworkFilter(types = setOf(ArtworkType.PAINTING)))
+    advanceUntilIdle()
+
+    assertEquals(
+        listOf("The Starry Night", "Sunflowers"),
+        viewModel.uiState.value.artworks.map { it.name },
+    )
   }
 
   @Test

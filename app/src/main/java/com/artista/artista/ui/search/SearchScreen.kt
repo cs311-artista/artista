@@ -24,10 +24,9 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material3.Checkbox
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -63,11 +62,11 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
+import com.artista.artista.model.artwork.ArtworkFilter
 import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
-import com.artista.artista.model.artwork.ArtworkType
 import com.artista.artista.ui.artwork.ArtworkCard
-import com.artista.artista.ui.artwork.displayNameRes
+import com.artista.artista.ui.artwork.ArtworkFilterDialog
 import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaTheme
@@ -91,17 +90,14 @@ object SearchScreenTestTags {
   /** Tag of the empty search results state. */
   const val EMPTY_RESULTS = "search_empty_results"
 
-  /** Tag of the hint indicating that artwork types can be scrolled. */
-  const val FILTER_SCROLL_HINT = "search_filter_scroll_hint"
+  /** Tag of the button opening the artwork filter dialog. */
+  const val FILTER_BUTTON = "search_filter_button"
 
-  /**
-   * Returns the stable tag of an artwork-type filter.
-   *
-   * @param type artwork type represented by the filter
-   * @return test tag for the filter
-   * @author IJJA3141
-   */
-  fun filterType(type: ArtworkType): String = "search_filter_type_${type.name.lowercase()}"
+  /** Tag of the badge shown on the filter button while a filter is active. */
+  const val FILTER_ACTIVE = "search_filter_active"
+
+  /** Tag of the state shown when results exist but none match the active filter. */
+  const val EMPTY_FILTER_RESULTS = "search_empty_filter_results"
 }
 
 /**
@@ -113,7 +109,7 @@ object SearchScreenTestTags {
  * @param onArtworkClick callback invoked when the user selects an artwork in the results list
  * @param onMapClick callback invoked when the user selects the map action for a result
  * @param onRecommendationSelected callback invoked when the user selects a search suggestion
- * @author IJJA3141
+ * @author IJJA3141, hixeum
  */
 @Composable
 fun SearchScreen(
@@ -132,6 +128,7 @@ fun SearchScreen(
       remember(viewModel) {
         TextFieldState(initialText = uiState.query, initialSelection = uiState.selection)
       }
+  var filterDialogVisible by remember { mutableStateOf(false) }
 
   LaunchedEffect(searchErrorMessage) {
     searchErrorMessage?.let {
@@ -153,12 +150,12 @@ fun SearchScreen(
         SearchInput(
             textFieldState = textFieldState,
             recommendations = uiState.recommendations,
-            selectedTypeValues = uiState.typeValues,
+            isFilterActive = uiState.activeFilter.isActive(),
             hasInvalidSearchInput = uiState.hasInvalidSearchInput,
             onQueryChanged = viewModel::onSearchInputChanged,
             onSearchSubmitted = viewModel::onSearchSubmitted,
             onRecommendationSelected = onRecommendationSelected,
-            onArtworkTypeToggle = viewModel::toggleArtworkType,
+            onFilterClick = { filterDialogVisible = true },
         )
       },
       bottomBar = {
@@ -168,6 +165,23 @@ fun SearchScreen(
         )
       },
   ) { contentPadding ->
+    if (filterDialogVisible) {
+      ArtworkFilterDialog(
+          filter = uiState.activeFilter,
+          artistOptions = uiState.artistOptions,
+          museumOptions = uiState.museumOptions,
+          locationOptions = uiState.locationOptions,
+          onApply = {
+            viewModel.applyFilter(it)
+            filterDialogVisible = false
+          },
+          onClear = {
+            viewModel.applyFilter(ArtworkFilter())
+            filterDialogVisible = false
+          },
+          onDismiss = { filterDialogVisible = false },
+      )
+    }
     if (uiState.isLoading) {
       Box(
           modifier = Modifier.fillMaxSize().padding(contentPadding),
@@ -183,7 +197,11 @@ fun SearchScreen(
     } else if (
         uiState.artworks.isEmpty() && uiState.hasAlreadySearched && !uiState.hasInvalidSearchInput
     ) {
-      EmptySearchResults(modifier = Modifier.fillMaxSize().padding(contentPadding))
+      if (uiState.activeFilter.isActive()) {
+        EmptyFilterResults(modifier = Modifier.fillMaxSize().padding(contentPadding))
+      } else {
+        EmptySearchResults(modifier = Modifier.fillMaxSize().padding(contentPadding))
+      }
     } else {
       ArtworkResults(
           artworks = uiState.artworks,
@@ -194,6 +212,17 @@ fun SearchScreen(
           modifier = Modifier.fillMaxSize().padding(contentPadding),
       )
     }
+  }
+}
+
+/** Tells the user that the active filter hides every result, as the other filtered screens do. */
+@Composable
+private fun EmptyFilterResults(modifier: Modifier = Modifier) {
+  Box(modifier = modifier, contentAlignment = Alignment.Center) {
+    Text(
+        text = stringResource(R.string.artwork_filter_empty_results),
+        modifier = Modifier.testTag(SearchScreenTestTags.EMPTY_FILTER_RESULTS),
+    )
   }
 }
 
@@ -230,24 +259,24 @@ private fun EmptySearchResults(modifier: Modifier = Modifier) {
  *
  * @param textFieldState text and cursor state currently shown in the search field
  * @param recommendations artwork entries to show in the dropdown
- * @param selectedTypeValues artwork types included in submitted searches
+ * @param isFilterActive whether a filter is applied, to badge the filter button
  * @param hasInvalidSearchInput whether the last search failed because its input was invalid
  * @param onQueryChanged called when the user edits the query or selection
  * @param onSearchSubmitted called when the user submits the query from the keyboard
  * @param onRecommendationSelected called when the user selects a dropdown recommendation
- * @param onArtworkTypeToggle called when the user toggles an artwork type
- * @author IJJA3141
+ * @param onFilterClick called when the user opens the artwork filter
+ * @author IJJA3141, hixeum
  */
 @Composable
 private fun SearchInput(
     textFieldState: TextFieldState,
     recommendations: List<Artwork>,
-    selectedTypeValues: List<ArtworkType>,
+    isFilterActive: Boolean,
     hasInvalidSearchInput: Boolean,
     onQueryChanged: (String, TextRange) -> Unit,
     onSearchSubmitted: (String) -> Unit,
     onRecommendationSelected: (Artwork) -> Unit,
-    onArtworkTypeToggle: (ArtworkType) -> Unit,
+    onFilterClick: () -> Unit,
 ) {
   var expanded by remember { mutableStateOf(false) }
   val focusRequester = remember { FocusRequester() }
@@ -293,10 +322,7 @@ private fun SearchInput(
                   .focusRequester(focusRequester)
                   .testTag(SearchScreenTestTags.SEARCH_INPUT),
       )
-      ArtworkTypeFilter(
-          selectedTypeValues = selectedTypeValues,
-          onArtworkTypeToggle = onArtworkTypeToggle,
-      )
+      FilterButton(isFilterActive = isFilterActive, onClick = onFilterClick)
     }
 
     if (expanded && recommendations.isNotEmpty()) {
@@ -368,59 +394,22 @@ private fun SearchTextField(
   )
 }
 
+/** Opens the artwork filter, with a badge while a filter is active, as on Overview. */
 @Composable
-private fun ArtworkTypeFilter(
-    selectedTypeValues: List<ArtworkType>,
-    onArtworkTypeToggle: (ArtworkType) -> Unit,
-) {
-  var isFilterMenuExpanded by remember { mutableStateOf(false) }
-
-  Box {
-    IconButton(onClick = { isFilterMenuExpanded = true }) {
+private fun FilterButton(isFilterActive: Boolean, onClick: () -> Unit) {
+  IconButton(onClick = onClick, modifier = Modifier.testTag(SearchScreenTestTags.FILTER_BUTTON)) {
+    BadgedBox(
+        badge = {
+          if (isFilterActive) {
+            Badge(modifier = Modifier.testTag(SearchScreenTestTags.FILTER_ACTIVE))
+          }
+        }
+    ) {
       Icon(
           imageVector = Icons.Outlined.FilterList,
           contentDescription = stringResource(R.string.artwork_filter_open),
           tint = MaterialTheme.colorScheme.onSurface,
       )
-    }
-    DropdownMenu(
-        expanded = isFilterMenuExpanded,
-        onDismissRequest = { isFilterMenuExpanded = false },
-        modifier = Modifier.heightIn(max = Dimensions.searchTypeFilterMaxHeight),
-    ) {
-      Text(
-          text = stringResource(R.string.search_filter_title),
-          style = MaterialTheme.typography.titleSmall,
-          modifier =
-              Modifier.padding(
-                  horizontal = Dimensions.searchTypeFilterHorizontalPadding,
-                  vertical = Dimensions.searchTypeFilterTitleVerticalPadding,
-              ),
-      )
-      Text(
-          text = stringResource(R.string.search_filter_scroll_hint),
-          style = MaterialTheme.typography.bodySmall,
-          color = MaterialTheme.colorScheme.onSurfaceVariant,
-          modifier =
-              Modifier.padding(
-                      horizontal = Dimensions.searchTypeFilterHorizontalPadding,
-                      vertical = Dimensions.searchTypeFilterTitleVerticalPadding,
-                  )
-                  .testTag(SearchScreenTestTags.FILTER_SCROLL_HINT),
-      )
-      ArtworkType.entries.forEach { type ->
-        DropdownMenuItem(
-            text = { Text(stringResource(type.displayNameRes())) },
-            leadingIcon = {
-              Checkbox(
-                  checked = type in selectedTypeValues,
-                  onCheckedChange = null,
-              )
-            },
-            onClick = { onArtworkTypeToggle(type) },
-            modifier = Modifier.testTag(SearchScreenTestTags.filterType(type)),
-        )
-      }
     }
   }
 }
