@@ -1,7 +1,11 @@
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.artwork
 
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.hasAnyDescendant
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -65,6 +69,21 @@ class ArtworkLocationFieldTest {
     assertFieldShows(string(R.string.artwork_no_location))
   }
 
+  /** Checks that a modifier given by the caller is applied to the field, along with its tag. */
+  @Test
+  fun artworkLocationField_appliesCallerModifier() {
+    composeTestRule.setContent {
+      ArtworkLocationField(
+          addressState = ArtworkAddressState.Loading,
+          modifier = Modifier.semantics { contentDescription = CALLER_DESCRIPTION },
+      )
+    }
+
+    composeTestRule
+        .onNodeWithTag(ArtworkTestTags.ARTWORK_ADDRESS, useUnmergedTree = true)
+        .assertContentDescriptionEquals(CALLER_DESCRIPTION)
+  }
+
   /** Checks that the details screen shows the address looked up for a located artwork. */
   @Test
   fun artworkScreen_withLocatedArtwork_displaysLookedUpAddress() {
@@ -112,5 +131,6 @@ class ArtworkLocationFieldTest {
 
   private companion object {
     const val SCREEN_TIMEOUT_MS = 5_000L
+    const val CALLER_DESCRIPTION = "Location of the artwork"
   }
 }
