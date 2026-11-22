@@ -3,7 +3,6 @@
 package com.artista.artista.ui.search
 
 import android.widget.Toast
-import androidx.annotation.StringRes
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -68,6 +67,7 @@ import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.artwork.ArtworkType
 import com.artista.artista.ui.artwork.ArtworkCard
+import com.artista.artista.ui.artwork.displayNameRes
 import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaTheme
@@ -410,7 +410,7 @@ private fun ArtworkTypeFilter(
       )
       ArtworkType.entries.forEach { type ->
         DropdownMenuItem(
-            text = { Text(stringResource(type.toDisplayNameRes())) },
+            text = { Text(stringResource(type.displayNameRes())) },
             leadingIcon = {
               Checkbox(
                   checked = type in selectedTypeValues,
@@ -470,20 +470,6 @@ private fun Dropdown(
     }
   }
 }
-
-@StringRes
-private fun ArtworkType.toDisplayNameRes(): Int =
-    when (this) {
-      ArtworkType.PAINTING -> R.string.search_filter_type_painting
-      ArtworkType.DRAWING -> R.string.search_filter_type_drawing
-      ArtworkType.SCULPTURE -> R.string.search_filter_type_sculpture
-      ArtworkType.PRINT -> R.string.search_filter_type_print
-      ArtworkType.PHOTOGRAPH -> R.string.search_filter_type_photograph
-      ArtworkType.MURAL -> R.string.search_filter_type_mural
-      ArtworkType.OIL_PAINTING -> R.string.search_filter_type_oil_painting
-      ArtworkType.WATERCOLOR_PAINTING -> R.string.search_filter_type_watercolor_painting
-      ArtworkType.MOSAIC -> R.string.search_filter_type_mosaic
-    }
 
 /**
  * Displays the artwork results provided by the ViewModel.
