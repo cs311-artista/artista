@@ -17,9 +17,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -192,6 +194,15 @@ private fun MultiSelectField(
               )
             },
             modifier = Modifier.testTag("$tagPrefix-chip-$value"),
+            // The default outlined style blends into the dialog surface, so selected values are
+            // filled with the theme's primary color; on* roles keep them readable in both themes.
+            colors =
+                AssistChipDefaults.assistChipColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    labelColor = MaterialTheme.colorScheme.onPrimary,
+                    trailingIconContentColor = MaterialTheme.colorScheme.onPrimary,
+                ),
+            border = null,
         )
       }
     }
