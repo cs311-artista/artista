@@ -1,5 +1,6 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 // Co-authored-by: Claude Sonnet 5.5
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.e2e
 
 import android.annotation.SuppressLint
@@ -9,15 +10,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.test.ComposeTimeoutException
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertIsEnabled
-import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.assertTextEquals
-import androidx.compose.ui.test.filter
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
-import androidx.compose.ui.test.isNotEnabled
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
@@ -152,7 +149,8 @@ class MilestoneTwoUserJourneyTest {
     applyOverviewFilter()
     startWalkingRoute()
     editUsername()
-    saveArtistPreference()
+    seedArtistPreferences()
+    removeArtistPreference()
     verifyArtistPreferenceAfterReopening()
     signOutAndSignBackIn()
     verifyPersistedProfileAndArtistPreference()
@@ -331,8 +329,23 @@ class MilestoneTwoUserJourneyTest {
     }
   }
 
-  /** Searches for Monet, selects it, and saves the preference. */
-  private fun saveArtistPreference() {
+  /**
+   * Saves Monet and Klimt as favorite artists directly in the profile, since the preferences screen
+   * only shows and removes artists the user saved from the search screen.
+   */
+  private fun seedArtistPreferences() {
+    runBlocking {
+      val repository = UserRepositoryProvider.repository
+      val user = repository.getUser(userId)
+      repository.updateUser(
+          userId,
+          user.copy(preference = user.preference.copy(artists = listOf(MONET_ID, KLIMT_ID))),
+      )
+    }
+  }
+
+  /** Opens the preferences, searches for Monet and taps his card to remove him. */
+  private fun removeArtistPreference() {
     onDisplayed(UserProfileTestTags.PREFERENCES_BUTTON, scrollTo = true).performClick()
     waitForDisplayed(ArtistPreferencesTestTags.SCREEN)
     // The search bar is disabled until the saved artists have loaded, which the grid shows.
@@ -340,7 +353,7 @@ class MilestoneTwoUserJourneyTest {
     // Sets the text directly instead of simulating keystrokes, which hangs on small screens.
     onDisplayed(ArtistPreferencesTestTags.SEARCH_BAR).performTextReplacement("Monet")
 
-    val monetTag = ArtistPreferencesTestTags.getArtistCardTestTag("mock-artist-004")
+    val monetTag = ArtistPreferencesTestTags.getArtistCardTestTag(MONET_ID)
     waitUntil("Monet card to appear in the results") {
       composeTestRule.onAllNodesWithTag(monetTag).fetchSemanticsNodes().isNotEmpty()
     }
@@ -350,26 +363,29 @@ class MilestoneTwoUserJourneyTest {
         .performScrollToNode(hasTestTag(monetTag))
     onDisplayed(monetTag).performClick()
 
-    onDisplayed(ArtistPreferencesTestTags.SAVE_BUTTON).assertIsEnabled().performClick()
-    waitUntil("Save button to be disabled after saving") {
-      composeTestRule
-          .onAllNodesWithTag(ArtistPreferencesTestTags.SAVE_BUTTON)
-          .filter(isNotEnabled())
-          .fetchSemanticsNodes()
-          .isNotEmpty()
+    waitUntil("Monet card to disappear after the tap") {
+      composeTestRule.onAllNodesWithTag(monetTag).fetchSemanticsNodes().isEmpty()
+    }
+    // The card is hidden before the write ends; wait until the backend really dropped Monet, so
+    // the checks that follow are about the stored preference.
+    waitUntil("Monet to be removed from the backend") {
+      runCatching {
+            runBlocking {
+              UserRepositoryProvider.repository.getUser(userId).preference.artists ==
+                  listOf(KLIMT_ID)
+            }
+          }
+          .getOrDefault(false)
     }
   }
 
-  /** Reopens preferences and verifies that the saved artist is selected. */
+  /** Reopens preferences and verifies that Monet is gone while Klimt is still there. */
   private fun verifyArtistPreferenceAfterReopening() {
     onDisplayed(ArtistPreferencesTestTags.BACK_BUTTON).performClick()
     waitForDisplayed(UserProfileTestTags.SCREEN)
     onDisplayed(UserProfileTestTags.PREFERENCES_BUTTON, scrollTo = true).performClick()
     waitForDisplayed(ArtistPreferencesTestTags.SCREEN)
-
-    val monetTag = ArtistPreferencesTestTags.getArtistCardTestTag("mock-artist-004")
-    waitForDisplayed(monetTag)
-    onDisplayed(monetTag).assertIsOn()
+    verifyOnlyKlimtIsShown()
   }
 
   /** Signs out and signs back in through the same authentication state. */
@@ -389,10 +405,15 @@ class MilestoneTwoUserJourneyTest {
     onDisplayed(UserProfileTestTags.USERNAME, scrollTo = true).assertTextEquals("MilestoneTwo")
     onDisplayed(UserProfileTestTags.PREFERENCES_BUTTON, scrollTo = true).performClick()
     waitForDisplayed(ArtistPreferencesTestTags.SCREEN)
+    verifyOnlyKlimtIsShown()
+  }
 
-    val monetTag = ArtistPreferencesTestTags.getArtistCardTestTag("mock-artist-004")
-    waitForDisplayed(monetTag)
-    onDisplayed(monetTag).assertIsOn()
+  /** Waits for the saved artists to load and checks that Klimt is shown and Monet is not. */
+  private fun verifyOnlyKlimtIsShown() {
+    waitForDisplayed(ArtistPreferencesTestTags.getArtistCardTestTag(KLIMT_ID))
+    composeTestRule
+        .onNodeWithTag(ArtistPreferencesTestTags.getArtistCardTestTag(MONET_ID))
+        .assertDoesNotExist()
   }
 
   /** Scrolls the Overview list until its single filtered artwork is displayed. */
@@ -437,6 +458,14 @@ class MilestoneTwoUserJourneyTest {
     } catch (e: ComposeTimeoutException) {
       throw AssertionError("Timed out waiting for: $description", e)
     }
+  }
+
+  private companion object {
+    /** Identifier of Claude Monet among the mock artists. */
+    const val MONET_ID = "mock-artist-004"
+
+    /** Identifier of Gustav Klimt among the mock artists. */
+    const val KLIMT_ID = "mock-artist-005"
   }
 
   /** Grants location permissions before the map destination is composed. */

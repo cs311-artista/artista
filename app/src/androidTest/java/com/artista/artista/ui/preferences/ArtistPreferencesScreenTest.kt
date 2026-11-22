@@ -2,12 +2,10 @@ package com.artista.artista.ui.preferences
 
 import androidx.activity.ComponentActivity
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsNotSelected
-import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextContains
@@ -15,7 +13,6 @@ import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
-import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -25,6 +22,7 @@ import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.artista.artista.R
 import com.artista.artista.model.artist.Artist
+import com.artista.artista.model.artist.ArtistId
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
 import com.artista.artista.model.artwork.WikiDataRepository
 import com.artista.artista.model.authentication.FakeAuthRepository
@@ -33,10 +31,8 @@ import com.artista.artista.model.error.AppException
 import com.artista.artista.model.user.FakeUserRepository
 import com.artista.artista.model.user.User
 import com.artista.artista.model.user.UserPreference
-import com.artista.artista.model.user.UserRepositoryLocal
 import com.artista.artista.ui.navigation.NavigationTestTags
 import com.artista.artista.ui.navigation.Tab
-import kotlinx.coroutines.CompletableDeferred
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -55,11 +51,19 @@ class ArtistPreferencesScreenTest {
 
   @get:Rule val composeTestRule = createAndroidComposeRule<ComponentActivity>()
 
+  /** Artists saved by the signed-in user, so the tests do not depend on the mock list. */
+  private val testArtists =
+      listOf(
+          Artist("test-picasso", "Pablo Picasso"),
+          Artist("test-van-gogh", "Vincent van Gogh"),
+          Artist("test-monet", "Claude Monet"),
+      )
+
   /** Verifies that the preferences preview renders its screen and artist grid. */
   @Test
   fun artistPreferencesScreenPreview_displaysArtistGrid() {
     composeTestRule.setContent { ArtistPreferencesScreenPreview() }
-    composeTestRule.waitForIdle()
+    waitForTag(ArtistPreferencesTestTags.ARTISTS_GRID)
 
     composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SCREEN).assertIsDisplayed()
     composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.ARTISTS_GRID).assertIsDisplayed()
@@ -68,25 +72,21 @@ class ArtistPreferencesScreenTest {
   /** Verifies that every element of the artist preferences screen is displayed. */
   @Test
   fun artistPreferencesScreen_displaysAllElements() {
-    setPreferencesContent()
+    setLoadedContent()
 
     composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SCREEN).assertIsDisplayed()
     composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.BACK_BUTTON).assertIsDisplayed()
     composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.TITLE).assertIsDisplayed()
     composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.DESCRIPTION).assertIsDisplayed()
     composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SEARCH_BAR).assertIsDisplayed()
-    composeTestRule
-        .onNodeWithTag(ArtistPreferencesTestTags.POPULAR_ARTISTS_TITLE)
-        .assertIsDisplayed()
     composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.ARTISTS_GRID).assertIsDisplayed()
-    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SAVE_BUTTON).assertIsDisplayed()
     composeTestRule.onNodeWithTag(NavigationTestTags.BOTTOM_NAVIGATION_MENU).assertIsDisplayed()
   }
 
-  /** Verifies that the title, description and section title display their texts. */
+  /** Verifies that the title and description display their texts. */
   @Test
   fun artistPreferencesScreen_displaysTexts() {
-    setPreferencesContent()
+    setLoadedContent()
 
     composeTestRule
         .onNodeWithTag(ArtistPreferencesTestTags.TITLE)
@@ -94,37 +94,168 @@ class ArtistPreferencesScreenTest {
     composeTestRule
         .onNodeWithTag(ArtistPreferencesTestTags.DESCRIPTION)
         .assertTextEquals(stringOf(R.string.artist_preferences_description))
+  }
+
+  /** Verifies that every saved artist has a card displaying its name, shown as saved. */
+  @Test
+  fun artistsGrid_displaysCardForEachSavedArtist() {
+    setLoadedContent()
+
+    testArtists.forEach { artist ->
+      val cardTag = ArtistPreferencesTestTags.getArtistCardTestTag(artist.uid)
+      scrollToCard(cardTag)
+      composeTestRule
+          .onNodeWithTag(cardTag)
+          .assertIsDisplayed()
+          .assertTextContains(artist.name)
+          .assertIsOn()
+    }
+  }
+
+  /** Verifies that a saved artist the catalog does not know gets a card named after its id. */
+  @Test
+  fun artistsGrid_unknownArtist_displaysPlaceholderCard() {
+    setLoadedContent(savedIds = listOf(UNKNOWN_ARTIST_ID))
+
     composeTestRule
-        .onNodeWithTag(ArtistPreferencesTestTags.POPULAR_ARTISTS_TITLE)
-        .assertTextEquals(stringOf(R.string.artist_preferences_popular_artists))
+        .onNodeWithTag(ArtistPreferencesTestTags.getArtistCardTestTag(UNKNOWN_ARTIST_ID))
+        .assertIsDisplayed()
+        .assertTextContains(UNKNOWN_ARTIST_ID)
+  }
+
+  /** Verifies that clicking a card removes it from the screen and from the stored profile. */
+  @Test
+  fun artistCard_click_removesArtist() {
+    val userRepository = setLoadedContent()
+    val (picasso, vanGogh, monet) = testArtists
+
+    clickCard(picasso)
+
+    // The write runs in a coroutine that the compose rule does not wait for, hence the polling.
+    composeTestRule.waitUntil(TIMEOUT_MS) { userRepository.writeCount == 1 }
+    composeTestRule.waitForIdle()
     composeTestRule
-        .onNodeWithTag(ArtistPreferencesTestTags.SAVE_BUTTON)
-        .assertTextContains(stringOf(R.string.artist_preferences_save))
+        .onNodeWithTag(ArtistPreferencesTestTags.getArtistCardTestTag(picasso.uid))
+        .assertDoesNotExist()
+    assertEquals(
+        listOf(vanGogh.uid, monet.uid),
+        userRepository.storedUser(UID)?.preference?.artists,
+    )
+    // The user stays on the screen to remove other artists.
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SCREEN).assertIsDisplayed()
+  }
+
+  /** Verifies that a card whose removal fails comes back, so the user can try again. */
+  @Test
+  fun artistCard_removalFails_bringsCardBack() {
+    val userRepository = setLoadedContent()
+    userRepository.writeFailure = AppException.Network()
+    val picasso = testArtists.first()
+
+    clickCard(picasso)
+
+    // The failed write is the last step of the removal, so once it is counted the removal is over.
+    composeTestRule.waitUntil(TIMEOUT_MS) { userRepository.writeCount == 1 }
+    waitForTag(ArtistPreferencesTestTags.getArtistCardTestTag(picasso.uid))
+    composeTestRule
+        .onNodeWithTag(ArtistPreferencesTestTags.getArtistCardTestTag(picasso.uid))
+        .assertIsDisplayed()
+    assertEquals(testArtists.map { it.uid }, userRepository.storedUser(UID)?.preference?.artists)
+  }
+
+  /** Verifies that the card is hidden as soon as it is clicked, before the write ends. */
+  @Test
+  fun artistCard_click_hidesCardBeforeWriteEnds() {
+    val userRepository = setLoadedContent()
+    // The write never ends, so the removal stays running for the rest of the test.
+    userRepository.writeDelays[UID] = Long.MAX_VALUE
+    val picasso = testArtists.first()
+
+    clickCard(picasso)
+
+    composeTestRule
+        .onNodeWithTag(ArtistPreferencesTestTags.getArtistCardTestTag(picasso.uid))
+        .assertDoesNotExist()
+  }
+
+  /** Verifies that two artists with the same name get their own cards and are removed apart. */
+  @Test
+  fun artistsWithSameName_haveIndependentCards() {
+    val first = Artist("test-same-1", "Same Name")
+    val second = Artist("test-same-2", "Same Name")
+    setLoadedContent(catalog = listOf(first, second), savedIds = listOf(first.uid, second.uid))
+
+    clickCard(first)
+
+    composeTestRule
+        .onNodeWithTag(ArtistPreferencesTestTags.getArtistCardTestTag(first.uid))
+        .assertDoesNotExist()
+    composeTestRule
+        .onNodeWithTag(ArtistPreferencesTestTags.getArtistCardTestTag(second.uid))
+        .assertIsDisplayed()
+  }
+
+  /** Verifies that removing the last artist replaces the grid with the empty state. */
+  @Test
+  fun artistCard_removingLastArtist_showsEmptyState() {
+    val artist = testArtists.first()
+    setLoadedContent(savedIds = listOf(artist.uid))
+
+    clickCard(artist)
+
+    waitForTag(ArtistPreferencesTestTags.EMPTY_STATE)
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.EMPTY_STATE).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.ARTISTS_GRID).assertDoesNotExist()
+  }
+
+  /** Verifies that a user without saved artists sees the empty state and its message. */
+  @Test
+  fun noSavedArtist_showsEmptyState() {
+    setSignedInContent(FakeUserRepository())
+
+    waitForTag(ArtistPreferencesTestTags.EMPTY_STATE)
+    composeTestRule
+        .onNodeWithText(stringOf(R.string.artist_preferences_empty_state))
+        .assertIsDisplayed()
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.ARTISTS_GRID).assertDoesNotExist()
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.LOAD_ERROR_STATE).assertDoesNotExist()
+  }
+
+  /** Verifies that the empty state is shown when nobody is signed in. */
+  @Test
+  fun signedOut_showsEmptyState() {
+    setContent(
+        ArtistPreferencesViewModel(
+            CatalogWikiDataRepository(testArtists),
+            FakeAuthRepository(),
+            FakeUserRepository(),
+        )
+    )
+
+    waitForTag(ArtistPreferencesTestTags.EMPTY_STATE)
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.EMPTY_STATE).assertIsDisplayed()
   }
 
   /** Verifies that the search bar accepts input and displays the typed text. */
   @Test
   fun searchBar_typing_displaysQuery() {
-    setPreferencesContent()
+    setLoadedContent()
 
     composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SEARCH_BAR).performTextInput("mon")
 
     composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SEARCH_BAR).assertTextContains("mon")
   }
 
-  /** Verifies that typing a query leaves only the matching artists in the grid. */
+  /** Verifies that typing a query leaves only the matching saved artists in the grid. */
   @Test
   fun searchBar_typing_showsOnlyMatchingArtists() {
-    setPreferencesContent()
+    setLoadedContent()
     val (picasso, vanGogh, monet) = testArtists
 
     composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SEARCH_BAR).performTextInput("mon")
 
     val monetCardTag = ArtistPreferencesTestTags.getArtistCardTestTag(monet.uid)
-    // The grid is lazy, so cards below the fold only exist once scrolled into view.
-    composeTestRule
-        .onNodeWithTag(ArtistPreferencesTestTags.ARTISTS_GRID)
-        .performScrollToNode(hasTestTag(monetCardTag))
+    scrollToCard(monetCardTag)
     composeTestRule.onNodeWithTag(monetCardTag).assertIsDisplayed()
     composeTestRule
         .onNodeWithTag(ArtistPreferencesTestTags.getArtistCardTestTag(picasso.uid))
@@ -134,10 +265,13 @@ class ArtistPreferencesScreenTest {
         .assertDoesNotExist()
   }
 
-  /** Verifies that a query matching no artist empties the grid. */
+  /**
+   * Verifies that a query matching no artist empties the grid without showing the empty state,
+   * since the user still has saved artists.
+   */
   @Test
-  fun searchBar_noMatch_showsNoArtist() {
-    setPreferencesContent()
+  fun searchBar_noMatch_showsNoArtistButNoEmptyState() {
+    setLoadedContent()
 
     composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SEARCH_BAR).performTextInput("xyz")
 
@@ -146,85 +280,114 @@ class ArtistPreferencesScreenTest {
           .onNodeWithTag(ArtistPreferencesTestTags.getArtistCardTestTag(artist.uid))
           .assertDoesNotExist()
     }
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.EMPTY_STATE).assertDoesNotExist()
   }
 
-  /** Verifies that clearing the query brings every artist back. */
+  /** Verifies that clearing the query brings every saved artist back. */
   @Test
   fun searchBar_clearing_showsAllArtistsAgain() {
-    setPreferencesContent()
+    setLoadedContent()
     composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SEARCH_BAR).performTextInput("mon")
 
     composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SEARCH_BAR).performTextClearance()
 
     testArtists.forEach { artist ->
       val cardTag = ArtistPreferencesTestTags.getArtistCardTestTag(artist.uid)
-      // The grid is lazy, so cards below the fold only exist once scrolled into view.
-      composeTestRule
-          .onNodeWithTag(ArtistPreferencesTestTags.ARTISTS_GRID)
-          .performScrollToNode(hasTestTag(cardTag))
+      scrollToCard(cardTag)
       composeTestRule.onNodeWithTag(cardTag).assertIsDisplayed()
     }
   }
 
-  /** Verifies that an artist hidden by the search is still selected when it comes back. */
+  /** Verifies that an artist found through the search can be removed. */
   @Test
-  fun searchBar_hidingSelectedArtist_keepsSelection() {
-    setPreferencesContent()
-    val (picasso, _, monet) = testArtists
-    composeTestRule
-        .onNodeWithTag(ArtistPreferencesTestTags.getArtistCardTestTag(monet.uid))
-        .performClick()
+  fun searchBar_matchingCardClick_removesArtist() {
+    val userRepository = setLoadedContent()
+    val monet = testArtists.last()
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SEARCH_BAR).performTextInput("monet")
 
-    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SEARCH_BAR).performTextInput("pablo")
-    val picassoCardTag = ArtistPreferencesTestTags.getArtistCardTestTag(picasso.uid)
-    // The grid is lazy, so cards below the fold only exist once scrolled into view.
-    composeTestRule
-        .onNodeWithTag(ArtistPreferencesTestTags.ARTISTS_GRID)
-        .performScrollToNode(hasTestTag(picassoCardTag))
-    composeTestRule.onNodeWithTag(picassoCardTag).assertIsDisplayed()
-    composeTestRule
-        .onNodeWithTag(ArtistPreferencesTestTags.getArtistCardTestTag(monet.uid))
-        .assertDoesNotExist()
+    clickCard(monet)
 
-    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SEARCH_BAR).performTextClearance()
-    composeTestRule
-        .onNodeWithTag(ArtistPreferencesTestTags.getArtistCardTestTag(monet.uid))
-        .assertIsOn()
+    composeTestRule.waitUntil(TIMEOUT_MS) { userRepository.writeCount == 1 }
+    assertEquals(
+        testArtists.dropLast(1).map { it.uid },
+        userRepository.storedUser(UID)?.preference?.artists,
+    )
   }
 
-  /** Verifies that every expected popular artist has a card displaying its name. */
+  /**
+   * Verifies that the spinner replaces the cards while the saved artists load, and that the search
+   * bar is disabled.
+   */
   @Test
-  fun artistsGrid_displaysCardForEachPopularArtist() {
-    setPreferencesContent(viewModel = createViewModel())
+  fun savedArtists_whileLoading_showsSpinnerAndDisablesSearch() {
+    // The load never returns, so the screen stays loading for the whole test.
+    setSignedInContent(FakeUserRepository().apply { readDelays[UID] = Long.MAX_VALUE })
 
-    testArtists.forEach { artist ->
-      val cardTag = ArtistPreferencesTestTags.getArtistCardTestTag(artist.uid)
-
-      // The grid is lazy, so cards below the fold need to be brought into view.
-      composeTestRule
-          .onNodeWithTag(ArtistPreferencesTestTags.ARTISTS_GRID)
-          .performScrollToNode(hasTestTag(cardTag))
-      composeTestRule.onNodeWithTag(cardTag).assertIsDisplayed().assertTextContains(artist.name)
-    }
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.LOADING_STATE).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.ARTISTS_GRID).assertDoesNotExist()
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.EMPTY_STATE).assertDoesNotExist()
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SEARCH_BAR).assertIsNotEnabled()
   }
 
-  /** Verifies that clicking an artist card toggles its selection. */
+  /**
+   * Verifies that a failed load replaces the grid with the error state, its message and its retry
+   * button, and keeps the search bar disabled.
+   */
   @Test
-  fun artistCard_click_togglesSelection() {
-    val viewModel = createViewModel()
-    setPreferencesContent(viewModel = viewModel)
-    val card =
-        composeTestRule.onNodeWithTag(
-            ArtistPreferencesTestTags.getArtistCardTestTag(
-                viewModel.uiState.value.popularArtists.first().uid
-            )
-        )
+  fun savedArtists_loadFails_showsErrorStateAndDisablesSearch() {
+    setSignedInContent(FakeUserRepository().apply { readFailure = AppException.Network() })
 
-    card.assertIsOff()
-    card.performClick()
-    card.assertIsOn()
-    card.performClick()
-    card.assertIsOff()
+    waitForTag(ArtistPreferencesTestTags.LOAD_ERROR_STATE)
+    composeTestRule
+        .onNodeWithText(stringOf(R.string.artist_preferences_saved_artists_load_error))
+        .assertIsDisplayed()
+    composeTestRule
+        .onNodeWithTag(ArtistPreferencesTestTags.RETRY_BUTTON)
+        .assertIsDisplayed()
+        .assertTextContains(stringOf(R.string.try_again))
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.ARTISTS_GRID).assertDoesNotExist()
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.EMPTY_STATE).assertDoesNotExist()
+    // The load is over, so the spinner must not stay next to the error state.
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.LOADING_STATE).assertDoesNotExist()
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SEARCH_BAR).assertIsNotEnabled()
+  }
+
+  /**
+   * Verifies that tapping Try again after a failed load shows the saved artists and enables the
+   * search bar again.
+   */
+  @Test
+  fun retryButton_afterLoadFails_showsSavedArtists() {
+    val userRepository = savedArtistsRepository().apply { readFailure = AppException.Network() }
+    setSignedInContent(userRepository)
+    waitForTag(ArtistPreferencesTestTags.LOAD_ERROR_STATE)
+
+    userRepository.readFailure = null
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.RETRY_BUTTON).performClick()
+
+    waitForTag(ArtistPreferencesTestTags.ARTISTS_GRID)
+    composeTestRule
+        .onNodeWithTag(ArtistPreferencesTestTags.getArtistCardTestTag(testArtists.first().uid))
+        .assertIsDisplayed()
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.LOAD_ERROR_STATE).assertDoesNotExist()
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SEARCH_BAR).assertIsEnabled()
+  }
+
+  /** Verifies that tapping Try again hides the error state and shows the spinner while retrying. */
+  @Test
+  fun retryButton_click_showsSpinnerWhileRetrying() {
+    val userRepository = savedArtistsRepository().apply { readFailure = AppException.Network() }
+    setSignedInContent(userRepository)
+    waitForTag(ArtistPreferencesTestTags.LOAD_ERROR_STATE)
+
+    // The retry never ends, so the spinner stays for the rest of the test.
+    userRepository.readFailure = null
+    userRepository.readDelays[UID] = Long.MAX_VALUE
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.RETRY_BUTTON).performClick()
+
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.LOADING_STATE).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.LOAD_ERROR_STATE).assertDoesNotExist()
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.RETRY_BUTTON).assertDoesNotExist()
   }
 
   /**
@@ -237,283 +400,17 @@ class ArtistPreferencesScreenTest {
   fun backButton_click_invokesOnBackClick() {
     // Only the callback below can flip this flag, so it proves the click reached the callback.
     var backClicked = false
-    setPreferencesContent(onBackClick = { backClicked = true })
+    setLoadedContent(onBackClick = { backClicked = true })
 
     composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.BACK_BUTTON).performClick()
 
-    // Fails if the button is wired to another action, such as saving.
     assertTrue(backClicked)
-  }
-
-  /**
-   * Verifies that saving when nobody is signed in keeps the selection in memory, so the button is
-   * disabled until the next change.
-   */
-  @Test
-  fun saveButton_signedOut_click_disablesButton() {
-    setPreferencesContent()
-
-    clickArtistCard(testArtists.first())
-    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SAVE_BUTTON).performClick()
-
-    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SAVE_BUTTON).assertIsNotEnabled()
-  }
-
-  /**
-   * Verifies that a signed-in user's selection is saved, and that the user stays on the screen with
-   * the button disabled until the next change.
-   */
-  @Test
-  fun saveButton_signedIn_saveSucceeds_storesSelectionAndDisablesButton() {
-    val userRepository = FakeUserRepository()
-    setPreferencesContent(viewModel = signedInViewModel(userRepository))
-
-    clickArtistCard(testArtists.first())
-    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SAVE_BUTTON).performClick()
-
-    // The save runs in a coroutine that the compose rule does not wait for, hence the polling.
-    composeTestRule.waitUntil(TIMEOUT_MS) { userRepository.writeCount == 1 }
-    composeTestRule.waitForIdle()
-    assertEquals(
-        listOf(testArtists.first().uid),
-        userRepository.storedUser(UID)?.preference?.artists,
-    )
-    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SCREEN).assertIsDisplayed()
-    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SAVE_BUTTON).assertIsNotEnabled()
-  }
-
-  /** Verifies that a failed save keeps the user on the screen with the button enabled. */
-  @Test
-  fun saveButton_signedIn_saveFails_keepsButtonEnabled() {
-    val userRepository = FakeUserRepository().apply { writeFailure = AppException.Network() }
-    setPreferencesContent(viewModel = signedInViewModel(userRepository))
-
-    clickArtistCard(testArtists.first())
-    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SAVE_BUTTON).performClick()
-
-    // The failed write is the last step of the save, so once it is counted the save is over.
-    composeTestRule.waitUntil(TIMEOUT_MS) { userRepository.writeCount == 1 }
-    composeTestRule.waitForIdle()
-    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SCREEN).assertIsDisplayed()
-    // Enabled again, so the user can retry.
-    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SAVE_BUTTON).assertIsEnabled()
-  }
-
-  /** Verifies that the save button cannot be clicked again while a save is running. */
-  @Test
-  fun saveButton_whileSaving_isDisabled() {
-    val userRepository = FakeUserRepository()
-    setPreferencesContent(viewModel = signedInViewModel(userRepository))
-    // Set only once the stored artists are loaded, since the cards cannot be clicked while they
-    // load. From now on, the read before the write never returns, so the save stays running.
-    composeTestRule.waitForIdle()
-    userRepository.readDelays[UID] = Long.MAX_VALUE
-    // Without a change the button is already disabled, which would make this test pass for nothing.
-    clickArtistCard(testArtists.first())
-    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SAVE_BUTTON).assertIsEnabled()
-
-    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SAVE_BUTTON).performClick()
-
-    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SAVE_BUTTON).assertIsNotEnabled()
-  }
-
-  /**
-   * Verifies that the spinner replaces the cards while the stored artists load, so no tap can be
-   * replaced by the loaded selection, and that the search bar and the save button are disabled.
-   */
-  @Test
-  fun savedArtists_whileLoading_showsSpinnerAndDisablesSearchAndSave() {
-    // The load never returns, so the screen stays loading for the whole test.
-    val userRepository = FakeUserRepository().apply { readDelays[UID] = Long.MAX_VALUE }
-    setPreferencesContent(viewModel = signedInViewModel(userRepository))
-
-    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.LOADING_STATE).assertIsDisplayed()
-    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.ARTISTS_GRID).assertDoesNotExist()
-    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SEARCH_BAR).assertIsNotEnabled()
-    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SAVE_BUTTON).assertIsNotEnabled()
-  }
-
-  /**
-   * Verifies that a failed load of the saved artists replaces the grid with the error state and its
-   * message, and keeps the search bar and the save button disabled.
-   */
-  @Test
-  fun savedArtists_loadFails_showsErrorStateAndDisablesSearchAndSave() {
-    val userRepository = FakeUserRepository().apply { readFailure = AppException.Network() }
-    setPreferencesContent(viewModel = signedInViewModel(userRepository))
-
-    composeTestRule.waitUntil(TIMEOUT_MS) { existsNodeWithTag(LOAD_ERROR_STATE_TAG) }
-    composeTestRule
-        .onNodeWithText(stringOf(R.string.artist_preferences_saved_artists_load_error))
-        .assertIsDisplayed()
-    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.RETRY_BUTTON).assertIsDisplayed()
-    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.ARTISTS_GRID).assertDoesNotExist()
-    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SEARCH_BAR).assertIsNotEnabled()
-    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SAVE_BUTTON).assertIsNotEnabled()
-  }
-
-  /**
-   * Verifies that tapping Try again after a failed load shows the saved artists selected, and
-   * enables the search bar again.
-   */
-  @Test
-  fun retryButton_afterSavedArtistsLoadFails_showsSavedArtistsSelected() {
-    val savedArtist = testArtists.first()
-    val userRepository =
-        FakeUserRepository().apply {
-          store(User(uid = UID, preference = UserPreference(artists = listOf(savedArtist.uid))))
-          readFailure = AppException.Network()
-        }
-    setPreferencesContent(viewModel = signedInViewModel(userRepository))
-    composeTestRule.waitUntil(TIMEOUT_MS) { existsNodeWithTag(LOAD_ERROR_STATE_TAG) }
-
-    userRepository.readFailure = null
-    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.RETRY_BUTTON).performClick()
-
-    composeTestRule.waitUntil(TIMEOUT_MS) {
-      existsNodeWithTag(ArtistPreferencesTestTags.ARTISTS_GRID)
-    }
-    composeTestRule
-        .onNodeWithTag(ArtistPreferencesTestTags.getArtistCardTestTag(savedArtist.uid))
-        .assertIsOn()
-    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SEARCH_BAR).assertIsEnabled()
-  }
-
-  /** Verifies that, when both loads fail, a single error state shows the saved-artists message. */
-  @Test
-  fun bothLoadsFail_showsSingleErrorStateWithSavedArtistsMessage() {
-    val wikiRepository = ControllableWikiRepository().apply { failure = AppException.Network() }
-    val userRepository = FakeUserRepository().apply { readFailure = AppException.Network() }
-    setPreferencesContent(viewModel = signedInViewModel(userRepository, wikiRepository))
-
-    // Waits for the saved-artists message, since the popular artists may fail first.
-    val savedArtistsMessage = stringOf(R.string.artist_preferences_saved_artists_load_error)
-    composeTestRule.waitUntil(TIMEOUT_MS) {
-      composeTestRule.onAllNodesWithText(savedArtistsMessage).fetchSemanticsNodes().isNotEmpty()
-    }
-    composeTestRule.onAllNodesWithTag(LOAD_ERROR_STATE_TAG).assertCountEquals(1)
-  }
-
-  /** Verifies that a spinner replaces the grid while the popular artists load. */
-  @Test
-  fun popularArtists_whileLoading_showsSpinner() {
-    // The load never ends, so the screen stays loading for the whole test.
-    val repository = ControllableWikiRepository().apply { pending = CompletableDeferred() }
-    setPreferencesContent(viewModel = viewModelWith(repository))
-
-    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.LOADING_STATE).assertIsDisplayed()
-    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.ARTISTS_GRID).assertDoesNotExist()
-    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.LOAD_ERROR_STATE).assertDoesNotExist()
-  }
-
-  /** Verifies that a successful load shows the grid, without the loading or error state. */
-  @Test
-  fun popularArtists_loaded_showsGridOnly() {
-    setPreferencesContent()
-
-    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.ARTISTS_GRID).assertIsDisplayed()
-    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.LOADING_STATE).assertDoesNotExist()
-    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.LOAD_ERROR_STATE).assertDoesNotExist()
-  }
-
-  /**
-   * Verifies that a failed load replaces the grid with the error state and its Retry button, while
-   * the rest of the screen stays available.
-   */
-  @Test
-  fun popularArtists_loadFails_showsErrorStateWithRetry() {
-    val repository = ControllableWikiRepository().apply { failure = AppException.Network() }
-    setPreferencesContent(viewModel = viewModelWith(repository))
-
-    composeTestRule.waitUntil(TIMEOUT_MS) { existsNodeWithTag(LOAD_ERROR_STATE_TAG) }
-    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.LOAD_ERROR_STATE).assertIsDisplayed()
-    composeTestRule
-        .onNodeWithTag(ArtistPreferencesTestTags.RETRY_BUTTON)
-        .assertIsDisplayed()
-        .assertTextContains(stringOf(R.string.try_again))
-    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.ARTISTS_GRID).assertDoesNotExist()
-    // The load is over, so the spinner must not stay next to the error state.
-    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.LOADING_STATE).assertDoesNotExist()
-    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SEARCH_BAR).assertIsDisplayed()
-    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SAVE_BUTTON).assertIsDisplayed()
-  }
-
-  /** Verifies that tapping Retry after a failed load shows the artists once the load succeeds. */
-  @Test
-  fun retryButton_afterFailure_showsArtistGrid() {
-    val repository = ControllableWikiRepository().apply { failure = AppException.Network() }
-    setPreferencesContent(viewModel = viewModelWith(repository))
-    composeTestRule.waitUntil(TIMEOUT_MS) { existsNodeWithTag(LOAD_ERROR_STATE_TAG) }
-
-    repository.failure = null
-    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.RETRY_BUTTON).performClick()
-
-    composeTestRule.waitUntil(TIMEOUT_MS) {
-      existsNodeWithTag(ArtistPreferencesTestTags.ARTISTS_GRID)
-    }
-    composeTestRule
-        .onNodeWithTag(ArtistPreferencesTestTags.getArtistCardTestTag(testArtists.first().uid))
-        .assertIsDisplayed()
-    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.LOAD_ERROR_STATE).assertDoesNotExist()
-  }
-
-  /** Verifies that tapping Retry hides the error state and shows the spinner during the retry. */
-  @Test
-  fun retryButton_click_showsSpinnerWhileRetrying() {
-    val repository = ControllableWikiRepository().apply { failure = AppException.Network() }
-    setPreferencesContent(viewModel = viewModelWith(repository))
-    composeTestRule.waitUntil(TIMEOUT_MS) { existsNodeWithTag(LOAD_ERROR_STATE_TAG) }
-
-    // The retry never ends, so the spinner stays for the rest of the test.
-    repository.pending = CompletableDeferred()
-    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.RETRY_BUTTON).performClick()
-
-    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.LOADING_STATE).assertIsDisplayed()
-    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.LOAD_ERROR_STATE).assertDoesNotExist()
-    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.RETRY_BUTTON).assertDoesNotExist()
-  }
-
-  /**
-   * Verifies that the save button is disabled while the popular artists load, even with a change.
-   */
-  @Test
-  fun saveButton_whilePopularArtistsLoad_isDisabled() {
-    // The load never ends, so the screen stays loading for the whole test.
-    val repository = ControllableWikiRepository().apply { pending = CompletableDeferred() }
-    val viewModel = viewModelWith(repository)
-    // Changed directly, since no card can be tapped while loading: without the loading rule, this
-    // selection would enable Save.
-    viewModel.toggleArtist(testArtists.first().uid)
-    setPreferencesContent(viewModel = viewModel)
-
-    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SAVE_BUTTON).assertIsNotEnabled()
-  }
-
-  /** Verifies that the save button is disabled when the screen opens, as nothing has changed. */
-  @Test
-  fun saveButton_initially_isDisabled() {
-    setPreferencesContent()
-
-    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SAVE_BUTTON).assertIsNotEnabled()
-  }
-
-  /** Verifies that selecting then deselecting an artist disables the save button again. */
-  @Test
-  fun saveButton_afterUndoingToggle_isDisabled() {
-    setPreferencesContent()
-
-    clickArtistCard(testArtists.first())
-    // Enabled in between, so the final check proves the undo disabled it.
-    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SAVE_BUTTON).assertIsEnabled()
-    clickArtistCard(testArtists.first())
-
-    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SAVE_BUTTON).assertIsNotEnabled()
   }
 
   /** Verifies that the profile tab stays selected, since preferences are part of the profile. */
   @Test
   fun artistPreferencesScreen_selectsProfileTab() {
-    setPreferencesContent()
+    setLoadedContent()
 
     composeTestRule.onNodeWithTag(NavigationTestTags.getTabTestTag(Tab.Profile)).assertIsSelected()
     composeTestRule
@@ -522,45 +419,78 @@ class ArtistPreferencesScreenTest {
     composeTestRule.onNodeWithTag(NavigationTestTags.getTabTestTag(Tab.Map)).assertIsNotSelected()
   }
 
-  /** Verifies that two artists with the same name get their own cards and toggle independently. */
-  @Test
-  fun artistsWithSameName_haveIndependentCards() {
-    val first = Artist("test-same-1", "Same Name")
-    val second = Artist("test-same-2", "Same Name")
-    val repository =
-        object : WikiDataRepository by ArtworkRepositoryLocal() {
-          override suspend fun getPopularArtists(): List<Artist> = listOf(first, second)
-        }
-    setPreferencesContent(
-        viewModel =
-            ArtistPreferencesViewModel(repository, FakeAuthRepository(), UserRepositoryLocal())
-    )
-    val firstCard =
-        composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.getArtistCardTestTag(first.uid))
-    val secondCard =
-        composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.getArtistCardTestTag(second.uid))
-
-    firstCard.performClick()
-
-    firstCard.assertIsOn()
-    secondCard.assertIsOff()
+  /**
+   * Shows the screen for a user signed in as [UID] who saved [savedIds], and waits until their
+   * cards are shown.
+   *
+   * @param catalog the artists the catalog knows, [testArtists] by default
+   * @param savedIds the identifiers saved in the user's profile, those of [testArtists] by default
+   * @param onBackClick callback invoked when the back button is clicked
+   * @return the user storage, to check what the screen wrote
+   */
+  private fun setLoadedContent(
+      catalog: List<Artist> = testArtists,
+      savedIds: List<ArtistId> = testArtists.map { it.uid },
+      onBackClick: () -> Unit = {},
+  ): FakeUserRepository {
+    val userRepository = savedArtistsRepository(savedIds)
+    setSignedInContent(userRepository, catalog, onBackClick)
+    waitForTag(ArtistPreferencesTestTags.ARTISTS_GRID)
+    return userRepository
   }
 
-  private fun setPreferencesContent(
-      viewModel: ArtistPreferencesViewModel = createViewModel(),
+  /**
+   * Shows the screen for a user signed in as [UID], without waiting for the load.
+   *
+   * @param userRepository the storage the saved artists are read from and removed in
+   * @param catalog the artists the catalog knows
+   * @param onBackClick callback invoked when the back button is clicked
+   */
+  private fun setSignedInContent(
+      userRepository: FakeUserRepository,
+      catalog: List<Artist> = testArtists,
       onBackClick: () -> Unit = {},
-      onTabSelected: (Tab) -> Unit = {},
   ) {
+    setContent(
+        ArtistPreferencesViewModel(
+            CatalogWikiDataRepository(catalog),
+            FakeAuthRepository(initialUser = FakeAuthUser(UID)),
+            userRepository,
+        ),
+        onBackClick,
+    )
+  }
+
+  /**
+   * Shows the screen backed by the given ViewModel.
+   *
+   * @param viewModel the ViewModel under test
+   * @param onBackClick callback invoked when the back button is clicked
+   */
+  private fun setContent(viewModel: ArtistPreferencesViewModel, onBackClick: () -> Unit = {}) {
     composeTestRule.setContent {
       MaterialTheme {
         ArtistPreferencesScreen(
             artistPreferencesViewModel = viewModel,
             onBackClick = onBackClick,
-            onTabSelected = onTabSelected,
+            onTabSelected = {},
         )
       }
     }
   }
+
+  /**
+   * Creates a user storage holding the profile of [UID] with the given saved artists.
+   *
+   * @param savedIds the identifiers saved in the profile
+   * @return the storage
+   */
+  private fun savedArtistsRepository(
+      savedIds: List<ArtistId> = testArtists.map { it.uid }
+  ): FakeUserRepository =
+      FakeUserRepository().apply {
+        store(User(uid = UID, preference = UserPreference(artists = savedIds)))
+      }
 
   /**
    * Reads a string resource, so the tests follow the displayed texts instead of duplicating them.
@@ -570,107 +500,58 @@ class ArtistPreferencesScreenTest {
    */
   private fun stringOf(resId: Int): String = composeTestRule.activity.getString(resId)
 
-  /** Artists served by the fake repository, so the tests do not depend on the mock list. */
-  private val testArtists =
-      listOf(
-          Artist("test-picasso", "Pablo Picasso"),
-          Artist("test-van-gogh", "Vincent van Gogh"),
-          Artist("test-monet", "Claude Monet"),
-      )
-
   /**
-   * Creates a catalog whose popular artists are [testArtists].
+   * Waits until a node with the given tag is in the tree, since the loads and writes run in
+   * coroutines the compose rule does not wait for.
    *
-   * Every other method is forwarded to an empty [ArtworkRepositoryLocal], since this screen only
-   * needs the popular artists.
-   *
-   * @return the fake repository
+   * @param tag the test tag to wait for
    */
-  private fun fakeWikiRepository(): WikiDataRepository =
-      object : WikiDataRepository by ArtworkRepositoryLocal() {
-        override suspend fun getPopularArtists(): List<Artist> = testArtists
-      }
-
-  /**
-   * Creates the ViewModel under test with fake dependencies.
-   *
-   * @return a ViewModel backed by [fakeWikiRepository]
-   */
-  private fun createViewModel(): ArtistPreferencesViewModel =
-      ArtistPreferencesViewModel(fakeWikiRepository(), FakeAuthRepository(), UserRepositoryLocal())
-
-  /**
-   * Creates the ViewModel under test for a user signed in as [UID].
-   *
-   * @param userRepository the storage the selection is saved to
-   * @param wikiRepository the catalog the popular artists are loaded from
-   * @return a ViewModel backed by [wikiRepository] and [userRepository]
-   */
-  private fun signedInViewModel(
-      userRepository: FakeUserRepository,
-      wikiRepository: WikiDataRepository = fakeWikiRepository(),
-  ): ArtistPreferencesViewModel =
-      ArtistPreferencesViewModel(
-          wikiRepository,
-          FakeAuthRepository(initialUser = FakeAuthUser(UID)),
-          userRepository,
-      )
-
-  /**
-   * Creates the ViewModel under test, signed out, with the given catalog.
-   *
-   * @param repository the catalog the popular artists are loaded from
-   * @return a ViewModel backed by [repository]
-   */
-  private fun viewModelWith(repository: WikiDataRepository): ArtistPreferencesViewModel =
-      ArtistPreferencesViewModel(repository, FakeAuthRepository(), UserRepositoryLocal())
-
-  /**
-   * Tells whether a node with the given tag is currently in the tree, to wait for a state change.
-   *
-   * @param tag the test tag to look for
-   * @return true if at least one node has this tag
-   */
-  private fun existsNodeWithTag(tag: String): Boolean =
+  private fun waitForTag(tag: String) {
+    composeTestRule.waitUntil(TIMEOUT_MS) {
       composeTestRule.onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty()
-
-  /**
-   * Catalog whose popular-artists load the test controls: it can be held until [pending] completes,
-   * and it fails with [failure] when one is set. It otherwise serves [testArtists].
-   */
-  private inner class ControllableWikiRepository : WikiDataRepository by ArtworkRepositoryLocal() {
-    /** Thrown by the load when set, read once the load is released. */
-    @Volatile var failure: Exception? = null
-
-    /** When set, the load waits for it to complete, which simulates a slow network. */
-    @Volatile var pending: CompletableDeferred<Unit>? = null
-
-    override suspend fun getPopularArtists(): List<Artist> {
-      pending?.await()
-      failure?.let { throw it }
-      return testArtists
     }
   }
 
   /**
-   * Clicks the card of an artist, to select or deselect them.
+   * Scrolls the grid to a card, since the grid is lazy and cards below the fold only exist once
+   * scrolled into view.
+   *
+   * @param cardTag the tag of the card to bring into view
+   */
+  private fun scrollToCard(cardTag: String) {
+    composeTestRule
+        .onNodeWithTag(ArtistPreferencesTestTags.ARTISTS_GRID)
+        .performScrollToNode(hasTestTag(cardTag))
+  }
+
+  /**
+   * Clicks the card of an artist, to remove them.
    *
    * @param artist the artist whose card is clicked
    */
-  private fun clickArtistCard(artist: Artist) {
-    composeTestRule
-        .onNodeWithTag(ArtistPreferencesTestTags.getArtistCardTestTag(artist.uid))
-        .performClick()
+  private fun clickCard(artist: Artist) {
+    val cardTag = ArtistPreferencesTestTags.getArtistCardTestTag(artist.uid)
+    scrollToCard(cardTag)
+    composeTestRule.onNodeWithTag(cardTag).performClick()
+  }
+
+  /**
+   * Catalog that knows only [artists]; every other method is forwarded to an empty
+   * [ArtworkRepositoryLocal], since this screen only looks artists up by identifier.
+   */
+  private class CatalogWikiDataRepository(private val artists: List<Artist>) :
+      WikiDataRepository by ArtworkRepositoryLocal() {
+    override suspend fun getArtist(qid: ArtistId): Artist? = artists.find { it.uid == qid }
   }
 
   private companion object {
-    /** Identifier of the signed-in user in the save tests. */
+    /** Identifier of the signed-in user. */
     const val UID = "uid-1"
 
-    /** Longest wait, in milliseconds, for a save or a load to finish before a test fails. */
-    const val TIMEOUT_MS = 5_000L
+    /** Identifier saved in the profile but unknown to the catalog. */
+    const val UNKNOWN_ARTIST_ID = "unknown-artist"
 
-    /** Shorter name for the error-state tag, which the load tests wait for. */
-    const val LOAD_ERROR_STATE_TAG = ArtistPreferencesTestTags.LOAD_ERROR_STATE
+    /** Longest wait, in milliseconds, for a load or a write to finish before a test fails. */
+    const val TIMEOUT_MS = 5_000L
   }
 }

@@ -3,6 +3,7 @@ package com.artista.artista.ui.preferences
 import com.artista.artista.MainDispatcherRule
 import com.artista.artista.R
 import com.artista.artista.model.artist.Artist
+import com.artista.artista.model.artist.ArtistId
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
 import com.artista.artista.model.artwork.WikiDataRepository
 import com.artista.artista.model.authentication.FakeAuthRepository
@@ -37,7 +38,7 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class ArtistPreferencesViewModelTest {
 
-  private val artworkRepository = ArtworkRepositoryLocal()
+  private val artworkRepository = ControllableWikiDataRepository()
   private val authRepository = FakeAuthRepository()
   private val userRepository = FakeUserRepository()
   private lateinit var viewModel: ArtistPreferencesViewModel
@@ -49,137 +50,192 @@ class ArtistPreferencesViewModelTest {
     viewModel = ArtistPreferencesViewModel(artworkRepository, authRepository, userRepository)
   }
 
-  /** Checks that the popular artists of the mockup are exposed, in their display order. */
+  /** Verifies that nothing is shown or loaded while nobody is signed in. */
   @Test
-  fun initialState_exposesPopularArtists() = runTest {
+  fun signedOut_showsNoArtistAndReadsNothing() = runTest {
     advanceUntilIdle()
+
+    val state = viewModel.uiState.value
+    assertTrue(state.savedArtists.isEmpty())
+    assertFalse(state.isLoading)
+    assertTrue(state.isEmpty)
+    assertEquals(0, userRepository.readCount)
+  }
+
+  /** Verifies that the saved artists are shown with their details, in the order they were saved. */
+  @Test
+  fun signIn_savedArtists_showsThemInSavedOrder() = runTest {
+    userRepository.store(userWithArtists(listOf(KLIMT.uid, PICASSO.uid, MONET.uid)))
+
+    signIn()
 
     // Compared by id and name: the mock artists also carry picture links, which this ViewModel
-    // only passes through and which are checked by ArtworkRepositoryProviderTest.
+    // only passes through.
     assertEquals(
-        listOf(PICASSO, VAN_GOGH, RENOIR, MONET, KLIMT, MATISSE).map { it.uid to it.name },
-        viewModel.uiState.value.popularArtists.map { it.uid to it.name },
+        listOf(KLIMT, PICASSO, MONET).map { it.uid to it.name },
+        viewModel.uiState.value.savedArtists.map { it.uid to it.name },
     )
-  }
-
-  /** Verifies that no artist is selected before the user interacts with the screen. */
-  @Test
-  fun initialState_hasNoSelectedArtist() {
-    assertTrue(viewModel.uiState.value.selectedArtists.isEmpty())
-  }
-
-  /** Verifies that toggling an unselected artist selects it. */
-  @Test
-  fun toggleArtist_selectsUnselectedArtist() {
-    viewModel.toggleArtist(PICASSO.uid)
-
-    assertEquals(setOf(PICASSO.uid), viewModel.uiState.value.selectedArtists)
-  }
-
-  /** Verifies that toggling an artist twice brings it back to its initial unselected state. */
-  @Test
-  fun toggleArtist_twice_leavesArtistUnselected() {
-    viewModel.toggleArtist(PICASSO.uid)
-    viewModel.toggleArtist(PICASSO.uid)
-
-    assertTrue(viewModel.uiState.value.selectedArtists.isEmpty())
-  }
-
-  /** Verifies that toggling an artist leaves the selection of the other artists unchanged. */
-  @Test
-  fun toggleArtist_keepsOtherSelections() {
-    viewModel.toggleArtist(PICASSO.uid)
-    viewModel.toggleArtist(MONET.uid)
-
-    assertEquals(setOf(PICASSO.uid, MONET.uid), viewModel.uiState.value.selectedArtists)
-
-    viewModel.toggleArtist(PICASSO.uid)
-
-    assertEquals(setOf(MONET.uid), viewModel.uiState.value.selectedArtists)
-  }
-
-  /** Verifies that artists sharing a name are selected independently, since selection uses ids. */
-  @Test
-  fun toggleArtist_artistsWithSameName_areSelectedIndependently() = runTest {
-    val first = Artist("test-same-1", "Same Name")
-    val second = Artist("test-same-2", "Same Name")
-    val repository =
-        object : WikiDataRepository by ArtworkRepositoryLocal() {
-          override suspend fun getPopularArtists(): List<Artist> = listOf(first, second)
-        }
-    val viewModel = ArtistPreferencesViewModel(repository, authRepository, userRepository)
-    advanceUntilIdle()
-    assertEquals(listOf(first, second), viewModel.uiState.value.popularArtists)
-
-    viewModel.toggleArtist(first.uid)
-
-    assertEquals(setOf(first.uid), viewModel.uiState.value.selectedArtists)
-  }
-
-  /** Verifies that a failing popular artists load does not crash and leaves the list empty. */
-  @Test
-  fun init_whenLoadingPopularArtistsFails_exposesNoArtists() = runTest {
-    val repository =
-        object : WikiDataRepository by ArtworkRepositoryLocal() {
-          override suspend fun getPopularArtists(): List<Artist> = error("Popular artists failure")
-        }
-    val viewModel = ArtistPreferencesViewModel(repository, authRepository, userRepository)
-    advanceUntilIdle()
-
-    assertTrue(viewModel.uiState.value.popularArtists.isEmpty())
-  }
-
-  /** Verifies that the popular artists are marked as loading until the repository answers. */
-  @Test
-  fun init_whileLoadingPopularArtists_isLoading() = runTest {
-    val repository = ControllableWikiDataRepository().apply { pending = CompletableDeferred() }
-    val viewModel = ArtistPreferencesViewModel(repository, authRepository, userRepository)
-    advanceUntilIdle()
-
-    assertTrue(viewModel.uiState.value.isLoadingPopularArtists)
-    assertFalse(viewModel.uiState.value.hasPopularArtistsLoadFailed)
-
-    repository.pending?.complete(Unit)
-    advanceUntilIdle()
-
-    assertFalse(viewModel.uiState.value.isLoadingPopularArtists)
-    assertEquals(ALL_ARTISTS, viewModel.uiState.value.popularArtists)
+    assertFalse(viewModel.uiState.value.isEmpty)
   }
 
   /** Verifies that a successful load neither reports a failure nor shows a message. */
   @Test
-  fun init_whenLoadingPopularArtistsSucceeds_reportsNoFailure() = runTest {
-    advanceUntilIdle()
+  fun signIn_loadSucceeds_reportsNoFailure() = runTest {
+    userRepository.store(userWithArtists(listOf(KLIMT.uid)))
+
+    signIn()
 
     val state = viewModel.uiState.value
-    assertFalse(state.isLoadingPopularArtists)
-    assertFalse(state.hasPopularArtistsLoadFailed)
+    assertFalse(state.isLoading)
+    assertFalse(state.hasLoadFailed)
     assertNull(state.messageResId)
   }
 
-  /** Verifies that a failed load is reported, with the message matching the failure. */
+  /** Verifies that a user without a profile sees the empty state, not a failure. */
   @Test
-  fun init_whenLoadingPopularArtistsFails_reportsFailureWithMessage() = runTest {
-    val repository = ControllableWikiDataRepository().apply { failure = AppException.Network() }
-    val viewModel = ArtistPreferencesViewModel(repository, authRepository, userRepository)
-    advanceUntilIdle()
+  fun signIn_noProfile_isEmpty() = runTest {
+    signIn()
 
     val state = viewModel.uiState.value
-    assertTrue(state.hasPopularArtistsLoadFailed)
-    assertFalse(state.isLoadingPopularArtists)
+    assertTrue(state.savedArtists.isEmpty())
+    assertFalse(state.hasLoadFailed)
+    assertTrue(state.isEmpty)
+  }
+
+  /** Verifies that a profile without favorite artists shows the empty state. */
+  @Test
+  fun signIn_profileWithoutArtists_isEmpty() = runTest {
+    userRepository.store(userWithArtists(emptyList()))
+
+    signIn()
+
+    assertTrue(viewModel.uiState.value.isEmpty)
+    assertEquals(0, artworkRepository.callCount)
+  }
+
+  /**
+   * Verifies that an identifier stored twice is shown once, since the grid needs a unique key per
+   * card.
+   */
+  @Test
+  fun signIn_duplicatedArtist_showsItOnce() = runTest {
+    userRepository.store(userWithArtists(listOf(KLIMT.uid, MONET.uid, KLIMT.uid)))
+
+    signIn()
+
+    assertEquals(listOf(KLIMT.uid, MONET.uid), viewModel.uiState.value.savedArtists.map { it.uid })
+  }
+
+  /** Verifies that an artist the catalog does not know gets a card named after its identifier. */
+  @Test
+  fun signIn_unknownArtist_showsPlaceholderNamedAfterId() = runTest {
+    userRepository.store(userWithArtists(listOf(UNKNOWN_ARTIST_ID)))
+
+    signIn()
+
+    assertEquals(
+        listOf(Artist(uid = UNKNOWN_ARTIST_ID, name = UNKNOWN_ARTIST_ID)),
+        viewModel.uiState.value.savedArtists,
+    )
+    assertFalse(viewModel.uiState.value.hasLoadFailed)
+  }
+
+  /**
+   * Verifies that an identifier the catalog rejects, such as one saved while the screen used mock
+   * data, gets a placeholder card so the user can still remove it.
+   */
+  @Test
+  fun signIn_invalidArtistId_showsPlaceholder() = runTest {
+    artworkRepository.failures[KLIMT.uid] = AppException.InvalidInput("Not a QID")
+    userRepository.store(userWithArtists(listOf(KLIMT.uid, MONET.uid)))
+
+    signIn()
+
+    // The other artists still load normally next to the placeholder.
+    assertEquals(
+        listOf(KLIMT.uid to KLIMT.uid, MONET.uid to MONET.name),
+        viewModel.uiState.value.savedArtists.map { it.uid to it.name },
+    )
+    assertFalse(viewModel.uiState.value.hasLoadFailed)
+  }
+
+  /** Verifies that a network failure while fetching an artist fails the whole load. */
+  @Test
+  fun signIn_artistLookupFails_reportsFailureWithMessage() = runTest {
+    artworkRepository.failures[MONET.uid] = AppException.Network()
+    userRepository.store(userWithArtists(listOf(KLIMT.uid, MONET.uid)))
+
+    signIn()
+
+    val state = viewModel.uiState.value
+    assertTrue(state.hasLoadFailed)
+    assertFalse(state.isLoading)
+    assertTrue(state.savedArtists.isEmpty())
+    assertEquals(R.string.error_network, state.messageResId)
+    // The error state is shown instead of the empty state.
+    assertFalse(state.isEmpty)
+  }
+
+  /** Verifies that failing to read the profile is reported with the matching message. */
+  @Test
+  fun signIn_profileReadFails_reportsFailureWithMessage() = runTest {
+    userRepository.readFailure = AppException.Network()
+
+    signIn()
+
+    val state = viewModel.uiState.value
+    assertTrue(state.hasLoadFailed)
+    assertFalse(state.isLoading)
     assertEquals(R.string.error_network, state.messageResId)
   }
 
   /** Verifies that a failure that is not an AppException shows the generic message. */
   @Test
-  fun init_whenLoadingPopularArtistsFailsUnexpectedly_showsUnknownMessage() = runTest {
-    val repository =
-        ControllableWikiDataRepository().apply { failure = IllegalStateException("Bug") }
-    val viewModel = ArtistPreferencesViewModel(repository, authRepository, userRepository)
+  fun signIn_unexpectedFailure_showsUnknownMessage() = runTest {
+    userRepository.readFailure = IllegalStateException("Bug")
+
+    signIn()
+
+    assertTrue(viewModel.uiState.value.hasLoadFailed)
+    assertEquals(R.string.error_unknown, viewModel.uiState.value.messageResId)
+  }
+
+  /** Verifies that the loading flag is set while the saved artists load, and reset after. */
+  @Test
+  fun signIn_whileLoading_isLoading() = runTest {
+    userRepository.store(userWithArtists(listOf(KLIMT.uid)))
+    userRepository.readDelays[UID] = 1_000
+    authRepository.setAuthState(FakeAuthUser(UID))
+    // runCurrent starts the load without letting time pass, so it is still waiting on the read.
+    runCurrent()
+
+    val state = viewModel.uiState.value
+    assertTrue(state.isLoading)
+    // The loading state is shown instead of the empty state.
+    assertFalse(state.isEmpty)
+    assertFalse(state.canSearch)
+
     advanceUntilIdle()
 
-    assertTrue(viewModel.uiState.value.hasPopularArtistsLoadFailed)
-    assertEquals(R.string.error_unknown, viewModel.uiState.value.messageResId)
+    assertFalse(viewModel.uiState.value.isLoading)
+  }
+
+  /** Verifies that the details of the saved artists are all requested at once. */
+  @Test
+  fun signIn_fetchesArtistsConcurrently() = runTest {
+    artworkRepository.pending = CompletableDeferred()
+    userRepository.store(userWithArtists(listOf(KLIMT.uid, PICASSO.uid, MONET.uid)))
+
+    signIn()
+
+    // Every lookup has started although none has answered yet.
+    assertEquals(3, artworkRepository.callCount)
+    assertTrue(viewModel.uiState.value.isLoading)
+
+    artworkRepository.pending?.complete(Unit)
+    advanceUntilIdle()
+
+    assertEquals(3, viewModel.uiState.value.savedArtists.size)
   }
 
   /**
@@ -187,805 +243,106 @@ class ArtistPreferencesViewModelTest {
    * available after the toast is gone.
    */
   @Test
-  fun clearMessage_afterPopularArtistsLoadFails_keepsFailure() = runTest {
-    val repository = ControllableWikiDataRepository().apply { failure = AppException.Network() }
-    val viewModel = ArtistPreferencesViewModel(repository, authRepository, userRepository)
-    advanceUntilIdle()
+  fun clearMessage_afterLoadFails_keepsFailure() = runTest {
+    userRepository.readFailure = AppException.Network()
+    signIn()
     // Otherwise the test would pass even if the failure never set a message to clear.
     assertNotNull(viewModel.uiState.value.messageResId)
 
     viewModel.clearMessage()
 
     assertNull(viewModel.uiState.value.messageResId)
-    assertTrue(viewModel.uiState.value.hasPopularArtistsLoadFailed)
+    assertTrue(viewModel.uiState.value.hasLoadFailed)
   }
+
+  // ---- Retrying ----
 
   /** Verifies that retrying after a failure loads the artists and clears the failure. */
   @Test
-  fun loadPopularArtists_afterFailure_loadsArtistsAndClearsFailure() = runTest {
-    val repository = ControllableWikiDataRepository().apply { failure = AppException.Network() }
-    val viewModel = ArtistPreferencesViewModel(repository, authRepository, userRepository)
-    advanceUntilIdle()
+  fun retryLoad_afterFailure_loadsArtistsAndClearsFailure() = runTest {
+    userRepository.store(userWithArtists(listOf(KLIMT.uid)))
+    userRepository.readFailure = AppException.Network()
+    signIn()
 
-    repository.failure = null
-    viewModel.loadPopularArtists()
+    userRepository.readFailure = null
+    viewModel.retryLoad()
     advanceUntilIdle()
 
     val state = viewModel.uiState.value
-    assertEquals(ALL_ARTISTS, state.popularArtists)
-    assertFalse(state.hasPopularArtistsLoadFailed)
-    assertFalse(state.isLoadingPopularArtists)
+    assertEquals(listOf(KLIMT.uid), state.savedArtists.map { it.uid })
+    assertFalse(state.hasLoadFailed)
+    assertFalse(state.isLoading)
   }
 
   /** Verifies that a retry hides the error state at once and shows the loading state instead. */
   @Test
-  fun loadPopularArtists_afterFailure_showsLoadingWhileRetrying() = runTest {
-    val repository = ControllableWikiDataRepository().apply { failure = AppException.Network() }
-    val viewModel = ArtistPreferencesViewModel(repository, authRepository, userRepository)
-    advanceUntilIdle()
+  fun retryLoad_afterFailure_showsLoadingWhileRetrying() = runTest {
+    userRepository.readFailure = AppException.Network()
+    signIn()
 
-    repository.pending = CompletableDeferred()
-    viewModel.loadPopularArtists()
+    viewModel.retryLoad()
 
     // Checked before the retry runs: the state changes as soon as the user taps.
-    assertTrue(viewModel.uiState.value.isLoadingPopularArtists)
-    assertFalse(viewModel.uiState.value.hasPopularArtistsLoadFailed)
+    assertTrue(viewModel.uiState.value.isLoading)
+    assertFalse(viewModel.uiState.value.hasLoadFailed)
   }
 
   /** Verifies that a retry that fails again reports the failure again. */
   @Test
-  fun loadPopularArtists_failsAgain_reportsFailureAgain() = runTest {
-    val repository = ControllableWikiDataRepository().apply { failure = AppException.Network() }
-    val viewModel = ArtistPreferencesViewModel(repository, authRepository, userRepository)
-    advanceUntilIdle()
-    viewModel.clearMessage()
-
-    viewModel.loadPopularArtists()
-    advanceUntilIdle()
-
-    assertTrue(viewModel.uiState.value.hasPopularArtistsLoadFailed)
-    assertEquals(R.string.error_network, viewModel.uiState.value.messageResId)
-    assertEquals(2, repository.callCount)
-  }
-
-  /**
-   * Verifies that a retry while a load is running is ignored, so a double tap sends one request.
-   */
-  @Test
-  fun loadPopularArtists_whileLoading_isIgnored() = runTest {
-    val repository = ControllableWikiDataRepository().apply { pending = CompletableDeferred() }
-    val viewModel = ArtistPreferencesViewModel(repository, authRepository, userRepository)
-    advanceUntilIdle()
-
-    viewModel.loadPopularArtists()
-    viewModel.loadPopularArtists()
-    advanceUntilIdle()
-
-    assertEquals(1, repository.callCount)
-  }
-
-  /** Verifies that the selection made while the artists failed to load is kept by a retry. */
-  @Test
-  fun loadPopularArtists_afterFailure_keepsSelection() = runTest {
-    val repository = ControllableWikiDataRepository().apply { failure = AppException.Network() }
-    val viewModel = ArtistPreferencesViewModel(repository, authRepository, userRepository)
-    advanceUntilIdle()
-    viewModel.toggleArtist(PICASSO.uid)
-
-    repository.failure = null
-    viewModel.loadPopularArtists()
-    advanceUntilIdle()
-
-    assertEquals(setOf(PICASSO.uid), viewModel.uiState.value.selectedArtists)
-  }
-
-  /** Verifies that the query is kept as typed, so the field never rewrites the user's text. */
-  @Test
-  fun onSearchQueryChange_storesTextAsTyped() {
-    viewModel.onSearchQueryChange("  Mon ")
-
-    assertEquals("  Mon ", viewModel.uiState.value.searchQuery)
-  }
-
-  /** Verifies that searching does not change the artists the user has selected. */
-  @Test
-  fun onSearchQueryChange_keepsSelection() {
-    viewModel.toggleArtist(PICASSO.uid)
-
-    viewModel.onSearchQueryChange("monet")
-
-    assertEquals(setOf(PICASSO.uid), viewModel.uiState.value.selectedArtists)
-  }
-
-  /** Verifies that a query typed while the artists are loading applies once they arrive. */
-  @Test
-  fun onSearchQueryChange_beforeArtistsLoad_filtersOnceLoaded() = runTest {
-    // Empty until the test fills it, which simulates a slow network.
-    val artists = CompletableDeferred<List<Artist>>()
-
-    // Fake repository whose popular artists only arrive once the test provides them.
-    val repository =
-        object : WikiDataRepository by ArtworkRepositoryLocal() {
-          override suspend fun getPopularArtists(): List<Artist> = artists.await()
-        }
-
-    // The user opens the screen: loading starts, then stays stuck waiting for the artists.
-    val slowLoadingViewModel =
-        ArtistPreferencesViewModel(repository, authRepository, userRepository)
-    advanceUntilIdle()
-
-    // The user types while the artists are still loading.
-    slowLoadingViewModel.onSearchQueryChange("mon")
-
-    // The network answers, and the ViewModel receives the artists.
-    artists.complete(ALL_ARTISTS)
-    advanceUntilIdle()
-
-    // The earlier query must apply to the artists that arrived after it.
-    assertEquals(listOf(MONET), slowLoadingViewModel.uiState.value.displayedArtists)
-  }
-
-  /** Verifies that an empty or blank query does not hide any artist. */
-  @Test
-  fun displayedArtists_blankQuery_returnsAllArtists() {
-    assertEquals(ALL_ARTISTS, displayedArtistsFor(""))
-    assertEquals(ALL_ARTISTS, displayedArtistsFor("   "))
-  }
-
-  /** Verifies that a query matching part of a name keeps only that artist. */
-  @Test
-  fun displayedArtists_partialQuery_keepsMatchingArtist() {
-    assertEquals(listOf(MONET), displayedArtistsFor("mon"))
-  }
-
-  /** Verifies that the case of the query does not affect the match. */
-  @Test
-  fun displayedArtists_ignoresCase() {
-    assertEquals(listOf(MONET), displayedArtistsFor("MONET"))
-  }
-
-  /** Verifies that spaces around the query do not prevent a match. */
-  @Test
-  fun displayedArtists_ignoresSurroundingSpaces() {
-    assertEquals(listOf(MONET), displayedArtistsFor("  monet "))
-  }
-
-  /** Verifies that several matching artists all stay, in their display order. */
-  @Test
-  fun displayedArtists_severalMatches_keepDisplayOrder() {
-    assertEquals(listOf(PICASSO, RENOIR), displayedArtistsFor("pi"))
-  }
-
-  /** Verifies that a query matching no name returns no artist. */
-  @Test
-  fun displayedArtists_noMatch_returnsNoArtist() {
-    assertTrue(displayedArtistsFor("xyz").isEmpty())
-  }
-
-  /** Verifies that saving replaces the stored artists and keeps the other fields of the profile. */
-  @Test
-  fun saveSelectedArtists_existingProfile_replacesArtistsOnly() = runTest {
-    val storedPreference =
-        UserPreference(
-            artists = listOf(KLIMT.uid),
-            type = listOf("painting"),
-            timePeriod = listOf("19th"),
-        )
-    userRepository.store(User(uid = UID, userName = "Artista Fan", preference = storedPreference))
-    signIn()
-    // Klimt is pre-selected from the stored profile; replacing him checks that the stored list is
-    // replaced, not appended to.
-    viewModel.toggleArtist(KLIMT.uid)
-    viewModel.toggleArtist(PICASSO.uid)
-
-    viewModel.saveSelectedArtists()
-    advanceUntilIdle()
-
-    assertEquals(
-        User(
-            uid = UID,
-            userName = "Artista Fan",
-            preference = storedPreference.copy(artists = listOf(PICASSO.uid)),
-        ),
-        userRepository.storedUser(UID),
-    )
-    assertEquals(setOf(PICASSO.uid), viewModel.uiState.value.savedArtists)
-    assertFalse(viewModel.uiState.value.isSaving)
-  }
-
-  /**
-   * Verifies that saving the preferences keeps the picture stored in the profile.
-   *
-   * @author timo-by
-   */
-  @Test
-  fun savePreferences_keepsTheStoredPicture() = runTest {
-    userRepository.store(userWithArtists(listOf(KLIMT.uid)).copy(photoUrl = TEST_PICTURE_URL))
-    signIn()
-    viewModel.toggleArtist(PICASSO.uid)
-
-    viewModel.saveSelectedArtists()
-    advanceUntilIdle()
-
-    assertEquals(TEST_PICTURE_URL, userRepository.storedUser(UID)?.photoUrl)
-  }
-
-  /** Verifies that saving creates the profile of a user who has none yet. */
-  @Test
-  fun saveSelectedArtists_noProfile_createsProfileWithArtists() = runTest {
-    signIn()
-    viewModel.toggleArtist(MONET.uid)
-
-    viewModel.saveSelectedArtists()
-    advanceUntilIdle()
-
-    assertEquals(
-        User(uid = UID, userName = null, preference = UserPreference(artists = listOf(MONET.uid))),
-        userRepository.storedUser(UID),
-    )
-    assertEquals(setOf(MONET.uid), viewModel.uiState.value.savedArtists)
-  }
-
-  /** Verifies that a failed write exposes an error and leaves the selection unsaved. */
-  @Test
-  fun saveSelectedArtists_writeFails_exposesErrorAndStays() = runTest {
-    userRepository.store(userWithArtists(listOf(KLIMT.uid)))
-    userRepository.writeFailure = AppException.Network()
-    signIn()
-    viewModel.toggleArtist(PICASSO.uid)
-
-    viewModel.saveSelectedArtists()
-    advanceUntilIdle()
-
-    val state = viewModel.uiState.value
-    assertEquals(R.string.error_network, state.messageResId)
-    assertFalse(state.isSaving)
-    // The saved selection is still the loaded one, so the new one stays unsaved.
-    assertEquals(setOf(KLIMT.uid), state.savedArtists)
-    // The selection is kept so the user can try again.
-    assertEquals(setOf(KLIMT.uid, PICASSO.uid), state.selectedArtists)
-    assertEquals(listOf(KLIMT.uid), userRepository.storedUser(UID)?.preference?.artists)
-  }
-
-  /**
-   * Verifies that a failed read, other than a missing profile, exposes an error and writes nothing,
-   * so a profile that could not be read is never overwritten.
-   */
-  @Test
-  fun saveSelectedArtists_readFails_exposesErrorAndDoesNotWrite() = runTest {
-    userRepository.readFailure = AppException.Network()
-    signIn()
-    viewModel.toggleArtist(PICASSO.uid)
-
-    viewModel.saveSelectedArtists()
-    advanceUntilIdle()
-
-    assertEquals(R.string.error_network, viewModel.uiState.value.messageResId)
-    assertEquals(0, userRepository.writeCount)
-    assertTrue(viewModel.uiState.value.savedArtists.isEmpty())
-  }
-
-  /**
-   * Verifies that nothing is written when nobody is signed in, and that the selection is still kept
-   * as the saved one in memory.
-   */
-  @Test
-  fun saveSelectedArtists_signedOut_savesInMemoryWithoutWriting() = runTest {
-    // No signIn(): the auth repository starts signed out.
-    advanceUntilIdle()
-    viewModel.toggleArtist(PICASSO.uid)
-
-    viewModel.saveSelectedArtists()
-    advanceUntilIdle()
-
-    assertEquals(0, userRepository.writeCount)
-    assertEquals(setOf(PICASSO.uid), viewModel.uiState.value.savedArtists)
-  }
-
-  /** Verifies that a second save requested while the first one runs is ignored. */
-  @Test
-  fun saveSelectedArtists_whileSaving_ignoresSecondCall() = runTest {
-    // The fake can only slow down reads; the read comes right before the write, so it keeps the
-    // save running just as a slow write would.
-    userRepository.readDelays[UID] = 1_000
-    signIn()
-    viewModel.toggleArtist(PICASSO.uid)
-
-    viewModel.saveSelectedArtists()
-    // runCurrent starts the save without letting time pass, so it is still waiting on the read.
-    runCurrent()
-    assertTrue(viewModel.uiState.value.isSaving)
-    viewModel.saveSelectedArtists()
-    advanceUntilIdle()
-
-    assertEquals(1, userRepository.writeCount)
-    assertFalse(viewModel.uiState.value.isSaving)
-  }
-
-  /**
-   * Verifies that the artists saved are the ones selected when Save was tapped, even if the user
-   * changes the selection while the save runs.
-   */
-  @Test
-  fun saveSelectedArtists_toggleWhileSaving_savesSelectionAtTapTime() = runTest {
-    // Slows the read before the write, so the save is still running when the user toggles.
-    userRepository.readDelays[UID] = 1_000
-    signIn()
-    viewModel.toggleArtist(PICASSO.uid)
-
-    viewModel.saveSelectedArtists()
-    // runCurrent starts the save without letting time pass, so it is still waiting on the read.
-    runCurrent()
-    viewModel.toggleArtist(MONET.uid)
-    advanceUntilIdle()
-
-    assertEquals(listOf(PICASSO.uid), userRepository.storedUser(UID)?.preference?.artists)
-    // The toggle is not lost: it stays on screen, ready for the next save.
-    assertEquals(setOf(PICASSO.uid, MONET.uid), viewModel.uiState.value.selectedArtists)
-  }
-
-  /** Verifies that Save is disabled when the screen opens, since nothing has changed yet. */
-  @Test
-  fun canSave_initially_isFalse() {
-    assertFalse(viewModel.uiState.value.canSave)
-  }
-
-  /** Verifies that selecting an artist enables Save. */
-  @Test
-  fun canSave_afterToggle_isTrue() = runTest {
-    // Save is disabled while the popular artists load, so the load must finish first.
-    advanceUntilIdle()
-    viewModel.toggleArtist(PICASSO.uid)
-
-    assertTrue(viewModel.uiState.value.canSave)
-  }
-
-  /** Verifies that undoing a change disables Save again, since the selection is the saved one. */
-  @Test
-  fun canSave_afterUndoingToggle_isFalse() = runTest {
-    // Otherwise Save would already be disabled by the running load, and the test would pass for
-    // nothing.
-    advanceUntilIdle()
-    viewModel.toggleArtist(PICASSO.uid)
-    viewModel.toggleArtist(PICASSO.uid)
-
-    assertFalse(viewModel.uiState.value.canSave)
-  }
-
-  /**
-   * Verifies that Save is disabled while the popular artists load, even with a changed selection.
-   */
-  @Test
-  fun canSave_whilePopularArtistsLoad_isFalse() {
-    val state =
-        ArtistPreferencesUiState(
-            selectedArtists = setOf(PICASSO.uid),
-            isLoadingPopularArtists = true,
-        )
-
-    assertFalse(state.canSave)
-  }
-
-  /** Verifies that Save is disabled while the saved artists load, even with a changed selection. */
-  @Test
-  fun canSave_whileSavedArtistsLoad_isFalse() {
-    val state =
-        ArtistPreferencesUiState(selectedArtists = setOf(PICASSO.uid), isLoadingSavedArtists = true)
-
-    assertFalse(state.canSave)
-  }
-
-  /** Verifies that a selection made during the popular-artists load can be saved once it ends. */
-  @Test
-  fun canSave_afterPopularArtistsLoad_isTrueAgain() = runTest {
-    val repository = ControllableWikiDataRepository().apply { pending = CompletableDeferred() }
-    val viewModel = ArtistPreferencesViewModel(repository, authRepository, userRepository)
-    advanceUntilIdle()
-    viewModel.toggleArtist(PICASSO.uid)
-    assertFalse(viewModel.uiState.value.canSave)
-
-    repository.pending?.complete(Unit)
-    advanceUntilIdle()
-
-    assertTrue(viewModel.uiState.value.canSave)
-  }
-
-  /** Verifies that a save requested while the popular artists load writes nothing. */
-  @Test
-  fun saveSelectedArtists_whilePopularArtistsLoad_doesNotWrite() = runTest {
-    val repository = ControllableWikiDataRepository().apply { pending = CompletableDeferred() }
-    val viewModel = ArtistPreferencesViewModel(repository, authRepository, userRepository)
-    signIn()
-    viewModel.toggleArtist(PICASSO.uid)
-
-    viewModel.saveSelectedArtists()
-    advanceUntilIdle()
-
-    assertEquals(0, userRepository.writeCount)
-    assertFalse(viewModel.uiState.value.isSaving)
-  }
-
-  /** Verifies that a successful save exposes the confirmation message and disables Save. */
-  @Test
-  fun saveSelectedArtists_success_exposesSavedMessage() = runTest {
-    signIn()
-    viewModel.toggleArtist(PICASSO.uid)
-
-    viewModel.saveSelectedArtists()
-    advanceUntilIdle()
-
-    assertEquals(R.string.artist_preferences_saved, viewModel.uiState.value.messageResId)
-    assertFalse(viewModel.uiState.value.canSave)
-  }
-
-  /** Verifies that saving without any change writes nothing. */
-  @Test
-  fun saveSelectedArtists_withoutChange_isIgnored() = runTest {
-    signIn()
-
-    viewModel.saveSelectedArtists()
-    advanceUntilIdle()
-
-    assertEquals(0, userRepository.writeCount)
-    assertNull(viewModel.uiState.value.messageResId)
-  }
-
-  /**
-   * Verifies that a toggle made during a save leaves Save enabled once the save ends, since the
-   * selection then differs from the one just saved.
-   */
-  @Test
-  fun saveSelectedArtists_toggleWhileSaving_canSaveAgain() = runTest {
-    // Slows the read before the write, so the save is still running when the user toggles.
-    userRepository.readDelays[UID] = 1_000
-    signIn()
-    viewModel.toggleArtist(PICASSO.uid)
-
-    viewModel.saveSelectedArtists()
-    // runCurrent starts the save without letting time pass, so it is still waiting on the read.
-    runCurrent()
-    viewModel.toggleArtist(MONET.uid)
-    advanceUntilIdle()
-
-    assertEquals(setOf(PICASSO.uid), viewModel.uiState.value.savedArtists)
-    assertTrue(viewModel.uiState.value.canSave)
-  }
-
-  /** Verifies that the artists are stored in the order the user selected them. */
-  @Test
-  fun saveSelectedArtists_keepsSelectionOrder() = runTest {
-    signIn()
-    viewModel.toggleArtist(MONET.uid)
-    viewModel.toggleArtist(PICASSO.uid)
-    viewModel.toggleArtist(KLIMT.uid)
-
-    viewModel.saveSelectedArtists()
-    advanceUntilIdle()
-
-    assertEquals(
-        listOf(MONET.uid, PICASSO.uid, KLIMT.uid),
-        userRepository.storedUser(UID)?.preference?.artists,
-    )
-  }
-
-  /** Verifies that the message is removed once the screen has shown it. */
-  @Test
-  fun clearMessage_resetsMessage() = runTest {
-    userRepository.writeFailure = AppException.Network()
-    signIn()
-    // Saving needs a change to save, otherwise the call is ignored.
-    viewModel.toggleArtist(PICASSO.uid)
-    viewModel.saveSelectedArtists()
-    advanceUntilIdle()
-    assertEquals(R.string.error_network, viewModel.uiState.value.messageResId)
-
-    viewModel.clearMessage()
-
-    assertNull(viewModel.uiState.value.messageResId)
-  }
-
-  /** Verifies that the stored artists are pre-selected and count as saved, so Save is disabled. */
-  @Test
-  fun signIn_savedArtists_preselectsThem() = runTest {
-    userRepository.store(userWithArtists(listOf(MONET.uid, KLIMT.uid)))
-
-    signIn()
-
-    val state = viewModel.uiState.value
-    assertEquals(setOf(MONET.uid, KLIMT.uid), state.selectedArtists)
-    assertEquals(setOf(MONET.uid, KLIMT.uid), state.savedArtists)
-    assertFalse(state.canSave)
-  }
-
-  /** Verifies that a user without a profile starts with an empty selection and no error. */
-  @Test
-  fun signIn_noProfile_startsWithEmptySelection() = runTest {
-    signIn()
-
-    val state = viewModel.uiState.value
-    assertTrue(state.selectedArtists.isEmpty())
-    assertTrue(state.savedArtists.isEmpty())
-    assertNull(state.messageResId)
-  }
-
-  /** Verifies that a profile without saved artists gives an empty selection. */
-  @Test
-  fun signIn_profileWithoutArtists_startsWithEmptySelection() = runTest {
-    userRepository.store(userWithArtists(emptyList()))
-
-    signIn()
-
-    assertTrue(viewModel.uiState.value.selectedArtists.isEmpty())
-    assertNull(viewModel.uiState.value.messageResId)
-  }
-
-  /** Verifies that a failed load of the saved artists is reported, with the matching message. */
-  @Test
-  fun signIn_loadFails_reportsFailureWithMessage() = runTest {
-    userRepository.readFailure = AppException.Network()
-
-    signIn()
-
-    val state = viewModel.uiState.value
-    assertTrue(state.hasSavedArtistsLoadFailed)
-    assertFalse(state.isLoadingSavedArtists)
-    assertEquals(R.string.error_network, state.messageResId)
-    assertTrue(state.selectedArtists.isEmpty())
-  }
-
-  /**
-   * Verifies that, after a failed load of the saved artists, the selection cannot be edited or
-   * saved, even once the backend answers again, so artists that could not be read are never
-   * replaced.
-   */
-  @Test
-  fun signIn_loadFails_locksSelectionAndSave() = runTest {
-    userRepository.store(userWithArtists(listOf(KLIMT.uid)))
-    userRepository.readFailure = AppException.Network()
-    signIn()
-    // The backend is reachable again, but the user has not retried yet.
-    userRepository.readFailure = null
-
-    viewModel.toggleArtist(PICASSO.uid)
-    viewModel.saveSelectedArtists()
-    advanceUntilIdle()
-
-    assertTrue(viewModel.uiState.value.selectedArtists.isEmpty())
-    assertFalse(viewModel.uiState.value.canSave)
-    assertFalse(viewModel.uiState.value.canSearch)
-    assertEquals(0, userRepository.writeCount)
-    assertEquals(listOf(KLIMT.uid), userRepository.storedUser(UID)?.preference?.artists)
-  }
-
-  /** Verifies that a successful retry pre-selects the saved artists and unlocks the selection. */
-  @Test
-  fun retryFailedLoads_afterSavedArtistsLoadFails_preselectsThem() = runTest {
-    userRepository.store(userWithArtists(listOf(KLIMT.uid)))
-    userRepository.readFailure = AppException.Network()
-    signIn()
-
-    userRepository.readFailure = null
-    viewModel.retryFailedLoads()
-    advanceUntilIdle()
-
-    val state = viewModel.uiState.value
-    assertEquals(setOf(KLIMT.uid), state.selectedArtists)
-    assertFalse(state.hasSavedArtistsLoadFailed)
-    assertTrue(state.canSearch)
-    viewModel.toggleArtist(PICASSO.uid)
-    assertTrue(viewModel.uiState.value.canSave)
-  }
-
-  /** Verifies that a retry shows the loading state as soon as it is called. */
-  @Test
-  fun retryFailedLoads_afterSavedArtistsLoadFails_showsLoadingWhileRetrying() = runTest {
-    userRepository.readFailure = AppException.Network()
-    signIn()
-
-    userRepository.readFailure = null
-    userRepository.readDelays[UID] = 1_000
-    viewModel.retryFailedLoads()
-
-    // Checked before the read ends: the state changes as soon as the user taps.
-    assertTrue(viewModel.uiState.value.isLoadingSavedArtists)
-    assertFalse(viewModel.uiState.value.hasSavedArtistsLoadFailed)
-  }
-
-  /** Verifies that a retry of the saved artists that fails again reports the failure again. */
-  @Test
-  fun retryFailedLoads_savedArtistsFailAgain_reportsFailureAgain() = runTest {
+  fun retryLoad_failsAgain_reportsFailureAgain() = runTest {
     userRepository.readFailure = AppException.Network()
     signIn()
     viewModel.clearMessage()
 
-    viewModel.retryFailedLoads()
+    viewModel.retryLoad()
     advanceUntilIdle()
 
-    assertTrue(viewModel.uiState.value.hasSavedArtistsLoadFailed)
+    assertTrue(viewModel.uiState.value.hasLoadFailed)
     assertEquals(R.string.error_network, viewModel.uiState.value.messageResId)
+    assertEquals(2, userRepository.readCount)
   }
 
-  /** Verifies that, when both loads failed, one retry reruns both of them. */
+  /** Verifies that a second tap on Try again, while the retry runs, starts no second load. */
   @Test
-  fun retryFailedLoads_bothLoadsFailed_retriesBoth() = runTest {
-    val repository = ControllableWikiDataRepository().apply { failure = AppException.Network() }
-    val viewModel = ArtistPreferencesViewModel(repository, authRepository, userRepository)
-    userRepository.store(userWithArtists(listOf(KLIMT.uid)))
+  fun retryLoad_doubleTap_loadsOnce() = runTest {
     userRepository.readFailure = AppException.Network()
     signIn()
-    assertTrue(viewModel.uiState.value.hasPopularArtistsLoadFailed)
-    assertTrue(viewModel.uiState.value.hasSavedArtistsLoadFailed)
 
-    repository.failure = null
-    userRepository.readFailure = null
-    viewModel.retryFailedLoads()
+    viewModel.retryLoad()
+    viewModel.retryLoad()
     advanceUntilIdle()
 
-    val state = viewModel.uiState.value
-    assertEquals(ALL_ARTISTS, state.popularArtists)
-    assertEquals(setOf(KLIMT.uid), state.selectedArtists)
-    assertFalse(state.hasLoadFailed)
+    assertEquals(2, userRepository.readCount)
   }
 
-  /** Verifies that a retry only reruns the loads that failed. */
+  /** Verifies that retrying when the last load succeeded starts no new load. */
   @Test
-  fun retryFailedLoads_onlyPopularArtistsFailed_keepsSavedArtistsLoaded() = runTest {
-    val repository = ControllableWikiDataRepository().apply { failure = AppException.Network() }
-    val viewModel = ArtistPreferencesViewModel(repository, authRepository, userRepository)
+  fun retryLoad_withoutFailure_isIgnored() = runTest {
     userRepository.store(userWithArtists(listOf(KLIMT.uid)))
     signIn()
-    // A slow read would keep the saved artists loading if the retry reloaded them.
-    userRepository.readDelays[UID] = 1_000
 
-    repository.failure = null
-    viewModel.retryFailedLoads()
-    runCurrent()
-
-    assertFalse(viewModel.uiState.value.isLoadingSavedArtists)
-    assertEquals(setOf(KLIMT.uid), viewModel.uiState.value.selectedArtists)
-  }
-
-  /** Verifies that signing out clears the failure of the user who left. */
-  @Test
-  fun signOut_afterSavedArtistsLoadFails_clearsFailure() = runTest {
-    userRepository.readFailure = AppException.Network()
-    signIn()
-
-    authRepository.setAuthState(null)
+    viewModel.retryLoad()
     advanceUntilIdle()
 
-    assertFalse(viewModel.uiState.value.hasSavedArtistsLoadFailed)
-    assertTrue(viewModel.uiState.value.canSearch)
+    assertEquals(1, userRepository.readCount)
   }
 
-  /** Verifies that another user signing in clears the failure and loads their artists. */
+  /** Verifies that retrying while nobody is signed in reads nothing. */
   @Test
-  fun signIn_otherUser_afterSavedArtistsLoadFails_clearsFailure() = runTest {
-    userRepository.store(userWithArtists(listOf(MONET.uid), uid = OTHER_UID))
-    userRepository.readFailure = AppException.Network()
-    signIn()
-
-    userRepository.readFailure = null
-    authRepository.setAuthState(FakeAuthUser(OTHER_UID))
+  fun retryLoad_signedOut_isIgnored() = runTest {
     advanceUntilIdle()
 
-    assertFalse(viewModel.uiState.value.hasSavedArtistsLoadFailed)
-    assertEquals(setOf(MONET.uid), viewModel.uiState.value.selectedArtists)
-  }
-
-  /** Verifies that the search field is disabled while the saved artists load. */
-  @Test
-  fun canSearch_whileSavedArtistsLoad_isFalse() {
-    assertFalse(ArtistPreferencesUiState(isLoadingSavedArtists = true).canSearch)
-  }
-
-  /** Verifies that the search field is disabled after the saved artists failed to load. */
-  @Test
-  fun canSearch_afterSavedArtistsLoadFails_isFalse() {
-    assertFalse(ArtistPreferencesUiState(hasSavedArtistsLoadFailed = true).canSearch)
-  }
-
-  /** Verifies that Save is disabled after any load failed, even with a changed selection. */
-  @Test
-  fun canSave_afterALoadFails_isFalse() {
-    val selection = setOf(PICASSO.uid)
-
-    assertFalse(
-        ArtistPreferencesUiState(selectedArtists = selection, hasPopularArtistsLoadFailed = true)
-            .canSave
-    )
-    assertFalse(
-        ArtistPreferencesUiState(selectedArtists = selection, hasSavedArtistsLoadFailed = true)
-            .canSave
-    )
-  }
-
-  /** Verifies that the screen counts as loading while either load runs. */
-  @Test
-  fun isLoading_whileEitherLoadRuns_isTrue() {
-    assertTrue(
-        ArtistPreferencesUiState(isLoadingPopularArtists = true, isLoadingSavedArtists = false)
-            .isLoading
-    )
-    assertTrue(
-        ArtistPreferencesUiState(isLoadingPopularArtists = false, isLoadingSavedArtists = true)
-            .isLoading
-    )
-    assertTrue(
-        ArtistPreferencesUiState(isLoadingPopularArtists = true, isLoadingSavedArtists = true)
-            .isLoading
-    )
-    assertFalse(
-        ArtistPreferencesUiState(isLoadingPopularArtists = false, isLoadingSavedArtists = false)
-            .isLoading
-    )
-  }
-
-  /** Verifies that the screen counts as failed when either load failed. */
-  @Test
-  fun hasLoadFailed_whenEitherLoadFailed_isTrue() {
-    assertTrue(
-        ArtistPreferencesUiState(
-                hasPopularArtistsLoadFailed = true,
-                hasSavedArtistsLoadFailed = false,
-            )
-            .hasLoadFailed
-    )
-    assertTrue(
-        ArtistPreferencesUiState(
-                hasPopularArtistsLoadFailed = false,
-                hasSavedArtistsLoadFailed = true,
-            )
-            .hasLoadFailed
-    )
-    assertTrue(
-        ArtistPreferencesUiState(
-                hasPopularArtistsLoadFailed = true,
-                hasSavedArtistsLoadFailed = true,
-            )
-            .hasLoadFailed
-    )
-    assertFalse(
-        ArtistPreferencesUiState(
-                hasPopularArtistsLoadFailed = false,
-                hasSavedArtistsLoadFailed = false,
-            )
-            .hasLoadFailed
-    )
-  }
-
-  /** Verifies that a saved artist missing from the popular artists is still selected. */
-  @Test
-  fun signIn_nonPopularSavedArtist_staysSelected() = runTest {
-    userRepository.store(userWithArtists(listOf(NON_POPULAR_ARTIST_ID)))
-
-    signIn()
-
-    assertEquals(setOf(NON_POPULAR_ARTIST_ID), viewModel.uiState.value.selectedArtists)
-  }
-
-  /**
-   * Verifies that saving after reopening the screen keeps the earlier choices the user did not
-   * change, in their order, including those that are not popular artists.
-   */
-  @Test
-  fun save_afterReopening_keepsUnchangedEarlierChoices() = runTest {
-    userRepository.store(userWithArtists(listOf(KLIMT.uid, NON_POPULAR_ARTIST_ID)))
-    signIn()
-
-    viewModel.toggleArtist(PICASSO.uid)
-    viewModel.saveSelectedArtists()
+    viewModel.retryLoad()
     advanceUntilIdle()
 
-    assertEquals(
-        listOf(KLIMT.uid, NON_POPULAR_ARTIST_ID, PICASSO.uid),
-        userRepository.storedUser(UID)?.preference?.artists,
-    )
+    assertEquals(0, userRepository.readCount)
   }
 
-  /** Verifies that another user signing in replaces the previous user's selection with theirs. */
+  // ---- Sign-in and sign-out ----
+
+  /** Verifies that another user signing in replaces the artists of the previous one. */
   @Test
-  fun signIn_otherUser_replacesPreviousUsersSelection() = runTest {
+  fun signIn_otherUser_replacesPreviousUsersArtists() = runTest {
     userRepository.store(userWithArtists(listOf(KLIMT.uid)))
     userRepository.store(userWithArtists(listOf(MONET.uid), uid = OTHER_UID))
     signIn()
@@ -993,13 +350,12 @@ class ArtistPreferencesViewModelTest {
     authRepository.setAuthState(FakeAuthUser(OTHER_UID))
     advanceUntilIdle()
 
-    assertEquals(setOf(MONET.uid), viewModel.uiState.value.selectedArtists)
-    assertEquals(setOf(MONET.uid), viewModel.uiState.value.savedArtists)
+    assertEquals(listOf(MONET.uid), viewModel.uiState.value.savedArtists.map { it.uid })
   }
 
   /**
    * Verifies that a slow load of the previous user, ending after another user signed in, does not
-   * replace the new user's selection.
+   * replace the new user's artists.
    */
   @Test
   fun signIn_slowLoadOfPreviousUser_doesNotOverwriteNewUser() = runTest {
@@ -1013,54 +369,20 @@ class ArtistPreferencesViewModelTest {
     authRepository.setAuthState(FakeAuthUser(OTHER_UID))
     advanceUntilIdle()
 
-    assertEquals(setOf(MONET.uid), viewModel.uiState.value.selectedArtists)
+    assertEquals(listOf(MONET.uid), viewModel.uiState.value.savedArtists.map { it.uid })
   }
 
-  /** Verifies that signing out clears the selection of the user who left. */
+  /** Verifies that signing out clears the artists of the user who left. */
   @Test
-  fun signOut_clearsSelection() = runTest {
+  fun signOut_clearsArtists() = runTest {
     userRepository.store(userWithArtists(listOf(KLIMT.uid)))
     signIn()
 
     authRepository.setAuthState(null)
     advanceUntilIdle()
 
-    assertTrue(viewModel.uiState.value.selectedArtists.isEmpty())
     assertTrue(viewModel.uiState.value.savedArtists.isEmpty())
-  }
-
-  /** Verifies that the loading flag is set while the stored artists load, and reset after. */
-  @Test
-  fun signIn_whileLoading_isLoadingSavedArtists() = runTest {
-    userRepository.store(userWithArtists(listOf(KLIMT.uid)))
-    userRepository.readDelays[UID] = 1_000
-    authRepository.setAuthState(FakeAuthUser(UID))
-    // runCurrent starts the load without letting time pass, so it is still waiting on the read.
-    runCurrent()
-
-    assertTrue(viewModel.uiState.value.isLoadingSavedArtists)
-
-    advanceUntilIdle()
-
-    assertFalse(viewModel.uiState.value.isLoadingSavedArtists)
-  }
-
-  /**
-   * Verifies that a tap made while the stored artists load is ignored, and that the loaded artists
-   * are selected once the load ends.
-   */
-  @Test
-  fun toggleArtist_whileLoading_isIgnored() = runTest {
-    userRepository.store(userWithArtists(listOf(KLIMT.uid)))
-    userRepository.readDelays[UID] = 1_000
-    authRepository.setAuthState(FakeAuthUser(UID))
-    runCurrent()
-
-    viewModel.toggleArtist(PICASSO.uid)
-
-    assertTrue(viewModel.uiState.value.selectedArtists.isEmpty())
-    advanceUntilIdle()
-    assertEquals(setOf(KLIMT.uid), viewModel.uiState.value.selectedArtists)
+    assertTrue(viewModel.uiState.value.isEmpty)
   }
 
   /** Verifies that signing out during a load resets the flag, so the screen is not stuck. */
@@ -1073,7 +395,447 @@ class ArtistPreferencesViewModelTest {
     authRepository.setAuthState(null)
     advanceUntilIdle()
 
-    assertFalse(viewModel.uiState.value.isLoadingSavedArtists)
+    assertFalse(viewModel.uiState.value.isLoading)
+  }
+
+  /** Verifies that the failure of the user who left is not shown after they sign out. */
+  @Test
+  fun signOut_afterLoadFails_clearsFailure() = runTest {
+    userRepository.readFailure = AppException.Network()
+    signIn()
+
+    authRepository.setAuthState(null)
+    advanceUntilIdle()
+
+    assertFalse(viewModel.uiState.value.hasLoadFailed)
+  }
+
+  /** Verifies that the failure of the previous user is not shown to the next one. */
+  @Test
+  fun signIn_otherUser_afterLoadFails_clearsFailure() = runTest {
+    userRepository.readFailure = AppException.Network()
+    signIn()
+
+    userRepository.readFailure = null
+    userRepository.store(userWithArtists(listOf(MONET.uid), uid = OTHER_UID))
+    authRepository.setAuthState(FakeAuthUser(OTHER_UID))
+    advanceUntilIdle()
+
+    assertFalse(viewModel.uiState.value.hasLoadFailed)
+    assertEquals(listOf(MONET.uid), viewModel.uiState.value.savedArtists.map { it.uid })
+  }
+
+  // ---- Removing an artist ----
+
+  /**
+   * Verifies that removing an artist drops it from the screen and from the stored profile, keeping
+   * the other artists in order and the other fields of the profile.
+   */
+  @Test
+  fun removeArtist_removesFromScreenAndProfile() = runTest {
+    val storedPreference =
+        UserPreference(
+            artists = listOf(KLIMT.uid, PICASSO.uid, MONET.uid),
+            type = listOf("painting"),
+            timePeriod = listOf("19th"),
+        )
+    val storedUser =
+        User(
+            uid = UID,
+            userName = "Artista Fan",
+            preference = storedPreference,
+            photoUrl = TEST_PICTURE_URL,
+        )
+    userRepository.store(storedUser)
+    signIn()
+
+    viewModel.removeArtist(PICASSO.uid)
+    advanceUntilIdle()
+
+    assertEquals(
+        storedUser.copy(preference = storedPreference.copy(artists = listOf(KLIMT.uid, MONET.uid))),
+        userRepository.storedUser(UID),
+    )
+    val state = viewModel.uiState.value
+    assertEquals(listOf(KLIMT.uid, MONET.uid), state.savedArtists.map { it.uid })
+    assertTrue(state.removingArtists.isEmpty())
+    assertNull(state.messageResId)
+  }
+
+  /** Verifies that the card is hidden at once, before the write has finished. */
+  @Test
+  fun removeArtist_hidesCardBeforeWriteEnds() = runTest {
+    userRepository.store(userWithArtists(listOf(KLIMT.uid, MONET.uid)))
+    signIn()
+    userRepository.writeDelays[UID] = 1_000
+
+    viewModel.removeArtist(KLIMT.uid)
+
+    val state = viewModel.uiState.value
+    assertEquals(setOf(KLIMT.uid), state.removingArtists)
+    assertEquals(listOf(MONET.uid), state.displayedArtists.map { it.uid })
+    // Kept until the write succeeds, so a failure can put the card back in place.
+    assertEquals(listOf(KLIMT.uid, MONET.uid), state.savedArtists.map { it.uid })
+  }
+
+  /**
+   * Verifies that a failed write brings the card back at its place, shows an error and leaves the
+   * profile unchanged.
+   */
+  @Test
+  fun removeArtist_writeFails_bringsCardBackWithMessage() = runTest {
+    userRepository.store(userWithArtists(listOf(KLIMT.uid, PICASSO.uid, MONET.uid)))
+    signIn()
+    userRepository.writeFailure = AppException.Network()
+
+    viewModel.removeArtist(PICASSO.uid)
+    advanceUntilIdle()
+
+    val state = viewModel.uiState.value
+    assertEquals(listOf(KLIMT.uid, PICASSO.uid, MONET.uid), state.displayedArtists.map { it.uid })
+    assertTrue(state.removingArtists.isEmpty())
+    assertEquals(R.string.error_network, state.messageResId)
+    assertEquals(
+        listOf(KLIMT.uid, PICASSO.uid, MONET.uid),
+        userRepository.storedUser(UID)?.preference?.artists,
+    )
+  }
+
+  /**
+   * Verifies that failing to read the profile before writing brings the card back and writes
+   * nothing, so a profile that could not be read is never overwritten.
+   */
+  @Test
+  fun removeArtist_readFails_bringsCardBackAndDoesNotWrite() = runTest {
+    userRepository.store(userWithArtists(listOf(KLIMT.uid)))
+    signIn()
+    userRepository.readFailure = AppException.Network()
+
+    viewModel.removeArtist(KLIMT.uid)
+    advanceUntilIdle()
+
+    assertEquals(listOf(KLIMT.uid), viewModel.uiState.value.displayedArtists.map { it.uid })
+    assertEquals(R.string.error_network, viewModel.uiState.value.messageResId)
+    assertEquals(0, userRepository.writeCount)
+  }
+
+  /** Verifies that a second tap on a card being removed starts no second write. */
+  @Test
+  fun removeArtist_twiceWhileRemoving_writesOnce() = runTest {
+    userRepository.store(userWithArtists(listOf(KLIMT.uid, MONET.uid)))
+    signIn()
+    userRepository.writeDelays[UID] = 1_000
+
+    viewModel.removeArtist(KLIMT.uid)
+    runCurrent()
+    viewModel.removeArtist(KLIMT.uid)
+    advanceUntilIdle()
+
+    assertEquals(1, userRepository.writeCount)
+    assertEquals(listOf(MONET.uid), userRepository.storedUser(UID)?.preference?.artists)
+  }
+
+  /**
+   * Verifies that two removals made in a row are both stored: the second one reads the profile only
+   * once the first one has written it, so it does not bring the first artist back.
+   */
+  @Test
+  fun removeArtist_twoArtistsQuickly_removesBothFromProfile() = runTest {
+    userRepository.store(userWithArtists(listOf(KLIMT.uid, PICASSO.uid, MONET.uid)))
+    signIn()
+    // Without the delay the first removal would end before the second starts.
+    userRepository.writeDelays[UID] = 1_000
+
+    viewModel.removeArtist(KLIMT.uid)
+    viewModel.removeArtist(MONET.uid)
+    advanceUntilIdle()
+
+    assertEquals(listOf(PICASSO.uid), userRepository.storedUser(UID)?.preference?.artists)
+    assertEquals(listOf(PICASSO.uid), viewModel.uiState.value.savedArtists.map { it.uid })
+  }
+
+  /** Verifies that every stored copy of a duplicated artist is removed. */
+  @Test
+  fun removeArtist_duplicatedInProfile_removesEveryCopy() = runTest {
+    userRepository.store(userWithArtists(listOf(KLIMT.uid, MONET.uid, KLIMT.uid)))
+    signIn()
+
+    viewModel.removeArtist(KLIMT.uid)
+    advanceUntilIdle()
+
+    assertEquals(listOf(MONET.uid), userRepository.storedUser(UID)?.preference?.artists)
+  }
+
+  /** Verifies that removing the last artist shows the empty state. */
+  @Test
+  fun removeArtist_lastArtist_isEmpty() = runTest {
+    userRepository.store(userWithArtists(listOf(KLIMT.uid)))
+    signIn()
+    userRepository.writeDelays[UID] = 1_000
+
+    viewModel.removeArtist(KLIMT.uid)
+
+    // Shown as soon as the card is tapped, not only once the write ends.
+    assertTrue(viewModel.uiState.value.isEmpty)
+    advanceUntilIdle()
+    assertTrue(viewModel.uiState.value.isEmpty)
+    assertEquals(emptyList<ArtistId>(), userRepository.storedUser(UID)?.preference?.artists)
+  }
+
+  /** Verifies that a placeholder card, for an artist the catalog does not know, can be removed. */
+  @Test
+  fun removeArtist_placeholder_removesIt() = runTest {
+    userRepository.store(userWithArtists(listOf(UNKNOWN_ARTIST_ID, KLIMT.uid)))
+    signIn()
+
+    viewModel.removeArtist(UNKNOWN_ARTIST_ID)
+    advanceUntilIdle()
+
+    assertEquals(listOf(KLIMT.uid), userRepository.storedUser(UID)?.preference?.artists)
+  }
+
+  /** Verifies that removing an artist that is not shown writes nothing. */
+  @Test
+  fun removeArtist_artistNotShown_isIgnored() = runTest {
+    userRepository.store(userWithArtists(listOf(KLIMT.uid)))
+    signIn()
+
+    viewModel.removeArtist(MONET.uid)
+    advanceUntilIdle()
+
+    assertEquals(0, userRepository.writeCount)
+    assertTrue(viewModel.uiState.value.removingArtists.isEmpty())
+  }
+
+  /** Verifies that a tap made while the saved artists load is ignored. */
+  @Test
+  fun removeArtist_whileLoading_isIgnored() = runTest {
+    userRepository.store(userWithArtists(listOf(KLIMT.uid)))
+    // The first load ends, then a second user's slow load is running when the user taps a card
+    // of the first one.
+    signIn()
+    userRepository.store(userWithArtists(listOf(KLIMT.uid), uid = OTHER_UID))
+    userRepository.readDelays[OTHER_UID] = 1_000
+    authRepository.setAuthState(FakeAuthUser(OTHER_UID))
+    runCurrent()
+
+    viewModel.removeArtist(KLIMT.uid)
+    advanceUntilIdle()
+
+    assertEquals(0, userRepository.writeCount)
+    assertEquals(listOf(KLIMT.uid), viewModel.uiState.value.savedArtists.map { it.uid })
+  }
+
+  /**
+   * Verifies that when the artist is no longer in the stored profile, for example removed from
+   * another device, the card is removed without writing.
+   */
+  @Test
+  fun removeArtist_alreadyRemovedFromProfile_removesCardWithoutWriting() = runTest {
+    userRepository.store(userWithArtists(listOf(KLIMT.uid, MONET.uid)))
+    signIn()
+    userRepository.store(userWithArtists(listOf(MONET.uid)))
+
+    viewModel.removeArtist(KLIMT.uid)
+    advanceUntilIdle()
+
+    assertEquals(0, userRepository.writeCount)
+    assertEquals(listOf(MONET.uid), viewModel.uiState.value.savedArtists.map { it.uid })
+  }
+
+  /** Verifies that when the profile was deleted meanwhile, the card is removed without writing. */
+  @Test
+  fun removeArtist_profileDeleted_removesCardWithoutWriting() = runTest {
+    userRepository.store(userWithArtists(listOf(KLIMT.uid)))
+    signIn()
+    userRepository.deleteUser(UID)
+
+    viewModel.removeArtist(KLIMT.uid)
+    advanceUntilIdle()
+
+    assertEquals(0, userRepository.writeCount)
+    assertTrue(viewModel.uiState.value.savedArtists.isEmpty())
+    assertNull(viewModel.uiState.value.messageResId)
+  }
+
+  /**
+   * Verifies that a removal ending after another user signed in still updates the profile it was
+   * made for, and leaves the new user's artists untouched.
+   */
+  @Test
+  fun removeArtist_otherUserSignsInDuringWrite_keepsNewUsersArtists() = runTest {
+    userRepository.store(userWithArtists(listOf(KLIMT.uid, MONET.uid)))
+    userRepository.store(userWithArtists(listOf(KLIMT.uid), uid = OTHER_UID))
+    signIn()
+    userRepository.writeDelays[UID] = 1_000
+
+    viewModel.removeArtist(KLIMT.uid)
+    runCurrent()
+    authRepository.setAuthState(FakeAuthUser(OTHER_UID))
+    advanceUntilIdle()
+
+    assertEquals(listOf(MONET.uid), userRepository.storedUser(UID)?.preference?.artists)
+    assertEquals(listOf(KLIMT.uid), viewModel.uiState.value.savedArtists.map { it.uid })
+  }
+
+  /** Verifies that a removal failing after the user signed out shows no message to anyone. */
+  @Test
+  fun removeArtist_failsAfterSignOut_showsNoMessage() = runTest {
+    userRepository.store(userWithArtists(listOf(KLIMT.uid)))
+    signIn()
+    userRepository.writeDelays[UID] = 1_000
+    userRepository.writeFailure = AppException.Network()
+
+    viewModel.removeArtist(KLIMT.uid)
+    runCurrent()
+    authRepository.setAuthState(null)
+    advanceUntilIdle()
+
+    assertNull(viewModel.uiState.value.messageResId)
+    assertTrue(viewModel.uiState.value.savedArtists.isEmpty())
+  }
+
+  // ---- Search ----
+
+  /** Verifies that the query is stored exactly as typed, spaces included. */
+  @Test
+  fun onSearchQueryChange_storesTextAsTyped() {
+    viewModel.onSearchQueryChange("  Mon ")
+
+    assertEquals("  Mon ", viewModel.uiState.value.searchQuery)
+  }
+
+  /** Verifies that a query typed before the artists load filters them once they are loaded. */
+  @Test
+  fun onSearchQueryChange_beforeArtistsLoad_filtersOnceLoaded() = runTest {
+    userRepository.store(userWithArtists(listOf(KLIMT.uid, MONET.uid)))
+    userRepository.readDelays[UID] = 1_000
+    authRepository.setAuthState(FakeAuthUser(UID))
+    runCurrent()
+
+    viewModel.onSearchQueryChange("monet")
+    advanceUntilIdle()
+
+    assertEquals(listOf(MONET.uid), viewModel.uiState.value.displayedArtists.map { it.uid })
+  }
+
+  /** Verifies that a blank query shows every saved artist. */
+  @Test
+  fun displayedArtists_blankQuery_returnsAllArtists() {
+    assertEquals(ALL_ARTISTS, displayedArtistsFor("   "))
+  }
+
+  /** Verifies that a partial name keeps the matching artist. */
+  @Test
+  fun displayedArtists_partialQuery_keepsMatchingArtist() {
+    assertEquals(listOf(PICASSO), displayedArtistsFor("Pica"))
+  }
+
+  /** Verifies that the search ignores case. */
+  @Test
+  fun displayedArtists_ignoresCase() {
+    assertEquals(listOf(MONET), displayedArtistsFor("cLaUdE"))
+  }
+
+  /** Verifies that spaces around the query are ignored. */
+  @Test
+  fun displayedArtists_ignoresSurroundingSpaces() {
+    assertEquals(listOf(KLIMT), displayedArtistsFor("  Klimt  "))
+  }
+
+  /** Verifies that several matches keep the saved order. */
+  @Test
+  fun displayedArtists_severalMatches_keepSavedOrder() {
+    // "Pablo Picasso" and "Pierre-Auguste Renoir" both contain "pi".
+    assertEquals(listOf(PICASSO, RENOIR), displayedArtistsFor("pi"))
+  }
+
+  /** Verifies that a query matching no name shows no artist. */
+  @Test
+  fun displayedArtists_noMatch_returnsNoArtist() {
+    assertTrue(displayedArtistsFor("xyz").isEmpty())
+  }
+
+  /** Verifies that an artist being removed is hidden, even when it matches the query. */
+  @Test
+  fun displayedArtists_excludesArtistsBeingRemoved() {
+    val state =
+        ArtistPreferencesUiState(savedArtists = ALL_ARTISTS, removingArtists = setOf(MONET.uid))
+
+    assertEquals(ALL_ARTISTS - MONET, state.displayedArtists)
+  }
+
+  // ---- Derived flags ----
+
+  /** Verifies that the empty state is not shown while some artist is still displayed. */
+  @Test
+  fun isEmpty_withArtistNotBeingRemoved_isFalse() {
+    val state =
+        ArtistPreferencesUiState(
+            savedArtists = listOf(KLIMT, MONET),
+            removingArtists = setOf(KLIMT.uid),
+        )
+
+    assertFalse(state.isEmpty)
+  }
+
+  /** Verifies that the empty state ignores the search: no match is not the same as no artist. */
+  @Test
+  fun isEmpty_searchWithoutMatch_isFalse() {
+    val state = ArtistPreferencesUiState(savedArtists = listOf(KLIMT), searchQuery = "xyz")
+
+    assertFalse(state.isEmpty)
+  }
+
+  /** Verifies that the empty state is not shown after a failed load, which has its own state. */
+  @Test
+  fun isEmpty_afterLoadFails_isFalse() {
+    assertFalse(ArtistPreferencesUiState(hasLoadFailed = true).isEmpty)
+  }
+
+  /** Verifies that the search can be used once the artists are loaded. */
+  @Test
+  fun canSearch_afterLoad_isTrue() {
+    assertTrue(ArtistPreferencesUiState(savedArtists = listOf(KLIMT)).canSearch)
+  }
+
+  /** Verifies that the search cannot be used after a failed load. */
+  @Test
+  fun canSearch_afterLoadFails_isFalse() {
+    assertFalse(ArtistPreferencesUiState(hasLoadFailed = true).canSearch)
+  }
+
+  /** Verifies that the search cannot be used while the artists load. */
+  @Test
+  fun canSearch_whileLoading_isFalse() {
+    assertFalse(ArtistPreferencesUiState(isLoading = true).canSearch)
+  }
+
+  /** Verifies that clearing the message resets it. */
+  @Test
+  fun clearMessage_resetsMessage() = runTest {
+    userRepository.store(userWithArtists(listOf(KLIMT.uid)))
+    signIn()
+    userRepository.writeFailure = AppException.Network()
+    viewModel.removeArtist(KLIMT.uid)
+    advanceUntilIdle()
+    assertNotNull(viewModel.uiState.value.messageResId)
+
+    viewModel.clearMessage()
+
+    assertNull(viewModel.uiState.value.messageResId)
+  }
+
+  // ---- Factory ----
+
+  // Only meant for coverage: the factory is boilerplate with no behavior of its own.
+  /** Verifies that the factory creates the ViewModel it is meant for. */
+  @Test
+  fun provideFactory_createsArtistPreferencesViewModel() {
+    val factory =
+        ArtistPreferencesViewModel.provideFactory(artworkRepository, authRepository, userRepository)
+
+    assertNotNull(factory.create(ArtistPreferencesViewModel::class.java))
   }
 
   /**
@@ -1103,37 +865,39 @@ class ArtistPreferencesViewModelTest {
    * @return the artists matching the query.
    */
   private fun displayedArtistsFor(query: String): List<Artist> =
-      ArtistPreferencesUiState(popularArtists = ALL_ARTISTS, searchQuery = query).displayedArtists
+      ArtistPreferencesUiState(savedArtists = ALL_ARTISTS, searchQuery = query).displayedArtists
 
   /**
-   * Catalog whose popular-artists load the test controls: it can be held until [pending] completes,
-   * and it fails with [failure] when one is set. Every other method is forwarded to an empty
-   * [ArtworkRepositoryLocal].
+   * Catalog whose artist lookups the test controls: they can be held until [pending] completes, and
+   * a lookup fails with the exception set for its artist in [failures]. Otherwise the artist comes
+   * from the mock artists of [ArtworkRepositoryLocal], and every other method is forwarded to it.
    */
-  private class ControllableWikiDataRepository : WikiDataRepository by ArtworkRepositoryLocal() {
-    /** Thrown by the load when set, read once the load is released. */
-    var failure: Exception? = null
+  private class ControllableWikiDataRepository(
+      private val catalog: ArtworkRepositoryLocal = ArtworkRepositoryLocal()
+  ) : WikiDataRepository by catalog {
+    /** Exception thrown by the lookup of an artist, per artist. */
+    val failures = mutableMapOf<ArtistId, Exception>()
 
-    /** When set, the load waits for it to complete, which simulates a slow network. */
+    /** When set, every lookup waits for it to complete, which simulates a slow network. */
     var pending: CompletableDeferred<Unit>? = null
 
-    /** Number of loads started, to check that a retry does not start a second one. */
+    /** Number of lookups started, to check that they run at the same time. */
     var callCount = 0
       private set
 
-    override suspend fun getPopularArtists(): List<Artist> {
+    override suspend fun getArtist(qid: ArtistId): Artist? {
       callCount++
       pending?.await()
-      failure?.let { throw it }
-      return ALL_ARTISTS
+      failures[qid]?.let { throw it }
+      return catalog.getArtist(qid)
     }
   }
 
   private companion object {
     const val UID = "uid-1"
     const val OTHER_UID = "uid-2"
-    // Saved from a search, so it is not among the popular artists of the screen.
-    const val NON_POPULAR_ARTIST_ID = "non-popular-artist"
+    // Not among the mock artists, so the catalog has no details for it.
+    const val UNKNOWN_ARTIST_ID = "unknown-artist"
     val PICASSO = Artist("mock-artist-001", "Pablo Picasso")
     val VAN_GOGH = Artist("mock-artist-002", "Vincent van Gogh")
     val RENOIR = Artist("mock-artist-003", "Pierre-Auguste Renoir")
