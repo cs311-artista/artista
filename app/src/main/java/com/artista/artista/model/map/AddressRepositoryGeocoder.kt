@@ -22,12 +22,12 @@ import kotlinx.coroutines.withContext
  * service provided by the system (Google Play Services on most phones), so its absence is reported
  * as [AppException.Unknown].
  *
- * @param geocoder the Android geocoder to query (android object doing the coord to adress
- *   translation)
- * @param ioDispatcher dispatcher for the blocking lookup used before Android 13 ( we do a param and
- *   not an hardcode, so a test can replace it ). Also to avoid putting the request on the main
- *   thread so it doesn't block the app since the request can be long. To use with
- *   withContext(ioDispatcher)
+ * @param geocoder the Android geocoder to query (the Android object that translates coordinates
+ *   into addresses)
+ * @param ioDispatcher dispatcher for the blocking lookup used before Android 13, used with
+ *   withContext(ioDispatcher). That lookup can be long, so it must not run on the main thread,
+ *   where it would freeze the app. It is a parameter rather than hard-coded, like in the other
+ *   remote repositories, so the caller can choose the thread.
  * @author Timz3rr
  */
 class AddressRepositoryGeocoder(

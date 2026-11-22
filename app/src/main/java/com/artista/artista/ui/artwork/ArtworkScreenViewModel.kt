@@ -26,9 +26,11 @@ import kotlinx.coroutines.flow.update
 /**
  * State of the human-readable address shown in place of the artwork coordinates.
  *
+ * Sealed rather than separate flags, so exactly one of these states applies at a time.
+ *
  * @author Timz3rr
  */
-sealed interface ArtworkAddressState { // sealed interface for only 1 state possible
+sealed interface ArtworkAddressState {
   /** The artwork has no coordinates, so there is no address to look up. */
   data object NoLocation : ArtworkAddressState
 

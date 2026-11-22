@@ -250,7 +250,7 @@ fun ArtistaApp(
  * @param addressRepository source of the readable addresses of the artwork coordinates
  * @param navController Controller used to manage destinations in the root graph.
  * @param startDestination Route displayed when the graph is first opened.
- * @author hixeum
+ * @author hixeum, Timz3rr
  */
 @Composable
 fun ArtistaNavHost(
