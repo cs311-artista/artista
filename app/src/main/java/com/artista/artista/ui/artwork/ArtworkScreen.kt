@@ -90,6 +90,8 @@ object ArtworkTestTags {
   const val ARTWORK_LOADING_INDICATOR = "artwork_loading_indicator"
   const val ARTWORK_ERROR_MESSAGE = "artwork_error_message"
   const val ARTWORK_RETRY_BUTTON = "artwork_retry_button"
+
+  const val ARTWORK_ADDRESS = "artwork_address"
 }
 
 /**
@@ -268,13 +270,7 @@ fun ArtworkScreen(
           value = artwork.description ?: stringResource(R.string.artwork_no_description),
       )
 
-      ArtworkFieldItem(
-          label = stringResource(R.string.artwork_label_location),
-          value =
-              artwork.location?.let {
-                stringResource(R.string.artwork_location_format, it.latitude, it.longitude)
-              } ?: stringResource(R.string.artwork_no_location),
-      )
+      ArtworkLocationField(addressState = uiState.addressState)
 
       // Only show the map-tile if the location of the artwork is actually specified
       if (artwork.location != null) {
@@ -304,6 +300,31 @@ fun ArtworkScreen(
       }
     }
   }
+}
+
+/**
+ * Displays the location of an artwork as a human-readable address, or a message when there is none.
+ *
+ * @param addressState state of the address looked up from the artwork coordinates
+ * @param modifier optional layout modifier for the card container
+ * @author Timz3rr
+ */
+@Composable
+fun ArtworkLocationField(
+    addressState: ArtworkAddressState,
+    modifier: Modifier = Modifier,
+) {
+  ArtworkFieldItem(
+      label = stringResource(R.string.artwork_label_location),
+      value =
+          when (addressState) {
+            is ArtworkAddressState.Found -> addressState.address
+            ArtworkAddressState.Loading -> stringResource(R.string.artwork_address_loading)
+            ArtworkAddressState.Unavailable -> stringResource(R.string.artwork_address_unavailable)
+            ArtworkAddressState.NoLocation -> stringResource(R.string.artwork_no_location)
+          },
+      modifier = modifier.testTag(ArtworkTestTags.ARTWORK_ADDRESS),
+  )
 }
 
 /**
