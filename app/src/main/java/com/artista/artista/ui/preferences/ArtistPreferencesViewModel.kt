@@ -203,7 +203,7 @@ class ArtistPreferencesViewModel(
 
   /**
    * Fetches the details of an artist, or builds a placeholder named after its identifier when the
-   * artist cannot be found.
+   * catalog rejects its identifier.
    *
    * Hiding such an artist would leave it in the user's preferences with no way to remove it, so a
    * card is still shown for it. Network failures are not caught: they fail the whole load, which
@@ -216,10 +216,9 @@ class ArtistPreferencesViewModel(
     val artist =
         try {
           artworkRepository.getArtist(id)
-        } catch (exception: AppException.NotFound) {
-          null
         } catch (exception: AppException.InvalidInput) {
-          // An identifier that is not a Wikidata QID, e.g. saved while the screen used mock data.
+          // Only reached by identifiers that are not Wikidata QIDs, such as the mock IDs saved
+          // before the screen used Wikidata.
           null
         }
     return artist ?: Artist(uid = id, name = id)
