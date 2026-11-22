@@ -369,8 +369,10 @@ class JsonResponseParserTest {
    * @param image raw Commons link of its image, or null when the row carries none
    * @param locationLabel label of its location, or null when the row carries none
    * @param locationCoordinates WKT coordinates of its location, or null when the row carries none
+   * @param instanceOf Wikidata id of the class the row binds, e.g. `Q3305213`, or null when the row
+   *   carries none
    * @return the bindings of the row, as binding name to value
-   * @author timo-by
+   * @author timo-by, hixeum
    */
   private fun artworkRow(
       uid: String,
@@ -378,12 +380,14 @@ class JsonResponseParserTest {
       image: String? = null,
       locationLabel: String? = null,
       locationCoordinates: String? = null,
+      instanceOf: String? = null,
   ): Map<String, String> = buildMap {
     put("item", "http://www.wikidata.org/entity/$uid")
     put("itemLabel", name)
     image?.let { put("image", it) }
     locationLabel?.let { put("locationLabel", it) }
     locationCoordinates?.let { put("locationCoordinates", it) }
+    instanceOf?.let { put("instanceOf", "http://www.wikidata.org/entity/$it") }
   }
 
   /**
@@ -529,6 +533,74 @@ class JsonResponseParserTest {
     assertNotNull(location)
     assertEquals(2.337, location?.longitude ?: 0.0, 0.01)
     assertEquals(48.860, location?.latitude ?: 0.0, 0.01)
+  }
+
+  /**
+   * Checks that the types of every row of an item are merged.
+   *
+   * Wikidata answers one row per class of the item, so an artwork that is both a painting and an
+   * oil painting comes back twice, each row carrying one of the two.
+   */
+  @Test
+  fun parseArtworkResults_mergesTheTypesOfAllRowsOfTheSameItem() {
+    val response =
+        sparqlResponse(
+            artworkRow(uid = "Q12418", name = "Mona Lisa", instanceOf = ArtworkType.PAINTING.qid),
+            artworkRow(
+                uid = "Q12418",
+                name = "Mona Lisa",
+                image = FIRST_IMAGE,
+                instanceOf = ArtworkType.OIL_PAINTING.qid,
+            ),
+        )
+
+    val artwork = parser.parseArtworkResults(response).single()
+
+    assertEquals(setOf(ArtworkType.PAINTING, ArtworkType.OIL_PAINTING), artwork.types)
+    // Merging the types must not change which row wins for the other fields.
+    assertEquals(
+        "https://commons.wikimedia.org/wiki/Special:FilePath/First.JPG?width=800",
+        artwork.imageUrl,
+    )
+  }
+
+  /** Checks that the types of one item are not given to another item of the same response. */
+  @Test
+  fun parseArtworkResults_keepsTypesPerItem() {
+    val response =
+        sparqlResponse(
+            artworkRow(uid = "Q12418", name = "Mona Lisa", instanceOf = ArtworkType.PAINTING.qid),
+            artworkRow(
+                uid = "Q12419",
+                name = "The Thinker",
+                instanceOf = ArtworkType.SCULPTURE.qid,
+            ),
+        )
+
+    val artworks = parser.parseArtworkResults(response)
+
+    assertEquals(setOf(ArtworkType.PAINTING), artworks[0].types)
+    assertEquals(setOf(ArtworkType.SCULPTURE), artworks[1].types)
+  }
+
+  /** Checks that a class outside [ArtworkType] is ignored instead of failing the whole response. */
+  @Test
+  fun parseArtworkResults_ignoresUnsupportedClasses() {
+    val response =
+        sparqlResponse(
+            artworkRow(uid = "Q12418", name = "Mona Lisa", instanceOf = "Q838948"),
+            artworkRow(uid = "Q12418", name = "Mona Lisa", instanceOf = ArtworkType.PAINTING.qid),
+        )
+
+    assertEquals(setOf(ArtworkType.PAINTING), parser.parseArtworkResults(response).single().types)
+  }
+
+  /** Checks that an artwork without any class binding gets no type. */
+  @Test
+  fun parseArtworkResults_returnsNoTypesWhenInstanceOfIsMissing() {
+    val response = sparqlResponse(artworkRow(uid = "Q12418", name = "Mona Lisa"))
+
+    assertEquals(emptySet<ArtworkType>(), parser.parseArtworkResults(response).single().types)
   }
 
   /** Checks that optional fields set to JSON null, image included, are parsed as null. */

@@ -12,7 +12,7 @@ import com.artista.artista.model.error.AppException
  * Each entry carries the Wikidata item identifier used in SPARQL queries.
  *
  * @property qid unique Wikidata QID for the artwork class
- * @author IJJA3141
+ * @author IJJA3141, hixeum
  */
 enum class ArtworkType(val qid: String) {
   PAINTING("Q3305213"),
@@ -26,6 +26,18 @@ enum class ArtworkType(val qid: String) {
   MOSAIC("Q133067");
 
   override fun toString(): String = qid
+
+  /** Lookups of artwork types by their Wikidata identifier. */
+  companion object {
+    /**
+     * Returns the artwork type with the given Wikidata identifier.
+     *
+     * @param qid Wikidata item identifier of an artwork class, e.g. `Q3305213`
+     * @return the matching type, or null when [qid] is not one of the supported classes
+     * @author hixeum
+     */
+    fun fromQid(qid: String): ArtworkType? = entries.firstOrNull { it.qid == qid }
+  }
 }
 
 enum class ArtistOccupation(val qid: String) {

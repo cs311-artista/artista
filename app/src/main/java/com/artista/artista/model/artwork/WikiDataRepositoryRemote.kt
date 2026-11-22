@@ -283,10 +283,16 @@ class WikiDataRepositoryRemote(
     private const val MEDIAWIKI_API_URL = "https://www.wikidata.org/w/api.php"
 
     const val SELECT_LINE =
-        "SELECT ?item ?itemLabel ?artistLabel ?image ?inception ?collectionLabel ?locationLabel ?width ?height ?description ?locationCoordinates ?coordinateSource"
+        "SELECT ?item ?itemLabel ?artistLabel ?image ?inception ?collectionLabel ?locationLabel ?width ?height ?description ?locationCoordinates ?coordinateSource ?instanceOf"
 
+    // ?instanceOf only binds the classes of ArtworkType: an item has one row per value, so letting
+    // every P31 value through would multiply the rows for classes the app cannot represent anyway.
     val DETAILS =
         """
+      OPTIONAL {
+        VALUES ?instanceOf { ${ArtworkType.entries.joinToString(separator = " ") { "wd:${it.qid}" }} }
+        ?item wdt:${WikiDataProperty.INSTANCE_OF} ?instanceOf .
+      }
       OPTIONAL { ?item wdt:${WikiDataProperty.COORDINATES} ?ownCoordinates . }
       OPTIONAL {
         ?item wdt:${WikiDataProperty.LOCATION} ?location .

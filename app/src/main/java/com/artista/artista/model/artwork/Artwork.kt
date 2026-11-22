@@ -21,7 +21,10 @@ import java.util.Date
  * @property dimension The optional physical dimensions of the artwork.
  * @property imageUrl The optional https link to a thumbnail of the artwork. If *null*, the API
  *   provided no image and the UI shows a fallback instead.
- * @author 5kyPhy, patrickmcdan, krfpn, Timz3rr
+ * @property types The artwork classes among [ArtworkType] that the artwork is an instance of. A
+ *   Wikidata item can belong to several classes (e.g. both a painting and an oil painting), so this
+ *   is a set. Empty when the type is unknown, for instance for artworks saved before types existed.
+ * @author 5kyPhy, patrickmcdan, krfpn, Timz3rr, hixeum
  */
 data class Artwork(
     val uid: ArtworkId,
@@ -34,6 +37,8 @@ data class Artwork(
     val dimension: Dimension?,
     // Defaults to null so that existing artworks and mocks without an image keep compiling.
     val imageUrl: String? = null,
+    // Defaults to empty for the same reason, and because an empty set already means "unknown type".
+    val types: Set<ArtworkType> = emptySet(),
 )
 
 typealias ArtworkId = String

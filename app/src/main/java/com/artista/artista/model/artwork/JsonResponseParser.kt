@@ -36,9 +36,14 @@ open class JsonResponseParser {
    * an artwork needs the model to carry a list, which is a change of its own; until then this keeps
    * as much as the model can hold, and keeps which row wins deterministic.
    *
+   * [Artwork.types] is the exception: the model holds a set, so the types of every row of an item
+   * are merged rather than taken from the richest row alone. Classes outside [ArtworkType] are
+   * ignored.
+   *
    * @param responseBody raw SPARQL JSON body returned by the endpoint
-   * @return one artwork per distinct item id, each built from its richest row
-   * @author 5kyPhy, timo-by
+   * @return one artwork per distinct item id, each built from its richest row and carrying the
+   *   types of all its rows
+   * @author 5kyPhy, timo-by, hixeum
    */
   open fun parseArtworkResults(responseBody: String): List<Artwork> {
     val json = JSONObject(responseBody)
@@ -104,6 +109,12 @@ open class JsonResponseParser {
       // The raw Commons link cannot be loaded as is (http, full resolution), so it goes through
       // parseImageUrl. A missing image stays null and the card shows its fallback icon.
       val imageUrl = image?.optString("value")?.let(::parseImageUrl)
+      val type =
+          binding
+              .optJSONObject("instanceOf")
+              ?.optString("value")
+              ?.substringAfterLast('/')
+              ?.let(ArtworkType::fromQid)
 
       val artwork =
           Artwork(
@@ -116,6 +127,7 @@ open class JsonResponseParser {
               location = location,
               dimension = dimension,
               imageUrl = imageUrl,
+              types = setOfNotNull(type),
           )
       rows.add(artwork to artwork.richness(hasCoordinates = coordinates != null))
     }
@@ -131,7 +143,12 @@ open class JsonResponseParser {
         .map { (_, rowsOfTheSameItem) ->
           // maxBy keeps the first of two equally rich rows, so the winning row only depends on the
           // response and never on anything else.
-          rowsOfTheSameItem.maxBy { (_, richness) -> richness }.first
+          val richest = rowsOfTheSameItem.maxBy { (_, richness) -> richness }.first
+          // Each row carries at most one type, so an item that is both a painting and an oil
+          // painting only gets both by merging its rows.
+          richest.copy(
+              types = rowsOfTheSameItem.flatMapTo(mutableSetOf()) { (row, _) -> row.types }
+          )
         }
   }
 

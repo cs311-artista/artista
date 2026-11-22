@@ -1,4 +1,5 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.model.artwork
 
 import com.artista.artista.model.artist.Artist
@@ -327,6 +328,27 @@ class WikiDataRepositoryRemoteTest {
   fun wikidataDetails_includeOptionalImageAndLocationFields() {
     assertTrue(WikiDataRepositoryRemote.DETAILS.contains("?item wdt:P18 ?image"))
     assertTrue(WikiDataRepositoryRemote.DETAILS.contains("BIND(COALESCE"))
+  }
+
+  /**
+   * Checks that every artwork query selects the item's class, restricted to the supported types so
+   * that unrelated classes do not multiply the rows.
+   */
+  @Test
+  fun wikidataDetails_selectOnlySupportedArtworkClasses() {
+    assertTrue(WikiDataRepositoryRemote.SELECT_LINE.contains("?instanceOf"))
+    assertTrue(WikiDataRepositoryRemote.DETAILS.contains("?item wdt:P31 ?instanceOf"))
+    val supportedClasses = ArtworkType.entries.joinToString(separator = " ") { "wd:${it.qid}" }
+    assertTrue(
+        WikiDataRepositoryRemote.DETAILS.contains("VALUES ?instanceOf { $supportedClasses }")
+    )
+  }
+
+  @Test
+  fun artworkTypeFromQid_returnsMatchingTypeOrNull() {
+    ArtworkType.entries.forEach { assertEquals(it, ArtworkType.fromQid(it.qid)) }
+    assertNull(ArtworkType.fromQid("Q838948"))
+    assertNull(ArtworkType.fromQid(""))
   }
 
   @Test
