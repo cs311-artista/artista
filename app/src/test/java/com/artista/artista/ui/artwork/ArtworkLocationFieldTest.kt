@@ -5,8 +5,13 @@ import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.hasAnyDescendant
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import com.artista.artista.R
+import com.artista.artista.model.artwork.Artwork
+import com.artista.artista.model.artwork.ArtworkRepositoryLocal
+import com.artista.artista.model.map.FakeAddressRepository
+import com.artista.artista.model.map.Location
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -16,8 +21,9 @@ import org.robolectric.RuntimeEnvironment
 /**
  * Unit tests for [ArtworkLocationField].
  *
- * The field is tested on its own because a located artwork makes [ArtworkScreen] compose a
- * GoogleMap, which Robolectric cannot render.
+ * Each state is checked on the field alone, which is simpler than driving the ViewModel into it.
+ * One test renders the whole [ArtworkScreen] to check that it passes the ViewModel state to the
+ * field.
  *
  * @author Timz3rr
  */
@@ -59,6 +65,38 @@ class ArtworkLocationFieldTest {
     assertFieldShows(string(R.string.artwork_no_location))
   }
 
+  /** Checks that the details screen shows the address looked up for a located artwork. */
+  @Test
+  fun artworkScreen_withLocatedArtwork_displaysLookedUpAddress() {
+    val artwork =
+        Artwork(
+            uid = "thinker",
+            name = "The Thinker",
+            artist = null,
+            description = null,
+            conceptionDate = null,
+            museum = null,
+            location = Location(longitude = 2.3158, latitude = 48.8553, name = null),
+            dimension = null,
+        )
+    val repository =
+        ArtworkRepositoryLocal().apply { putArtworkInRepositoryUnsavedSection(artwork) }
+    val viewModel =
+        ArtworkScreenViewModel(artwork.uid, repository, repository, FakeAddressRepository())
+
+    composeTestRule.setContent {
+      ArtworkScreen(artworkScreenViewModel = viewModel, onBackClick = {})
+    }
+    composeTestRule.waitUntil(SCREEN_TIMEOUT_MS) {
+      composeTestRule
+          .onAllNodesWithTag(ArtworkTestTags.ARTWORK_ADDRESS, useUnmergedTree = true)
+          .fetchSemanticsNodes()
+          .isNotEmpty()
+    }
+
+    assertFieldShows(FakeAddressRepository.DEFAULT_ADDRESS)
+  }
+
   private fun setField(addressState: ArtworkAddressState) {
     composeTestRule.setContent { ArtworkLocationField(addressState = addressState) }
   }
@@ -71,4 +109,8 @@ class ArtworkLocationFieldTest {
   }
 
   private fun string(resId: Int): String = RuntimeEnvironment.getApplication().getString(resId)
+
+  private companion object {
+    const val SCREEN_TIMEOUT_MS = 5_000L
+  }
 }
