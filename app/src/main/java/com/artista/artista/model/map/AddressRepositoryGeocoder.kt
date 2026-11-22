@@ -1,0 +1,101 @@
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
+package com.artista.artista.model.map
+
+import android.location.Address
+import android.location.Geocoder
+import android.os.Build
+import androidx.annotation.RequiresApi
+import com.artista.artista.model.error.AppException
+import java.io.IOException
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
+
+/**
+ * Implementation of [AddressRepository] backed by the Android [Geocoder].
+ *
+ * The Geocoder needs no API key and answers in the device language. It relies on a geocoding
+ * service provided by the system (Google Play Services on most phones), so its absence is reported
+ * as [AppException.Unknown].
+ *
+ * @param geocoder the Android geocoder to query (android object doing the coord to adress
+ *   translation)
+ * @param ioDispatcher dispatcher for the blocking lookup used before Android 13 ( we do a param and
+ *   not an hardcode, so a test can replace it ). Also to avoid putting the request on the main
+ *   thread so it doesn't block the app since the request can be long. To use with
+ *   withContext(ioDispatcher)
+ * @author Timz3rr
+ */
+class AddressRepositoryGeocoder(
+    private val geocoder: Geocoder,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+) : AddressRepository {
+  override suspend fun getAddress(coordinate: Coordinate): String {
+    if (!Geocoder.isPresent()) {
+      throw AppException.Unknown("No geocoding service on this device")
+    }
+    val addresses =
+        try {
+          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            lookUpWithListener(coordinate)
+          } else {
+            lookUpBlocking(coordinate)
+          }
+        } catch (exception: CancellationException) {
+          throw exception
+        } catch (exception: AppException) {
+          throw exception
+        } catch (exception: IOException) {
+          throw AppException.Network("Geocoding service unreachable", exception)
+        } catch (exception: Exception) {
+          throw AppException.Unknown("Geocoding failed unexpectedly", exception)
+        }
+    return firstAddressLine(addresses)
+  }
+
+  // Android 13 and later answer through a listener, so the coroutine is suspended until it calls
+  // back. The Geocoder cannot cancel a lookup: if the coroutine is cancelled first, the late answer
+  // is simply ignored.
+  @RequiresApi(Build.VERSION_CODES.TIRAMISU)
+  private suspend fun lookUpWithListener(coordinate: Coordinate): List<Address> =
+      suspendCancellableCoroutine { continuation ->
+        geocoder.getFromLocation(
+            coordinate.latitude,
+            coordinate.longitude,
+            MAX_RESULTS,
+            object : Geocoder.GeocodeListener {
+              override fun onGeocode(addresses: MutableList<Address>) {
+                continuation.resume(addresses)
+              }
+
+              override fun onError(errorMessage: String?) {
+                continuation.resumeWithException(
+                    AppException.Network("Geocoding failed: $errorMessage")
+                )
+              }
+            },
+        )
+      }
+
+  // Deprecated since Android 13 because it blocks, but it is the only lookup before that version,
+  // so it runs on ioDispatcher to keep the main thread free.
+  @Suppress("DEPRECATION")
+  private suspend fun lookUpBlocking(coordinate: Coordinate): List<Address> =
+      withContext(ioDispatcher) {
+        geocoder.getFromLocation(coordinate.latitude, coordinate.longitude, MAX_RESULTS).orEmpty()
+      }
+
+  // Both lookups end here, so an empty result and an address without text are handled once.
+  private fun firstAddressLine(addresses: List<Address>): String =
+      addresses.firstOrNull()?.getAddressLine(0)
+          ?: throw AppException.NotFound("No address known for this coordinate")
+
+  private companion object {
+    // Only the closest address is displayed.
+    const val MAX_RESULTS = 1
+  }
+}
