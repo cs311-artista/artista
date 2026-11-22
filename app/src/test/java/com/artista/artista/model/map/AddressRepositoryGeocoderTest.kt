@@ -82,10 +82,23 @@ class AddressRepositoryGeocoderTest {
     assertGetAddressThrows<AppException.Unknown>()
   }
 
+  /**
+   * Checks that an unexpected geocoder failure throws [AppException.Unknown] instead of escaping:
+   * the Robolectric geocoder rejects a latitude outside ±90 with an [IllegalArgumentException].
+   */
+  @Test
+  fun getAddress_whenGeocoderThrowsUnexpectedly_throwsUnknown() = runTest {
+    shadowOf(geocoder).setFromLocation(listOf(address(MUSEE_RODIN_ADDRESS)))
+
+    assertGetAddressThrows<AppException.Unknown>(INVALID_COORDINATE)
+  }
+
   private fun address(line: String): Address = Address(Locale.US).apply { setAddressLine(0, line) }
 
-  private suspend inline fun <reified T : AppException> assertGetAddressThrows() {
-    val error = runCatching { repository.getAddress(MUSEE_RODIN) }.exceptionOrNull()
+  private suspend inline fun <reified T : AppException> assertGetAddressThrows(
+      coordinate: Coordinate = MUSEE_RODIN
+  ) {
+    val error = runCatching { repository.getAddress(coordinate) }.exceptionOrNull()
     assertTrue("Expected ${T::class.simpleName} but got $error", error is T)
   }
 
@@ -94,5 +107,6 @@ class AddressRepositoryGeocoderTest {
     const val MUSEE_RODIN_ADDRESS = "77 Rue de Varenne, 75007 Paris, France"
     val BEIJING = Coordinate(latitude = 39.9, longitude = 116.4)
     const val BEIJING_ADDRESS = "Beijing, China"
+    val INVALID_COORDINATE = Coordinate(latitude = 120.0, longitude = 2.3158)
   }
 }
