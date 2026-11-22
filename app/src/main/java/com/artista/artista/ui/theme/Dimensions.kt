@@ -89,6 +89,9 @@ internal object Dimensions {
   val overviewFilterFieldSpacing = 8.dp
   val artworkFilterContentVerticalPadding = 4.dp
   val artworkFilterSuggestionsMaxHeight = 160.dp
+  val artworkFilterTypeLabelSpacing = 4.dp
+  val artworkFilterTypeRowHeight = standardTouchTargetSize
+  val artworkFilterTypeRowHorizontalPadding = 12.dp
   val overviewSearchBarHeight = standardControlHeight
   val overviewSearchBarElevation = shallowElevation
 
