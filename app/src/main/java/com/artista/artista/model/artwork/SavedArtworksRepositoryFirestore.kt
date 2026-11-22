@@ -129,6 +129,9 @@ class SavedArtworksRepositoryFirestore(
           // Saved artworks are rebuilt only from this document, so without the link they would lose
           // their image on the saved list and details screen.
           "imageUrl" to imageUrl,
+          // Stored as Wikidata QIDs rather than enum names: QIDs are stable data, while renaming an
+          // enum constant would silently drop the type of every artwork saved before the rename.
+          "types" to types.map(ArtworkType::qid),
       )
 
   /** Converts a validated Firestore document to an artwork domain value. */
@@ -151,7 +154,23 @@ class SavedArtworksRepositoryFirestore(
         dimension = document.optionalMapField("dimension")?.toDimension(document.id),
         // Optional because documents saved before this field existed do not have it.
         imageUrl = document.optionalStringField("imageUrl"),
+        // Documents saved before types existed have no field and load with no type.
+        types = document.optionalArtworkTypesField("types"),
     )
+  }
+
+  /**
+   * Reads an optional list of artwork-type QIDs.
+   *
+   * QIDs that no longer match an [ArtworkType] are skipped rather than rejected, so removing a type
+   * from the app does not make the artworks saved with it unreadable.
+   */
+  private fun DocumentSnapshot.optionalArtworkTypesField(fieldName: String): Set<ArtworkType> {
+    val value = get(fieldName) ?: return emptySet()
+    val qids = value as? List<*> ?: throw invalidField(fieldName)
+    return qids.mapNotNullTo(mutableSetOf()) { qid ->
+      ArtworkType.fromQid(qid as? String ?: throw invalidField(fieldName))
+    }
   }
 
   /** Reads a required string field from a saved-artwork document. */

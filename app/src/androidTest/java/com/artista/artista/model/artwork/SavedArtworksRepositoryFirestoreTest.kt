@@ -123,6 +123,42 @@ class SavedArtworksRepositoryFirestoreTest {
     assertNull(repository.getSavedArtworks().single().imageUrl)
   }
 
+  /** Checks that every type of a saved artwork is still there when it is read back. */
+  @Test
+  fun saveArtworkThenReadPreservesTypes() = runBlocking {
+    val artwork =
+        completeArtwork().copy(types = setOf(ArtworkType.PAINTING, ArtworkType.OIL_PAINTING))
+
+    repository.saveArtwork(artwork)
+
+    assertEquals(listOf(artwork), repository.getSavedArtworks())
+    assertEquals(
+        setOf(ArtworkType.PAINTING.qid, ArtworkType.OIL_PAINTING.qid),
+        (savedArtworksCollection(userId).document(artwork.uid).get().await().get("types")
+                as List<*>)
+            .toSet(),
+    )
+  }
+
+  /** Checks that a document stored before types were saved loads with no type. */
+  @Test
+  fun getSavedArtworksLoadsDocumentWithoutTypesAsEmpty() = runBlocking {
+    seedDocument("artwork-1", artworkData("artwork-1"))
+
+    assertEquals(emptySet<ArtworkType>(), repository.getSavedArtworks().single().types)
+  }
+
+  /** Checks that a type no longer supported by the app is skipped instead of failing the read. */
+  @Test
+  fun getSavedArtworksSkipsUnknownTypeQids() = runBlocking {
+    seedDocument(
+        "artwork-1",
+        artworkData("artwork-1") + ("types" to listOf("Q838948", ArtworkType.SCULPTURE.qid)),
+    )
+
+    assertEquals(setOf(ArtworkType.SCULPTURE), repository.getSavedArtworks().single().types)
+  }
+
   @Test
   fun isArtworkSavedReturnsFalseForAnUnknownUid() = runBlocking {
     assertFalse(repository.isArtworkSaved("not-saved"))
@@ -218,6 +254,8 @@ class SavedArtworksRepositoryFirestoreTest {
             artworkData() + ("conceptionDate" to "yesterday"),
             artworkData() + ("museum" to 4),
             artworkData() + ("description" to 4),
+            artworkData() + ("types" to "painting"),
+            artworkData() + ("types" to listOf(4)),
         )
 
     malformedDocuments.forEachIndexed { index, data ->
