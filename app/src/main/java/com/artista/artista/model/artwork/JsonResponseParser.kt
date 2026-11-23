@@ -5,6 +5,7 @@
 package com.artista.artista.model.artwork
 
 import com.artista.artista.model.artist.Artist
+import com.artista.artista.model.artist.ArtistCandidate
 import com.artista.artista.model.artist.ArtistId
 import com.artista.artista.model.error.AppException
 import com.artista.artista.model.map.Location
@@ -182,6 +183,88 @@ open class JsonResponseParser {
       }
 
   /**
+   * Parses Wikidata entity-search results into artwork candidates.
+   *
+   * @param responseBody raw JSON body returned by the Wikidata entity-search API Invalid individual
+   *   candidates are skipped; valid candidates retain Wikidata's order.
+   * @return valid candidates in the order returned by Wikidata
+   * @throws AppException.InvalidData if the response is malformed or missing its search array
+   * @author IJJA3141
+   */
+  open fun parseArtworkCandidates(responseBody: String): List<ArtworkCandidate> =
+      try {
+        val json = JSONObject(responseBody)
+        val results =
+            json.optJSONArray("search")
+                ?: throw AppException.InvalidData(
+                    "Wikidata artwork search response must contain a 'search' array " +
+                        "(response length=${responseBody.length})"
+                )
+        buildList {
+          for (index in 0 until results.length()) {
+            val candidate =
+                try {
+                  val result = results.getJSONObject(index)
+                  val id = result.getString("id")
+                  val label = result.getString("label").takeIf { it.isNotBlank() }
+                  if (!id.matches(WikiDataRepositoryRemote.ITEM_ID_REGEX) || label == null) {
+                    null
+                  } else {
+                    val description =
+                        if (result.has("description") && !result.isNull("description")) {
+                          result.getString("description").takeIf { it.isNotBlank() }
+                        } else {
+                          null
+                        }
+                    ArtworkCandidate(id, label, description)
+                  }
+                } catch (_: JSONException) {
+                  null
+                }
+            candidate?.let(::add)
+          }
+        }
+      } catch (exception: JSONException) {
+        throw AppException.InvalidData("Invalid Wikidata artwork search response", exception)
+      }
+
+  fun parseFilteredArtists(responseBody: String): List<ArtistId> =
+      try {
+        val json = JSONObject(responseBody)
+        val results = json.getJSONObject("results")
+        val bindings = results.getJSONArray("bindings")
+        buildList {
+          for (index in 0 until bindings.length()) {
+            val obj = bindings.getJSONObject(index)
+            val artist = obj.getJSONObject("artist")
+            val value = artist.getString("value")
+            val qid = value.substringAfterLast('/')
+            if (qid.matches(WikiDataRepositoryRemote.ITEM_ID_REGEX)) qid.let(::add)
+          }
+        }
+      } catch (exception: JSONException) {
+        throw AppException.InvalidData("Invalid Wikidata artist search response", exception)
+      }
+
+  fun parseFilteredArtworks(responseBody: String): List<ArtworkId> =
+      try {
+        val json = JSONObject(responseBody)
+        val results = json.getJSONObject("results")
+        val bindings = results.getJSONArray("bindings")
+        buildList {
+          for (index in 0 until bindings.length()) {
+            val obj = bindings.getJSONObject(index)
+            val artist = obj.getJSONObject("artwork")
+            val value = artist.getString("value")
+            val qid = value.substringAfterLast('/')
+            if (qid.matches(WikiDataRepositoryRemote.ITEM_ID_REGEX)) qid.let(::add)
+          }
+        }
+      } catch (exception: JSONException) {
+        throw AppException.InvalidData("Invalid Wikidata artist search response", exception)
+      }
+
+  /**
    * Parses the first artist in a SPARQL response into an [Artist].
    *
    * @param responseBody raw SPARQL JSON body returned by the endpoint
@@ -248,6 +331,8 @@ open class JsonResponseParser {
       } catch (exception: JSONException) {
         throw AppException.InvalidData("Invalid curated artist response", exception)
       }
+
+  open fun parseArtistsResults(responseBody: String): List<Artist> = emptyList()
 
   /**
    * Parses the selected Wikidata artist QID from a curated-artist SPARQL response.
