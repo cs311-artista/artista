@@ -49,13 +49,15 @@ internal object Dimensions {
   val artworkCardTextSpacing = 4.dp
   val artworkCardPreviewPadding = 16.dp
   val artworkDetailsContentHorizontalPadding = 20.dp
+  val artworkDetailsContentVerticalPadding = 20.dp
   val artworkDetailsSectionSpacing = 12.dp
-  val artworkDetailsImageVerticalSpacing = 4.dp
-  val artworkFieldContentPadding = 10.dp
-  val artworkFieldLabelValueSpacing = 4.dp
-  val artworkMapTileContentPadding = 10.dp
-  val artworkMapTileTitleSpacing = 4.dp
+  val artworkDetailsHeaderTextSpacing = 4.dp
+  val artworkDetailsHeaderBottomPadding = 8.dp
+  val artworkFieldContentPadding = 14.dp
+  val artworkFieldLabelValueSpacing = 8.dp
   val artworkMapTileHeight = 284.dp
+  val artworkMapRecenterButtonPadding = 12.dp
+  val artworkMapRecenterButtonSize = 44.dp
 
   /** Height of artwork images in artwork cards. */
   val artworkCardImageHeight = 160.dp
@@ -65,8 +67,6 @@ internal object Dimensions {
 
   /** Height of the artwork image on the artwork details screen. */
   val artworkDetailsImageHeight = 220.dp
-
-  val artworkCardElevation = shallowElevation
 
   // Saved artworks screen.
   val savedArtworksTitleHorizontalPadding = 20.dp

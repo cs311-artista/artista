@@ -6,19 +6,24 @@ package com.artista.artista.ui.artwork
 
 import android.util.Log
 import android.widget.Toast
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.outlined.BookmarkBorder
+import androidx.compose.material.icons.outlined.NearMe
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -28,10 +33,10 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -41,6 +46,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -54,7 +60,6 @@ import com.artista.artista.BuildConfig
 import com.artista.artista.R
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.artwork.mockArtworks
-import com.artista.artista.model.map.Location
 import com.artista.artista.resources.C
 import com.artista.artista.ui.navigation.BackButton
 import com.artista.artista.ui.shared.ArtworkMarker
@@ -81,6 +86,9 @@ object ArtworkTestTags {
   const val SAVE_BUTTON = "artwork_save_button"
   const val BACK_BUTTON = "artwork_back_button"
   const val ARTWORK_TITLE = "artwork_title"
+  const val ARTWORK_TOP_BAR_TITLE = "artwork_top_bar_title"
+  const val ARTWORK_ARTIST_NAME = "artwork_artist_name"
+  const val ARTWORK_MAP_RECENTER_BUTTON = "artwork_map_recenter_button"
   const val ARTWORK_MAP_TILE = "artwork_map_tile"
   const val ARTWORK_MAP_MARKER = "artwork_map_marker"
   const val ARTWORK_IMAGE = "artwork_image"
@@ -131,23 +139,28 @@ fun ArtworkScreen(
         CenterAlignedTopAppBar(
             title = {
               Text(
-                  text = artwork?.name ?: stringResource(R.string.artwork_unknown_title),
-                  style = MaterialTheme.typography.titleLarge,
-                  fontWeight = FontWeight.Bold,
-                  modifier = Modifier.testTag(ArtworkTestTags.ARTWORK_TITLE),
+                  text = stringResource(R.string.artwork_screen_title),
+                  style = MaterialTheme.typography.titleMedium,
+                  modifier = Modifier.testTag(ArtworkTestTags.ARTWORK_TOP_BAR_TITLE),
               )
             },
             navigationIcon = {
+              // The circle is drawn here rather than in the shared BackButton, which other screens
+              // still show without one.
               BackButton(
                   onClick = onBackClick,
-                  modifier = Modifier.testTag(ArtworkTestTags.BACK_BUTTON),
+                  modifier =
+                      Modifier.testTag(ArtworkTestTags.BACK_BUTTON)
+                          .background(MaterialTheme.colorScheme.surface, CircleShape),
               )
             },
             actions = {
               IconButton(
                   onClick = { artworkScreenViewModel.toggleSaveArtwork() },
                   enabled = !uiState.isSaveInProgress && (artwork != null),
-                  modifier = Modifier.testTag(ArtworkTestTags.SAVE_BUTTON),
+                  modifier =
+                      Modifier.testTag(ArtworkTestTags.SAVE_BUTTON)
+                          .background(MaterialTheme.colorScheme.surface, CircleShape),
               ) {
                 Icon(
                     imageVector =
@@ -159,6 +172,10 @@ fun ArtworkScreen(
                 )
               }
             },
+            colors =
+                TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                ),
         )
       },
   ) { innerPadding ->
@@ -166,17 +183,14 @@ fun ArtworkScreen(
         modifier =
             Modifier.fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = Dimensions.artworkDetailsContentHorizontalPadding)
                 .testTag(ArtworkTestTags.ARTWORK_DETAILS_COLUMN)
-                .verticalScroll(rememberScrollState(), enabled = !isMapPressed),
-        verticalArrangement = Arrangement.spacedBy(Dimensions.artworkDetailsSectionSpacing),
+                .verticalScroll(rememberScrollState(), enabled = !isMapPressed)
     ) {
-      Spacer(modifier = Modifier.height(Dimensions.artworkDetailsImageVerticalSpacing))
-
       if (uiState.isLoading) {
         CircularProgressIndicator(
             modifier =
                 Modifier.align(Alignment.CenterHorizontally)
+                    .padding(top = Dimensions.artworkDetailsContentVerticalPadding)
                     .testTag(ArtworkTestTags.ARTWORK_LOADING_INDICATOR)
         )
         return@Column
@@ -189,7 +203,12 @@ fun ArtworkScreen(
         }
 
         Column(
-            modifier = Modifier.fillMaxWidth(),
+            modifier =
+                Modifier.fillMaxWidth()
+                    .padding(
+                        horizontal = Dimensions.artworkDetailsContentHorizontalPadding,
+                        vertical = Dimensions.artworkDetailsContentVerticalPadding,
+                    ),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
           Text(
@@ -209,103 +228,140 @@ fun ArtworkScreen(
         return@Column
       }
 
-      Card(
+      val title = artwork.name ?: stringResource(R.string.artwork_unknown_title)
+
+      // Same background as the artwork cards, so the bars around a fitted image look intentional.
+      Surface(
           modifier = Modifier.fillMaxWidth().height(Dimensions.artworkDetailsImageHeight),
-          shape = RoundedCornerShape(Dimensions.cornerRadiusMedium),
-          elevation =
-              CardDefaults.cardElevation(defaultElevation = Dimensions.artworkCardElevation),
+          color = MaterialTheme.colorScheme.surfaceVariant,
       ) {
-        // Same background as the artwork cards, so the bars around a fitted image look intentional.
-        Surface(
+        // Fit keeps the whole painting visible, never cropped: unlike the cropped list cards, this
+        // details screen is where the user looks at the whole artwork.
+        ArtworkImage(
+            imageUrl = artwork.imageUrl,
+            contentDescription = stringResource(R.string.artwork_card_image_description, title),
+            contentScale = ContentScale.Fit,
+            imageTestTag = ArtworkTestTags.ARTWORK_IMAGE,
+            fallbackTestTag = ArtworkTestTags.ARTWORK_IMAGE_FALLBACK,
             modifier = Modifier.fillMaxSize(),
-            color = MaterialTheme.colorScheme.surfaceVariant,
-        ) {
-          // Fit keeps the whole painting visible: unlike the cropped list cards, this screen is
-          // where the user looks at the artwork itself.
-          ArtworkImage(
-              imageUrl = artwork.imageUrl,
-              contentDescription =
-                  stringResource(
-                      R.string.artwork_card_image_description,
-                      artwork.name ?: stringResource(R.string.artwork_unknown_title),
-                  ),
-              contentScale = ContentScale.Fit,
-              imageTestTag = ArtworkTestTags.ARTWORK_IMAGE,
-              fallbackTestTag = ArtworkTestTags.ARTWORK_IMAGE_FALLBACK,
-              modifier = Modifier.fillMaxSize(),
-          )
-        }
+        )
       }
 
-      Spacer(modifier = Modifier.height(Dimensions.artworkDetailsImageVerticalSpacing))
-
-      ArtworkFieldItem(
-          label = stringResource(R.string.artwork_label_artist),
-          value = artwork.artist?.name ?: stringResource(R.string.artwork_unknown_artist),
-      )
-
-      ArtworkFieldItem(
-          label = stringResource(R.string.artwork_label_conception_date),
-          value =
-              artwork.conceptionDate?.let { date -> dateFormatter.format(date) }
-                  ?: stringResource(R.string.artwork_unknown_date),
-      )
-
-      ArtworkFieldItem(
-          label = stringResource(R.string.artwork_label_dimensions),
-          value = artwork.dimension?.toString() ?: stringResource(R.string.artwork_no_dimensions),
-      )
-
-      ArtworkFieldItem(
-          label = stringResource(R.string.artwork_label_museum),
-          value = artwork.museum ?: stringResource(R.string.artwork_no_museum),
-      )
-
-      ArtworkFieldItem(
-          label = stringResource(R.string.artwork_label_description),
-          value = artwork.description ?: stringResource(R.string.artwork_no_description),
-      )
-
-      ArtworkFieldItem(
-          label = stringResource(R.string.artwork_label_location),
-          value =
-              artwork.location?.let {
-                stringResource(R.string.artwork_location_format, it.latitude, it.longitude)
-              } ?: stringResource(R.string.artwork_no_location),
-      )
-
-      // Only show the map-tile if the location of the artwork is actually specified
-      if (artwork.location != null) {
-        // Set the camera position and marker position of the artwork, if the [artwork.location] is
-        // provided
-        val mapTileCameraPositionState = rememberCameraPositionState {
-          position =
-              artwork.location.let {
-                CameraPosition.fromLatLngZoom(
-                    LatLng(it.latitude, it.longitude),
-                    C.Constants.DEFAULT_MAP_ZOOM,
-                )
-              }
-        }
-        val mapTileMarkerState =
-            remember(key1 = artwork.uid) {
-              MarkerState(position = artwork.location.let { LatLng(it.latitude, it.longitude) })
-            }
-
-        MapTile(
-            mapTileCameraPositionState,
-            mapTileMarkerState,
-            artwork.location,
-            artwork.name,
-            onMapPressChanged = { isMapPressed = it },
+      Column(
+          modifier =
+              Modifier.fillMaxWidth()
+                  .padding(
+                      horizontal = Dimensions.artworkDetailsContentHorizontalPadding,
+                      vertical = Dimensions.artworkDetailsContentVerticalPadding,
+                  ),
+          verticalArrangement = Arrangement.spacedBy(Dimensions.artworkDetailsSectionSpacing),
+      ) {
+        ArtworkHeader(
+            title = title,
+            artistName = artwork.artist?.name ?: stringResource(R.string.artwork_unknown_artist),
+            modifier = Modifier.padding(bottom = Dimensions.artworkDetailsHeaderBottomPadding),
         )
+
+        ArtworkFieldItem(
+            label = stringResource(R.string.artwork_label_artist),
+            value = artwork.artist?.name ?: stringResource(R.string.artwork_unknown_artist),
+        )
+
+        ArtworkFieldItem(
+            label = stringResource(R.string.artwork_label_conception_date),
+            value =
+                artwork.conceptionDate?.let { date -> dateFormatter.format(date) }
+                    ?: stringResource(R.string.artwork_unknown_date),
+        )
+
+        ArtworkFieldItem(
+            label = stringResource(R.string.artwork_label_dimensions),
+            value = artwork.dimension?.toString() ?: stringResource(R.string.artwork_no_dimensions),
+        )
+
+        ArtworkFieldItem(
+            label = stringResource(R.string.artwork_label_museum),
+            value = artwork.museum ?: stringResource(R.string.artwork_no_museum),
+        )
+
+        ArtworkFieldItem(
+            label = stringResource(R.string.artwork_label_description),
+            value = artwork.description ?: stringResource(R.string.artwork_no_description),
+        )
+
+        ArtworkFieldItem(
+            label = stringResource(R.string.artwork_label_location),
+            value =
+                artwork.location?.let {
+                  stringResource(R.string.artwork_location_format, it.latitude, it.longitude)
+                } ?: stringResource(R.string.artwork_no_location),
+        )
+
+        // Only show the map-tile if the location of the artwork is actually specified
+        if (artwork.location != null) {
+          // Set the camera position and marker position of the artwork, if the [artwork.location]
+          // is provided
+          val mapTileCameraPositionState = rememberCameraPositionState {
+            position =
+                artwork.location.let {
+                  CameraPosition.fromLatLngZoom(
+                      LatLng(it.latitude, it.longitude),
+                      C.Constants.DEFAULT_MAP_ZOOM,
+                  )
+                }
+          }
+          val mapTileMarkerState =
+              remember(key1 = artwork.uid) {
+                MarkerState(position = artwork.location.let { LatLng(it.latitude, it.longitude) })
+              }
+
+          MapTile(
+              mapTileCameraPositionState,
+              mapTileMarkerState,
+              artwork.name,
+              onMapPressChanged = { isMapPressed = it },
+          )
+        }
       }
     }
   }
 }
 
 /**
- * Displays a single property of an artwork wrapped in an outlined card for readability[cite: 1].
+ * Displays the artwork name with its artist name below, under the artwork image.
+ *
+ * @param title name of the artwork, or its fallback when the artwork has no name
+ * @param artistName name of the artist, or its fallback when the artwork has no artist
+ * @param modifier optional layout modifier for the header container
+ * @author Timz3rr
+ */
+@Composable
+fun ArtworkHeader(
+    title: String,
+    artistName: String,
+    modifier: Modifier = Modifier,
+) {
+  Column(
+      modifier = modifier.fillMaxWidth(),
+      verticalArrangement = Arrangement.spacedBy(Dimensions.artworkDetailsHeaderTextSpacing),
+  ) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.headlineSmall,
+        color = MaterialTheme.colorScheme.onSurface,
+        modifier = Modifier.testTag(ArtworkTestTags.ARTWORK_TITLE),
+    )
+    Text(
+        text = artistName,
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.testTag(ArtworkTestTags.ARTWORK_ARTIST_NAME),
+    )
+  }
+}
+
+/**
+ * Displays a single property of an artwork wrapped in a borderless card for readability.
  *
  * @param label header label identifying the artwork property
  * @param value value text to display, or fallback placeholder if the field is missing
@@ -318,21 +374,22 @@ fun ArtworkFieldItem(
     value: String,
     modifier: Modifier = Modifier,
 ) {
-  OutlinedCard(
+  Card(
       modifier = modifier.fillMaxWidth(),
       shape = RoundedCornerShape(Dimensions.cornerRadiusSmall),
+      colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
   ) {
     Column(modifier = Modifier.fillMaxWidth().padding(Dimensions.artworkFieldContentPadding)) {
       Text(
           text = label,
           style = MaterialTheme.typography.labelMedium,
-          color = MaterialTheme.colorScheme.primary,
-          fontWeight = FontWeight.SemiBold,
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+          fontWeight = FontWeight.Normal,
       )
       Spacer(modifier = Modifier.height(Dimensions.artworkFieldLabelValueSpacing))
       Text(
           text = value,
-          style = MaterialTheme.typography.bodyMedium,
+          style = MaterialTheme.typography.bodyLarge,
           color = MaterialTheme.colorScheme.onSurface,
       )
     }
@@ -340,63 +397,67 @@ fun ArtworkFieldItem(
 }
 
 /**
- * Displays the Map Tile on the screen
+ * Displays the Map Tile on the screen, with a recenter button over its bottom end corner.
  *
- * @param modifier optional modifier for the card container
  * @param cameraPositionState the state of the camera position on the map
  * @param markerState the state of the marker position on the map
- * @param location the location of the artwork which is displayed on the map
  * @param artworkName the name of the artwork which is displayed on the map
  * @param onMapPressChanged callback invoked when a pointer starts or stops pressing the map
  * @author 5kyPhy
+ * @author Timz3rr
  */
 @Composable
 fun MapTile(
     cameraPositionState: CameraPositionState,
     markerState: MarkerState,
-    location: Location,
     artworkName: String?,
     onMapPressChanged: (Boolean) -> Unit = {},
 ) {
-  OutlinedCard(
-      modifier = Modifier.fillMaxWidth(),
-      shape = RoundedCornerShape(Dimensions.cornerRadiusSmall),
+  Box(
+      modifier =
+          Modifier.fillMaxWidth()
+              .height(Dimensions.artworkMapTileHeight)
+              .clip(RoundedCornerShape(Dimensions.cornerRadiusSmall))
+              .testTag(ArtworkTestTags.ARTWORK_MAP_TILE)
   ) {
-    Column(
+    GoogleMap(
         modifier =
-            Modifier.fillMaxWidth()
-                .padding(Dimensions.artworkMapTileContentPadding)
-                .testTag(ArtworkTestTags.ARTWORK_MAP_TILE)
-    ) {
-      Text(
-          text = location.name?.let { location.name } ?: "",
-          style = MaterialTheme.typography.labelMedium,
-          color = MaterialTheme.colorScheme.primary,
-          fontWeight = FontWeight.SemiBold,
-      )
-      Spacer(modifier = Modifier.height(Dimensions.artworkMapTileTitleSpacing))
-      GoogleMap(
-          modifier =
-              Modifier.fillMaxWidth().height(Dimensions.artworkMapTileHeight).pointerInput(
-                  onMapPressChanged
-              ) {
-                awaitPointerEventScope {
-                  while (true) {
-                    val event = awaitPointerEvent(PointerEventPass.Initial)
-                    onMapPressChanged(event.changes.any { it.pressed })
-                  }
+            Modifier.fillMaxSize().pointerInput(onMapPressChanged) {
+              awaitPointerEventScope {
+                while (true) {
+                  val event = awaitPointerEvent(PointerEventPass.Initial)
+                  onMapPressChanged(event.changes.any { it.pressed })
                 }
-              },
-          uiSettings = MapUiSettings(mapToolbarEnabled = false),
-          cameraPositionState = cameraPositionState,
-      ) {
-        Marker(
-            tag = ArtworkTestTags.ARTWORK_MAP_MARKER,
-            state = markerState,
-            title = artworkName,
-            icon = ArtworkMarker.artworkMarkerIcon(),
-        )
-      }
+              }
+            },
+        uiSettings = MapUiSettings(mapToolbarEnabled = false),
+        cameraPositionState = cameraPositionState,
+    ) {
+      Marker(
+          tag = ArtworkTestTags.ARTWORK_MAP_MARKER,
+          state = markerState,
+          title = artworkName,
+          icon = ArtworkMarker.artworkMarkerIcon(),
+      )
+    }
+
+    // Only drawn for now: recentering the map on the artwork is a follow-up, so the button is not
+    // clickable yet rather than doing nothing on tap.
+    Box(
+        modifier =
+            Modifier.align(Alignment.BottomEnd)
+                .padding(Dimensions.artworkMapRecenterButtonPadding)
+                .size(Dimensions.artworkMapRecenterButtonSize)
+                .background(MaterialTheme.colorScheme.surface, CircleShape)
+                .testTag(ArtworkTestTags.ARTWORK_MAP_RECENTER_BUTTON),
+        contentAlignment = Alignment.Center,
+    ) {
+      Icon(
+          imageVector = Icons.Outlined.NearMe,
+          contentDescription = stringResource(R.string.artwork_map_recenter),
+          tint = MaterialTheme.colorScheme.onSurface,
+          modifier = Modifier.size(Dimensions.iconSizeMedium),
+      )
     }
   }
 }
