@@ -28,6 +28,9 @@ object ArtistPreferencesTestTags {
   /** Tag identifying the grid displaying the saved artists. */
   const val ARTISTS_GRID = "artist_preferences_artists_grid"
 
+  /** Tag identifying the button saving the removal of the untoggled artists. */
+  const val SAVE_BUTTON = "artist_preferences_save_button"
+
   /** Tag identifying the message shown instead of the grid when the user has no saved artist. */
   const val EMPTY_STATE = "artist_preferences_empty_state"
 

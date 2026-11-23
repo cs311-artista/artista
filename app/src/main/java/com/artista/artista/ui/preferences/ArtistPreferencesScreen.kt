@@ -76,17 +76,19 @@ import kotlinx.coroutines.runBlocking
 private val PillShape = RoundedCornerShape(percent = 50)
 
 /**
- * Displays the artists the user saved as favorites; tapping one removes it from their preferences.
+ * Displays the artists the user saved as favorites; the user untoggles the ones to remove, then
+ * taps Save to effectively remove.
  *
  * The callbacks have no default value, so that integrating the screen without wiring one of them
  * fails to compile instead of leaving a button that silently does nothing.
  *
- * A removal is written as soon as the card is tapped, so there is no Save button; a toast tells
- * when a removal or the load fails.
+ * Saving keeps the user on the screen: the removed cards disappear at once, and come back with a
+ * toast if an error happens. The Save button is enabled only once at least one artist is untoggled.
  *
  * @param onBackClick Callback invoked when the user leaves the screen.
  * @param onTabSelected Callback invoked with the destination selected in the bottom navigation.
- * @param artistPreferencesViewModel ViewModel providing the saved artists and removing them.
+ * @param artistPreferencesViewModel ViewModel providing the saved artists and functions to remove
+ *   them.
  * @author Timz3rr, krfpn
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -166,8 +168,8 @@ fun ArtistPreferencesScreen(
       } else if (uiState.isEmpty) {
         SavedArtistsEmptyState(modifier = Modifier.weight(1f).fillMaxWidth())
       } else {
-        // The weight keeps the grid above the bottom bar; it scrolls when it overflows. A lazy grid
-        // needs a bounded height: making this column scrollable would crash it.
+        // The weight keeps the grid above the save button; it scrolls when it overflows. A lazy
+        // grid needs a bounded height: making this column scrollable would crash it.
         LazyVerticalGrid(
             columns = GridCells.Fixed(3),
             modifier =
@@ -180,10 +182,31 @@ fun ArtistPreferencesScreen(
           items(uiState.displayedArtists, key = { it.uid }) { artist ->
             ArtistCard(
                 artist = artist,
-                onRemove = { artistPreferencesViewModel.removeArtist(artist.uid) },
+                selected = artist.uid !in uiState.deselectedArtists,
+                onToggle = { artistPreferencesViewModel.toggleArtist(artist.uid) },
             )
           }
         }
+      }
+      Button(
+          onClick = artistPreferencesViewModel::saveChanges,
+          // Disabled until some artist is untoggled, and in the loading, error and empty states.
+          enabled = uiState.canSave,
+          modifier =
+              Modifier.fillMaxWidth()
+                  .height(Dimensions.preferencesSaveButtonHeight)
+                  .testTag(ArtistPreferencesTestTags.SAVE_BUTTON),
+          shape = PillShape,
+          colors =
+              ButtonDefaults.buttonColors(
+                  containerColor = MaterialTheme.colorScheme.surface,
+                  contentColor = MaterialTheme.colorScheme.primary,
+              ),
+      ) {
+        Text(
+            text = stringResource(R.string.artist_preferences_save),
+            style = MaterialTheme.typography.titleMedium,
+        )
       }
     }
   }
@@ -301,20 +324,20 @@ private fun SearchField(query: String, onQueryChange: (String) -> Unit, enabled:
 }
 
 /**
- * Card of a saved artist, which the user can click to remove the artist from their favorites.
+ * Card of a saved artist, which the user can click to untoggle, or toggle it back.
  *
- * The card stays checked, since every artist shown is saved; unchecking it removes the artist.
+ * The card is checked while the artist is kept; an unchecked card is removed on the next save.
  *
  * @param artist Artist displayed by the card.
- * @param onRemove Callback invoked when the card is clicked.
+ * @param selected Whether the artist is kept, i.e. not untoggled.
+ * @param onToggle Callback invoked when the card is clicked.
  */
 @Composable
-private fun ArtistCard(artist: Artist, onRemove: () -> Unit) {
-  val selected = true
+private fun ArtistCard(artist: Artist, selected: Boolean, onToggle: () -> Unit) {
   // A checkable Surface, unlike a clickable one, exposes the on/off state used by assertIsOn.
   Surface(
       checked = selected,
-      onCheckedChange = { onRemove() },
+      onCheckedChange = { onToggle() },
       modifier =
           Modifier.fillMaxWidth()
               // Lets accessibility services announce the card as a checkbox with its state.

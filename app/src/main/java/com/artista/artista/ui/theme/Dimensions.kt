@@ -118,6 +118,7 @@ internal object Dimensions {
   val artistCardContentPadding = 8.dp
   val artistCardSelectionIndicatorPadding = 4.dp
   val artistCardNameTopSpacing = 8.dp
+  val preferencesSaveButtonHeight = standardControlHeight
 
   // Profile screen.
   val profileTopBarHorizontalPadding = 16.dp
