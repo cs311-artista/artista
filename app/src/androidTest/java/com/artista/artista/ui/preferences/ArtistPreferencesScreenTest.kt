@@ -527,10 +527,7 @@ class ArtistPreferencesScreenTest {
   fun artistsWithSameName_haveIndependentCards() {
     val first = Artist("test-same-1", "Same Name")
     val second = Artist("test-same-2", "Same Name")
-    val repository =
-        object : WikiDataRepository by ArtworkRepositoryLocal() {
-          override suspend fun getPopularArtists(): List<Artist> = listOf(first, second)
-        }
+    val repository = object : WikiDataRepository by ArtworkRepositoryLocal() {}
     setPreferencesContent(
         viewModel =
             ArtistPreferencesViewModel(repository, FakeAuthRepository(), UserRepositoryLocal())
@@ -587,9 +584,7 @@ class ArtistPreferencesScreenTest {
    * @return the fake repository
    */
   private fun fakeWikiRepository(): WikiDataRepository =
-      object : WikiDataRepository by ArtworkRepositoryLocal() {
-        override suspend fun getPopularArtists(): List<Artist> = testArtists
-      }
+      object : WikiDataRepository by ArtworkRepositoryLocal() {}
 
   /**
    * Creates the ViewModel under test with fake dependencies.
@@ -644,12 +639,6 @@ class ArtistPreferencesScreenTest {
 
     /** When set, the load waits for it to complete, which simulates a slow network. */
     @Volatile var pending: CompletableDeferred<Unit>? = null
-
-    override suspend fun getPopularArtists(): List<Artist> {
-      pending?.await()
-      failure?.let { throw it }
-      return testArtists
-    }
   }
 
   /**
