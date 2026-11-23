@@ -68,9 +68,12 @@ internal object Dimensions {
 
   val artworkCardElevation = shallowElevation
 
+  // Top app bar.
+  val topBarHeight = 64.dp
+  val topBarHorizontalPadding = 4.dp
+  val topBarButtonSize = standardTouchTargetSize
+
   // Saved artworks screen.
-  val savedArtworksTitleHorizontalPadding = 20.dp
-  val savedArtworksTitleVerticalPadding = 8.dp
   val savedArtworksErrorHorizontalPadding = 24.dp
   val savedArtworksRetryButtonSpacing = 16.dp
   val savedArtworksListHorizontalPadding = 16.dp
@@ -83,8 +86,6 @@ internal object Dimensions {
   val overviewListItemSpacing = 8.dp
   val overviewSearchBarHorizontalPadding = 16.dp
   val overviewSearchBarVerticalPadding = 8.dp
-  val overviewSearchBarContentHorizontalPadding = 16.dp
-  val overviewSearchBarIconTextSpacing = 12.dp
   val overviewErrorActionSpacing = 12.dp
   val overviewFilterFieldSpacing = 8.dp
   val artworkFilterContentVerticalPadding = 4.dp
