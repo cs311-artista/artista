@@ -8,7 +8,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.artista.artista.model.artwork.Artwork
-import com.artista.artista.model.artwork.ArtworkCandidate
 import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.ArtworkType
 import com.artista.artista.model.artwork.SavedArtworksRepository
@@ -16,14 +15,11 @@ import com.artista.artista.model.artwork.WikiDataRepository
 import com.artista.artista.model.error.AppException
 import com.artista.artista.ui.error.launchCatching
 import com.artista.artista.ui.error.toMessageRes
-import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
 
 /**
  * Immutable UI state displayed by the Search screen.
@@ -46,14 +42,10 @@ import kotlinx.coroutines.launch
 data class SearchScreenUiState(
     val query: String = "",
     val selection: TextRange = TextRange.Zero,
-    val expanded: Boolean = false,
-    val typeValues: List<ArtworkType> = ArtworkType.entries,
     val savedArtworks: List<Artwork> = emptyList(),
-    val closeArtworks: List<Artwork> = emptyList(),
-    val resultArtworks: List<Artwork> = emptyList(),
+    val typeValues: List<ArtworkType> = ArtworkType.entries,
     val savedRecommendations: List<Artwork> = emptyList(),
-    val locationRecommendations: List<Artwork> = emptyList(),
-    val remoteRecommendations: List<ArtworkCandidate> = emptyList(),
+    val resultArtworks: List<Artwork> = emptyList(),
     val isLoading: Boolean = false,
     val hasInvalidSearchInput: Boolean = false,
     val hasAlreadySearched: Boolean = false,
@@ -114,12 +106,10 @@ class SearchScreenViewModel(
   fun onSearchInputChanged(query: String, selection: TextRange) {
     val currentState = _uiState.value
     val queryChanged = query != currentState.query
-
     if (queryChanged && searchJob?.isActive == true) {
-      searchRequestId++ // invalidates any in-flight or pending request
+      searchRequestId++
       searchJob?.cancel()
     }
-
     _uiState.value =
         currentState.copy(
             query = query,
@@ -130,9 +120,6 @@ class SearchScreenViewModel(
             fetchErrorMessageResId = null,
             hasInvalidSearchInput = false,
         )
-
-    // Cursor moves also call this function, so only a real text change restarts the timer.
-    if (queryChanged) scheduleSuggestions(query.trim())
   }
 
   /**
@@ -175,7 +162,6 @@ class SearchScreenViewModel(
               }
             },
         ) {
-          // val results = wikiDataRepository.searchArtworks(query, typeValues)
           val results = wikiDataRepository.getArtworksFromQuery(query, typeValues)
           if (requestId == searchRequestId) {
             _uiState.update {
@@ -259,10 +245,6 @@ class SearchScreenViewModel(
     _uiState.update { it.copy(saveErrorMessageResId = null) }
   }
 
-  fun setExpanded(value: Boolean) {
-    _uiState.update { it.copy(expanded = value) }
-  }
-
   private fun recommendationsFor(query: String, savedArtworks: List<Artwork>): List<Artwork> =
       if (query.isBlank()) {
         emptyList()
@@ -275,34 +257,14 @@ class SearchScreenViewModel(
             .toList()
       }
 
-  private fun scheduleSuggestions(query: String) {
-    if (query.length < MIN_SUGGESTION_LENGTH) return
-    val requestId = searchRequestId
-
-    searchJob = viewModelScope.launch {
-      delay(SUGGESTION_DEBOUNCE_MS.milliseconds) // cancelled here if the user keeps typing
-
-      val result = runCatching {
-        wikiDataRepository.getArtworkCandidates(query, _uiState.value.typeValues)
-      }
-      if (requestId != searchRequestId) return@launch // stale, drop it
-
-      _uiState.update { it.copy(remoteRecommendations = result.getOrDefault(emptyList())) }
-    }
-  }
-
   companion object {
-    const val SUGGESTION_DEBOUNCE_MS = 350L
-    const val MIN_SUGGESTION_LENGTH = 2
     private const val TAG = "SearchScreenViewModel"
 
     /**
      * Creates a factory for a search ViewModel with its repository dependencies.
      *
      * @param savedArtworksRepository provides saved artworks for recommendations
-     * @param remoteArtworkRepository provides artwork search results
-     * @param remoteArtistRepository provides artist search results
-     * @param wikiDataRepository provides Wikidata search results
+     * @param wikiDataRepository provides artwork search results
      * @return factory that creates [SearchScreenViewModel] instances
      * @author hixeum
      */
@@ -314,11 +276,7 @@ class SearchScreenViewModel(
           @Suppress("UNCHECKED_CAST")
           override fun <T : ViewModel> create(modelClass: Class<T>): T {
             if (modelClass.isAssignableFrom(SearchScreenViewModel::class.java)) {
-              return SearchScreenViewModel(
-                  savedArtworksRepository,
-                  wikiDataRepository,
-              )
-                  as T
+              return SearchScreenViewModel(savedArtworksRepository, wikiDataRepository) as T
             }
             throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
           }
