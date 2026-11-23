@@ -174,8 +174,15 @@ class ArtistPreferencesViewModel(
    */
   fun loadPopularArtists() {
     if (_uiState.value.isLoadingPopularArtists) return
-    // The failed flag is cleared now, so the screen hides the error state while retrying.
-    _uiState.update { it.copy(isLoadingPopularArtists = true, hasPopularArtistsLoadFailed = false) }
+
+    _uiState.update {
+      it.copy(
+          isLoadingPopularArtists = true,
+          hasPopularArtistsLoadFailed = false,
+          messageResId = null,
+      )
+    }
+
     viewModelScope.launchCatching(
         tag = TAG,
         onError = { error ->
@@ -188,8 +195,14 @@ class ArtistPreferencesViewModel(
           }
         },
     ) {
-      val artists = artworkRepository.getPopularArtists()
-      _uiState.update { it.copy(popularArtists = artists, isLoadingPopularArtists = false) }
+      val artists = artworkRepository.getArtistsFromQuery("", POPULAR_ARTIST_LIMIT)
+      _uiState.update {
+        it.copy(
+            popularArtists = artists,
+            isLoadingPopularArtists = false,
+            hasPopularArtistsLoadFailed = false,
+        )
+      }
     }
   }
 
@@ -390,6 +403,7 @@ class ArtistPreferencesViewModel(
   companion object {
     /** Log tag identifying messages emitted by [ArtistPreferencesViewModel]. */
     private const val TAG = "ArtistPreferencesViewModel"
+    private const val POPULAR_ARTIST_LIMIT = 50
 
     /**
      * Creates a factory for an artist-preferences ViewModel with its repository dependencies.

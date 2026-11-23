@@ -60,17 +60,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextRange
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkId
-import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.artwork.ArtworkType
 import com.artista.artista.ui.artwork.ArtworkCard
 import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
-import com.artista.artista.ui.theme.ArtistaTheme
 import com.artista.artista.ui.theme.Dimensions
 import com.artista.artista.ui.theme.SearchBarPalette
 
@@ -152,13 +148,15 @@ fun SearchScreen(
       topBar = {
         SearchInput(
             textFieldState = textFieldState,
-            recommendations = uiState.recommendations,
+            recommendations = uiState.savedRecommendations,
             selectedTypeValues = uiState.typeValues,
             hasInvalidSearchInput = uiState.hasInvalidSearchInput,
             onQueryChanged = viewModel::onSearchInputChanged,
             onSearchSubmitted = viewModel::onSearchSubmitted,
             onRecommendationSelected = onRecommendationSelected,
             onArtworkTypeToggle = viewModel::toggleArtworkType,
+            expanded = uiState.expanded,
+            setExpanded = viewModel::setExpanded,
         )
       },
       bottomBar = {
@@ -181,12 +179,14 @@ fun SearchScreen(
         )
       }
     } else if (
-        uiState.artworks.isEmpty() && uiState.hasAlreadySearched && !uiState.hasInvalidSearchInput
+        uiState.resultArtworks.isEmpty() &&
+            uiState.hasAlreadySearched &&
+            !uiState.hasInvalidSearchInput
     ) {
       EmptySearchResults(modifier = Modifier.fillMaxSize().padding(contentPadding))
     } else {
       ArtworkResults(
-          artworks = uiState.artworks,
+          artworks = uiState.resultArtworks,
           savedArtworkIds = uiState.savedArtworks.map { it.uid }.toSet(),
           onArtworkClick = onArtworkClick,
           onMapClick = onMapClick,
@@ -248,8 +248,9 @@ private fun SearchInput(
     onSearchSubmitted: (String) -> Unit,
     onRecommendationSelected: (Artwork) -> Unit,
     onArtworkTypeToggle: (ArtworkType) -> Unit,
+    expanded: Boolean,
+    setExpanded: (Boolean) -> Unit,
 ) {
-  var expanded by remember { mutableStateOf(false) }
   val focusRequester = remember { FocusRequester() }
   val focusManager = LocalFocusManager.current
   val keyboardController = LocalSoftwareKeyboardController.current
@@ -280,12 +281,12 @@ private fun SearchInput(
           expanded = expanded,
           onSearch = { query ->
             onSearchSubmitted(query)
-            expanded = false
+            setExpanded(false)
             focusManager.clearFocus()
           },
           onExpandedChange = {
-            expanded = it
-            if (!expanded) focusManager.clearFocus()
+            setExpanded(it)
+            if (!it) focusManager.clearFocus()
           },
           modifier =
               Modifier.weight(1f)
@@ -298,15 +299,10 @@ private fun SearchInput(
           onArtworkTypeToggle = onArtworkTypeToggle,
       )
     }
-
     if (expanded && recommendations.isNotEmpty()) {
       Dropdown(
-          recommendations,
-          onRecommendationSelected = { recommendation ->
-            onRecommendationSelected(recommendation)
-            expanded = false
-            focusManager.clearFocus()
-          },
+          recommendations = recommendations,
+          onRecommendationSelected = onRecommendationSelected,
       )
     }
   }
@@ -325,7 +321,7 @@ private fun SearchTextField(
   SearchBarDefaults.InputField(
       state = textFieldState,
       onSearch = onSearch,
-      expanded = false,
+      expanded = expanded,
       onExpandedChange = onExpandedChange,
       colors =
           SearchBarDefaults.inputFieldColors(
@@ -523,20 +519,10 @@ private fun ArtworkResults(
 }
 
 /** Previews the complete search screen in Android Studio. */
-@Preview(showBackground = true)
-@Composable
-internal fun SearchScreenPreview() {
-  ArtistaTheme {
-    SearchScreen(
-        viewModel =
-            viewModel(
-                factory =
-                    SearchScreenViewModel.provideFactory(
-                        ArtworkRepositoryProvider.mockRepository,
-                        ArtworkRepositoryProvider.mockRepository,
-                    )
-            ),
-        onTabSelected = {},
-    )
-  }
-}
+/**
+ * @Preview(showBackground = true)
+ * @Composable internal fun SearchScreenPreview() { ArtistaTheme { SearchScreen( viewModel =
+ *   viewModel( factory = SearchScreenViewModel.provideFactory(
+ *   ArtworkRepositoryProvider.mockRepository, ArtworkRepositoryProvider.mockRepository, ) ),
+ *   onTabSelected = {}, ) } }
+ */
