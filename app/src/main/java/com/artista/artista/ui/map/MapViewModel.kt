@@ -429,20 +429,22 @@ class MapViewModel(
         }
   }
 
+  private fun routeStateFor(error: AppException): RouteUiState =
+      when (error) {
+        is AppException.NotFound -> RouteUiState.NoRoute
+        is AppException.Network ->
+            RouteUiState.Error(RouteErrorKind.NETWORK, messageRes = error.toMessageRes())
+        is AppException.RateLimited ->
+            RouteUiState.Error(
+                if (error.isTransient) RouteErrorKind.TEMPORARY_RATE_LIMIT
+                else RouteErrorKind.DAILY_RATE_LIMIT,
+                messageRes = error.toMessageRes(),
+            )
+        else -> RouteUiState.Error(RouteErrorKind.GENERIC, messageRes = error.toMessageRes())
+      }
+
   private fun setRouteError(error: AppException) {
-    _routeUiState.value =
-        when (error) {
-          is AppException.NotFound -> RouteUiState.NoRoute
-          is AppException.Network ->
-              RouteUiState.Error(RouteErrorKind.NETWORK, messageRes = error.toMessageRes())
-          is AppException.RateLimited ->
-              RouteUiState.Error(
-                  if (error.isTransient) RouteErrorKind.TEMPORARY_RATE_LIMIT
-                  else RouteErrorKind.DAILY_RATE_LIMIT,
-                  messageRes = error.toMessageRes(),
-              )
-          else -> RouteUiState.Error(RouteErrorKind.GENERIC, messageRes = error.toMessageRes())
-        }
+    _routeUiState.value = routeStateFor(error)
   }
 
   /**
