@@ -19,18 +19,18 @@ import org.junit.Test
 class ArtworkRepositoryLocalTest {
 
   @Test
-  fun getArtistFromName_returnsCaseInsensitivePartialNameMatch() = runTest {
+  fun getArtistsFromQuery_returnsCaseInsensitivePartialNameMatch() = runTest {
     val repository = ArtworkRepositoryLocal()
     val expected = mockPopularArtists.first { it.name == "Pablo Picasso" }
 
-    assertEquals(expected, repository.getArtistFromName("PICASSO"))
+    assertEquals(listOf(expected), repository.getArtistsFromQuery("PICASSO"))
   }
 
   @Test
-  fun getArtistFromName_returnsNullWhenNoNameMatches() = runTest {
+  fun getArtistsFromQuery_returnsNullWhenNoNameMatches() = runTest {
     val repository = ArtworkRepositoryLocal()
 
-    assertNull(repository.getArtistFromName("Unknown artist"))
+    assertEquals(emptyList<Artist>(), repository.getArtistsFromQuery("Unknown artist"))
   }
 
   @Test
@@ -98,7 +98,7 @@ class ArtworkRepositoryLocalTest {
     repository.putArtworkInRepositoryUnsavedSection(matchingArtwork)
     repository.putArtworkInRepositoryUnsavedSection(artistOnlyMatch)
 
-    val results = repository.searchArtworks("STARRY")
+    val results = repository.getArtworksFromQuery("STARRY")
 
     assertEquals(listOf(matchingArtwork), results)
   }
@@ -109,7 +109,7 @@ class ArtworkRepositoryLocalTest {
     val artworks = listOf(artwork("first", "First"), artwork("second", "Second"))
     artworks.forEach(repository::putArtworkInRepositoryUnsavedSection)
 
-    assert(repository.searchArtworks("").toSet().isEmpty())
+    assert(repository.getArtworksFromQuery("").toSet().isEmpty())
   }
 
   @Test
@@ -120,7 +120,7 @@ class ArtworkRepositoryLocalTest {
     repository.putArtworkInRepositoryUnsavedSection(namedArtwork)
     repository.putArtworkInRepositoryUnsavedSection(unnamedArtwork)
 
-    val results = repository.searchArtworks("starry")
+    val results = repository.getArtworksFromQuery("starry")
 
     assertEquals(listOf(namedArtwork), results)
   }

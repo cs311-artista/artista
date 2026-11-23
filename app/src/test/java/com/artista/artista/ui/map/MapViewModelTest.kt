@@ -5,8 +5,10 @@ package com.artista.artista.ui.map
 import com.artista.artista.MainDispatcherRule
 import com.artista.artista.R
 import com.artista.artista.model.artist.Artist
+import com.artista.artista.model.artist.ArtistCandidate
 import com.artista.artista.model.artist.ArtistId
 import com.artista.artista.model.artwork.Artwork
+import com.artista.artista.model.artwork.ArtworkCandidate
 import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.artwork.ArtworkType
@@ -727,10 +729,22 @@ class MapViewModelTest {
       return artworks
     }
 
-    @Deprecated("Only required by the repository interface.")
-    override suspend fun getPopularArtists(): List<Artist> = emptyList()
+    override suspend fun getArtworkCandidates(
+        query: String,
+        typeValues: List<ArtworkType>,
+        limit: Int,
+    ): List<ArtworkCandidate> {
+      throw NotImplementedError("Should not be used")
+    }
 
-    override suspend fun getArtistFromName(query: String): Artist? {
+    override suspend fun getArtistCandidates(
+        query: String,
+        limit: Int,
+    ): List<ArtistCandidate> {
+      throw NotImplementedError("Should not be used")
+    }
+
+    override suspend fun getArtistsFromQuery(query: String, limit: Int): List<Artist> {
       throw NotImplementedError("Shouldn't be used in this test.")
     }
 
@@ -742,8 +756,8 @@ class MapViewModelTest {
       return artworks.first { it.uid == uid }
     }
 
-    override suspend fun searchArtworks(
-        artworkTitle: String,
+    override suspend fun getArtworksFromQuery(
+        query: String,
         typeValues: List<ArtworkType>,
         limit: Int,
     ): List<Artwork> = emptyList()

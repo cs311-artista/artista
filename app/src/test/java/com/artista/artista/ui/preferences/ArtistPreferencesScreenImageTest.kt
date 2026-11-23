@@ -206,6 +206,7 @@ class ArtistPreferencesScreenImageTest {
    */
   private class PopularArtistsWikiDataRepository(private val artists: List<Artist>) :
       WikiDataRepository by ArtworkRepositoryLocal() {
-    override suspend fun getPopularArtists(): List<Artist> = artists
+    override suspend fun getArtistsFromQuery(query: String, limit: Int): List<Artist> =
+        artists.take(limit)
   }
 }

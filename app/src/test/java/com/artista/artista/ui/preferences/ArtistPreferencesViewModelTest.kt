@@ -105,7 +105,8 @@ class ArtistPreferencesViewModelTest {
     val second = Artist("test-same-2", "Same Name")
     val repository =
         object : WikiDataRepository by ArtworkRepositoryLocal() {
-          override suspend fun getPopularArtists(): List<Artist> = listOf(first, second)
+          override suspend fun getArtistsFromQuery(query: String, limit: Int): List<Artist> =
+              listOf(first, second)
         }
     val viewModel = ArtistPreferencesViewModel(repository, authRepository, userRepository)
     advanceUntilIdle()
@@ -121,7 +122,8 @@ class ArtistPreferencesViewModelTest {
   fun init_whenLoadingPopularArtistsFails_exposesNoArtists() = runTest {
     val repository =
         object : WikiDataRepository by ArtworkRepositoryLocal() {
-          override suspend fun getPopularArtists(): List<Artist> = error("Popular artists failure")
+          override suspend fun getArtistsFromQuery(query: String, limit: Int): List<Artist> =
+              error("Popular artists failure")
         }
     val viewModel = ArtistPreferencesViewModel(repository, authRepository, userRepository)
     advanceUntilIdle()
@@ -306,7 +308,8 @@ class ArtistPreferencesViewModelTest {
     // Fake repository whose popular artists only arrive once the test provides them.
     val repository =
         object : WikiDataRepository by ArtworkRepositoryLocal() {
-          override suspend fun getPopularArtists(): List<Artist> = artists.await()
+          override suspend fun getArtistsFromQuery(query: String, limit: Int): List<Artist> =
+              artists.await()
         }
 
     // The user opens the screen: loading starts, then stays stuck waiting for the artists.
@@ -1121,11 +1124,11 @@ class ArtistPreferencesViewModelTest {
     var callCount = 0
       private set
 
-    override suspend fun getPopularArtists(): List<Artist> {
+    override suspend fun getArtistsFromQuery(query: String, limit: Int): List<Artist> {
       callCount++
       pending?.await()
       failure?.let { throw it }
-      return ALL_ARTISTS
+      return ALL_ARTISTS.take(limit)
     }
   }
 
