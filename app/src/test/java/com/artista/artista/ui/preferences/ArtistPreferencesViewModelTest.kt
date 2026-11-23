@@ -425,14 +425,107 @@ class ArtistPreferencesViewModelTest {
     assertEquals(listOf(MONET.uid), viewModel.uiState.value.savedArtists.map { it.uid })
   }
 
-  // ---- Removing an artist ----
+  // ---- Untoggling artists ----
+
+  /** Verifies that tapping a card untoggles it and enables Save, without writing anything. */
+  @Test
+  fun toggleArtist_untogglesArtistAndEnablesSave() = runTest {
+    userRepository.store(userWithArtists(listOf(KLIMT.uid, MONET.uid)))
+    signIn()
+
+    viewModel.toggleArtist(KLIMT.uid)
+
+    val state = viewModel.uiState.value
+    assertEquals(setOf(KLIMT.uid), state.deselectedArtists)
+    assertTrue(state.canSave)
+    // The untoggled card stays shown until the user saves.
+    assertEquals(listOf(KLIMT.uid, MONET.uid), state.displayedArtists.map { it.uid })
+    advanceUntilIdle()
+    assertEquals(0, userRepository.writeCount)
+  }
+
+  /** Verifies that tapping an untoggled card toggles it back and disables Save again. */
+  @Test
+  fun toggleArtist_twice_togglesBackAndDisablesSave() = runTest {
+    userRepository.store(userWithArtists(listOf(KLIMT.uid, MONET.uid)))
+    signIn()
+
+    viewModel.toggleArtist(KLIMT.uid)
+    viewModel.toggleArtist(KLIMT.uid)
+
+    assertTrue(viewModel.uiState.value.deselectedArtists.isEmpty())
+    assertFalse(viewModel.uiState.value.canSave)
+  }
+
+  /** Verifies that toggling an artist that is not shown is ignored, so Save stays disabled. */
+  @Test
+  fun toggleArtist_artistNotShown_isIgnored() = runTest {
+    userRepository.store(userWithArtists(listOf(KLIMT.uid)))
+    signIn()
+
+    viewModel.toggleArtist(MONET.uid)
+
+    assertTrue(viewModel.uiState.value.deselectedArtists.isEmpty())
+    assertFalse(viewModel.uiState.value.canSave)
+  }
+
+  /** Verifies that a tap made while the saved artists load is ignored. */
+  @Test
+  fun toggleArtist_whileLoading_isIgnored() = runTest {
+    userRepository.store(userWithArtists(listOf(KLIMT.uid)))
+    // The first load ends, then a second user's slow load is running when the user taps a card
+    // of the first one.
+    signIn()
+    userRepository.store(userWithArtists(listOf(KLIMT.uid), uid = OTHER_UID))
+    userRepository.readDelays[OTHER_UID] = 1_000
+    authRepository.setAuthState(FakeAuthUser(OTHER_UID))
+    runCurrent()
+
+    viewModel.toggleArtist(KLIMT.uid)
+
+    assertTrue(viewModel.uiState.value.deselectedArtists.isEmpty())
+  }
+
+  /** Verifies that no card can be toggled while a save runs. */
+  @Test
+  fun toggleArtist_whileSaving_isIgnored() = runTest {
+    userRepository.store(userWithArtists(listOf(KLIMT.uid, MONET.uid)))
+    signIn()
+    userRepository.writeDelays[UID] = 1_000
+    viewModel.toggleArtist(KLIMT.uid)
+    viewModel.saveChanges()
+    runCurrent()
+
+    viewModel.toggleArtist(MONET.uid)
+
+    assertTrue(viewModel.uiState.value.deselectedArtists.isEmpty())
+    advanceUntilIdle()
+    assertEquals(listOf(MONET.uid), userRepository.storedUser(UID)?.preference?.artists)
+  }
+
+  /** Verifies that the untoggled artists of the user who left are not kept for the next one. */
+  @Test
+  fun signIn_otherUser_clearsUntoggledArtists() = runTest {
+    userRepository.store(userWithArtists(listOf(KLIMT.uid)))
+    userRepository.store(userWithArtists(listOf(KLIMT.uid), uid = OTHER_UID))
+    signIn()
+    viewModel.toggleArtist(KLIMT.uid)
+
+    authRepository.setAuthState(FakeAuthUser(OTHER_UID))
+    advanceUntilIdle()
+
+    assertTrue(viewModel.uiState.value.deselectedArtists.isEmpty())
+    assertFalse(viewModel.uiState.value.canSave)
+  }
+
+  // ---- Saving the removals ----
 
   /**
-   * Verifies that removing an artist drops it from the screen and from the stored profile, keeping
-   * the other artists in order and the other fields of the profile.
+   * Verifies that saving removes the untoggled artist from the screen and from the stored profile,
+   * keeping the other artists in order and the other fields of the profile.
    */
   @Test
-  fun removeArtist_removesFromScreenAndProfile() = runTest {
+  fun saveChanges_removesFromScreenAndProfile() = runTest {
     val storedPreference =
         UserPreference(
             artists = listOf(KLIMT.uid, PICASSO.uid, MONET.uid),
@@ -449,7 +542,7 @@ class ArtistPreferencesViewModelTest {
     userRepository.store(storedUser)
     signIn()
 
-    viewModel.removeArtist(PICASSO.uid)
+    untoggleAndSave(PICASSO.uid)
     advanceUntilIdle()
 
     assertEquals(
@@ -459,41 +552,79 @@ class ArtistPreferencesViewModelTest {
     val state = viewModel.uiState.value
     assertEquals(listOf(KLIMT.uid, MONET.uid), state.savedArtists.map { it.uid })
     assertTrue(state.removingArtists.isEmpty())
+    assertTrue(state.deselectedArtists.isEmpty())
+    assertFalse(state.canSave)
     assertNull(state.messageResId)
   }
 
-  /** Verifies that the card is hidden at once, before the write has finished. */
+  /** Verifies that several untoggled artists are removed together, in a single write. */
   @Test
-  fun removeArtist_hidesCardBeforeWriteEnds() = runTest {
+  fun saveChanges_severalArtists_removesThemInOneWrite() = runTest {
+    userRepository.store(userWithArtists(listOf(KLIMT.uid, PICASSO.uid, MONET.uid)))
+    signIn()
+
+    untoggleAndSave(KLIMT.uid, MONET.uid)
+    advanceUntilIdle()
+
+    assertEquals(1, userRepository.writeCount)
+    assertEquals(listOf(PICASSO.uid), userRepository.storedUser(UID)?.preference?.artists)
+    assertEquals(listOf(PICASSO.uid), viewModel.uiState.value.savedArtists.map { it.uid })
+  }
+
+  /**
+   * Verifies that the cards are hidden at once, before writing has finished, and that Save is
+   * disabled while it runs.
+   */
+  @Test
+  fun saveChanges_hidesCardsAndDisablesSaveBeforeWriteEnds() = runTest {
     userRepository.store(userWithArtists(listOf(KLIMT.uid, MONET.uid)))
     signIn()
     userRepository.writeDelays[UID] = 1_000
 
-    viewModel.removeArtist(KLIMT.uid)
+    untoggleAndSave(KLIMT.uid)
 
     val state = viewModel.uiState.value
     assertEquals(setOf(KLIMT.uid), state.removingArtists)
+    assertTrue(state.isSaving)
+    assertFalse(state.canSave)
     assertEquals(listOf(MONET.uid), state.displayedArtists.map { it.uid })
-    // Kept until the write succeeds, so a failure can put the card back in place.
+    // Kept until writing succeeds, so a failure can put the card back in place.
     assertEquals(listOf(KLIMT.uid, MONET.uid), state.savedArtists.map { it.uid })
   }
 
+  /** Verifies that a double tap on Save writes once. */
+  @Test
+  fun saveChanges_doubleTap_writesOnce() = runTest {
+    userRepository.store(userWithArtists(listOf(KLIMT.uid, MONET.uid)))
+    signIn()
+    userRepository.writeDelays[UID] = 1_000
+
+    untoggleAndSave(KLIMT.uid)
+    runCurrent()
+    viewModel.saveChanges()
+    advanceUntilIdle()
+
+    assertEquals(1, userRepository.writeCount)
+  }
+
   /**
-   * Verifies that a failed write brings the card back at its place, shows an error and leaves the
-   * profile unchanged.
+   * Verifies that a failed write brings the cards back at their place, checked as before they were
+   * untoggled, with Save disabled, an error message and the profile unchanged.
    */
   @Test
-  fun removeArtist_writeFails_bringsCardBackWithMessage() = runTest {
+  fun saveChanges_writeFails_bringsCardsBackCheckedWithMessage() = runTest {
     userRepository.store(userWithArtists(listOf(KLIMT.uid, PICASSO.uid, MONET.uid)))
     signIn()
     userRepository.writeFailure = AppException.Network()
 
-    viewModel.removeArtist(PICASSO.uid)
+    untoggleAndSave(PICASSO.uid)
     advanceUntilIdle()
 
     val state = viewModel.uiState.value
     assertEquals(listOf(KLIMT.uid, PICASSO.uid, MONET.uid), state.displayedArtists.map { it.uid })
+    assertTrue(state.deselectedArtists.isEmpty())
     assertTrue(state.removingArtists.isEmpty())
+    assertFalse(state.canSave)
     assertEquals(R.string.error_network, state.messageResId)
     assertEquals(
         listOf(KLIMT.uid, PICASSO.uid, MONET.uid),
@@ -506,12 +637,12 @@ class ArtistPreferencesViewModelTest {
    * nothing, so a profile that could not be read is never overwritten.
    */
   @Test
-  fun removeArtist_readFails_bringsCardBackAndDoesNotWrite() = runTest {
+  fun saveChanges_readFails_bringsCardBackAndDoesNotWrite() = runTest {
     userRepository.store(userWithArtists(listOf(KLIMT.uid)))
     signIn()
     userRepository.readFailure = AppException.Network()
 
-    viewModel.removeArtist(KLIMT.uid)
+    untoggleAndSave(KLIMT.uid)
     advanceUntilIdle()
 
     assertEquals(listOf(KLIMT.uid), viewModel.uiState.value.displayedArtists.map { it.uid })
@@ -519,63 +650,28 @@ class ArtistPreferencesViewModelTest {
     assertEquals(0, userRepository.writeCount)
   }
 
-  /** Verifies that a second tap on a card being removed starts no second write. */
-  @Test
-  fun removeArtist_twiceWhileRemoving_writesOnce() = runTest {
-    userRepository.store(userWithArtists(listOf(KLIMT.uid, MONET.uid)))
-    signIn()
-    userRepository.writeDelays[UID] = 1_000
-
-    viewModel.removeArtist(KLIMT.uid)
-    runCurrent()
-    viewModel.removeArtist(KLIMT.uid)
-    advanceUntilIdle()
-
-    assertEquals(1, userRepository.writeCount)
-    assertEquals(listOf(MONET.uid), userRepository.storedUser(UID)?.preference?.artists)
-  }
-
-  /**
-   * Verifies that two removals made in a row are both stored: the second one reads the profile only
-   * once the first one has written it, so it does not bring the first artist back.
-   */
-  @Test
-  fun removeArtist_twoArtistsQuickly_removesBothFromProfile() = runTest {
-    userRepository.store(userWithArtists(listOf(KLIMT.uid, PICASSO.uid, MONET.uid)))
-    signIn()
-    // Without the delay the first removal would end before the second starts.
-    userRepository.writeDelays[UID] = 1_000
-
-    viewModel.removeArtist(KLIMT.uid)
-    viewModel.removeArtist(MONET.uid)
-    advanceUntilIdle()
-
-    assertEquals(listOf(PICASSO.uid), userRepository.storedUser(UID)?.preference?.artists)
-    assertEquals(listOf(PICASSO.uid), viewModel.uiState.value.savedArtists.map { it.uid })
-  }
-
   /** Verifies that every stored copy of a duplicated artist is removed. */
   @Test
-  fun removeArtist_duplicatedInProfile_removesEveryCopy() = runTest {
+  fun saveChanges_duplicatedInProfile_removesEveryCopy() = runTest {
     userRepository.store(userWithArtists(listOf(KLIMT.uid, MONET.uid, KLIMT.uid)))
     signIn()
 
-    viewModel.removeArtist(KLIMT.uid)
+    untoggleAndSave(KLIMT.uid)
     advanceUntilIdle()
 
     assertEquals(listOf(MONET.uid), userRepository.storedUser(UID)?.preference?.artists)
   }
 
-  /** Verifies that removing the last artist shows the empty state. */
+  /** Verifies that saving the removal of every artist shows the empty state. */
   @Test
-  fun removeArtist_lastArtist_isEmpty() = runTest {
+  fun saveChanges_allArtists_isEmpty() = runTest {
     userRepository.store(userWithArtists(listOf(KLIMT.uid)))
     signIn()
     userRepository.writeDelays[UID] = 1_000
 
-    viewModel.removeArtist(KLIMT.uid)
+    untoggleAndSave(KLIMT.uid)
 
-    // Shown as soon as the card is tapped, not only once the write ends.
+    // Shown as soon as Save is tapped, not only once the write ends.
     assertTrue(viewModel.uiState.value.isEmpty)
     advanceUntilIdle()
     assertTrue(viewModel.uiState.value.isEmpty)
@@ -584,73 +680,54 @@ class ArtistPreferencesViewModelTest {
 
   /** Verifies that a placeholder card, for an artist the catalog does not know, can be removed. */
   @Test
-  fun removeArtist_placeholder_removesIt() = runTest {
+  fun saveChanges_placeholder_removesIt() = runTest {
     userRepository.store(userWithArtists(listOf(UNKNOWN_ARTIST_ID, KLIMT.uid)))
     signIn()
 
-    viewModel.removeArtist(UNKNOWN_ARTIST_ID)
+    untoggleAndSave(UNKNOWN_ARTIST_ID)
     advanceUntilIdle()
 
     assertEquals(listOf(KLIMT.uid), userRepository.storedUser(UID)?.preference?.artists)
   }
 
-  /** Verifies that removing an artist that is not shown writes nothing. */
+  /** Verifies that saving without any untoggled artist writes nothing. */
   @Test
-  fun removeArtist_artistNotShown_isIgnored() = runTest {
+  fun saveChanges_withoutUntoggledArtist_isIgnored() = runTest {
     userRepository.store(userWithArtists(listOf(KLIMT.uid)))
     signIn()
 
-    viewModel.removeArtist(MONET.uid)
+    viewModel.saveChanges()
     advanceUntilIdle()
 
     assertEquals(0, userRepository.writeCount)
-    assertTrue(viewModel.uiState.value.removingArtists.isEmpty())
-  }
-
-  /** Verifies that a tap made while the saved artists load is ignored. */
-  @Test
-  fun removeArtist_whileLoading_isIgnored() = runTest {
-    userRepository.store(userWithArtists(listOf(KLIMT.uid)))
-    // The first load ends, then a second user's slow load is running when the user taps a card
-    // of the first one.
-    signIn()
-    userRepository.store(userWithArtists(listOf(KLIMT.uid), uid = OTHER_UID))
-    userRepository.readDelays[OTHER_UID] = 1_000
-    authRepository.setAuthState(FakeAuthUser(OTHER_UID))
-    runCurrent()
-
-    viewModel.removeArtist(KLIMT.uid)
-    advanceUntilIdle()
-
-    assertEquals(0, userRepository.writeCount)
-    assertEquals(listOf(KLIMT.uid), viewModel.uiState.value.savedArtists.map { it.uid })
+    assertFalse(viewModel.uiState.value.isSaving)
   }
 
   /**
    * Verifies that when the artist is no longer in the stored profile, for example removed from
-   * another device, the card is removed without writing.
+   * another device, the card is removed and the profile keeps the other artists.
    */
   @Test
-  fun removeArtist_alreadyRemovedFromProfile_removesCardWithoutWriting() = runTest {
+  fun saveChanges_alreadyRemovedFromProfile_removesCard() = runTest {
     userRepository.store(userWithArtists(listOf(KLIMT.uid, MONET.uid)))
     signIn()
     userRepository.store(userWithArtists(listOf(MONET.uid)))
 
-    viewModel.removeArtist(KLIMT.uid)
+    untoggleAndSave(KLIMT.uid)
     advanceUntilIdle()
 
-    assertEquals(0, userRepository.writeCount)
+    assertEquals(listOf(MONET.uid), userRepository.storedUser(UID)?.preference?.artists)
     assertEquals(listOf(MONET.uid), viewModel.uiState.value.savedArtists.map { it.uid })
   }
 
   /** Verifies that when the profile was deleted meanwhile, the card is removed without writing. */
   @Test
-  fun removeArtist_profileDeleted_removesCardWithoutWriting() = runTest {
+  fun saveChanges_profileDeleted_removesCardWithoutWriting() = runTest {
     userRepository.store(userWithArtists(listOf(KLIMT.uid)))
     signIn()
     userRepository.deleteUser(UID)
 
-    viewModel.removeArtist(KLIMT.uid)
+    untoggleAndSave(KLIMT.uid)
     advanceUntilIdle()
 
     assertEquals(0, userRepository.writeCount)
@@ -659,34 +736,35 @@ class ArtistPreferencesViewModelTest {
   }
 
   /**
-   * Verifies that a removal ending after another user signed in still updates the profile it was
-   * made for, and leaves the new user's artists untouched.
+   * Verifies that a save ending after another user signed in still updates the profile it was made
+   * for, and leaves the new user's artists untouched.
    */
   @Test
-  fun removeArtist_otherUserSignsInDuringWrite_keepsNewUsersArtists() = runTest {
+  fun saveChanges_otherUserSignsInDuringWrite_keepsNewUsersArtists() = runTest {
     userRepository.store(userWithArtists(listOf(KLIMT.uid, MONET.uid)))
     userRepository.store(userWithArtists(listOf(KLIMT.uid), uid = OTHER_UID))
     signIn()
     userRepository.writeDelays[UID] = 1_000
 
-    viewModel.removeArtist(KLIMT.uid)
+    untoggleAndSave(KLIMT.uid)
     runCurrent()
     authRepository.setAuthState(FakeAuthUser(OTHER_UID))
     advanceUntilIdle()
 
     assertEquals(listOf(MONET.uid), userRepository.storedUser(UID)?.preference?.artists)
     assertEquals(listOf(KLIMT.uid), viewModel.uiState.value.savedArtists.map { it.uid })
+    assertFalse(viewModel.uiState.value.isSaving)
   }
 
-  /** Verifies that a removal failing after the user signed out shows no message to anyone. */
+  /** Verifies that a save failing after the user signed out shows no message to anyone. */
   @Test
-  fun removeArtist_failsAfterSignOut_showsNoMessage() = runTest {
+  fun saveChanges_failsAfterSignOut_showsNoMessage() = runTest {
     userRepository.store(userWithArtists(listOf(KLIMT.uid)))
     signIn()
     userRepository.writeDelays[UID] = 1_000
     userRepository.writeFailure = AppException.Network()
 
-    viewModel.removeArtist(KLIMT.uid)
+    untoggleAndSave(KLIMT.uid)
     runCurrent()
     authRepository.setAuthState(null)
     advanceUntilIdle()
@@ -756,6 +834,15 @@ class ArtistPreferencesViewModelTest {
     assertTrue(displayedArtistsFor("xyz").isEmpty())
   }
 
+  /** Verifies that an untoggled artist stays shown until the save button is hit. */
+  @Test
+  fun displayedArtists_keepsUntoggledArtists() {
+    val state =
+        ArtistPreferencesUiState(savedArtists = ALL_ARTISTS, deselectedArtists = setOf(MONET.uid))
+
+    assertEquals(ALL_ARTISTS, state.displayedArtists)
+  }
+
   /** Verifies that an artist being removed is hidden, even when it matches the query. */
   @Test
   fun displayedArtists_excludesArtistsBeingRemoved() {
@@ -775,6 +862,15 @@ class ArtistPreferencesViewModelTest {
             savedArtists = listOf(KLIMT, MONET),
             removingArtists = setOf(KLIMT.uid),
         )
+
+    assertFalse(state.isEmpty)
+  }
+
+  /** Verifies that untoggled artists still count, since their cards are shown until saved. */
+  @Test
+  fun isEmpty_withOnlyUntoggledArtists_isFalse() {
+    val state =
+        ArtistPreferencesUiState(savedArtists = listOf(KLIMT), deselectedArtists = setOf(KLIMT.uid))
 
     assertFalse(state.isEmpty)
   }
@@ -811,13 +907,61 @@ class ArtistPreferencesViewModelTest {
     assertFalse(ArtistPreferencesUiState(isLoading = true).canSearch)
   }
 
+  /**
+   * Verifies that Save is disabled while no artist is untoggled, for example in the empty state.
+   */
+  @Test
+  fun canSave_withoutUntoggledArtist_isFalse() {
+    assertFalse(ArtistPreferencesUiState(savedArtists = listOf(KLIMT)).canSave)
+    assertFalse(ArtistPreferencesUiState().canSave)
+  }
+
+  /** Verifies that Save is enabled once an artist is untoggled. */
+  @Test
+  fun canSave_withUntoggledArtist_isTrue() {
+    val state =
+        ArtistPreferencesUiState(savedArtists = listOf(KLIMT), deselectedArtists = setOf(KLIMT.uid))
+
+    assertTrue(state.canSave)
+  }
+
+  /** Verifies that Save is disabled while a save runs. */
+  @Test
+  fun canSave_whileSaving_isFalse() {
+    val state =
+        ArtistPreferencesUiState(
+            savedArtists = listOf(KLIMT, MONET),
+            deselectedArtists = setOf(MONET.uid),
+            removingArtists = setOf(KLIMT.uid),
+        )
+
+    assertTrue(state.isSaving)
+    assertFalse(state.canSave)
+  }
+
+  /** Verifies that Save is disabled while the artists load. */
+  @Test
+  fun canSave_whileLoading_isFalse() {
+    assertFalse(
+        ArtistPreferencesUiState(isLoading = true, deselectedArtists = setOf(KLIMT.uid)).canSave
+    )
+  }
+
+  /** Verifies that Save is disabled after a failed load, where the error state is shown. */
+  @Test
+  fun canSave_afterLoadFails_isFalse() {
+    assertFalse(
+        ArtistPreferencesUiState(hasLoadFailed = true, deselectedArtists = setOf(KLIMT.uid)).canSave
+    )
+  }
+
   /** Verifies that clearing the message resets it. */
   @Test
   fun clearMessage_resetsMessage() = runTest {
     userRepository.store(userWithArtists(listOf(KLIMT.uid)))
     signIn()
     userRepository.writeFailure = AppException.Network()
-    viewModel.removeArtist(KLIMT.uid)
+    untoggleAndSave(KLIMT.uid)
     advanceUntilIdle()
     assertNotNull(viewModel.uiState.value.messageResId)
 
@@ -846,6 +990,16 @@ class ArtistPreferencesViewModelTest {
   private fun TestScope.signIn() {
     authRepository.setAuthState(FakeAuthUser(UID))
     advanceUntilIdle()
+  }
+
+  /**
+   * Untoggles the given artists and taps Save, without letting the write run.
+   *
+   * @param artistIds identifiers of the artists to remove
+   */
+  private fun untoggleAndSave(vararg artistIds: ArtistId) {
+    artistIds.forEach(viewModel::toggleArtist)
+    viewModel.saveChanges()
   }
 
   /**

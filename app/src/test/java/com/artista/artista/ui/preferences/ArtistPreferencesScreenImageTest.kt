@@ -5,6 +5,7 @@ import android.content.Context
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
@@ -34,7 +35,6 @@ import com.artista.artista.ui.artwork.installFakeImageLoader
 import com.artista.artista.ui.artwork.waitUntilFallbackDisappears
 import java.io.IOException
 import org.junit.After
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Rule
 import org.junit.Test
@@ -143,9 +143,9 @@ class ArtistPreferencesScreenImageTest {
         .assertIsDisplayed()
   }
 
-  /** Checks that clicking a card whose picture has loaded still removes the artist. */
+  /** Checks that clicking a card whose picture has loaded still untoggles the artist. */
   @Test
-  fun artistCard_withLoadedPicture_clickRemovesArtist() {
+  fun artistCard_withLoadedPicture_clickUntogglesArtist() {
     installFakeImageLoader(
         FakeImageLoaderEngine.Builder().intercept(IMAGE_URL, FakeImage()).build()
     )
@@ -168,8 +168,7 @@ class ArtistPreferencesScreenImageTest {
 
     composeTestRule
         .onNodeWithTag(ArtistPreferencesTestTags.getArtistCardTestTag(artistWithPicture.uid))
-        .assertDoesNotExist()
-    assertEquals(emptyList<ArtistId>(), userRepository.storedUser(USER_ID)?.preference?.artists)
+        .assertIsOff()
   }
 
   /**

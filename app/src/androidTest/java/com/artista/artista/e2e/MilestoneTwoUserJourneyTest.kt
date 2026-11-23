@@ -10,6 +10,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.test.ComposeTimeoutException
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasSetTextAction
@@ -344,7 +346,7 @@ class MilestoneTwoUserJourneyTest {
     }
   }
 
-  /** Opens the preferences, searches for Monet and taps his card to remove him. */
+  /** Opens the preferences, searches for Monet, untoggles his card and saves. */
   private fun removeArtistPreference() {
     onDisplayed(UserProfileTestTags.PREFERENCES_BUTTON, scrollTo = true).performClick()
     waitForDisplayed(ArtistPreferencesTestTags.SCREEN)
@@ -361,9 +363,10 @@ class MilestoneTwoUserJourneyTest {
         .onNodeWithTag(ArtistPreferencesTestTags.ARTISTS_GRID)
         .assertExists()
         .performScrollToNode(hasTestTag(monetTag))
-    onDisplayed(monetTag).performClick()
+    onDisplayed(monetTag).performClick().assertIsOff()
+    onDisplayed(ArtistPreferencesTestTags.SAVE_BUTTON).assertIsEnabled().performClick()
 
-    waitUntil("Monet card to disappear after the tap") {
+    waitUntil("Monet card to disappear after saving") {
       composeTestRule.onAllNodesWithTag(monetTag).fetchSemanticsNodes().isEmpty()
     }
     // The card is hidden before the write ends; wait until the backend really dropped Monet, so
