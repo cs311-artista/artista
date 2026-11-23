@@ -26,9 +26,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -50,7 +48,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -62,6 +59,7 @@ import com.artista.artista.model.authentication.AuthRepository
 import com.artista.artista.model.authentication.AuthUser
 import com.artista.artista.model.user.UserRepositoryLocal
 import com.artista.artista.ui.artwork.ArtworkImage
+import com.artista.artista.ui.components.ArtistaTopBar
 import com.artista.artista.ui.navigation.BackButton
 import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
@@ -88,7 +86,6 @@ private val PillShape = RoundedCornerShape(percent = 50)
  * @param artistPreferencesViewModel ViewModel providing the artists and the current selection.
  * @author Timz3rr, krfpn
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ArtistPreferencesScreen(
     onBackClick: () -> Unit,
@@ -113,16 +110,10 @@ fun ArtistPreferencesScreen(
       modifier = Modifier.fillMaxSize().testTag(ArtistPreferencesTestTags.SCREEN),
       containerColor = MaterialTheme.colorScheme.background,
       topBar = {
-        CenterAlignedTopAppBar(
-            title = {
-              Text(
-                  text = stringResource(R.string.artist_preferences_title),
-                  style = MaterialTheme.typography.titleLarge,
-                  fontWeight = FontWeight.Bold,
-                  modifier = Modifier.testTag(ArtistPreferencesTestTags.TITLE),
-              )
-            },
-            navigationIcon = {
+        ArtistaTopBar(
+            title = stringResource(R.string.artist_preferences_title),
+            titleTestTag = ArtistPreferencesTestTags.TITLE,
+            leftButton = {
               BackButton(
                   onClick = onBackClick,
                   modifier = Modifier.testTag(ArtistPreferencesTestTags.BACK_BUTTON),

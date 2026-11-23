@@ -22,9 +22,7 @@ import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -56,6 +54,7 @@ import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.artwork.mockArtworks
 import com.artista.artista.model.map.Location
 import com.artista.artista.resources.C
+import com.artista.artista.ui.components.ArtistaTopBar
 import com.artista.artista.ui.navigation.BackButton
 import com.artista.artista.ui.shared.ArtworkMarker
 import com.artista.artista.ui.theme.ArtistaTheme
@@ -99,7 +98,6 @@ object ArtworkTestTags {
  * @param onBackClick callback triggered when navigating back to the previous screen
  * @author hixeum
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ArtworkScreen(
     modifier: Modifier = Modifier,
@@ -128,22 +126,16 @@ fun ArtworkScreen(
   Scaffold(
       modifier = modifier.testTag(ArtworkTestTags.ARTWORK_SCREEN),
       topBar = {
-        CenterAlignedTopAppBar(
-            title = {
-              Text(
-                  text = artwork?.name ?: stringResource(R.string.artwork_unknown_title),
-                  style = MaterialTheme.typography.titleLarge,
-                  fontWeight = FontWeight.Bold,
-                  modifier = Modifier.testTag(ArtworkTestTags.ARTWORK_TITLE),
-              )
-            },
-            navigationIcon = {
+        ArtistaTopBar(
+            title = artwork?.name ?: stringResource(R.string.artwork_unknown_title),
+            titleTestTag = ArtworkTestTags.ARTWORK_TITLE,
+            leftButton = {
               BackButton(
                   onClick = onBackClick,
                   modifier = Modifier.testTag(ArtworkTestTags.BACK_BUTTON),
               )
             },
-            actions = {
+            rightButton = {
               IconButton(
                   onClick = { artworkScreenViewModel.toggleSaveArtwork() },
                   enabled = !uiState.isSaveInProgress && (artwork != null),
