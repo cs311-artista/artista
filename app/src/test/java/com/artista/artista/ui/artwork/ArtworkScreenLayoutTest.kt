@@ -18,7 +18,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
 /**
- * Unit tests for the layout of [ArtworkScreen]: top bar, header under the image and map tile.
+ * Unit tests for the layout of [ArtworkScreen]: top bar, title under the image and map section.
  *
  * @author Timz3rr
  */
@@ -50,27 +50,14 @@ class ArtworkScreenLayoutTest {
         .assertTextEquals("Artwork")
   }
 
-  /** Checks that the header under the image shows the artwork name and the artist name. */
+  /** Checks that the header under the image shows the artwork name. */
   @Test
-  fun artworkScreen_header_displaysArtworkAndArtistNames() {
+  fun artworkScreen_header_displaysArtworkName() {
     setScreenContent(sampleArtwork)
 
     composeTestRule
         .onNodeWithTag(ArtworkTestTags.ARTWORK_TITLE, useUnmergedTree = true)
         .assertTextEquals("Mona Lisa")
-    composeTestRule
-        .onNodeWithTag(ArtworkTestTags.ARTWORK_ARTIST_NAME, useUnmergedTree = true)
-        .assertTextEquals("Leonardo da Vinci")
-  }
-
-  /** Checks that the header shows the unknown artist fallback when the artwork has no artist. */
-  @Test
-  fun artworkScreen_withoutArtist_headerDisplaysUnknownArtist() {
-    setScreenContent(sampleArtwork.copy(artist = null))
-
-    composeTestRule
-        .onNodeWithTag(ArtworkTestTags.ARTWORK_ARTIST_NAME, useUnmergedTree = true)
-        .assertTextEquals("Unknown Artist")
   }
 
   /** Checks that the map shows a recenter button that has no click action yet. */
@@ -90,6 +77,26 @@ class ArtworkScreenLayoutTest {
     setScreenContent(sampleArtwork)
 
     composeTestRule.onNodeWithTag(ArtworkTestTags.ARTWORK_MAP_RECENTER_BUTTON).assertDoesNotExist()
+  }
+
+  /** Checks that a "Location" section title is shown above the map when the artwork has one. */
+  @Test
+  fun artworkScreen_withLocation_displaysLocationHeader() {
+    setScreenContent(sampleArtwork.copy(location = Location(48.86, 2.34, "Paris")))
+
+    composeTestRule
+        .onNodeWithTag(ArtworkTestTags.ARTWORK_LOCATION_HEADER, useUnmergedTree = true)
+        .assertTextEquals("Location")
+  }
+
+  /**
+   * Checks that no location section title exists when the artwork has no location, hence no map.
+   */
+  @Test
+  fun artworkScreen_withoutLocation_hasNoLocationHeader() {
+    setScreenContent(sampleArtwork)
+
+    composeTestRule.onNodeWithTag(ArtworkTestTags.ARTWORK_LOCATION_HEADER).assertDoesNotExist()
   }
 
   private fun setScreenContent(artwork: Artwork) {

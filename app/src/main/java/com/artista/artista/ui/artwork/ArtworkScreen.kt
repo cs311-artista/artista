@@ -87,8 +87,8 @@ object ArtworkTestTags {
   const val BACK_BUTTON = "artwork_back_button"
   const val ARTWORK_TITLE = "artwork_title"
   const val ARTWORK_TOP_BAR_TITLE = "artwork_top_bar_title"
-  const val ARTWORK_ARTIST_NAME = "artwork_artist_name"
   const val ARTWORK_MAP_RECENTER_BUTTON = "artwork_map_recenter_button"
+  const val ARTWORK_LOCATION_HEADER = "artwork_location_header"
   const val ARTWORK_MAP_TILE = "artwork_map_tile"
   const val ARTWORK_MAP_MARKER = "artwork_map_marker"
   const val ARTWORK_IMAGE = "artwork_image"
@@ -256,10 +256,13 @@ fun ArtworkScreen(
                   ),
           verticalArrangement = Arrangement.spacedBy(Dimensions.artworkDetailsSectionSpacing),
       ) {
-        ArtworkHeader(
-            title = title,
-            artistName = artwork.artist?.name ?: stringResource(R.string.artwork_unknown_artist),
-            modifier = Modifier.padding(bottom = Dimensions.artworkDetailsHeaderBottomPadding),
+        Text(
+            text = title,
+            style = MaterialTheme.typography.headlineSmall,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier =
+                Modifier.padding(bottom = Dimensions.artworkDetailsHeaderBottomPadding)
+                    .testTag(ArtworkTestTags.ARTWORK_TITLE),
         )
 
         ArtworkFieldItem(
@@ -315,6 +318,15 @@ fun ArtworkScreen(
                 MarkerState(position = artwork.location.let { LatLng(it.latitude, it.longitude) })
               }
 
+          Text(
+              text = stringResource(R.string.artwork_label_location),
+              style = MaterialTheme.typography.titleMedium,
+              color = MaterialTheme.colorScheme.onSurface,
+              modifier =
+                  Modifier.padding(top = Dimensions.artworkDetailsLocationHeaderTopPadding)
+                      .testTag(ArtworkTestTags.ARTWORK_LOCATION_HEADER),
+          )
+
           MapTile(
               mapTileCameraPositionState,
               mapTileMarkerState,
@@ -324,39 +336,6 @@ fun ArtworkScreen(
         }
       }
     }
-  }
-}
-
-/**
- * Displays the artwork name with its artist name below, under the artwork image.
- *
- * @param title name of the artwork, or its fallback when the artwork has no name
- * @param artistName name of the artist, or its fallback when the artwork has no artist
- * @param modifier optional layout modifier for the header container
- * @author Timz3rr
- */
-@Composable
-fun ArtworkHeader(
-    title: String,
-    artistName: String,
-    modifier: Modifier = Modifier,
-) {
-  Column(
-      modifier = modifier.fillMaxWidth(),
-      verticalArrangement = Arrangement.spacedBy(Dimensions.artworkDetailsHeaderTextSpacing),
-  ) {
-    Text(
-        text = title,
-        style = MaterialTheme.typography.headlineSmall,
-        color = MaterialTheme.colorScheme.onSurface,
-        modifier = Modifier.testTag(ArtworkTestTags.ARTWORK_TITLE),
-    )
-    Text(
-        text = artistName,
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.testTag(ArtworkTestTags.ARTWORK_ARTIST_NAME),
-    )
   }
 }
 
@@ -397,7 +376,7 @@ fun ArtworkFieldItem(
 }
 
 /**
- * Displays the Map Tile on the screen, with a recenter button over its bottom end corner.
+ * Displays the Map Tile on the screen, with a recenter button over its top end corner.
  *
  * @param cameraPositionState the state of the camera position on the map
  * @param markerState the state of the marker position on the map
@@ -442,10 +421,11 @@ fun MapTile(
     }
 
     // Only drawn for now: recentering the map on the artwork is a follow-up, so the button is not
-    // clickable yet rather than doing nothing on tap.
+    // clickable yet rather than doing nothing on tap. It sits at the top end because at the bottom
+    // end it overlapped the Google Maps zoom controls.
     Box(
         modifier =
-            Modifier.align(Alignment.BottomEnd)
+            Modifier.align(Alignment.TopEnd)
                 .padding(Dimensions.artworkMapRecenterButtonPadding)
                 .size(Dimensions.artworkMapRecenterButtonSize)
                 .background(MaterialTheme.colorScheme.surface, CircleShape)
