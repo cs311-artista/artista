@@ -13,20 +13,16 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CenterAlignedTopAppBar
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -40,13 +36,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkFilter
 import com.artista.artista.model.artwork.mockArtworks
+import com.artista.artista.ui.components.ArtistaTopBar
 import com.artista.artista.ui.navigation.BackButton
 import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
@@ -119,7 +115,6 @@ fun SavedArtworksScreen(
  * @param modifier modifier applied to the screen scaffold
  * @author Kaio R. Freitas Pereira Nascimento (krfpn)
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SavedArtworksScreenLayout(
     uiState: SavedArtworksUIState,
@@ -158,32 +153,16 @@ private fun SavedArtworksScreenLayout(
       modifier = modifier.testTag(SavedArtworksTestTags.SCREEN),
       // Top app bar displaying the name of the saved artworks screen.
       topBar = {
-        CenterAlignedTopAppBar(
-            title = {
-              Surface(
-                  shape = RoundedCornerShape(Dimensions.cornerRadiusPill),
-                  color = MaterialTheme.colorScheme.surfaceContainer,
-                  modifier = Modifier.testTag(SavedArtworksTestTags.TITLE),
-              ) {
-                Text(
-                    text = stringResource(R.string.saved_artworks_title),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    modifier =
-                        Modifier.padding(
-                            horizontal = Dimensions.savedArtworksTitleHorizontalPadding,
-                            vertical = Dimensions.savedArtworksTitleVerticalPadding,
-                        ),
-                )
-              }
-            },
-            navigationIcon = {
+        ArtistaTopBar(
+            title = stringResource(R.string.saved_artworks_title),
+            titleTestTag = SavedArtworksTestTags.TITLE,
+            leftButton = {
               BackButton(
                   onClick = onBackClick,
                   modifier = Modifier.testTag(SavedArtworksTestTags.BACK_BUTTON),
               )
             },
-            actions = {
+            rightButton = {
               IconButton(
                   onClick = { filterDialogVisible = true },
                   modifier = Modifier.testTag(SavedArtworksTestTags.FILTER_BUTTON),
