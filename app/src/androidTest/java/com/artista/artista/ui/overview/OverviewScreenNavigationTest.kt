@@ -71,12 +71,12 @@ class OverviewScreenNavigationTest {
   @get:Rule val composeTestRule = createAndroidComposeRule<ComponentActivity>()
 
   /**
-   * Verifies that selecting the Overview search bar opens the Search screen.
+   * Verifies that selecting the Overview search button opens the Search screen.
    *
    * @author hixeum
    */
   @Test
-  fun searchBarClick_navigatesToSearchScreen() {
+  fun searchButtonClick_navigatesToSearchScreen() {
     lateinit var navController: NavHostController
     composeTestRule.setContent {
       navController = rememberNavController()
@@ -90,7 +90,7 @@ class OverviewScreenNavigationTest {
       )
     }
 
-    composeTestRule.onNodeWithTag(OverviewTestTags.SEARCH_BAR).performClick()
+    composeTestRule.onNodeWithTag(OverviewTestTags.SEARCH_BUTTON).performClick()
 
     composeTestRule.onNodeWithTag("search_input").assertIsDisplayed()
     composeTestRule.runOnIdle {

@@ -4,6 +4,7 @@ package com.artista.artista.ui.overview
 
 import android.app.Instrumentation
 import androidx.activity.ComponentActivity
+import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
@@ -11,6 +12,7 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextContains
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
@@ -188,34 +190,40 @@ class OverviewScreenTest {
   }
 
   /**
-   * Verifies that the Overview screen displays a search-shaped navigation control.
+   * Verifies that the Overview top bar shows the search button and the "Art around you" title.
    *
-   * @author patrickmcdan
+   * @author patrickmcdan, hixeum
    */
   @Test
-  fun overviewScreen_displaysSearchBar() {
+  fun overviewScreen_displaysSearchButtonAndTitle() {
     setOverviewContent(emptyList())
 
-    composeTestRule.onNodeWithTag(OverviewTestTags.SEARCH_BAR).assertIsDisplayed()
     composeTestRule
-        .onNodeWithTag(OverviewTestTags.SEARCH_BAR)
-        .assertTextContains("Search artworks or artists")
+        .onNodeWithTag(OverviewTestTags.SEARCH_BUTTON)
+        .assertIsDisplayed()
+        .assertContentDescriptionEquals(
+            composeTestRule.activity.getString(R.string.search_icon_description)
+        )
+    composeTestRule
+        .onNodeWithTag(OverviewTestTags.TITLE)
+        .assertIsDisplayed()
+        .assertTextEquals(composeTestRule.activity.getString(R.string.overview_title))
   }
 
   /**
-   * Verifies that selecting the Overview search bar requests navigation to SearchScreen.
+   * Verifies that selecting the Overview search button requests navigation to SearchScreen.
    *
    * @author patrickmcdan
    */
   @Test
-  fun overviewScreen_searchBarClick_invokesSearchCallback() {
+  fun overviewScreen_searchButtonClick_invokesSearchCallback() {
     var searchRequested = false
     val repository = ArtworkRepositoryLocal()
     val viewModel = OverviewViewModel(repository, repository, FakeLocationProvider())
 
     setOverviewContent(viewModel, onSearchClick = { searchRequested = true })
 
-    composeTestRule.onNodeWithTag(OverviewTestTags.SEARCH_BAR).performClick()
+    composeTestRule.onNodeWithTag(OverviewTestTags.SEARCH_BUTTON).performClick()
 
     assertTrue(searchRequested)
   }

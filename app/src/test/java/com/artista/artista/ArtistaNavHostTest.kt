@@ -1,4 +1,5 @@
 // Co-authored-by: DeepSeek Flash
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista
 
 import androidx.compose.ui.semantics.SemanticsActions
@@ -74,7 +75,7 @@ class ArtistaNavHostTest {
     val artwork = mockArtworks.first()
     showNavHost()
 
-    composeTestRule.onNodeWithTag(OverviewTestTags.SEARCH_BAR).performClick()
+    composeTestRule.onNodeWithTag(OverviewTestTags.SEARCH_BUTTON).performClick()
     composeTestRule
         .onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT)
         .performTextInput(checkNotNull(artwork.name))
@@ -93,7 +94,7 @@ class ArtistaNavHostTest {
     val artwork = mockArtworks.first()
     showNavHost()
 
-    composeTestRule.onNodeWithTag(OverviewTestTags.SEARCH_BAR).performClick()
+    composeTestRule.onNodeWithTag(OverviewTestTags.SEARCH_BUTTON).performClick()
     val searchInput = composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT)
     searchInput.performTextInput(checkNotNull(artwork.name))
     searchInput.performImeAction()

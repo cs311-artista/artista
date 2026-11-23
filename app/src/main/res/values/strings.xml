@@ -84,7 +84,7 @@
     <!-- Overview screen -->
     <string name="overview_load_error">Unable to load nearby artworks.</string>
     <string name="overview_saved_artworks_action">Saved artworks</string>
-    <string name="overview_search_placeholder">Search artworks or artists</string>
+    <string name="overview_title">Art around you</string>
     <string name="search_placeholder">Search artworks</string>
     <string name="search_loading">Loading artworks</string>
     <string name="search_empty_results_title">No artworks found</string>

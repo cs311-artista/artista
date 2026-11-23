@@ -149,7 +149,7 @@ class CurrentAppUserJourneyTest {
    * Overview screen.
    */
   private fun openSearch() {
-    composeTestRule.onNodeWithTag(OverviewTestTags.SEARCH_BAR).performClick()
+    composeTestRule.onNodeWithTag(OverviewTestTags.SEARCH_BUTTON).performClick()
     waitUntilDisplayed("search_input")
     composeTestRule.onNodeWithTag(NavigationTestTags.getTabTestTag(Tab.Overview)).performClick()
     waitUntilDisplayed(OverviewTestTags.SCREEN)

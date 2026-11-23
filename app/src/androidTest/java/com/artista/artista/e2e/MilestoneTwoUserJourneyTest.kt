@@ -1,5 +1,6 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 // Co-authored-by: Claude Sonnet 5.5
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.e2e
 
 import android.annotation.SuppressLint
@@ -241,7 +242,7 @@ class MilestoneTwoUserJourneyTest {
   private fun searchForArtwork() {
     goToOverview()
     waitForDisplayed(OverviewTestTags.SCREEN)
-    composeTestRule.onNodeWithTag(OverviewTestTags.SEARCH_BAR).performClick()
+    composeTestRule.onNodeWithTag(OverviewTestTags.SEARCH_BUTTON).performClick()
     waitForDisplayed("search_input")
 
     val title = firstArtworkTitle
