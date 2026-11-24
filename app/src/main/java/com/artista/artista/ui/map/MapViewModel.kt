@@ -508,13 +508,29 @@ class MapViewModel(
   /**
    * Selects [artwork] on the map without starting a route.
    *
+   * Selecting the artwork that is already selected clears it. Selecting a different artwork clears
+   * the route that belonged to the previous selection, so the card and the drawn route always
+   * describe the same artwork.
+   *
    * @param artwork artwork whose card should be shown
+   * @author timo-by
    */
   fun selectArtwork(artwork: Artwork) {
+    if (_uiState.value.selectedArtwork?.uid == artwork.uid) {
+      clearRoute()
+      return
+    }
+    if (_routeUiState.value != RouteUiState.Idle) {
+      clearRoute()
+    }
     _uiState.update { it.copy(selectedArtwork = artwork) }
   }
 
-  /** Starts a route to the currently selected artwork, when one is selected. */
+  /**
+   * Starts a route to the currently selected artwork, when one is selected.
+   *
+   * @author timo-by
+   */
   fun navigateToSelectedArtwork() {
     _uiState.value.selectedArtwork?.let(::loadRouteTo)
   }
@@ -526,6 +542,7 @@ class MapViewModel(
    * @author patrickmcdan
    */
   fun loadRouteTo(artwork: Artwork) {
+    _uiState.update { it.copy(selectedArtwork = artwork) }
     if (isRoutingTo(artwork)) return
     requestRoute(artwork)
   }
@@ -567,7 +584,7 @@ class MapViewModel(
   }
 
   /**
-   * Cancels any active walking route request and clears its state.
+   * Cancels any active walking route request, clears its state and clears the selected artwork.
    *
    * @author patrickmcdan
    */
@@ -581,6 +598,7 @@ class MapViewModel(
     _hasArrived.value = false
     stopLocationUpdates()
     _routeUiState.value = RouteUiState.Idle
+    _uiState.update { it.copy(selectedArtwork = null) }
   }
 
   private fun startRouteRequest(artwork: Artwork, userLocation: UserLocation) {

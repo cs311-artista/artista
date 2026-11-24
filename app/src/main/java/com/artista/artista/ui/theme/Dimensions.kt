@@ -1,3 +1,5 @@
+// Co-authored-by: DeepSeek Flash <noreply@deepseek.com>
+
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.theme
@@ -197,6 +199,10 @@ internal object Dimensions {
   // Map screen.
   val bottomMapToolBarPadding = 110.dp
   val topMapToolBarPadding = 24.dp
+  val mapArtworkCardImageHeight = 160.dp
+  val mapArtworkCardEmptyImageHeight = 64.dp
+  val mapArtworkCardImageSpacing = 6.dp
+  val mapArtworkCardCompactVerticalPadding = 4.dp
 
   // Map route overlays.
   val mapRouteOverlayHorizontalPadding = 16.dp
