@@ -11,25 +11,22 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -159,9 +156,9 @@ private fun SavedArtworksScreenLayout(
 
   Scaffold(
       modifier = modifier.testTag(SavedArtworksTestTags.SCREEN),
-      // Top bar blending with the screen background, with round back and filter buttons.
+      // Top bar blending with the screen background, with a centered title.
       topBar = {
-        TopAppBar(
+        CenterAlignedTopAppBar(
             title = {
               Text(
                   text = stringResource(R.string.saved_artworks_title),
@@ -171,36 +168,28 @@ private fun SavedArtworksScreenLayout(
               )
             },
             navigationIcon = {
-              TopBarCircle(
-                  modifier = Modifier.padding(start = Dimensions.savedArtworksTopBarButtonPadding)
-              ) {
-                BackButton(
-                    onClick = onBackClick,
-                    modifier = Modifier.testTag(SavedArtworksTestTags.BACK_BUTTON),
-                )
-              }
+              BackButton(
+                  onClick = onBackClick,
+                  modifier = Modifier.testTag(SavedArtworksTestTags.BACK_BUTTON),
+              )
             },
             actions = {
-              TopBarCircle(
-                  modifier = Modifier.padding(end = Dimensions.savedArtworksTopBarButtonPadding)
+              IconButton(
+                  onClick = { filterDialogVisible = true },
+                  modifier = Modifier.testTag(SavedArtworksTestTags.FILTER_BUTTON),
               ) {
-                IconButton(
-                    onClick = { filterDialogVisible = true },
-                    modifier = Modifier.testTag(SavedArtworksTestTags.FILTER_BUTTON),
-                ) {
-                  BadgedBox(
-                      badge = {
-                        if (uiState.activeFilter.isActive()) {
-                          Badge(modifier = Modifier.testTag(SavedArtworksTestTags.FILTER_ACTIVE))
-                        }
+                BadgedBox(
+                    badge = {
+                      if (uiState.activeFilter.isActive()) {
+                        Badge(modifier = Modifier.testTag(SavedArtworksTestTags.FILTER_ACTIVE))
                       }
-                  ) {
-                    Icon(
-                        imageVector = Icons.Outlined.FilterList,
-                        contentDescription = stringResource(R.string.artwork_filter_open),
-                        tint = MaterialTheme.colorScheme.onSurface,
-                    )
-                  }
+                    }
+                ) {
+                  Icon(
+                      imageVector = Icons.Outlined.FilterList,
+                      contentDescription = stringResource(R.string.artwork_filter_open),
+                      tint = MaterialTheme.colorScheme.onSurface,
+                  )
                 }
               }
             },
@@ -419,25 +408,6 @@ private fun SavedArtworksGrid(
           onMapClick = onMapClick,
       )
     }
-  }
-}
-
-/**
- * Displays [content] inside a circle of the surface color, so a top bar button stands out from the
- * screen background.
- *
- * @param modifier modifier applied to the circle
- * @param content button shown in the circle
- * @author Timz3rr
- */
-@Composable
-private fun TopBarCircle(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-  Surface(
-      shape = CircleShape,
-      color = MaterialTheme.colorScheme.surface,
-      modifier = modifier.size(Dimensions.standardTouchTargetSize),
-  ) {
-    Box(contentAlignment = Alignment.Center) { content() }
   }
 }
 

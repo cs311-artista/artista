@@ -75,12 +75,6 @@ internal object Dimensions {
   val savedArtworksListVerticalPadding = 12.dp
   val savedArtworksItemSpacing = 12.dp
 
-  /**
-   * Start and end padding of the top bar buttons; added to the top app bar's own 4 dp inset, it
-   * lines them up with the grid's 16 dp edge.
-   */
-  val savedArtworksTopBarButtonPadding = 12.dp
-
   /** Width over height of a saved artwork tile, slightly taller than wide like most paintings. */
   const val SAVED_ARTWORK_TILE_ASPECT_RATIO = 5f / 6f
   val savedArtworkTileCornerRadius = 4.dp
