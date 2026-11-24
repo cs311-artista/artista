@@ -54,10 +54,15 @@
     <string name="profile_change_photo_saved_artwork">Choose from Saved Artwork</string>
     <string name="profile_change_photo_saved_artwork_subtitle">Use an artwork you have saved</string>
     <string name="profile_change_photo_cancel">Cancel</string>
-    <string name="profile_username_dialog_title">Edit username</string>
-    <string name="profile_username_label">Username</string>
+    <string name="profile_username_dialog_title">How should we call you?</string>
+    <string name="profile_username_label">Your name</string>
+    <string name="profile_username_example">e.g. Claude Monet</string>
+    <string name="profile_username_hint">Letters, numbers and spaces only</string>
+    <string name="profile_username_error_characters">Use only letters, numbers and spaces</string>
     <!-- Always formatted with MAX_USERNAME_LENGTH (20), which never needs the singular form. -->
-    <string name="profile_username_rules" tools:ignore="PluralsCandidate">Letters, digits and spaces, up to %1$d characters</string>
+    <string name="profile_username_error_too_long" tools:ignore="PluralsCandidate">Up to %1$d characters</string>
+    <!-- Characters typed so far, then the maximum, such as "7 / 20". -->
+    <string name="profile_username_counter">%1$d / %2$d</string>
     <string name="profile_username_save">Save</string>
     <string name="profile_username_cancel">Cancel</string>
     <!-- Artist preferences screen -->

@@ -759,7 +759,7 @@ class UserProfileViewModelTest {
 
   /**
    * Checks that a failed rename which replaced a running one goes back to the last name actually
-   * saved. The name of the cancelled rename never reached Firestore, so restoring it would display
+   * saved. The name of the canceled rename never reached Firestore, so restoring it would display
    * and cache a name the backend does not have.
    */
   @Test
@@ -1026,6 +1026,55 @@ class UserProfileViewModelTest {
   fun isValidUsername_rejectsTabsAndLineBreaks() {
     assertFalse(isValidUsername("John\tDoe"))
     assertFalse(isValidUsername("John\nDoe"))
+  }
+
+  /** Verifies that a valid username breaks no rule. */
+  @Test
+  fun findUsernameIssue_returnsNull_forValidName() {
+    assertNull(findUsernameIssue("Timothée 42"))
+    assertNull(findUsernameIssue("a".repeat(MAX_USERNAME_LENGTH)))
+  }
+
+  /** Verifies that an empty or blank name is not reported, since the user has not typed yet. */
+  @Test
+  fun findUsernameIssue_returnsNull_forBlankName() {
+    assertNull(findUsernameIssue(""))
+    assertNull(findUsernameIssue("   "))
+  }
+
+  /** Verifies that symbols, tabs and line breaks are reported as invalid characters. */
+  @Test
+  fun findUsernameIssue_reportsInvalidCharacters() {
+    assertEquals(UsernameIssue.INVALID_CHARACTERS, findUsernameIssue("Tim_42"))
+    assertEquals(UsernameIssue.INVALID_CHARACTERS, findUsernameIssue("John\tDoe"))
+    assertEquals(UsernameIssue.INVALID_CHARACTERS, findUsernameIssue("John\nDoe"))
+  }
+
+  /** Verifies that a name longer than the maximum length is reported as too long. */
+  @Test
+  fun findUsernameIssue_reportsTooLongName() {
+    assertEquals(UsernameIssue.TOO_LONG, findUsernameIssue("a".repeat(MAX_USERNAME_LENGTH + 1)))
+  }
+
+  /** Verifies that invalid characters win when both rules are broken, as removing them may help. */
+  @Test
+  fun findUsernameIssue_prefersInvalidCharacters_whenBothRulesAreBroken() {
+    assertEquals(
+        UsernameIssue.INVALID_CHARACTERS,
+        findUsernameIssue("_".repeat(MAX_USERNAME_LENGTH + 1)),
+    )
+  }
+
+  /** Verifies that the length is measured after trimming, like the name that is saved. */
+  @Test
+  fun findUsernameIssue_measuresLengthAfterTrimming() {
+    assertNull(findUsernameIssue("  " + "a".repeat(MAX_USERNAME_LENGTH) + "  "))
+  }
+
+  /** Verifies that a decomposed accent counts as one character, like the name that is saved. */
+  @Test
+  fun findUsernameIssue_countsDecomposedAccentAsOneCharacter() {
+    assertNull(findUsernameIssue("é".repeat(MAX_USERNAME_LENGTH)))
   }
 
   /**

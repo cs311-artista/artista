@@ -51,6 +51,12 @@ object UserProfileTestTags {
   /** Tag identifying the text field of the username edit dialog. */
   const val USERNAME_FIELD = "user_profile_username_field"
 
+  /** Tag identifying the hint or error shown under the username field. */
+  const val USERNAME_SUPPORTING_TEXT = "user_profile_username_supporting_text"
+
+  /** Tag identifying the character counter shown under the username field. */
+  const val USERNAME_COUNTER = "user_profile_username_counter"
+
   /** Tag identifying the button saving the username entered in the dialog. */
   const val USERNAME_SAVE = "user_profile_username_save"
 

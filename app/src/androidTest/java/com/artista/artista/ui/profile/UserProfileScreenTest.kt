@@ -102,7 +102,7 @@ class UserProfileScreenTest {
 
     composeTestRule.onNodeWithTag(UserProfileTestTags.SCREEN).assertIsDisplayed()
     composeTestRule.onNodeWithTag(NavigationTestTags.BOTTOM_NAVIGATION_MENU).assertIsDisplayed()
-    // The content scrolls on small screens, such as the CI emulator, so it may start off screen.
+    // The content scrolls on small screens, such as the CI emulator, so it may start off-screen.
     composeTestRule
         .onNodeWithTag(UserProfileTestTags.PROFILE_PICTURE)
         .performScrollTo()
@@ -415,7 +415,7 @@ class UserProfileScreenTest {
     var logoutClicked = false
     setProfileContent(onLogoutClick = { logoutClicked = true })
 
-    // The button sits below the cards, so it may start off screen on small displays.
+    // The button sits below the cards, so it may start off-screen on small displays.
     composeTestRule
         .onNodeWithTag(UserProfileTestTags.LOGOUT_BUTTON)
         .performScrollTo()
@@ -522,6 +522,108 @@ class UserProfileScreenTest {
 
     field.performTextReplacement("Timothée 42")
     saveButton.assertIsEnabled()
+  }
+
+  /** Verifies that the dialog shows its title and that the field is labeled with the new texts. */
+  @Test
+  fun usernameDialog_displaysTitleAndLabel() {
+    setProfileContent()
+
+    openUsernameDialog()
+
+    composeTestRule
+        .onNodeWithText(string(R.string.profile_username_dialog_title))
+        .assertIsDisplayed()
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.USERNAME_FIELD)
+        .assertTextContains(string(R.string.profile_username_label))
+  }
+
+  /** Verifies that the dialog starts with the hint and counts the characters of the name. */
+  @Test
+  fun usernameDialog_showsHintAndCounter_byDefault() {
+    setProfileContentFor(userNamed("Alice"))
+
+    openUsernameDialog()
+
+    supportingText().assertTextEquals(string(R.string.profile_username_hint))
+    counter().assertTextEquals(counterText(5))
+  }
+
+  /** Verifies that an empty field shows the hint rather than an error, with a zero counter. */
+  @Test
+  fun usernameDialog_showsHint_whenFieldIsEmpty() {
+    setProfileContent()
+
+    openUsernameDialog()
+
+    supportingText().assertTextEquals(string(R.string.profile_username_hint))
+    counter().assertTextEquals(counterText(0))
+  }
+
+  /** Verifies that the counter follows the text while the user types. */
+  @Test
+  fun usernameDialog_counter_updatesWhileTyping() {
+    setProfileContentFor(userNamed("Alice"))
+    openUsernameDialog()
+
+    composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME_FIELD).performTextReplacement("Bob")
+
+    counter().assertTextEquals(counterText(3))
+  }
+
+  /** Verifies that the counter counts spaces too, so it moves on every keystroke. */
+  @Test
+  fun usernameDialog_counter_countsSpaces() {
+    setProfileContent()
+    openUsernameDialog()
+
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.USERNAME_FIELD)
+        .performTextReplacement("  Bob  ")
+
+    counter().assertTextEquals(counterText(7))
+  }
+
+  /** Verifies that a name with a symbol shows the invalid characters' error. */
+  @Test
+  fun usernameDialog_showsCharactersError_forSymbols() {
+    setProfileContent()
+    openUsernameDialog()
+
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.USERNAME_FIELD)
+        .performTextReplacement("Tim_42")
+
+    supportingText().assertTextEquals(string(R.string.profile_username_error_characters))
+  }
+
+  /** Verifies that a name over the limit shows the length error and a counter above the limit. */
+  @Test
+  fun usernameDialog_showsTooLongError_forLongName() {
+    setProfileContent()
+    openUsernameDialog()
+
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.USERNAME_FIELD)
+        .performTextReplacement("a".repeat(MAX_USERNAME_LENGTH + 1))
+
+    supportingText()
+        .assertTextEquals(string(R.string.profile_username_error_too_long, MAX_USERNAME_LENGTH))
+    counter().assertTextEquals(counterText(MAX_USERNAME_LENGTH + 1))
+  }
+
+  /** Verifies that the hint comes back once the user fixes the name. */
+  @Test
+  fun usernameDialog_showsHintAgain_afterNameIsFixed() {
+    setProfileContent()
+    openUsernameDialog()
+    val field = composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME_FIELD)
+
+    field.performTextReplacement("Tim_42")
+    field.performTextReplacement("Tim 42")
+
+    supportingText().assertTextEquals(string(R.string.profile_username_hint))
   }
 
   /** Checks that the picture of the user replaces the placeholder once it has been downloaded. */
@@ -729,9 +831,34 @@ class UserProfileScreenTest {
    * Resolves a string resource, so the tests compare against the same text as the screen.
    *
    * @param resId the string resource to resolve
+   * @param args the values of its placeholders, if it has any
    * @return the resolved text
    */
-  private fun string(resId: Int): String = composeTestRule.activity.getString(resId)
+  private fun string(resId: Int, vararg args: Any): String =
+      composeTestRule.activity.getString(resId, *args)
+
+  /**
+   * Finds the hint or error under the username field. It sits inside the text field, whose node
+   * merges its texts, so it is looked up in the unmerged tree.
+   */
+  private fun supportingText(): SemanticsNodeInteraction =
+      composeTestRule.onNodeWithTag(
+          UserProfileTestTags.USERNAME_SUPPORTING_TEXT,
+          useUnmergedTree = true,
+      )
+
+  /** Finds the character counter under the username field, in the unmerged tree as well. */
+  private fun counter(): SemanticsNodeInteraction =
+      composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME_COUNTER, useUnmergedTree = true)
+
+  /**
+   * Builds the counter text the dialog should show.
+   *
+   * @param length the number of characters expected in the counter
+   * @return the counter text, such as "5 / 20"
+   */
+  private fun counterText(length: Int): String =
+      string(R.string.profile_username_counter, length, MAX_USERNAME_LENGTH)
 
   /** Simulates the user clicking the edit photo button, which opens the change photo sheet. */
   private fun openChangePhotoSheet() {
@@ -743,7 +870,7 @@ class UserProfileScreenTest {
     composeTestRule.waitForIdle()
   }
 
-  /** Scrolls the picture area into view, since it starts off screen on small displays. */
+  /** Scrolls the picture area into view, since it starts off-screen on small displays. */
   private fun scrollToPictureArea() {
     composeTestRule.onNodeWithTag(UserProfileTestTags.PROFILE_PICTURE).performScrollTo()
   }
@@ -753,7 +880,7 @@ class UserProfileScreenTest {
    * Shared by the dialog tests so that each of them starts from an open dialog.
    */
   private fun openUsernameDialog() {
-    // The profile content is scrollable: on a small screen the card may be off screen, and a click
+    // The profile content is scrollable: on a small screen the card may be off-screen, and a click
     // on a node that is not displayed fails.
     composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME).performScrollTo().performClick()
   }
