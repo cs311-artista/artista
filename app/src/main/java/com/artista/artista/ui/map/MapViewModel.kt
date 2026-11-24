@@ -1,3 +1,5 @@
+// Co-authored-by: DeepSeek Flash <noreply@deepseek.com>
+
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 package com.artista.artista.ui.map
@@ -46,6 +48,7 @@ const val RECALCULATE_COOLDOWN_MS = 15_000L
  * @property remoteArtworks List of artworks fetched from remote sources.
  * @property hasLocationPermission Indicates whether the app has location permissions.
  * @property errorMsg Resource ID for the error message, or null when no error exists.
+ * @property selectedArtwork Artwork whose card is currently shown, or null when no pin is selected.
  * @author Felix Burchardt
  */
 data class MapViewUiState(
@@ -54,6 +57,7 @@ data class MapViewUiState(
     val remoteArtworks: List<Artwork> = listOf(),
     val hasLocationPermission: Boolean = false,
     @param:StringRes val errorMsg: Int? = null,
+    val selectedArtwork: Artwork? = null,
 )
 
 /**
@@ -499,6 +503,20 @@ class MapViewModel(
    */
   fun setLocationPermissionError(error: AppException) {
     setLocationError(error)
+  }
+
+  /**
+   * Selects [artwork] on the map without starting a route.
+   *
+   * @param artwork artwork whose card should be shown
+   */
+  fun selectArtwork(artwork: Artwork) {
+    _uiState.update { it.copy(selectedArtwork = artwork) }
+  }
+
+  /** Starts a route to the currently selected artwork, when one is selected. */
+  fun navigateToSelectedArtwork() {
+    _uiState.value.selectedArtwork?.let(::loadRouteTo)
   }
 
   /**

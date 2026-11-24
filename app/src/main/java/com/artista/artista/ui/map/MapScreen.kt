@@ -1,3 +1,5 @@
+// Co-authored-by: DeepSeek Flash <noreply@deepseek.com>
+
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 package com.artista.artista.ui.map
@@ -123,6 +125,27 @@ object MapScreenTestTags {
 
   /** Tag identifying the walking route retry button. */
   const val ROUTE_RETRY_BUTTON = "map_route_retry_button"
+
+  /** Tag identifying the selected-artwork card. */
+  const val ARTWORK_CARD = "map_artwork_card"
+
+  /** Tag identifying the selected artwork's name in the card. */
+  const val ARTWORK_CARD_NAME = "map_artwork_card_name"
+
+  /** Tag identifying the selected artwork's image in the card. */
+  const val ARTWORK_CARD_IMAGE = "map_artwork_card_image"
+
+  /** Tag identifying the fallback shown when the selected artwork has no image. */
+  const val ARTWORK_CARD_IMAGE_FALLBACK = "map_artwork_card_image_fallback"
+
+  /** Tag identifying the compact placeholder shown when an artwork has no image URL. */
+  const val ARTWORK_CARD_IMAGE_PLACEHOLDER = "map_artwork_card_image_placeholder"
+
+  /** Tag identifying the send action on the selected-artwork card. */
+  const val ARTWORK_CARD_SEND = "map_artwork_card_send"
+
+  /** Tag identifying the dismiss action on the selected-artwork card. */
+  const val ARTWORK_CARD_DISMISS = "map_artwork_card_dismiss"
 }
 
 /**
@@ -342,6 +365,8 @@ internal fun routeBounds(
  * @param routeUiState current walking route state
  * @param routeProgressUiState remaining part of the route; when null the full route values are
  *   shown
+ * @param selectedArtwork artwork whose card is shown while no route is active
+ * @param onNavigate called when the selected artwork's send action is pressed
  * @param onClearRoute called when the route is dismissed
  * @param onRetryRoute called when a retry is requested
  * @param onRecalculateRoute called when a new route from the user's location is requested, from the
@@ -356,6 +381,8 @@ internal fun routeBounds(
 internal fun RouteOverlay(
     routeUiState: RouteUiState,
     routeProgressUiState: RouteProgressUiState? = null,
+    selectedArtwork: Artwork? = null,
+    onNavigate: () -> Unit = {},
     onClearRoute: () -> Unit,
     onRetryRoute: () -> Unit,
     onRecalculateRoute: () -> Unit,

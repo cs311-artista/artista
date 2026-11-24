@@ -1,3 +1,5 @@
+// Co-authored-by: DeepSeek Flash <noreply@deepseek.com>
+
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.map
@@ -212,6 +214,226 @@ class MapViewModelTest {
   }
 
   @Test
+  fun selectArtwork_whenNoArtworkSelected_thenStoresSelectionWithoutRoute() = runTest {
+    val artwork = artworkWithLocation("selected")
+    val repository = FakeWalkingRouteRepository()
+    val viewModel =
+        MapViewModel(
+            FakeWikiDataRepository(listOf(artwork)),
+            EmptySavedArtworksRepository(),
+            repository,
+            FakeLocationProvider(),
+        )
+
+    viewModel.selectArtwork(artwork)
+
+    assertEquals(artwork, viewModel.uiState.selectedArtwork)
+    assertEquals(RouteUiState.Idle, viewModel.routeUiState)
+    assertEquals(0, repository.callCount)
+  }
+
+  @Test
+  fun selectArtwork_whenSameArtworkSelectedAgain_thenClearsSelectionAndRoute() = runTest {
+    val artwork = artworkWithLocation("selected")
+    val viewModel = createViewModel(FakeLocationProvider())
+    viewModel.updateUserLocation(UserLocation(46.52, 6.63))
+    viewModel.loadRouteTo(artwork)
+    advanceUntilIdle()
+
+    viewModel.selectArtwork(artwork)
+
+    assertNull(viewModel.uiState.selectedArtwork)
+    assertEquals(RouteUiState.Idle, viewModel.routeUiState)
+  }
+
+  @Test
+  fun selectArtwork_whenAnotherArtworkSelected_thenReplacesSelectionAndClearsRoute() = runTest {
+    val first = artworkWithLocation("first")
+    val second = artworkWithLocation("second")
+    val repository = FakeWalkingRouteRepository()
+    val viewModel =
+        MapViewModel(
+            FakeWikiDataRepository(listOf(first, second)),
+            EmptySavedArtworksRepository(),
+            repository,
+            FakeLocationProvider(),
+        )
+    viewModel.updateUserLocation(UserLocation(46.52, 6.63))
+    viewModel.loadRouteTo(first)
+    advanceUntilIdle()
+
+    viewModel.selectArtwork(second)
+
+    assertEquals(second, viewModel.uiState.selectedArtwork)
+    assertEquals(RouteUiState.Idle, viewModel.routeUiState)
+    assertNull(viewModel.routeProgressUiState)
+    assertEquals(1, repository.callCount)
+  }
+
+  @Test
+  fun selectArtwork_whenRouteLoadingForAnotherArtwork_thenCancelsRequest() = runTest {
+    val first = artworkWithLocation("first")
+    val second = artworkWithLocation("second")
+    val repository = FakeWalkingRouteRepository(blockCalls = true)
+    val viewModel =
+        MapViewModel(
+            FakeWikiDataRepository(listOf(first, second)),
+            EmptySavedArtworksRepository(),
+            repository,
+            FakeLocationProvider(),
+        )
+    viewModel.updateUserLocation(UserLocation(46.52, 6.63))
+    viewModel.loadRouteTo(first)
+    runCurrent()
+
+    viewModel.selectArtwork(second)
+    advanceUntilIdle()
+
+    assertEquals(second, viewModel.uiState.selectedArtwork)
+    assertEquals(RouteUiState.Idle, viewModel.routeUiState)
+    assertEquals(1, repository.callCount)
+
+    // Release the parked first request. It must have been cancelled, otherwise it would land
+    // after the selection changed and flip the card back to the first artwork.
+    repository.release(0)
+    advanceUntilIdle()
+
+    assertEquals(RouteUiState.Idle, viewModel.routeUiState)
+    assertEquals(second, viewModel.uiState.selectedArtwork)
+  }
+
+  @Test
+  fun selectArtwork_whenRouteErrorShown_thenClearsErrorAndSelects() = runTest {
+    val first = artworkWithLocation("first")
+    val second = artworkWithLocation("second")
+    val viewModel =
+        MapViewModel(
+            FakeWikiDataRepository(listOf(first, second)),
+            EmptySavedArtworksRepository(),
+            FakeWalkingRouteRepository(exception = AppException.Network()),
+            FakeLocationProvider(),
+        )
+    viewModel.updateUserLocation(UserLocation(46.52, 6.63))
+    viewModel.loadRouteTo(first)
+    advanceUntilIdle()
+    assertTrue(viewModel.routeUiState is RouteUiState.Error)
+
+    viewModel.selectArtwork(second)
+
+    assertEquals(second, viewModel.uiState.selectedArtwork)
+    assertEquals(RouteUiState.Idle, viewModel.routeUiState)
+  }
+
+  @Test
+  fun loadRouteTo_whenCalled_thenSelectsArtwork() = runTest {
+    val artwork = artworkWithLocation("destination")
+    val viewModel = createViewModel(FakeLocationProvider())
+    viewModel.updateUserLocation(UserLocation(46.52, 6.63))
+
+    viewModel.loadRouteTo(artwork)
+
+    assertEquals(artwork, viewModel.uiState.selectedArtwork)
+  }
+
+  @Test
+  fun navigateToSelectedArtwork_whenSelectionExists_thenLoadsRoute() = runTest {
+    val artwork = artworkWithLocation("destination")
+    val repository = FakeWalkingRouteRepository()
+    val viewModel =
+        MapViewModel(
+            FakeWikiDataRepository(listOf(artwork)),
+            EmptySavedArtworksRepository(),
+            repository,
+            FakeLocationProvider(),
+        )
+    viewModel.updateUserLocation(UserLocation(46.52, 6.63))
+    viewModel.selectArtwork(artwork)
+
+    viewModel.navigateToSelectedArtwork()
+    advanceUntilIdle()
+
+    assertEquals(artwork, viewModel.uiState.selectedArtwork)
+    assertEquals(RouteUiState.Success(repository.route, artwork), viewModel.routeUiState)
+    assertEquals(1, repository.callCount)
+  }
+
+  @Test
+  fun navigateToSelectedArtwork_whenNoSelection_thenDoesNothing() = runTest {
+    val repository = FakeWalkingRouteRepository()
+    val viewModel =
+        MapViewModel(
+            FakeWikiDataRepository(emptyList()),
+            EmptySavedArtworksRepository(),
+            repository,
+            FakeLocationProvider(),
+        )
+
+    viewModel.navigateToSelectedArtwork()
+    advanceUntilIdle()
+
+    assertNull(viewModel.uiState.selectedArtwork)
+    assertEquals(RouteUiState.Idle, viewModel.routeUiState)
+    assertEquals(0, repository.callCount)
+  }
+
+  @Test
+  fun clearRoute_whenArtworkSelected_thenClearsSelection() = runTest {
+    val artwork = artworkWithLocation("selected")
+    val viewModel = createViewModel(FakeLocationProvider())
+    viewModel.selectArtwork(artwork)
+
+    viewModel.clearRoute()
+
+    assertNull(viewModel.uiState.selectedArtwork)
+    assertEquals(RouteUiState.Idle, viewModel.routeUiState)
+  }
+
+  @Test
+  fun clearRoute_whenRouteActive_thenStopsUpdatesAndClearsProgressAndSelection() = runTest {
+    val provider = FakeLocationProvider()
+    val viewModel = createRouteViewModel(provider, walkingRouteRepository = northRepository())
+    viewModel.updateUserLocation(UserLocation(46.0, 6.0))
+    viewModel.loadRouteTo(northDestination)
+    viewModel.startLocationUpdates()
+    advanceUntilIdle()
+    assertEquals(northDestination, viewModel.uiState.selectedArtwork)
+    assertNotNull(viewModel.routeProgressUiState)
+
+    viewModel.clearRoute()
+    advanceUntilIdle()
+
+    assertNull(viewModel.uiState.selectedArtwork)
+    assertNull(viewModel.routeProgressUiState)
+    assertEquals(RouteUiState.Idle, viewModel.routeUiState)
+    assertEquals(0, provider.activeCollectors)
+  }
+
+  @Test
+  fun retryRoute_afterError_keepsSelectedArtwork() = runTest {
+    val artwork = artworkWithLocation("destination")
+    val repository = FakeWalkingRouteRepository(exception = AppException.Network())
+    val viewModel =
+        MapViewModel(
+            FakeWikiDataRepository(listOf(artwork)),
+            EmptySavedArtworksRepository(),
+            repository,
+            FakeLocationProvider(),
+        )
+    viewModel.updateUserLocation(UserLocation(46.52, 6.63))
+    viewModel.loadRouteTo(artwork)
+    advanceUntilIdle()
+
+    assertEquals(artwork, viewModel.uiState.selectedArtwork)
+    assertTrue(viewModel.routeUiState is RouteUiState.Error)
+
+    viewModel.retryRoute()
+    advanceUntilIdle()
+
+    assertEquals(artwork, viewModel.uiState.selectedArtwork)
+    assertEquals(2, repository.callCount)
+  }
+
+  @Test
   fun loadRouteTo_withoutLocation_waitsForLocationThenLoadsRoute() = runTest {
     val artwork = artworkWithLocation("destination")
     val route = WalkingRoute(emptyList(), 12.minutes, 850)
@@ -407,7 +629,7 @@ class MapViewModelTest {
   }
 
   @Test
-  fun clearRoute_whileLoading_returnsToIdle() = runTest {
+  fun clearRoute_whenRouteLoading_thenCancelsRequestAndClearsSelection() = runTest {
     val artwork = artworkWithLocation("destination")
     val repository = FakeWalkingRouteRepository(blockCalls = true)
     val viewModel =
@@ -421,10 +643,16 @@ class MapViewModelTest {
 
     viewModel.loadRouteTo(artwork)
     runCurrent()
+    assertEquals(RouteUiState.Loading, viewModel.routeUiState)
+    assertEquals(artwork, viewModel.uiState.selectedArtwork)
+
     viewModel.clearRoute()
+    repository.release(0)
     advanceUntilIdle()
 
     assertEquals(RouteUiState.Idle, viewModel.routeUiState)
+    assertNull(viewModel.uiState.selectedArtwork)
+    assertEquals(1, repository.callCount)
   }
 
   @Test
