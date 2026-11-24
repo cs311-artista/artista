@@ -11,16 +11,17 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -28,6 +29,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -156,59 +159,61 @@ private fun SavedArtworksScreenLayout(
 
   Scaffold(
       modifier = modifier.testTag(SavedArtworksTestTags.SCREEN),
-      // Top app bar displaying the name of the saved artworks screen.
+      // Top bar blending with the screen background, with round back and filter buttons.
       topBar = {
-        CenterAlignedTopAppBar(
+        TopAppBar(
             title = {
-              Surface(
-                  shape = RoundedCornerShape(Dimensions.cornerRadiusPill),
-                  color = MaterialTheme.colorScheme.surfaceContainer,
+              Text(
+                  text = stringResource(R.string.saved_artworks_title),
+                  style = MaterialTheme.typography.headlineSmall,
+                  fontWeight = FontWeight.SemiBold,
                   modifier = Modifier.testTag(SavedArtworksTestTags.TITLE),
+              )
+            },
+            navigationIcon = {
+              TopBarCircle(
+                  modifier = Modifier.padding(start = Dimensions.savedArtworksTopBarButtonPadding)
               ) {
-                Text(
-                    text = stringResource(R.string.saved_artworks_title),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    modifier =
-                        Modifier.padding(
-                            horizontal = Dimensions.savedArtworksTitleHorizontalPadding,
-                            vertical = Dimensions.savedArtworksTitleVerticalPadding,
-                        ),
+                BackButton(
+                    onClick = onBackClick,
+                    modifier = Modifier.testTag(SavedArtworksTestTags.BACK_BUTTON),
                 )
               }
             },
-            navigationIcon = {
-              BackButton(
-                  onClick = onBackClick,
-                  modifier = Modifier.testTag(SavedArtworksTestTags.BACK_BUTTON),
-              )
-            },
             actions = {
-              IconButton(
-                  onClick = { filterDialogVisible = true },
-                  modifier = Modifier.testTag(SavedArtworksTestTags.FILTER_BUTTON),
+              TopBarCircle(
+                  modifier = Modifier.padding(end = Dimensions.savedArtworksTopBarButtonPadding)
               ) {
-                BadgedBox(
-                    badge = {
-                      if (uiState.activeFilter.isActive()) {
-                        Badge(modifier = Modifier.testTag(SavedArtworksTestTags.FILTER_ACTIVE))
-                      }
-                    }
+                IconButton(
+                    onClick = { filterDialogVisible = true },
+                    modifier = Modifier.testTag(SavedArtworksTestTags.FILTER_BUTTON),
                 ) {
-                  Icon(
-                      imageVector = Icons.Outlined.FilterList,
-                      contentDescription = stringResource(R.string.artwork_filter_open),
-                      tint = MaterialTheme.colorScheme.onSurface,
-                  )
+                  BadgedBox(
+                      badge = {
+                        if (uiState.activeFilter.isActive()) {
+                          Badge(modifier = Modifier.testTag(SavedArtworksTestTags.FILTER_ACTIVE))
+                        }
+                      }
+                  ) {
+                    Icon(
+                        imageVector = Icons.Outlined.FilterList,
+                        contentDescription = stringResource(R.string.artwork_filter_open),
+                        tint = MaterialTheme.colorScheme.onSurface,
+                    )
+                  }
                 }
               }
             },
+            colors =
+                TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                ),
         )
       },
-      // Shared bottom navigation for the application's main sections.
+      // Saved artworks are reached from the profile, so the Profile tab stays selected.
       bottomBar = {
         BottomNavigationMenu(
-            selectedTab = null,
+            selectedTab = Tab.Profile,
             onTabSelected = onTabSelected,
         )
       },
@@ -251,7 +256,7 @@ private fun SavedArtworksScreenLayout(
     } else if (uiState.artworks.isEmpty()) {
       EmptySavedArtworksState(modifier = Modifier.fillMaxSize().padding(innerPadding))
     } else {
-      SavedArtworksList(
+      SavedArtworksGrid(
           artworks = uiState.artworks,
           onArtworkDetailsClick = onArtworkDetailsClick,
           onArtworkUnsave = onArtworkUnsave,
@@ -279,18 +284,27 @@ object SavedArtworksTestTags {
   const val LOADING_STATE = "saved_artworks_loading_state"
   const val LOAD_ERROR_STATE = "saved_artworks_load_error_state"
   const val RETRY_BUTTON = "saved_artworks_retry_button"
-  const val IMAGE = "saved_artwork_image"
 
-  /** Tag of the card showing [artwork]. */
-  fun card(artwork: Artwork): String = "${ArtworkCardTestTag.ARTWORK_CARD}_${artwork.uid}"
+  /** Tag of the clickable tile showing [artwork]. */
+  fun card(artwork: Artwork): String = "saved_artwork_tile_${artwork.uid}"
 
-  /** Tag of the "Unsave" button of [artwork]'s card. */
-  fun unsaveButton(artwork: Artwork): String =
-      "${ArtworkCardTestTag.ARTWORK_CARD_SAVE_BUTTON}_${artwork.uid}"
+  /** Tag of the bookmark button that unsaves [artwork]. */
+  fun unsaveButton(artwork: Artwork): String = "saved_artwork_unsave_button_${artwork.uid}"
 
-  /** Tag of the map button of [artwork]'s card. */
-  fun mapButton(artwork: Artwork): String =
-      "${ArtworkCardTestTag.ARTWORK_CARD_MAP_BUTTON}_${artwork.uid}"
+  /** Tag of the map button of [artwork]'s tile. */
+  fun mapButton(artwork: Artwork): String = "saved_artwork_map_button_${artwork.uid}"
+
+  /** Tag of the title text of [artwork]'s tile. */
+  fun title(artwork: Artwork): String = "saved_artwork_title_${artwork.uid}"
+
+  /** Tag of the artist text of [artwork]'s tile. */
+  fun artist(artwork: Artwork): String = "saved_artwork_artist_${artwork.uid}"
+
+  /** Tag of the image of [artwork]'s tile. */
+  fun image(artwork: Artwork): String = "saved_artwork_image_${artwork.uid}"
+
+  /** Tag of the icon shown instead of [artwork]'s image while it is missing or loading. */
+  fun imageFallback(artwork: Artwork): String = "saved_artwork_image_fallback_${artwork.uid}"
 }
 
 /**
@@ -368,43 +382,61 @@ private fun SavedArtworksLoadingState(modifier: Modifier = Modifier) {
 }
 
 /**
- * Displays the saved artworks in a vertically scrolling list.
+ * Displays the saved artworks as tiles in a vertically scrolling two-column grid.
  *
  * @param artworks artworks to display
- * @param onArtworkDetailsClick called when an artwork card is selected
- * @param onArtworkUnsave called when a saved artwork's save action is selected
+ * @param onArtworkDetailsClick called when an artwork tile is selected
+ * @param onArtworkUnsave called when a saved artwork's bookmark is selected
  * @param onMapClick called when a saved artwork's map action is selected
- * @param modifier modifier applied to the list
- * @author Kaio R. Freitas Pereira Nascimento (krfpn)
+ * @param modifier modifier applied to the grid
+ * @author Kaio R. Freitas Pereira Nascimento (krfpn), Timz3rr
  */
 @Composable
-private fun SavedArtworksList(
+private fun SavedArtworksGrid(
     artworks: List<Artwork>,
     onArtworkDetailsClick: (Artwork) -> Unit,
     onArtworkUnsave: (Artwork) -> Unit,
     onMapClick: (Artwork) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-  // Scrollable collection of artwork cards with spacing for comfortable browsing.
-  LazyColumn(
+  LazyVerticalGrid(
+      columns = GridCells.Fixed(2),
       modifier = modifier.testTag(SavedArtworksTestTags.LIST),
       contentPadding =
           PaddingValues(
               horizontal = Dimensions.savedArtworksListHorizontalPadding,
               vertical = Dimensions.savedArtworksListVerticalPadding,
           ),
+      horizontalArrangement = Arrangement.spacedBy(Dimensions.savedArtworksItemSpacing),
       verticalArrangement = Arrangement.spacedBy(Dimensions.savedArtworksItemSpacing),
   ) {
     items(artworks, key = { it.uid }) { artwork ->
-      ArtworkCard(
+      SavedArtworkTile(
           artwork = artwork,
-          isSaved = true,
-          onArtworkClick = { onArtworkDetailsClick(artwork) },
-          onMapClick = { onMapClick(artwork) },
-          onSaveClick = { onArtworkUnsave(artwork) },
-          testTagSuffix = artwork.uid,
+          onClick = onArtworkDetailsClick,
+          onUnsaveClick = onArtworkUnsave,
+          onMapClick = onMapClick,
       )
     }
+  }
+}
+
+/**
+ * Displays [content] inside a circle of the surface color, so a top bar button stands out from the
+ * screen background.
+ *
+ * @param modifier modifier applied to the circle
+ * @param content button shown in the circle
+ * @author Timz3rr
+ */
+@Composable
+private fun TopBarCircle(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+  Surface(
+      shape = CircleShape,
+      color = MaterialTheme.colorScheme.surface,
+      modifier = modifier.size(Dimensions.standardTouchTargetSize),
+  ) {
+    Box(contentAlignment = Alignment.Center) { content() }
   }
 }
 

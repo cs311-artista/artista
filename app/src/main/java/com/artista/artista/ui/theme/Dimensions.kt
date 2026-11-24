@@ -69,13 +69,26 @@ internal object Dimensions {
   val artworkCardElevation = shallowElevation
 
   // Saved artworks screen.
-  val savedArtworksTitleHorizontalPadding = 20.dp
-  val savedArtworksTitleVerticalPadding = 8.dp
   val savedArtworksErrorHorizontalPadding = 24.dp
   val savedArtworksRetryButtonSpacing = 16.dp
   val savedArtworksListHorizontalPadding = 16.dp
   val savedArtworksListVerticalPadding = 12.dp
   val savedArtworksItemSpacing = 12.dp
+
+  /**
+   * Start and end padding of the top bar buttons; added to the top app bar's own 4 dp inset, it
+   * lines them up with the grid's 16 dp edge.
+   */
+  val savedArtworksTopBarButtonPadding = 12.dp
+
+  /** Width over height of a saved artwork tile, slightly taller than wide like most paintings. */
+  const val SAVED_ARTWORK_TILE_ASPECT_RATIO = 5f / 6f
+  val savedArtworkTileCornerRadius = 4.dp
+  val savedArtworkTileBandHorizontalPadding = 8.dp
+  val savedArtworkTileBandVerticalPadding = 4.dp
+  val savedArtworkTileButtonPadding = 6.dp
+  val savedArtworkTileButtonSize = 36.dp
+  val savedArtworkTileIconSize = 20.dp
 
   // Overview screen.
   val overviewListHorizontalPadding = 16.dp
