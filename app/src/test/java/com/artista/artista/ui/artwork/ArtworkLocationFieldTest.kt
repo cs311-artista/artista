@@ -7,9 +7,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.hasAnyDescendant
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
@@ -106,9 +106,14 @@ class ArtworkLocationFieldTest {
     composeTestRule.setContent {
       ArtworkScreen(artworkScreenViewModel = viewModel, onBackClick = {})
     }
+    // Waits for the address itself: the field already exists while it shows the loading message.
     composeTestRule.waitUntil(SCREEN_TIMEOUT_MS) {
       composeTestRule
-          .onAllNodesWithTag(ArtworkTestTags.ARTWORK_ADDRESS, useUnmergedTree = true)
+          .onAllNodes(
+              hasTestTag(ArtworkTestTags.ARTWORK_ADDRESS) and
+                  hasAnyDescendant(hasText(FakeAddressRepository.DEFAULT_ADDRESS)),
+              useUnmergedTree = true,
+          )
           .fetchSemanticsNodes()
           .isNotEmpty()
     }
