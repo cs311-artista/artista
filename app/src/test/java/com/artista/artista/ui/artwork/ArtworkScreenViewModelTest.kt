@@ -11,6 +11,10 @@ import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.artwork.SavedArtworksRepository
 import com.artista.artista.model.artwork.WikiDataRepository
 import com.artista.artista.model.error.AppException
+import com.artista.artista.model.map.AddressRepository
+import com.artista.artista.model.map.Coordinate
+import com.artista.artista.model.map.FakeAddressRepository
+import com.artista.artista.model.map.Location
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -29,7 +33,7 @@ import org.junit.Test
 /**
  * Unit tests for [ArtworkScreenViewModel].
  *
- * @author hixeum
+ * @author hixeum, Timz3rr
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ArtworkScreenViewModelTest {
@@ -37,6 +41,7 @@ class ArtworkScreenViewModelTest {
   private val testDispatcher = StandardTestDispatcher()
   private val savedRepository = ArtworkRepositoryProvider.mockRepository
   private val wikiDataRepository = ArtworkRepositoryProvider.mockRepository
+  private val addressRepository = FakeAddressRepository()
   private lateinit var viewModel: ArtworkScreenViewModel
 
   private val sampleArtwork =
@@ -50,6 +55,12 @@ class ArtworkScreenViewModelTest {
           location = null,
           dimension = null,
       )
+  private val locatedArtwork =
+      sampleArtwork.copy(
+          uid = "thinkerId",
+          name = "The Thinker",
+          location = Location(longitude = 2.3158, latitude = 48.8553, name = "Musée Rodin"),
+      )
 
   @Before
   fun setUp() {
@@ -57,7 +68,13 @@ class ArtworkScreenViewModelTest {
     savedRepository.clear()
     wikiDataRepository.clear()
     ArtworkRepositoryProvider.populateAPI(listOf(sampleArtwork))
-    viewModel = ArtworkScreenViewModel(sampleArtwork.uid, wikiDataRepository, savedRepository)
+    viewModel =
+        ArtworkScreenViewModel(
+            sampleArtwork.uid,
+            wikiDataRepository,
+            savedRepository,
+            addressRepository,
+        )
   }
 
   @After
@@ -84,7 +101,13 @@ class ArtworkScreenViewModelTest {
         object : WikiDataRepository by wikiDataRepository {
           override suspend fun getArtwork(uid: ArtworkId): Artwork = artworkResult.await()
         }
-    viewModel = ArtworkScreenViewModel(sampleArtwork.uid, delayedRepository, savedRepository)
+    viewModel =
+        ArtworkScreenViewModel(
+            sampleArtwork.uid,
+            delayedRepository,
+            savedRepository,
+            addressRepository,
+        )
 
     assertTrue(viewModel.uiState.value.isLoading)
     assertEquals(null, viewModel.uiState.value.artwork)
@@ -104,7 +127,13 @@ class ArtworkScreenViewModelTest {
         object : WikiDataRepository by wikiDataRepository {
           override suspend fun getArtwork(uid: ArtworkId): Artwork = artworkResult.await()
         }
-    viewModel = ArtworkScreenViewModel(sampleArtwork.uid, delayedRepository, savedRepository)
+    viewModel =
+        ArtworkScreenViewModel(
+            sampleArtwork.uid,
+            delayedRepository,
+            savedRepository,
+            addressRepository,
+        )
 
     assertTrue(viewModel.uiState.value.isLoading)
     artworkResult.completeExceptionally(AppException.Network())
@@ -128,7 +157,13 @@ class ArtworkScreenViewModelTest {
             return if (requestCount == 1) firstResult.await() else secondResult.await()
           }
         }
-    viewModel = ArtworkScreenViewModel(sampleArtwork.uid, delayedRepository, savedRepository)
+    viewModel =
+        ArtworkScreenViewModel(
+            sampleArtwork.uid,
+            delayedRepository,
+            savedRepository,
+            addressRepository,
+        )
     firstResult.completeExceptionally(AppException.Network())
     advanceUntilIdle()
 
@@ -253,6 +288,7 @@ class ArtworkScreenViewModelTest {
                 sampleArtwork.uid,
                 wikiDataRepository,
                 failingSavedRepository,
+                addressRepository,
             )
 
         advanceUntilIdle()
@@ -266,4 +302,108 @@ class ArtworkScreenViewModelTest {
         assertFalse(viewModel.uiState.value.isSaveInProgress)
         assertEquals(R.string.error_invalid_input, viewModel.uiState.value.errorMessageResId)
       }
+
+  /** Checks that the address of a located artwork is looked up from its coordinates and exposed. */
+  @Test
+  fun setArtwork_withLocation_exposesFoundAddress() = runTest {
+    viewModel = located(addressRepository)
+    advanceUntilIdle()
+
+    assertEquals(
+        ArtworkAddressState.Found(FakeAddressRepository.DEFAULT_ADDRESS),
+        viewModel.uiState.value.addressState,
+    )
+    assertEquals(
+        listOf(Coordinate(latitude = 48.8553, longitude = 2.3158)),
+        addressRepository.requestedCoordinates,
+    )
+  }
+
+  /** Checks that the artwork is displayed while its address is still being looked up. */
+  @Test
+  fun setArtwork_withLocation_exposesArtworkBeforeAddressIsFound() = runTest {
+    val addressResult = CompletableDeferred<String>()
+    viewModel =
+        located(
+            object : AddressRepository {
+              override suspend fun getAddress(coordinate: Coordinate): String =
+                  addressResult.await()
+            }
+        )
+    advanceUntilIdle()
+
+    assertEquals(locatedArtwork, viewModel.uiState.value.artwork)
+    assertFalse(viewModel.uiState.value.isLoading)
+    assertEquals(ArtworkAddressState.Loading, viewModel.uiState.value.addressState)
+
+    addressResult.complete("Rue de Varenne, Paris")
+    advanceUntilIdle()
+
+    assertEquals(
+        ArtworkAddressState.Found("Rue de Varenne, Paris"),
+        viewModel.uiState.value.addressState,
+    )
+  }
+
+  /** Checks that a failed address lookup only marks the address unavailable, not the artwork. */
+  @Test
+  fun setArtwork_whenAddressLookupFails_exposesUnavailableAndKeepsArtwork() = runTest {
+    viewModel = located(FakeAddressRepository(error = AppException.Network()))
+    advanceUntilIdle()
+
+    val state = viewModel.uiState.value
+    assertEquals(ArtworkAddressState.Unavailable, state.addressState)
+    assertEquals(locatedArtwork, state.artwork)
+    assertFalse(state.hasLoadFailed)
+    assertEquals(null, state.errorMessageResId)
+  }
+
+  /** Checks that an artwork without coordinates triggers no lookup and exposes no location. */
+  @Test
+  fun setArtwork_withoutLocation_exposesNoLocationWithoutLookup() = runTest {
+    advanceUntilIdle()
+
+    assertEquals(ArtworkAddressState.NoLocation, viewModel.uiState.value.addressState)
+    assertTrue(addressRepository.requestedCoordinates.isEmpty())
+  }
+
+  /** Checks that a late answer from a replaced lookup cannot overwrite the newer address. */
+  @Test
+  fun retryArtwork_ignoresAddressOfReplacedLookup() = runTest {
+    val firstAddress = CompletableDeferred<String>()
+    val secondAddress = CompletableDeferred<String>()
+    var lookupCount = 0
+    viewModel =
+        located(
+            object : AddressRepository {
+              override suspend fun getAddress(coordinate: Coordinate): String {
+                lookupCount++
+                return if (lookupCount == 1) firstAddress.await() else secondAddress.await()
+              }
+            }
+        )
+    advanceUntilIdle()
+
+    viewModel.retryArtwork()
+    advanceUntilIdle()
+    secondAddress.complete("New address")
+    firstAddress.complete("Old address")
+    advanceUntilIdle()
+
+    assertEquals(2, lookupCount)
+    assertEquals(
+        ArtworkAddressState.Found("New address"),
+        viewModel.uiState.value.addressState,
+    )
+  }
+
+  private fun located(addressRepository: AddressRepository): ArtworkScreenViewModel {
+    ArtworkRepositoryProvider.populateAPI(listOf(locatedArtwork))
+    return ArtworkScreenViewModel(
+        locatedArtwork.uid,
+        wikiDataRepository,
+        savedRepository,
+        addressRepository,
+    )
+  }
 }

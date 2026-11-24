@@ -11,6 +11,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
+import com.artista.artista.model.map.FakeAddressRepository
 import com.artista.artista.model.map.Location
 import org.junit.Rule
 import org.junit.Test
@@ -103,7 +104,12 @@ class ArtworkScreenLayoutTest {
     val wikiDataRepository =
         ArtworkRepositoryLocal().apply { putArtworkInRepositoryUnsavedSection(artwork) }
     val viewModel =
-        ArtworkScreenViewModel(artwork.uid, wikiDataRepository, ArtworkRepositoryLocal())
+        ArtworkScreenViewModel(
+            artwork.uid,
+            wikiDataRepository,
+            ArtworkRepositoryLocal(),
+            FakeAddressRepository(),
+        )
     composeTestRule.setContent {
       MaterialTheme { ArtworkScreen(artworkScreenViewModel = viewModel, onBackClick = {}) }
     }

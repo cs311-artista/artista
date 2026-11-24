@@ -19,6 +19,7 @@ import com.artista.artista.R
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
+import com.artista.artista.model.map.FakeAddressRepository
 import com.artista.artista.model.map.Location
 import com.artista.artista.ui.theme.ArtistaTheme
 import kotlinx.coroutines.runBlocking
@@ -71,7 +72,13 @@ class ArtworkScreenTest {
     savedRepository.clear()
     wikiDataRepository.clear()
     wikiDataRepository.putArtworkInRepositoryUnsavedSection(sampleArtwork)
-    viewModel = ArtworkScreenViewModel(sampleArtwork.uid, wikiDataRepository, savedRepository)
+    viewModel =
+        ArtworkScreenViewModel(
+            sampleArtwork.uid,
+            wikiDataRepository,
+            savedRepository,
+            FakeAddressRepository(),
+        )
   }
 
   @Test
@@ -211,7 +218,13 @@ class ArtworkScreenTest {
   ) {
     wikiDataRepository.clear()
     artwork?.let { wikiDataRepository.putArtworkInRepositoryUnsavedSection(it) }
-    viewModel = ArtworkScreenViewModel(artwork?.uid ?: "", wikiDataRepository, savedRepository)
+    viewModel =
+        ArtworkScreenViewModel(
+            artwork?.uid ?: "",
+            wikiDataRepository,
+            savedRepository,
+            FakeAddressRepository(),
+        )
     composeTestRule.setContent {
       ArtistaTheme {
         ArtworkScreen(

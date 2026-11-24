@@ -3,6 +3,7 @@
 // Co-authored-by: DeepSeek Flash
 package com.artista.artista
 
+import android.location.Geocoder
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -46,6 +47,8 @@ import com.artista.artista.model.artwork.createArtworkImageLoader
 import com.artista.artista.model.authentication.AuthRepositoryProvider
 import com.artista.artista.model.location.LocationProvider
 import com.artista.artista.model.location.UserLocationProvider
+import com.artista.artista.model.map.AddressRepository
+import com.artista.artista.model.map.AddressRepositoryGeocoder
 import com.artista.artista.model.user.UserRepositoryProvider
 import com.artista.artista.model.user.UsernameCacheDataStore
 import com.artista.artista.model.user.usernameDataStore
@@ -142,7 +145,8 @@ class MainActivity : ComponentActivity() {
  * @param wikiDataRepository source of the artworks
  * @param savedArtworksRepository storage of the saved artworks
  * @param walkingRouteRepository source of the walking routes between artworks
- * @author hixeum
+ * @param addressRepository source of the readable addresses of the artwork coordinates
+ * @author hixeum, Timz3rr
  */
 @Composable
 fun ArtistaApp(
@@ -159,6 +163,8 @@ fun ArtistaApp(
     savedArtworksRepository: SavedArtworksRepository =
         ArtworkRepositoryProvider.savedArtworksRepository,
     walkingRouteRepository: WalkingRouteRepository = WalkingRouteRepositoryRemote(),
+    addressRepository: AddressRepository =
+        AddressRepositoryGeocoder(Geocoder(LocalContext.current)),
     locationProvider: LocationProvider =
         UserLocationProvider(LocationServices.getFusedLocationProviderClient(LocalContext.current)),
 ) {
@@ -198,6 +204,7 @@ fun ArtistaApp(
               wikiDataRepository = wikiDataRepository,
               savedArtworksRepository = savedArtworksRepository,
               walkingRouteRepository = walkingRouteRepository,
+              addressRepository = addressRepository,
               locationProvider = locationProvider,
           )
         }
@@ -240,9 +247,10 @@ fun ArtistaApp(
  * @param wikiDataRepository source of the artworks
  * @param savedArtworksRepository storage of the saved artworks
  * @param walkingRouteRepository source of the walking routes between artworks
+ * @param addressRepository source of the readable addresses of the artwork coordinates
  * @param navController Controller used to manage destinations in the root graph.
  * @param startDestination Route displayed when the graph is first opened.
- * @author hixeum
+ * @author hixeum, Timz3rr
  */
 @Composable
 fun ArtistaNavHost(
@@ -250,6 +258,7 @@ fun ArtistaNavHost(
     wikiDataRepository: WikiDataRepository,
     savedArtworksRepository: SavedArtworksRepository,
     walkingRouteRepository: WalkingRouteRepository,
+    addressRepository: AddressRepository,
     navController: NavHostController = rememberNavController(),
     locationProvider: LocationProvider =
         UserLocationProvider(LocationServices.getFusedLocationProviderClient(LocalContext.current)),
@@ -425,6 +434,7 @@ fun ArtistaNavHost(
                             artworkId,
                             wikiDataRepository,
                             savedArtworksRepository,
+                            addressRepository,
                         )
                 ),
             onBackClick = { navController.popBackStack() },
