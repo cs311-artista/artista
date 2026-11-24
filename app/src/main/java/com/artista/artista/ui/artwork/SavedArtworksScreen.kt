@@ -210,7 +210,8 @@ private fun SavedArtworksScreenLayout(
                 ),
         )
       },
-      // Saved artworks are reached from the profile, so the Profile tab stays selected.
+      // Saved artworks belong to the profile section (V2 mockup), so the Profile tab stays selected
+      // even when the screen is opened from the Overview error state.
       bottomBar = {
         BottomNavigationMenu(
             selectedTab = Tab.Profile,

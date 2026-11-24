@@ -55,8 +55,10 @@ internal object ArtistaColors {
   /** Translucent band behind a saved artwork tile's title and artist. */
   val SavedArtworkTileBand = Color(0x99000000)
 
-  /** Faint circle behind a saved artwork tile's bookmark, so it stays visible on light images. */
-  val SavedArtworkTileIconScrim = Color(0x33000000)
+  /**
+   * Translucent circle behind a saved artwork tile's bookmark, so it stays visible on light images.
+   */
+  val SavedArtworkTileIconScrim = Color(0x66000000)
 
   /** Text and icons drawn over a saved artwork tile's image or band. */
   val OnSavedArtworkTile = Color.White
