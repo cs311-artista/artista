@@ -10,6 +10,7 @@ import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertContentDescriptionEquals
+import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -17,8 +18,11 @@ import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextReplacement
@@ -43,6 +47,7 @@ import com.artista.artista.utils.TEST_OTHER_PICTURE_URL
 import com.artista.artista.utils.TEST_PICTURE_URL
 import com.artista.artista.utils.userNamed
 import org.junit.After
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -145,6 +150,216 @@ class UserProfileScreenTest {
     composeTestRule
         .onNodeWithTag(UserProfileTestTags.SAVED_ARTWORK_BUTTON)
         .assertTextContains(composeTestRule.activity.getString(R.string.profile_saved_artwork))
+  }
+
+  /** Verifies that the header shows the title and subtitle of the screen. */
+  @Test
+  fun userProfileScreen_displaysHeader() {
+    setProfileContent()
+
+    composeTestRule.onNodeWithText(string(R.string.profile_title)).assertIsDisplayed()
+    composeTestRule.onNodeWithText(string(R.string.profile_subtitle)).assertIsDisplayed()
+  }
+
+  /** Verifies that the personal space label sits above the cards. */
+  @Test
+  fun userProfileScreen_displaysPersonalSpaceLabel() {
+    setProfileContent()
+
+    composeTestRule
+        .onNodeWithText(string(R.string.profile_personal_space))
+        .performScrollTo()
+        .assertIsDisplayed()
+  }
+
+  /** Verifies that each personal space card shows its title and subtitle. */
+  @Test
+  fun personalSpaceCards_displayTheirTitlesAndSubtitles() {
+    setProfileContent()
+
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.USERNAME)
+        .assertTextContains(string(R.string.profile_name))
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.PREFERENCES_BUTTON)
+        .assertTextContains(string(R.string.profile_preferences_subtitle))
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.SAVED_ARTWORK_BUTTON)
+        .assertTextContains(string(R.string.profile_saved_artwork_subtitle))
+  }
+
+  /** Verifies that the Name card shows the username as its subtitle instead of the prompt. */
+  @Test
+  fun nameCard_showsUsernameAsSubtitle_whenUserHasUsername() {
+    setProfileContentFor(userNamed("Alice"))
+
+    val nameCard = composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME)
+    nameCard.assertTextContains("Alice")
+    nameCard.assert(!hasText(string(R.string.profile_name_subtitle)))
+  }
+
+  /** Verifies that the Name card falls back to the prompt when the user has no username. */
+  @Test
+  fun nameCard_showsPrompt_whenUserHasNoUsername() {
+    setProfileContentFor(userNamed(null))
+
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.USERNAME)
+        .assertTextContains(string(R.string.profile_name_subtitle))
+  }
+
+  /** Verifies that the Name card subtitle follows the state of the ViewModel. */
+  @Test
+  fun nameCard_updatesSubtitle_whenUserChanges() {
+    val viewModel = signedOutViewModel()
+    setProfileContent(viewModel = viewModel)
+
+    composeTestRule.runOnIdle { viewModel.setUser(userNamed("Bob")) }
+
+    composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME).assertTextContains("Bob")
+  }
+
+  /** Verifies that a username saved from the dialog shows up on the Name card. */
+  @Test
+  fun usernameDialog_save_showsNewUsernameOnNameCard() {
+    setProfileContentFor(userNamed("Alice"))
+
+    openUsernameDialog()
+    composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME_FIELD).performTextReplacement("Bob")
+    composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME_SAVE).performClick()
+
+    composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME).assertTextContains("Bob")
+  }
+
+  /** Verifies that the edit photo button is shown on the banner with its label. */
+  @Test
+  fun editPhotoButton_isDisplayedWithItsLabel() {
+    setProfileContent()
+
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.EDIT_PHOTO_BUTTON)
+        .performScrollTo()
+        .assertIsDisplayed()
+        .assertTextEquals(string(R.string.profile_edit_photo))
+  }
+
+  /** Verifies that the change photo sheet stays closed until the user asks for it. */
+  @Test
+  fun changePhotoSheet_isClosedByDefault() {
+    setProfileContent()
+
+    composeTestRule.onNodeWithTag(UserProfileTestTags.CHANGE_PHOTO_SHEET).assertDoesNotExist()
+  }
+
+  /** Verifies that clicking the edit photo button opens the sheet with all its elements. */
+  @Test
+  fun editPhotoButton_click_opensChangePhotoSheet() {
+    setProfileContent()
+
+    openChangePhotoSheet()
+
+    composeTestRule.onNodeWithTag(UserProfileTestTags.CHANGE_PHOTO_SHEET).assertIsDisplayed()
+    composeTestRule.onNodeWithText(string(R.string.profile_change_photo_title)).assertIsDisplayed()
+    composeTestRule
+        .onNodeWithText(string(R.string.profile_change_photo_subtitle))
+        .assertIsDisplayed()
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.CHANGE_PHOTO_LIBRARY_OPTION)
+        .assertIsDisplayed()
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.CHANGE_PHOTO_SAVED_ARTWORK_OPTION)
+        .assertIsDisplayed()
+    composeTestRule.onNodeWithTag(UserProfileTestTags.CHANGE_PHOTO_CANCEL).assertIsDisplayed()
+  }
+
+  /** Verifies that each option of the sheet shows its title and subtitle. */
+  @Test
+  fun changePhotoSheet_optionsDisplayTheirTitlesAndSubtitles() {
+    setProfileContent()
+
+    openChangePhotoSheet()
+
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.CHANGE_PHOTO_LIBRARY_OPTION)
+        .assertTextContains(string(R.string.profile_change_photo_library))
+        .assertTextContains(string(R.string.profile_change_photo_library_subtitle))
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.CHANGE_PHOTO_SAVED_ARTWORK_OPTION)
+        .assertTextContains(string(R.string.profile_change_photo_saved_artwork))
+        .assertTextContains(string(R.string.profile_change_photo_saved_artwork_subtitle))
+  }
+
+  /**
+   * Verifies that the photo source options are displayed but not clickable, since picking a photo
+   * is not implemented yet.
+   */
+  @Test
+  fun changePhotoSheet_optionsAreNotClickable() {
+    setProfileContent()
+
+    openChangePhotoSheet()
+
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.CHANGE_PHOTO_LIBRARY_OPTION)
+        .assertHasNoClickAction()
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.CHANGE_PHOTO_SAVED_ARTWORK_OPTION)
+        .assertHasNoClickAction()
+  }
+
+  /** Verifies that the cancel button closes the sheet. */
+  @Test
+  fun changePhotoSheet_cancel_closesSheet() {
+    setProfileContent()
+    openChangePhotoSheet()
+
+    composeTestRule.onNodeWithTag(UserProfileTestTags.CHANGE_PHOTO_CANCEL).performClick()
+
+    composeTestRule.onNodeWithTag(UserProfileTestTags.CHANGE_PHOTO_SHEET).assertDoesNotExist()
+  }
+
+  /** Verifies that the sheet can be opened again after being closed. */
+  @Test
+  fun changePhotoSheet_canBeReopenedAfterCancel() {
+    setProfileContent()
+    openChangePhotoSheet()
+    composeTestRule.onNodeWithTag(UserProfileTestTags.CHANGE_PHOTO_CANCEL).performClick()
+
+    openChangePhotoSheet()
+
+    composeTestRule.onNodeWithTag(UserProfileTestTags.CHANGE_PHOTO_SHEET).assertIsDisplayed()
+  }
+
+  /** Verifies that the sheet stays open when the screen state is restored, as on a rotation. */
+  @Test
+  fun changePhotoSheet_staysOpen_afterStateRestoration() {
+    val restorationTester = StateRestorationTester(composeTestRule)
+    val viewModel = signedOutViewModel()
+    restorationTester.setContent {
+      MaterialTheme { UserProfileScreen(onLogoutClick = {}, userProfileViewModel = viewModel) }
+    }
+    openChangePhotoSheet()
+
+    restorationTester.emulateSavedInstanceStateRestore()
+
+    composeTestRule.onNodeWithTag(UserProfileTestTags.CHANGE_PHOTO_SHEET).assertIsDisplayed()
+  }
+
+  /** Verifies that opening the sheet does not trigger any of the screen's callbacks. */
+  @Test
+  fun editPhotoButton_click_invokesNoCallback() {
+    var callbackInvoked = false
+    setProfileContent(
+        onLogoutClick = { callbackInvoked = true },
+        onPreferencesClick = { callbackInvoked = true },
+        onSavedArtworkClick = { callbackInvoked = true },
+        onTabSelected = { callbackInvoked = true },
+    )
+
+    openChangePhotoSheet()
+    composeTestRule.onNodeWithTag(UserProfileTestTags.CHANGE_PHOTO_CANCEL).performClick()
+
+    composeTestRule.runOnIdle { assertFalse(callbackInvoked) }
   }
 
   /** Verifies that the profile tab is the one selected in the bottom navigation. */
@@ -508,6 +723,24 @@ class UserProfileScreenTest {
     val viewModel = signedOutViewModel().apply { setUser(user) }
     setProfileContent(viewModel = viewModel)
     return viewModel
+  }
+
+  /**
+   * Resolves a string resource, so the tests compare against the same text as the screen.
+   *
+   * @param resId the string resource to resolve
+   * @return the resolved text
+   */
+  private fun string(resId: Int): String = composeTestRule.activity.getString(resId)
+
+  /** Simulates the user clicking the edit photo button, which opens the change photo sheet. */
+  private fun openChangePhotoSheet() {
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.EDIT_PHOTO_BUTTON)
+        .performScrollTo()
+        .performClick()
+    // The sheet animates in, so the assertions wait for it to settle.
+    composeTestRule.waitForIdle()
   }
 
   /** Scrolls the picture area into view, since it starts off screen on small displays. */
