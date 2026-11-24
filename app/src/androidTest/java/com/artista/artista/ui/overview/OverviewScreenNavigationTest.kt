@@ -19,6 +19,7 @@ import com.artista.artista.ArtistaNavHost
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
 import com.artista.artista.model.artwork.mockArtworks
 import com.artista.artista.model.location.FakeLocationProvider
+import com.artista.artista.model.map.FakeAddressRepository
 import com.artista.artista.model.walking.WalkingRouteRepositoryRemote
 import com.artista.artista.resources.C
 import com.artista.artista.ui.artwork.ArtworkCardTestTag
@@ -87,6 +88,7 @@ class OverviewScreenNavigationTest {
           wikiDataRepository = repository,
           savedArtworksRepository = repository,
           walkingRouteRepository = WalkingRouteRepositoryRemote(),
+          addressRepository = FakeAddressRepository(),
       )
     }
 
@@ -125,6 +127,7 @@ class OverviewScreenNavigationTest {
             wikiDataRepository = repository,
             savedArtworksRepository = repository,
             walkingRouteRepository = WalkingRouteRepositoryRemote(),
+            addressRepository = FakeAddressRepository(),
             locationProvider = FakeLocationProvider(),
         )
       }
@@ -162,6 +165,7 @@ class OverviewScreenNavigationTest {
           wikiDataRepository = repository,
           savedArtworksRepository = repository,
           walkingRouteRepository = WalkingRouteRepositoryRemote(),
+          addressRepository = FakeAddressRepository(),
           locationProvider = FakeLocationProvider(),
       )
     }
