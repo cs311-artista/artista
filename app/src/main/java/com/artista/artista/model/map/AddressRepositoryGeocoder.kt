@@ -4,6 +4,7 @@ package com.artista.artista.model.map
 import android.location.Address
 import android.location.Geocoder
 import android.os.Build
+import androidx.annotation.ChecksSdkIntAtLeast
 import androidx.annotation.RequiresApi
 import com.artista.artista.model.error.AppException
 import java.io.IOException
@@ -28,11 +29,15 @@ import kotlinx.coroutines.withContext
  *   withContext(ioDispatcher). That lookup can be long, so it must not run on the main thread,
  *   where it would freeze the app. It is a parameter rather than hard-coded, like in the other
  *   remote repositories, so the caller can choose the thread.
+ * @param sdkInt Android version of the device, which decides which lookup is used. It is a
+ *   parameter rather than read from Build.VERSION.SDK_INT, so tests running on one Android version
+ *   can also exercise the lookup of the other versions.
  * @author Timz3rr
  */
 class AddressRepositoryGeocoder(
     private val geocoder: Geocoder,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val sdkInt: Int = Build.VERSION.SDK_INT,
 ) : AddressRepository {
   override suspend fun getAddress(coordinate: Coordinate): String {
     if (!Geocoder.isPresent()) {
@@ -40,7 +45,7 @@ class AddressRepositoryGeocoder(
     }
     val addresses =
         try {
-          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+          if (hasListenerLookup()) {
             lookUpWithListener(coordinate)
           } else {
             lookUpBlocking(coordinate)
@@ -56,6 +61,11 @@ class AddressRepositoryGeocoder(
         }
     return firstAddressLine(addresses)
   }
+
+  // Lint only recognises a direct check of Build.VERSION.SDK_INT, so this annotation tells it that
+  // the injected sdkInt check also guards the calls that need Android 13.
+  @ChecksSdkIntAtLeast(api = Build.VERSION_CODES.TIRAMISU)
+  private fun hasListenerLookup(): Boolean = sdkInt >= Build.VERSION_CODES.TIRAMISU
 
   // Android 13 and later answer through a listener, so the coroutine is suspended until it calls
   // back. The Geocoder cannot cancel a lookup: if the coroutine is cancelled first, the late answer

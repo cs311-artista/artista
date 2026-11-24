@@ -3,11 +3,14 @@ package com.artista.artista.model.map
 
 import android.location.Address
 import android.location.Geocoder
+import android.os.Build
 import com.artista.artista.model.error.AppException
 import java.util.Locale
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -22,8 +25,8 @@ import org.robolectric.shadows.ShadowGeocoder
 /**
  * Unit tests for [AddressRepositoryGeocoder].
  *
- * They run on Android 14, so they go through the listener lookup of Android 13 and later. The
- * blocking lookup used below Android 13 would need a second Robolectric image and stays untested.
+ * They run on Android 14. The repository uses the listener lookup there, unless a test passes an
+ * older Android version, which sends it through the blocking lookup used below Android 13.
  *
  * @author Timz3rr
  */
@@ -116,10 +119,46 @@ class AddressRepositoryGeocoderTest {
     assertTrue("Expected a CancellationException but got $error", error is CancellationException)
   }
 
+  /** Checks that the blocking lookup used below Android 13 returns the closest address. */
+  @Test
+  fun getAddress_beforeAndroid13_returnsFirstAddressLine() = runTest {
+    shadowOf(geocoder).setFromLocation(listOf(address(MUSEE_RODIN_ADDRESS), address("Elsewhere")))
+
+    assertEquals(MUSEE_RODIN_ADDRESS, blockingRepository().getAddress(MUSEE_RODIN))
+  }
+
+  /**
+   * Checks that the blocking lookup also passes the latitude and longitude in the right order,
+   * since it calls a different geocoder method than the listener lookup.
+   */
+  @Test
+  fun getAddress_beforeAndroid13_passesLatitudeAndLongitudeInOrder() = runTest {
+    shadowOf(geocoder).setFromLocation(listOf(address(BEIJING_ADDRESS)))
+
+    assertEquals(BEIJING_ADDRESS, blockingRepository().getAddress(BEIJING))
+  }
+
+  /** Checks that the blocking lookup throws [AppException.NotFound] when no address is known. */
+  @Test
+  fun getAddress_beforeAndroid13_withoutResult_throwsNotFound() = runTest {
+    shadowOf(geocoder).setFromLocation(emptyList())
+
+    assertGetAddressThrows<AppException.NotFound>(repository = blockingRepository())
+  }
+
+  // Android 9, the minimum supported version, which uses the blocking lookup.
+  private fun TestScope.blockingRepository() =
+      AddressRepositoryGeocoder(
+          geocoder,
+          ioDispatcher = UnconfinedTestDispatcher(testScheduler),
+          sdkInt = Build.VERSION_CODES.P,
+      )
+
   private fun address(line: String): Address = Address(Locale.US).apply { setAddressLine(0, line) }
 
   private suspend inline fun <reified T : AppException> assertGetAddressThrows(
-      coordinate: Coordinate = MUSEE_RODIN
+      coordinate: Coordinate = MUSEE_RODIN,
+      repository: AddressRepository = this.repository,
   ) {
     val error = runCatching { repository.getAddress(coordinate) }.exceptionOrNull()
     assertTrue("Expected ${T::class.simpleName} but got $error", error is T)
