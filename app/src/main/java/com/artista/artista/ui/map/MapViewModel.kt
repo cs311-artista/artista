@@ -14,12 +14,14 @@ import com.artista.artista.model.error.AppException
 import com.artista.artista.model.location.LocationProvider
 import com.artista.artista.model.map.Coordinate
 import com.artista.artista.model.map.UserLocation
+import com.artista.artista.model.walking.ARRIVAL_THRESHOLD_METERS
 import com.artista.artista.model.walking.OFF_ROUTE_THRESHOLD_METERS
 import com.artista.artista.model.walking.OFF_ROUTE_UPDATES_REQUIRED
 import com.artista.artista.model.walking.RouteProgress
 import com.artista.artista.model.walking.WalkingRoute
 import com.artista.artista.model.walking.WalkingRouteRepository
 import com.artista.artista.model.walking.advanceProgress
+import com.artista.artista.model.walking.distanceMeters
 import com.artista.artista.model.walking.pathLengthMeters
 import com.artista.artista.model.walking.trimPath
 import com.artista.artista.ui.error.launchCatching
@@ -174,12 +176,19 @@ class MapViewModel(
   private var pendingRouteArtwork: Artwork? = null
   private var locationFailed = false
   private var artworkLoadJob: Job? = null
+  private val _hasArrived = MutableStateFlow(false)
 
   /** Exposes the latest map state for reactive UI rendering. */
   val uiStateFlow: StateFlow<MapViewUiState> = _uiState.asStateFlow()
 
   /** Exposes the current walking route request state. */
   val routeUiStateFlow: StateFlow<RouteUiState> = _routeUiState.asStateFlow()
+
+  /**
+   * Whether the user has reached the destination of the active route. Once true it stays true, so
+   * GPS jitter cannot flip it back, until the route is closed or a new one is requested.
+   */
+  val hasArrived: StateFlow<Boolean> = _hasArrived.asStateFlow()
 
   /** Returns the current map state for synchronous consumers such as tests. */
   val uiState: MapViewUiState
@@ -230,7 +239,9 @@ class MapViewModel(
    * @param location the user's latest location
    */
   private fun updateRouteProgress(location: UserLocation) {
-    val route = (_routeUiState.value as? RouteUiState.Success)?.route ?: return
+    if (_hasArrived.value) return
+    val success = _routeUiState.value as? RouteUiState.Success ?: return
+    val route = success.route
     val path = route.path
     val progress =
         advanceProgress(path, Coordinate(location.latitude, location.longitude), routeProgress)
@@ -247,6 +258,22 @@ class MapViewModel(
             remaining,
             route.duration.toDouble(DurationUnit.SECONDS) * ratio,
         )
+    if (isAtDestination(success.destination, location)) markArrived()
+  }
+
+  private fun isAtDestination(destination: Artwork, location: UserLocation): Boolean {
+    val target = destination.location ?: return false
+    // Straight line to the artwork: the route end can be snapped to a path some meters away.
+    return distanceMeters(
+        Coordinate(location.latitude, location.longitude),
+        Coordinate(target.latitude, target.longitude),
+    ) < ARRIVAL_THRESHOLD_METERS
+  }
+
+  private fun markArrived() {
+    _hasArrived.value = true
+    resetRecalculation()
+    stopLocationUpdates()
   }
 
   private fun resetRouteProgress() {
@@ -264,6 +291,7 @@ class MapViewModel(
    * @author patrickmcdan
    */
   fun startLocationUpdates() {
+    if (_hasArrived.value) return
     if (locationUpdatesJob?.isActive == true) return
     locationUpdatesJob =
         viewModelScope.launchCatching(tag = TAG, onError = ::setLocationError) {
@@ -326,6 +354,7 @@ class MapViewModel(
 
   /** Counts consecutive off-route fixes; a single fix back on the route starts over. */
   private fun trackOffRoute() {
+    if (_hasArrived.value) return
     val offRouteMeters = routeProgress?.offRouteMeters
     if (offRouteMeters == null || offRouteMeters <= OFF_ROUTE_THRESHOLD_METERS) {
       resetOffRoute()
@@ -495,6 +524,7 @@ class MapViewModel(
     routeRequestJob?.cancel()
     resetRouteProgress()
     resetRecalculation()
+    _hasArrived.value = false
     pendingRouteArtwork = null
     _routeUiState.value = RouteUiState.Loading
     val userLocation = uiState.userLocation
@@ -526,6 +556,7 @@ class MapViewModel(
     lastRouteArtwork = null
     resetRouteProgress()
     resetRecalculation()
+    _hasArrived.value = false
     stopLocationUpdates()
     _routeUiState.value = RouteUiState.Idle
   }

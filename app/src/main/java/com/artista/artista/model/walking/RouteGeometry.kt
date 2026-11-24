@@ -27,6 +27,9 @@ const val OFF_ROUTE_THRESHOLD_METERS = 40.0
 /** Consecutive off-route location updates needed before recalculation is offered. */
 const val OFF_ROUTE_UPDATES_REQUIRED = 3
 
+/** Distance from the destination below which the user counts as having arrived. */
+const val ARRIVAL_THRESHOLD_METERS = 30.0
+
 /**
  * The result of projecting a point onto one route segment.
  *
