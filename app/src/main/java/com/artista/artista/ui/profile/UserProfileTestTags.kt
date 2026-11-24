@@ -27,7 +27,22 @@ object UserProfileTestTags {
    */
   const val PROFILE_PICTURE_PLACEHOLDER = "user_profile_picture_placeholder"
 
-  /** Tag identifying the field displaying the username, which opens its edit dialog on click. */
+  /** Tag identifying the button on the picture banner, which opens the change photo sheet. */
+  const val EDIT_PHOTO_BUTTON = "user_profile_edit_photo_button"
+
+  /** Tag identifying the bottom sheet listing where the profile photo can come from. */
+  const val CHANGE_PHOTO_SHEET = "user_profile_change_photo_sheet"
+
+  /** Tag identifying the sheet option picking the photo from the device library. */
+  const val CHANGE_PHOTO_LIBRARY_OPTION = "user_profile_change_photo_library_option"
+
+  /** Tag identifying the sheet option picking the photo from the saved artworks. */
+  const val CHANGE_PHOTO_SAVED_ARTWORK_OPTION = "user_profile_change_photo_saved_artwork_option"
+
+  /** Tag identifying the button closing the change photo sheet. */
+  const val CHANGE_PHOTO_CANCEL = "user_profile_change_photo_cancel"
+
+  /** Tag identifying the Name card, which opens the username edit dialog on click. */
   const val USERNAME = "user_profile_username"
 
   /** Tag identifying the dialog used to edit the username. */

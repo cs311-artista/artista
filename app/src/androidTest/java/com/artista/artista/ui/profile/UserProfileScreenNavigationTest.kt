@@ -6,7 +6,7 @@ package com.artista.artista.ui.profile
 import android.app.Instrumentation
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
@@ -92,7 +92,10 @@ class UserProfileScreenNavigationTest {
     }
 
     composeTestRule.onNodeWithTag(UserProfileTestTags.SCREEN).assertIsDisplayed()
-    composeTestRule.onNodeWithTag(UserProfileTestTags.LOGOUT_BUTTON).performClick()
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.LOGOUT_BUTTON)
+        .performScrollTo()
+        .performClick()
 
     composeTestRule.runOnIdle {
       assertEquals(1, logoutCount)
@@ -139,13 +142,14 @@ class UserProfileScreenNavigationTest {
   }
 
   /**
-   * Checks that a username just saved is still displayed after a round trip through Overview.
+   * Checks that a username just saved is still the one prefilled in the edit dialog after a round
+   * trip through Overview.
    *
    * Instrumented rather than on Robolectric, where Compose never becomes idle once the username
    * dialog is open.
    */
   @Test
-  fun renamedUsername_isStillDisplayedAfterSwitchingTabs() {
+  fun renamedUsername_isKeptAfterSwitchingTabs() {
     // Signed out, so the profile ViewModel has no stored name to read back: the name only lives in
     // the ViewModel, and is lost as soon as the ViewModel is.
     AuthRepositoryProvider.repository = FakeAuthRepository()
@@ -164,25 +168,28 @@ class UserProfileScreenNavigationTest {
         )
       }
 
-      composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME).performClick()
+      composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME).performScrollTo().performClick()
       composeTestRule
           .onNodeWithTag(UserProfileTestTags.USERNAME_FIELD)
           .performTextReplacement(NEW_USERNAME)
       composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME_SAVE).performClick()
-      composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME).assertTextEquals(NEW_USERNAME)
 
       composeTestRule.onNodeWithTag(NavigationTestTags.getTabTestTag(Tab.Overview)).performClick()
       composeTestRule.onNodeWithTag(OverviewTestTags.SCREEN).assertIsDisplayed()
       composeTestRule.onNodeWithTag(NavigationTestTags.getTabTestTag(Tab.Profile)).performClick()
 
-      composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME).assertTextEquals(NEW_USERNAME)
+      // The profile screen no longer shows the username: the edit dialog prefills it instead.
+      composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME).performScrollTo().performClick()
+      composeTestRule
+          .onNodeWithTag(UserProfileTestTags.USERNAME_FIELD)
+          .assertTextContains(NEW_USERNAME)
     } finally {
       AuthRepositoryProvider.resetToApplicationRepository()
     }
   }
 
   private companion object {
-    /** Name entered in the edit dialog, different from the placeholder shown by default. */
+    /** Name entered in the edit dialog, different from any name the user starts with. */
     const val NEW_USERNAME = "Claude Monet"
   }
 }

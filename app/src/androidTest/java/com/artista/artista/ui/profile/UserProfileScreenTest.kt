@@ -73,7 +73,7 @@ class UserProfileScreenTest {
     SingletonImageLoader.reset()
   }
 
-  /** Verifies that the profile preview renders the profile and username. */
+  /** Verifies that the profile preview renders the profile and its Name card. */
   @Test
   fun userProfileScreenPreview_displaysSampleProfile() {
     composeTestRule.setContent { UserProfileScreenPreview() }
@@ -96,7 +96,6 @@ class UserProfileScreenTest {
     setProfileContent()
 
     composeTestRule.onNodeWithTag(UserProfileTestTags.SCREEN).assertIsDisplayed()
-    composeTestRule.onNodeWithTag(UserProfileTestTags.LOGOUT_BUTTON).assertIsDisplayed()
     composeTestRule.onNodeWithTag(NavigationTestTags.BOTTOM_NAVIGATION_MENU).assertIsDisplayed()
     // The content scrolls on small screens, such as the CI emulator, so it may start off screen.
     composeTestRule
@@ -115,40 +114,27 @@ class UserProfileScreenTest {
         .onNodeWithTag(UserProfileTestTags.SAVED_ARTWORK_BUTTON)
         .performScrollTo()
         .assertIsDisplayed()
-  }
-
-  /** Verifies that a placeholder is displayed when the user has no username. */
-  @Test
-  fun userProfileScreen_showsPlaceholder_whenUserHasNoUsername() {
-    val viewModel = signedOutViewModel().apply { setUser(userNamed(null)) }
-    setProfileContent(viewModel = viewModel)
-
     composeTestRule
-        .onNodeWithTag(UserProfileTestTags.USERNAME)
-        .assertTextEquals(composeTestRule.activity.getString(R.string.profile_username_placeholder))
+        .onNodeWithTag(UserProfileTestTags.LOGOUT_BUTTON)
+        .performScrollTo()
+        .assertIsDisplayed()
   }
 
-  /** Verifies that the username of the user is displayed. */
+  /** Verifies that the username prefilled in the edit dialog follows the state of the ViewModel. */
   @Test
-  fun userProfileScreen_showsUsername_whenUserHasUsername() {
-    val viewModel = signedOutViewModel().apply { setUser(userNamed("Alice")) }
-    setProfileContent(viewModel = viewModel)
-
-    composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME).assertTextEquals("Alice")
-  }
-
-  /** Verifies that the displayed username follows the state of the ViewModel. */
-  @Test
-  fun userProfileScreen_updatesUsername_whenUserChanges() {
+  fun usernameDialog_prefillsUsername_whenUserChanges() {
     val viewModel = signedOutViewModel()
     setProfileContent(viewModel = viewModel)
 
     composeTestRule.runOnIdle { viewModel.setUser(userNamed("Bob")) }
+    openUsernameDialog()
 
-    composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME).assertTextEquals("Bob")
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.USERNAME_FIELD)
+        .assertEditableTextEquals("Bob")
   }
 
-  /** Verifies that the preferences and saved artwork buttons display their labels. */
+  /** Verifies that the preferences and saved artwork cards display their titles. */
   @Test
   fun userProfileScreen_displaysButtonLabels() {
     setProfileContent()
@@ -214,7 +200,11 @@ class UserProfileScreenTest {
     var logoutClicked = false
     setProfileContent(onLogoutClick = { logoutClicked = true })
 
-    composeTestRule.onNodeWithTag(UserProfileTestTags.LOGOUT_BUTTON).performClick()
+    // The button sits below the cards, so it may start off screen on small displays.
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.LOGOUT_BUTTON)
+        .performScrollTo()
+        .performClick()
 
     // Fails if the button is wired to another callback, such as onPreferencesClick.
     assertTrue(logoutClicked)
@@ -230,7 +220,7 @@ class UserProfileScreenTest {
         .assertTextEquals(composeTestRule.activity.getString(R.string.profile_logout))
   }
 
-  /** Verifies that clicking the username opens the dialog used to edit it. */
+  /** Verifies that clicking the Name card opens the dialog used to edit the username. */
   @Test
   fun username_click_opensEditDialog() {
     setProfileContent()
@@ -253,7 +243,7 @@ class UserProfileScreenTest {
         .assertEditableTextEquals("Alice")
   }
 
-  /** Verifies that the placeholder is not copied into the field when the user has no username. */
+  /** Verifies that the field starts empty when the user has no username yet. */
   @Test
   fun usernameDialog_startsEmpty_whenUserHasNoUsername() {
     setProfileContent()
@@ -263,7 +253,7 @@ class UserProfileScreenTest {
     composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME_FIELD).assertEditableTextEquals("")
   }
 
-  /** Verifies that saving closes the dialog and displays the entered username. */
+  /** Verifies that saving closes the dialog and keeps the entered username for the next edit. */
   @Test
   fun usernameDialog_save_displaysNewUsername() {
     val viewModel = signedOutViewModel().apply { setUser(userNamed("Alice")) }
@@ -274,7 +264,11 @@ class UserProfileScreenTest {
     composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME_SAVE).performClick()
 
     composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME_DIALOG).assertDoesNotExist()
-    composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME).assertTextEquals("Bob")
+    // The profile screen no longer shows the username, so the reopened dialog is where it appears.
+    openUsernameDialog()
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.USERNAME_FIELD)
+        .assertEditableTextEquals("Bob")
   }
 
   /** Verifies that cancelling closes the dialog and discards the entered username. */
@@ -288,7 +282,10 @@ class UserProfileScreenTest {
     composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME_CANCEL).performClick()
 
     composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME_DIALOG).assertDoesNotExist()
-    composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME).assertTextEquals("Alice")
+    openUsernameDialog()
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.USERNAME_FIELD)
+        .assertEditableTextEquals("Alice")
   }
 
   /** Verifies that the save button is only enabled while the entered username is valid. */
@@ -519,11 +516,11 @@ class UserProfileScreenTest {
   }
 
   /**
-   * Simulates the user clicking the username field, which opens the dialog used to edit the
-   * username. Shared by the dialog tests so that each of them starts from an open dialog.
+   * Simulates the user clicking the Name card, which opens the dialog used to edit the username.
+   * Shared by the dialog tests so that each of them starts from an open dialog.
    */
   private fun openUsernameDialog() {
-    // The profile content is scrollable: on a small screen the field may be off screen, and a click
+    // The profile content is scrollable: on a small screen the card may be off screen, and a click
     // on a node that is not displayed fails.
     composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME).performScrollTo().performClick()
   }
