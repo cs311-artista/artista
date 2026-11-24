@@ -337,6 +337,10 @@ internal fun routeBounds(
  *   shown
  * @param onClearRoute called when the route is dismissed
  * @param onRetryRoute called when a retry is requested
+ * @param onRecalculateRoute called when a new route from the user's location is requested, from the
+ *   "Recalculate route" button or the retry action of a failed recalculation
+ * @param recalculationUiState state of the route recalculation: whether the button is offered, its
+ *   loading and cooldown states, and the error of a failed request
  * @param modifier modifier applied to the overlay
  * @author patrickmcdan
  */
