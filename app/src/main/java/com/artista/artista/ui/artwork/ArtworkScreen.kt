@@ -149,22 +149,16 @@ fun ArtworkScreen(
               )
             },
             navigationIcon = {
-              // The circle is drawn here rather than in the shared BackButton, which other screens
-              // still show without one.
               BackButton(
                   onClick = onBackClick,
-                  modifier =
-                      Modifier.testTag(ArtworkTestTags.BACK_BUTTON)
-                          .background(MaterialTheme.colorScheme.surface, CircleShape),
+                  modifier = Modifier.testTag(ArtworkTestTags.BACK_BUTTON),
               )
             },
             actions = {
               IconButton(
                   onClick = { artworkScreenViewModel.toggleSaveArtwork() },
                   enabled = !uiState.isSaveInProgress && (artwork != null),
-                  modifier =
-                      Modifier.testTag(ArtworkTestTags.SAVE_BUTTON)
-                          .background(MaterialTheme.colorScheme.surface, CircleShape),
+                  modifier = Modifier.testTag(ArtworkTestTags.SAVE_BUTTON),
               ) {
                 Icon(
                     imageVector =
@@ -445,7 +439,8 @@ fun MapTile(
 
     // Only drawn for now: recentering the map on the artwork is a follow-up, so the button is not
     // clickable yet rather than doing nothing on tap. It sits at the top end because at the bottom
-    // end it overlapped the Google Maps zoom controls.
+    // end it overlapped the Google Maps zoom controls. Unlike the top bar buttons, it keeps a
+    // circle behind it so the icon stays readable over the map.
     Box(
         modifier =
             Modifier.align(Alignment.TopEnd)
