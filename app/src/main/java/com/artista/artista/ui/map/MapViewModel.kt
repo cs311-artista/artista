@@ -490,6 +490,7 @@ class MapViewModel(
     lastRouteArtwork = artwork
     routeRequestJob?.cancel()
     resetRouteProgress()
+    resetRecalculation()
     pendingRouteArtwork = null
     _routeUiState.value = RouteUiState.Loading
     val userLocation = uiState.userLocation

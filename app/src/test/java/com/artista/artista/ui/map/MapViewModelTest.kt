@@ -380,6 +380,33 @@ class MapViewModelTest {
   }
 
   @Test
+  fun loadRouteTo_duringRecalculation_discardsTheLateRecalculationResponse() = runTest {
+    val southDestination = artworkWithLocation("south", latitude = 45.999, longitude = 6.0)
+
+    val provider = FakeLocationProvider()
+    val repository = northRepository()
+    val viewModel = createRouteViewModel(provider, repository)
+    startOffRoute(viewModel, provider)
+    repository.blockCalls = true
+    viewModel.recalculateRoute()
+    runCurrent()
+
+    viewModel.loadRouteTo(southDestination)
+    runCurrent()
+    assertEquals(RouteRecalculationUiState(), viewModel.recalculationUiState.value)
+
+    repository.release(1)
+    runCurrent()
+    repository.release(0)
+    runCurrent()
+
+    assertEquals(
+        RouteUiState.Success(repository.route, southDestination),
+        viewModel.routeUiState,
+    )
+  }
+
+  @Test
   fun clearRoute_whileLoading_returnsToIdle() = runTest {
     val artwork = artworkWithLocation("destination")
     val repository = FakeWalkingRouteRepository(blockCalls = true)
