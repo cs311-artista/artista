@@ -10,6 +10,7 @@ import com.artista.artista.model.artwork.SavedArtworksRepository
 import com.artista.artista.ui.error.launchCatching
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 
 class BootReceiver(
     private val savedArtworksRepository: SavedArtworksRepository =
@@ -19,7 +20,7 @@ class BootReceiver(
     if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
     val appContext = context.applicationContext
     val pending = goAsync()
-    CoroutineScope(Dispatchers.Default)
+    receiverScope
         .launchCatching(
             tag = TAG,
             onError = { error -> Log.e(TAG, "Error occurred while processing boot event", error) },
@@ -31,5 +32,6 @@ class BootReceiver(
 
   private companion object {
     private var TAG = BootReceiver::class.java.simpleName
+    val receiverScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
   }
 }
