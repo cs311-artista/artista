@@ -83,6 +83,9 @@ internal object Dimensions {
   val savedArtworkTileButtonPadding = 6.dp
   val savedArtworkTileButtonSize = 36.dp
   val savedArtworkTileIconSize = 20.dp
+  val savedArtworkTileBookmarkPadding = 2.dp
+  // As big as the map button, so the two controls on top of a tile look balanced.
+  val savedArtworkTileBookmarkIconSize = savedArtworkTileButtonSize
 
   // Overview screen.
   val overviewListHorizontalPadding = 16.dp
