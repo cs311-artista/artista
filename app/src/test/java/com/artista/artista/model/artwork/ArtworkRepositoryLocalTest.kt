@@ -3,6 +3,7 @@
 package com.artista.artista.model.artwork
 
 import com.artista.artista.model.artist.Artist
+import com.artista.artista.model.artist.ArtistCandidate
 import com.artista.artista.model.error.AppException
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -31,6 +32,26 @@ class ArtworkRepositoryLocalTest {
     val repository = ArtworkRepositoryLocal()
 
     assertEquals(emptyList<Artist>(), repository.getArtistsFromQuery("Unknown artist"))
+  }
+
+  @Test
+  fun getArtistCandidates_returnsCaseInsensitiveMatchesUpToLimit() = runTest {
+    val repository = ArtworkRepositoryLocal()
+
+    assertEquals(
+        listOf(ArtistCandidate("mock-artist-001", "Pablo Picasso", null)),
+        repository.getArtistCandidates("p", limit = 1),
+    )
+  }
+
+  @Test
+  fun getArtworkCandidates_returnsCaseInsensitiveMatchesUpToLimit() = runTest {
+    val repository = ArtworkRepositoryLocal()
+
+    assertEquals(
+        listOf(ArtworkCandidate("mock-001", "The Thinker", null)),
+        repository.getArtworkCandidates("the", ArtworkType.entries, limit = 1),
+    )
   }
 
   @Test
