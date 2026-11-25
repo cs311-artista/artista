@@ -13,11 +13,13 @@ import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.lifecycle.Lifecycle
@@ -196,12 +198,28 @@ class OverviewScreenTest {
 
     composeTestRule.onNodeWithTag(OverviewTestTags.DISPLAY_MODE_BUTTON).performClick()
 
+    // A list card can be taller than the screen, which leaves its footer buttons out of view.
+    scrollArtworksTo(ArtworkListCardTestTags.saveButton(artwork))
     composeTestRule.onNodeWithTag(ArtworkListCardTestTags.saveButton(artwork)).assertIsDisplayed()
     composeTestRule.onNodeWithTag(ArtworkTileTestTags.saveButton(artwork)).assertDoesNotExist()
 
+    // The switch button scrolls with the artworks, so bring it back before tapping it.
+    scrollArtworksTo(OverviewTestTags.DISPLAY_MODE_BUTTON)
     composeTestRule.onNodeWithTag(OverviewTestTags.DISPLAY_MODE_BUTTON).performClick()
 
+    scrollArtworksTo(ArtworkTileTestTags.saveButton(artwork))
     composeTestRule.onNodeWithTag(ArtworkTileTestTags.saveButton(artwork)).assertIsDisplayed()
+  }
+
+  /**
+   * Scrolls the artwork list until the node tagged [tag] is composed and visible.
+   *
+   * @param tag test tag of the node to bring into view
+   */
+  private fun scrollArtworksTo(tag: String) {
+    composeTestRule
+        .onNodeWithTag(OverviewTestTags.ARTWORK_LIST)
+        .performScrollToNode(hasTestTag(tag))
   }
 
   /** Verifies the save-error effect clears errors after displaying their message. */
