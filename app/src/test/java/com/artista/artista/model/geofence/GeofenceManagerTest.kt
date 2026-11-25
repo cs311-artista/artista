@@ -7,6 +7,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkId
+import com.artista.artista.model.error.AppException
 import com.artista.artista.model.map.Location
 import com.google.android.gms.location.GeofencingClient
 import com.google.android.gms.location.GeofencingRequest
@@ -78,21 +79,20 @@ class GeofenceManagerTest {
   }
 
   @Test
-  fun `at most 100 geofences are registered`() = runTest {
-    manager.register(List(150) { testArtwork("id$it") })
+  fun `exactly 100 artworks are registered`() = runTest {
+    manager.register(List(100) { testArtwork("id$it") })
     assertEquals(100, requests.single().geofences.size)
   }
 
   @Test
-  fun `artworks without a location do not use up geofence slots`() = runTest {
-    val unlocated = List(100) { testArtwork("none$it", location = null) }
-    val located = List(100) { testArtwork("loc$it") }
+  fun `more than 100 artworks are rejected as invalid input`() = runTest {
+    val error = runCatching {
+      manager.register(List(101) { testArtwork("id$it") })
+    }
+        .exceptionOrNull()
 
-    manager.register(unlocated + located)
-
-    val ids = requests.single().geofences.map { it.requestId }
-    assertEquals(100, ids.size)
-    assertTrue(ids.all { it.startsWith("loc") })
+    assertTrue(error is AppException.InvalidInput)
+    assertTrue(requests.isEmpty()) // nothing was added
   }
 
   @Test
