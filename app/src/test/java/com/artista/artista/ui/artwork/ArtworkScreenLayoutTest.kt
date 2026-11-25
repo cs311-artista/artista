@@ -69,7 +69,7 @@ class ArtworkScreenLayoutTest {
     composeTestRule
         .onNodeWithTag(ArtworkTestTags.ARTWORK_MAP_RECENTER_BUTTON)
         .assertExists()
-        .assertHasNoClickAction()
+        .assertHasNoClickAction() // flip when #351 lands
   }
 
   /** Checks that no recenter button exists when the artwork has no location, hence no map. */
