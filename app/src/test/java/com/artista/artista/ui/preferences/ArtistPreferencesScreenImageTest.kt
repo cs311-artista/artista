@@ -182,7 +182,7 @@ class ArtistPreferencesScreenImageTest {
     )
     val viewModel =
         ArtistPreferencesViewModel(
-            artworkRepository = ArtistsWikiDataRepository(artists),
+            wikiDataRepository = ArtistsWikiDataRepository(artists),
             authRepository = FakeAuthRepository(FakeAuthUser(uid = USER_ID)),
             userRepository = userRepository,
         )

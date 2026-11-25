@@ -1,5 +1,6 @@
 package com.artista.artista.ui.preferences
 
+import android.util.Log
 import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -77,7 +78,7 @@ data class ArtistPreferencesUiState(
    * Artists being removed do not count, so the empty state appears as soon as the last removal is
    * saved; it is ignored while loading or after a failed load, which have their own states.
    */
-  val isEmpty: Boolean
+  val hasNoSavedArtists: Boolean
     get() = !isLoading && !hasLoadFailed && savedArtists.all { it.uid in removingArtists }
 
   /**
@@ -101,14 +102,14 @@ data class ArtistPreferencesUiState(
  * Shows the artists the signed-in user saved as favorites, lets the user untoggle some of them, and
  * removes the untoggled ones from their preferences when the user saves.
  *
- * @param artworkRepository source of the details (name, picture) of the saved artists, which the
+ * @param wikiDataRepository source of the details (name, picture) of the saved artists, which the
  *   user profile only stores by identifier
  * @param authRepository source of the signed-in user, whose preferences are shown and edited
  * @param userRepository storage of the user profiles
  * @author Timz3rr, patrickmcdan, krfpn
  */
 class ArtistPreferencesViewModel(
-    private val artworkRepository: WikiDataRepository,
+    private val wikiDataRepository: WikiDataRepository,
     private val authRepository: AuthRepository,
     private val userRepository: UserRepository,
 ) : ViewModel() {
@@ -194,7 +195,7 @@ class ArtistPreferencesViewModel(
             },
         ) {
           val ids = findUser(uid)?.preference?.artists.orEmpty().distinct()
-          val artists = resolveArtists(ids)
+          val artists = resolveAllArtists(ids)
           _uiState.update { it.copy(savedArtists = artists, isLoading = false) }
         }
   }
@@ -205,7 +206,7 @@ class ArtistPreferencesViewModel(
    * @param ids identifiers of the artists, in the order they are returned
    * @return one artist per identifier, in the same order
    */
-  private suspend fun resolveArtists(ids: List<ArtistId>): List<Artist> = coroutineScope {
+  private suspend fun resolveAllArtists(ids: List<ArtistId>): List<Artist> = coroutineScope {
     ids.map { id -> async { resolveArtist(id) } }.awaitAll()
   }
 
@@ -223,8 +224,8 @@ class ArtistPreferencesViewModel(
   private suspend fun resolveArtist(id: ArtistId): Artist {
     val artist =
         try {
-          artworkRepository.getArtist(id)
-        } catch (exception: AppException.InvalidInput) {
+          wikiDataRepository.getArtist(id)
+        } catch (_: AppException.InvalidInput) {
           // Only reached by identifiers that are not Wikidata QIDs, such as the mock IDs saved
           // before the screen used Wikidata.
           null
@@ -244,7 +245,11 @@ class ArtistPreferencesViewModel(
   fun toggleArtist(artistId: ArtistId) {
     val state = _uiState.value
     if (state.isLoading || state.hasLoadFailed || state.isSaving) return
-    if (state.savedArtists.none { it.uid == artistId }) return
+    if (state.savedArtists.none { it.uid == artistId }) {
+      // The screen only shows cards of saved artists, so this means a caller is out of sync.
+      Log.w(TAG, "Ignored a toggle of artist $artistId, which is not among the saved artists.")
+      return
+    }
     _uiState.update {
       val deselected =
           if (artistId in it.deselectedArtists) it.deselectedArtists - artistId
@@ -266,7 +271,13 @@ class ArtistPreferencesViewModel(
   fun saveChanges() {
     val state = _uiState.value
     if (!state.canSave) return
-    val uid = signedInUid ?: return
+    val uid =
+        signedInUid
+            ?: run {
+              // Signing out clears the untoggled artists, so canSave should already be false here.
+              Log.w(TAG, "Ignored a save while nobody is signed in.")
+              return
+            }
     val artistIds = state.deselectedArtists
 
     _uiState.update { it.copy(deselectedArtists = emptySet(), removingArtists = artistIds) }
@@ -338,7 +349,7 @@ class ArtistPreferencesViewModel(
   private suspend fun findUser(uid: UserId): User? =
       try {
         userRepository.getUser(uid)
-      } catch (exception: AppException.NotFound) {
+      } catch (_: AppException.NotFound) {
         // Caught here because launchCatching would report it as a failure, while it is expected.
         null
       }

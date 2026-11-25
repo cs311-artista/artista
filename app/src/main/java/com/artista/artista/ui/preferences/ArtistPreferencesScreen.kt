@@ -159,14 +159,14 @@ fun ArtistPreferencesScreen(
           enabled = uiState.canSearch,
       )
       if (uiState.isLoading) {
-        SavedArtistsLoadingState(modifier = Modifier.weight(1f).fillMaxWidth())
+        SavedArtistsLoadingView(modifier = Modifier.weight(1f).fillMaxWidth())
       } else if (uiState.hasLoadFailed) {
-        SavedArtistsLoadErrorState(
+        SavedArtistsLoadErrorView(
             onRetry = artistPreferencesViewModel::retryLoad,
             modifier = Modifier.weight(1f).fillMaxWidth(),
         )
-      } else if (uiState.isEmpty) {
-        SavedArtistsEmptyState(modifier = Modifier.weight(1f).fillMaxWidth())
+      } else if (uiState.hasNoSavedArtists) {
+        SavedArtistsEmptyView(modifier = Modifier.weight(1f).fillMaxWidth())
       } else {
         // The weight keeps the grid above the save button; it scrolls when it overflows. A lazy
         // grid needs a bounded height: making this column scrollable would crash it.
@@ -219,7 +219,7 @@ fun ArtistPreferencesScreen(
  * @author krfpn
  */
 @Composable
-private fun SavedArtistsLoadingState(modifier: Modifier = Modifier) {
+private fun SavedArtistsLoadingView(modifier: Modifier = Modifier) {
   Box(
       modifier = modifier.testTag(ArtistPreferencesTestTags.LOADING_STATE),
       contentAlignment = Alignment.Center,
@@ -236,7 +236,7 @@ private fun SavedArtistsLoadingState(modifier: Modifier = Modifier) {
  * @author krfpn
  */
 @Composable
-private fun SavedArtistsLoadErrorState(
+private fun SavedArtistsLoadErrorView(
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -272,7 +272,7 @@ private fun SavedArtistsLoadErrorState(
  * @param modifier modifier applied to the empty-state container
  */
 @Composable
-private fun SavedArtistsEmptyState(modifier: Modifier = Modifier) {
+private fun SavedArtistsEmptyView(modifier: Modifier = Modifier) {
   Box(
       modifier = modifier.testTag(ArtistPreferencesTestTags.EMPTY_STATE),
       contentAlignment = Alignment.Center,
@@ -429,20 +429,37 @@ private fun SelectionIndicator(selected: Boolean, modifier: Modifier = Modifier)
 @Preview(showBackground = true)
 @Composable
 internal fun ArtistPreferencesScreenPreview() {
+  val previewUserId = "preview-user"
   val viewModel = remember {
     val userRepository = UserRepositoryLocal()
     // The local repository answers at once, so blocking here does not slow the preview down.
     runBlocking {
       userRepository.createUser(
           User(
-              uid = PREVIEW_USER_ID,
+              uid = previewUserId,
               preference = UserPreference(artists = listOf("mock-artist-002", "mock-artist-004")),
           )
       )
     }
+    // Declared here rather than at the top level, so that it only exists for this preview. It
+    // always answers that the preview user is signed in, since the preview cannot reach Firebase.
+    val previewAuthRepository =
+        object : AuthRepository {
+          override val authState: Flow<AuthUser?> =
+              flowOf(
+                  object : AuthUser {
+                    override val uid: String = previewUserId
+                  }
+              )
+
+          override suspend fun signIn(idToken: String): Result<AuthUser> =
+              Result.failure(UnsupportedOperationException("Sign-in is not available in previews"))
+
+          override suspend fun signOut(): Result<Unit> = Result.success(Unit)
+        }
     ArtistPreferencesViewModel(
-        artworkRepository = ArtworkRepositoryProvider.mockRepository,
-        authRepository = PreviewAuthRepository,
+        wikiDataRepository = ArtworkRepositoryProvider.mockRepository,
+        authRepository = previewAuthRepository,
         userRepository = userRepository,
     )
   }
@@ -453,27 +470,4 @@ internal fun ArtistPreferencesScreenPreview() {
         artistPreferencesViewModel = viewModel,
     )
   }
-}
-
-/** Identifier of the user signed in by [PreviewAuthRepository]. */
-private const val PREVIEW_USER_ID = "preview-user"
-
-/**
- * Signed-in [AuthRepository] for the preview.
- *
- * [ArtistPreferencesViewModel] needs an [AuthRepository] to know whose artists to show, but the
- * preview cannot reach Firebase. This one always answers that the preview user is signed in.
- */
-private object PreviewAuthRepository : AuthRepository {
-  override val authState: Flow<AuthUser?> =
-      flowOf(
-          object : AuthUser {
-            override val uid: String = PREVIEW_USER_ID
-          }
-      )
-
-  override suspend fun signIn(idToken: String): Result<AuthUser> =
-      Result.failure(UnsupportedOperationException("Sign-in is not available in previews"))
-
-  override suspend fun signOut(): Result<Unit> = Result.success(Unit)
 }

@@ -58,7 +58,7 @@ class ArtistPreferencesViewModelTest {
     val state = viewModel.uiState.value
     assertTrue(state.savedArtists.isEmpty())
     assertFalse(state.isLoading)
-    assertTrue(state.isEmpty)
+    assertTrue(state.hasNoSavedArtists)
     assertEquals(0, userRepository.readCount)
   }
 
@@ -75,7 +75,7 @@ class ArtistPreferencesViewModelTest {
         listOf(KLIMT, PICASSO, MONET).map { it.uid to it.name },
         viewModel.uiState.value.savedArtists.map { it.uid to it.name },
     )
-    assertFalse(viewModel.uiState.value.isEmpty)
+    assertFalse(viewModel.uiState.value.hasNoSavedArtists)
   }
 
   /** Verifies that a successful load neither reports a failure nor shows a message. */
@@ -99,7 +99,7 @@ class ArtistPreferencesViewModelTest {
     val state = viewModel.uiState.value
     assertTrue(state.savedArtists.isEmpty())
     assertFalse(state.hasLoadFailed)
-    assertTrue(state.isEmpty)
+    assertTrue(state.hasNoSavedArtists)
   }
 
   /** Verifies that a profile without favorite artists shows the empty state. */
@@ -109,7 +109,7 @@ class ArtistPreferencesViewModelTest {
 
     signIn()
 
-    assertTrue(viewModel.uiState.value.isEmpty)
+    assertTrue(viewModel.uiState.value.hasNoSavedArtists)
     assertEquals(0, artworkRepository.callCount)
   }
 
@@ -173,7 +173,7 @@ class ArtistPreferencesViewModelTest {
     assertTrue(state.savedArtists.isEmpty())
     assertEquals(R.string.error_network, state.messageResId)
     // The error state is shown instead of the empty state.
-    assertFalse(state.isEmpty)
+    assertFalse(state.hasNoSavedArtists)
   }
 
   /** Verifies that failing to read the profile is reported with the matching message. */
@@ -212,7 +212,7 @@ class ArtistPreferencesViewModelTest {
     val state = viewModel.uiState.value
     assertTrue(state.isLoading)
     // The loading state is shown instead of the empty state.
-    assertFalse(state.isEmpty)
+    assertFalse(state.hasNoSavedArtists)
     assertFalse(state.canSearch)
 
     advanceUntilIdle()
@@ -382,7 +382,7 @@ class ArtistPreferencesViewModelTest {
     advanceUntilIdle()
 
     assertTrue(viewModel.uiState.value.savedArtists.isEmpty())
-    assertTrue(viewModel.uiState.value.isEmpty)
+    assertTrue(viewModel.uiState.value.hasNoSavedArtists)
   }
 
   /** Verifies that signing out during a load resets the flag, so the screen is not stuck. */
@@ -672,9 +672,9 @@ class ArtistPreferencesViewModelTest {
     untoggleAndSave(KLIMT.uid)
 
     // Shown as soon as Save is tapped, not only once the write ends.
-    assertTrue(viewModel.uiState.value.isEmpty)
+    assertTrue(viewModel.uiState.value.hasNoSavedArtists)
     advanceUntilIdle()
-    assertTrue(viewModel.uiState.value.isEmpty)
+    assertTrue(viewModel.uiState.value.hasNoSavedArtists)
     assertEquals(emptyList<ArtistId>(), userRepository.storedUser(UID)?.preference?.artists)
   }
 
@@ -856,37 +856,37 @@ class ArtistPreferencesViewModelTest {
 
   /** Verifies that the empty state is not shown while some artist is still displayed. */
   @Test
-  fun isEmpty_withArtistNotBeingRemoved_isFalse() {
+  fun hasNoSavedArtists_withArtistNotBeingRemoved_isFalse() {
     val state =
         ArtistPreferencesUiState(
             savedArtists = listOf(KLIMT, MONET),
             removingArtists = setOf(KLIMT.uid),
         )
 
-    assertFalse(state.isEmpty)
+    assertFalse(state.hasNoSavedArtists)
   }
 
   /** Verifies that untoggled artists still count, since their cards are shown until saved. */
   @Test
-  fun isEmpty_withOnlyUntoggledArtists_isFalse() {
+  fun hasNoSavedArtists_withOnlyUntoggledArtists_isFalse() {
     val state =
         ArtistPreferencesUiState(savedArtists = listOf(KLIMT), deselectedArtists = setOf(KLIMT.uid))
 
-    assertFalse(state.isEmpty)
+    assertFalse(state.hasNoSavedArtists)
   }
 
   /** Verifies that the empty state ignores the search: no match is not the same as no artist. */
   @Test
-  fun isEmpty_searchWithoutMatch_isFalse() {
+  fun hasNoSavedArtists_searchWithoutMatch_isFalse() {
     val state = ArtistPreferencesUiState(savedArtists = listOf(KLIMT), searchQuery = "xyz")
 
-    assertFalse(state.isEmpty)
+    assertFalse(state.hasNoSavedArtists)
   }
 
   /** Verifies that the empty state is not shown after a failed load, which has its own state. */
   @Test
-  fun isEmpty_afterLoadFails_isFalse() {
-    assertFalse(ArtistPreferencesUiState(hasLoadFailed = true).isEmpty)
+  fun hasNoSavedArtists_afterLoadFails_isFalse() {
+    assertFalse(ArtistPreferencesUiState(hasLoadFailed = true).hasNoSavedArtists)
   }
 
   /** Verifies that the search can be used once the artists are loaded. */
