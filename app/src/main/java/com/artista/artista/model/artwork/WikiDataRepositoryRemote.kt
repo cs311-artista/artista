@@ -102,9 +102,9 @@ class WikiDataRepositoryRemote(
     validateTypeValues(typeValues)
     validateLimit(limit)
 
-    val key = AreaKey(searchArea, typeValues.toSet(), limit)
+    val key = SearchAreaKey(searchArea, typeValues.toSet(), limit)
 
-    return caches.areaArtworks.getOrLoad(key) {
+    return caches.nearLocationArtworks.getOrLoad(key) {
       val query = buildArtworkNearLocationQuery(searchArea, typeValues, limit)
       val body = executeRequest(buildSparqlRequest(query))
       val artworks = jsonResponseParser.parseArtworkResults(body).toList()
@@ -215,7 +215,9 @@ class WikiDataRepositoryRemote(
       val query = buildArtistQuery(query, limit)
       val request = buildSparqlRequest(query)
       val body = executeRequest(request)
-      jsonResponseParser.parseArtistsResults(body)
+      val artists = jsonResponseParser.parseArtistsResults(body)
+      caches.rememberArtist(artists)
+      return artists
     }
   }
 

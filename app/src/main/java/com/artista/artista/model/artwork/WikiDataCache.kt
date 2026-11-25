@@ -18,6 +18,7 @@ import kotlin.time.Duration.Companion.minutes
  * @param maxEntries maximum number of entries; the least recently used one is evicted first
  * @param ttl how long an entry stays valid
  * @param clock monotonic time source in nanoseconds, replaceable in tests
+ * @author IJJA3141
  */
 internal class TtlCache<K : Any, V : Any>(
     private val maxEntries: Int,
@@ -67,7 +68,7 @@ internal inline fun <K : Any, V : Any> TtlCache<K, V>.getOrLoad(key: K, load: ()
   return load().also { put(key, it) }
 }
 
-internal data class AreaKey(val area: SearchArea, val types: Set<ArtworkType>, val limit: Int)
+internal data class SearchAreaKey(val area: SearchArea, val types: Set<ArtworkType>, val limit: Int)
 
 internal data class ArtworkQueryKey(val text: String, val types: Set<ArtworkType>, val limit: Int)
 
@@ -85,10 +86,12 @@ internal fun cacheText(value: String): String =
  * The class is public only because the repository's public constructor takes it; its members are
  * internal. Sizes and lifetimes are starting values to tune: facts about a given artwork or artist
  * change rarely, while search results go stale faster.
+ *
+ * @author IJJA3141
  */
 class WikiDataCaches(clock: () -> Long = System::nanoTime) {
-  internal val areaArtworks =
-      TtlCache<AreaKey, List<Artwork>>(maxEntries = 20, ttl = 1.hours, clock = clock)
+  internal val nearLocationArtworks =
+      TtlCache<SearchAreaKey, List<Artwork>>(maxEntries = 20, ttl = 1.hours, clock = clock)
   internal val searchedArtworks =
       TtlCache<ArtworkQueryKey, List<Artwork>>(maxEntries = 50, ttl = 30.minutes, clock = clock)
   internal val artworkCandidates =
@@ -116,9 +119,14 @@ class WikiDataCaches(clock: () -> Long = System::nanoTime) {
     artworks.forEach { artworksById.put(it.uid, it) }
   }
 
+  /** Lets a later [WikiDataRepositoryRemote.getArtwork] be answered from a list result. */
+  internal fun rememberArtist(artworks: List<Artist>) {
+    artworks.forEach { artistsById.put(it.uid, it) }
+  }
+
   /** Drops everything, for example on pull-to-refresh. */
   fun clear() {
-    areaArtworks.clear()
+    nearLocationArtworks.clear()
     searchedArtworks.clear()
     artworkCandidates.clear()
     artworksById.clear()
