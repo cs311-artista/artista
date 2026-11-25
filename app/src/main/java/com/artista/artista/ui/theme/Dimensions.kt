@@ -27,7 +27,6 @@ internal object Dimensions {
   val standardStrokeWidth = 2.dp
 
   private val standardControlHeight = 56.dp
-  private val shallowElevation = 2.dp
 
   // Authentication screen.
   val authenticationScreenHorizontalPadding = 24.dp
@@ -49,13 +48,15 @@ internal object Dimensions {
   val artworkCardTextSpacing = 4.dp
   val artworkCardPreviewPadding = 16.dp
   val artworkDetailsContentHorizontalPadding = 20.dp
+  val artworkDetailsContentVerticalPadding = 20.dp
   val artworkDetailsSectionSpacing = 12.dp
-  val artworkDetailsImageVerticalSpacing = 4.dp
-  val artworkFieldContentPadding = 10.dp
-  val artworkFieldLabelValueSpacing = 4.dp
-  val artworkMapTileContentPadding = 10.dp
-  val artworkMapTileTitleSpacing = 4.dp
+  val artworkDetailsHeaderBottomPadding = 8.dp
+  val artworkDetailsMapHeaderTopPadding = 8.dp
+  val artworkFieldContentPadding = 14.dp
+  val artworkFieldLabelValueSpacing = 8.dp
   val artworkMapTileHeight = 284.dp
+  val artworkMapRecenterButtonPadding = 12.dp
+  val artworkMapRecenterButtonSize = 44.dp
 
   /** Height of artwork images in artwork cards. */
   val artworkCardImageHeight = 160.dp
@@ -66,16 +67,21 @@ internal object Dimensions {
   /** Height of the artwork image on the artwork details screen. */
   val artworkDetailsImageHeight = 220.dp
 
-  val artworkCardElevation = shallowElevation
-
   // Saved artworks screen.
-  val savedArtworksTitleHorizontalPadding = 20.dp
-  val savedArtworksTitleVerticalPadding = 8.dp
   val savedArtworksErrorHorizontalPadding = 24.dp
   val savedArtworksRetryButtonSpacing = 16.dp
   val savedArtworksListHorizontalPadding = 16.dp
   val savedArtworksListVerticalPadding = 12.dp
   val savedArtworksItemSpacing = 12.dp
+
+  /** Width over height of a saved artwork tile, slightly taller than wide like most paintings. */
+  const val SAVED_ARTWORK_TILE_ASPECT_RATIO = 5f / 6f
+  val savedArtworkTileCornerRadius = 4.dp
+  val savedArtworkTileBandHorizontalPadding = 8.dp
+  val savedArtworkTileBandVerticalPadding = 4.dp
+  val savedArtworkTileButtonPadding = 6.dp
+  val savedArtworkTileButtonSize = 36.dp
+  val savedArtworkTileIconSize = 20.dp
 
   // Overview screen.
   val overviewListHorizontalPadding = 16.dp
@@ -90,7 +96,7 @@ internal object Dimensions {
   val artworkFilterContentVerticalPadding = 4.dp
   val artworkFilterSuggestionsMaxHeight = 160.dp
   val overviewSearchBarHeight = standardControlHeight
-  val overviewSearchBarElevation = shallowElevation
+  val overviewSearchBarElevation = 2.dp
 
   // Search screen.
   val searchRecommendationVerticalPadding = 8.dp

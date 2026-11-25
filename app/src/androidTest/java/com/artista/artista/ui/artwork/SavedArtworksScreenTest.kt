@@ -84,10 +84,15 @@ class SavedArtworksScreenTest {
     composeTestRule.onNodeWithTag(SavedArtworksTestTags.LIST).assertIsDisplayed()
   }
 
-  /** Verifies that saved artworks are rendered with their tagged actions. */
+  /** Checks that a located saved artwork is rendered with its tagged actions. */
   @Test
   fun savedArtworksScreen_displaysSavedArtworkList() {
-    fakeRepository.savedArtworks.add(savedArtwork)
+    // The map button only exists for an artwork with a location.
+    val locatedArtwork =
+        savedArtwork.copy(
+            location = Location(latitude = 48.8606, longitude = 2.3376, name = "Louvre")
+        )
+    fakeRepository.savedArtworks.add(locatedArtwork)
     setScreenContent()
 
     composeTestRule.waitForIdle()
@@ -95,10 +100,12 @@ class SavedArtworksScreenTest {
     composeTestRule.onNodeWithTag(SavedArtworksTestTags.SCREEN).assertIsDisplayed()
     composeTestRule.onNodeWithTag(SavedArtworksTestTags.TITLE).assertIsDisplayed()
     composeTestRule.onNodeWithTag(SavedArtworksTestTags.LIST).assertIsDisplayed()
-    composeTestRule.onNodeWithTag(SavedArtworksTestTags.card(savedArtwork)).assertIsDisplayed()
-    composeTestRule.onNodeWithTag(SavedArtworksTestTags.mapButton(savedArtwork)).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(SavedArtworksTestTags.card(locatedArtwork)).assertIsDisplayed()
     composeTestRule
-        .onNodeWithTag(SavedArtworksTestTags.unsaveButton(savedArtwork))
+        .onNodeWithTag(SavedArtworksTestTags.mapButton(locatedArtwork))
+        .assertIsDisplayed()
+    composeTestRule
+        .onNodeWithTag(SavedArtworksTestTags.unsaveButton(locatedArtwork))
         .assertIsDisplayed()
   }
 

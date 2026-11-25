@@ -1,4 +1,5 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 
 package com.artista.artista.ui.theme
 
@@ -48,6 +49,23 @@ internal object ArtistaColors {
   val Scrim = Color(0x52000000)
   val SavedArtworkMarker = Color(0xFF2196F3)
   val RemoteArtworkMarker = Color(0xFFF44336)
+
+  // Saved artwork tiles draw on top of arbitrary images, so these colors stay the same in both
+  // themes.
+  /**
+   * Light veil behind a saved artwork tile's title and artist: barely visible, as in the V2 mockup,
+   * but enough to keep the white text readable on light images.
+   */
+  val SavedArtworkTileBand = Color(0x33000000)
+
+  /**
+   * Translucent circle behind a saved artwork tile's bookmark and map buttons, following the map
+   * button shared with the overview screen in the Figma.
+   */
+  val SavedArtworkTileButtonScrim = Color(0x66000000)
+
+  /** Text and icons drawn over a saved artwork tile's image or band. */
+  val OnSavedArtworkTile = Color.White
 
   val PrimaryDark = Color(0xFFD0BCFF)
   val OnPrimaryDark = Color(0xFF381E72)
