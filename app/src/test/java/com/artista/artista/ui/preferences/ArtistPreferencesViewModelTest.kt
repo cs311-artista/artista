@@ -126,36 +126,40 @@ class ArtistPreferencesViewModelTest {
     assertEquals(listOf(KLIMT.uid, MONET.uid), viewModel.uiState.value.savedArtists.map { it.uid })
   }
 
-  /** Verifies that an artist the catalog does not know gets a card named after its identifier. */
+  /** Verifies that an artist the catalog does not know is hidden, while the others still load. */
   @Test
-  fun signIn_unknownArtist_showsPlaceholderNamedAfterId() = runTest {
-    userRepository.store(userWithArtists(listOf(UNKNOWN_ARTIST_ID)))
+  fun signIn_unknownArtist_isHidden() = runTest {
+    userRepository.store(userWithArtists(listOf(UNKNOWN_ARTIST_ID, MONET.uid)))
 
     signIn()
 
-    assertEquals(
-        listOf(Artist(uid = UNKNOWN_ARTIST_ID, name = UNKNOWN_ARTIST_ID)),
-        viewModel.uiState.value.savedArtists,
-    )
+    assertEquals(listOf(MONET.uid), viewModel.uiState.value.savedArtists.map { it.uid })
     assertFalse(viewModel.uiState.value.hasLoadFailed)
   }
 
   /**
    * Verifies that an identifier the catalog rejects, such as one saved while the screen used mock
-   * data, gets a placeholder card so the user can still remove it.
+   * data, is hidden without failing the load.
    */
   @Test
-  fun signIn_invalidArtistId_showsPlaceholder() = runTest {
+  fun signIn_invalidArtistId_isHidden() = runTest {
     artworkRepository.failures[KLIMT.uid] = AppException.InvalidInput("Not a QID")
     userRepository.store(userWithArtists(listOf(KLIMT.uid, MONET.uid)))
 
     signIn()
 
-    // The other artists still load normally next to the placeholder.
-    assertEquals(
-        listOf(KLIMT.uid to KLIMT.uid, MONET.uid to MONET.name),
-        viewModel.uiState.value.savedArtists.map { it.uid to it.name },
-    )
+    assertEquals(listOf(MONET.uid), viewModel.uiState.value.savedArtists.map { it.uid })
+    assertFalse(viewModel.uiState.value.hasLoadFailed)
+  }
+
+  /** Verifies that a user whose saved artists all cannot be resolved sees the empty state. */
+  @Test
+  fun signIn_onlyUnknownArtists_hasNoSavedArtists() = runTest {
+    userRepository.store(userWithArtists(listOf(UNKNOWN_ARTIST_ID)))
+
+    signIn()
+
+    assertTrue(viewModel.uiState.value.hasNoSavedArtists)
     assertFalse(viewModel.uiState.value.hasLoadFailed)
   }
 
@@ -671,23 +675,11 @@ class ArtistPreferencesViewModelTest {
 
     untoggleAndSave(KLIMT.uid)
 
-    // Shown as soon as Save is tapped, not only once the write ends.
+    // Shown as soon as the save button is tapped, not only once the write ends.
     assertTrue(viewModel.uiState.value.hasNoSavedArtists)
     advanceUntilIdle()
     assertTrue(viewModel.uiState.value.hasNoSavedArtists)
     assertEquals(emptyList<ArtistId>(), userRepository.storedUser(UID)?.preference?.artists)
-  }
-
-  /** Verifies that a placeholder card, for an artist the catalog does not know, can be removed. */
-  @Test
-  fun saveChanges_placeholder_removesIt() = runTest {
-    userRepository.store(userWithArtists(listOf(UNKNOWN_ARTIST_ID, KLIMT.uid)))
-    signIn()
-
-    untoggleAndSave(UNKNOWN_ARTIST_ID)
-    advanceUntilIdle()
-
-    assertEquals(listOf(KLIMT.uid), userRepository.storedUser(UID)?.preference?.artists)
   }
 
   /** Verifies that saving without any untoggled artist writes nothing. */
@@ -1023,7 +1015,7 @@ class ArtistPreferencesViewModelTest {
 
   /**
    * Catalog whose artist lookups the test controls: they can be held until [pending] completes, and
-   * a lookup fails with the exception set for its artist in [failures]. Otherwise the artist comes
+   * a lookup fails with the exception set for its artist in [failures]. Otherwise, the artist comes
    * from the mock artists of [ArtworkRepositoryLocal], and every other method is forwarded to it.
    */
   private class ControllableWikiDataRepository(

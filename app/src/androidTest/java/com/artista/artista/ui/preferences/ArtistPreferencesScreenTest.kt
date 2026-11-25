@@ -117,15 +117,18 @@ class ArtistPreferencesScreenTest {
     }
   }
 
-  /** Verifies that a saved artist the catalog does not know gets a card named after its id. */
+  /** Verifies that a saved artist the catalog does not know gets no card, unlike the others. */
   @Test
-  fun artistsGrid_unknownArtist_displaysPlaceholderCard() {
-    setLoadedContent(savedIds = listOf(UNKNOWN_ARTIST_ID))
+  fun artistsGrid_unknownArtist_hasNoCard() {
+    val known = testArtists.first()
+    setLoadedContent(savedIds = listOf(UNKNOWN_ARTIST_ID, known.uid))
 
     composeTestRule
         .onNodeWithTag(ArtistPreferencesTestTags.getArtistCardTestTag(UNKNOWN_ARTIST_ID))
+        .assertDoesNotExist()
+    composeTestRule
+        .onNodeWithTag(ArtistPreferencesTestTags.getArtistCardTestTag(known.uid))
         .assertIsDisplayed()
-        .assertTextContains(UNKNOWN_ARTIST_ID)
   }
 
   /** Verifies that Save is disabled when the artists are loaded but nothing was untoggled. */

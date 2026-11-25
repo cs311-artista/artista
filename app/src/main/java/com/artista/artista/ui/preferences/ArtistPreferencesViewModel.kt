@@ -204,33 +204,33 @@ class ArtistPreferencesViewModel(
    * Fetches the details of the given artists, all at once rather than one after the other.
    *
    * @param ids identifiers of the artists, in the order they are returned
-   * @return one artist per identifier, in the same order
+   * @return the artists that could be resolved, in the same order; the others are left out
    */
   private suspend fun resolveAllArtists(ids: List<ArtistId>): List<Artist> = coroutineScope {
-    ids.map { id -> async { resolveArtist(id) } }.awaitAll()
+    ids.map { id -> async { resolveArtist(id) } }.awaitAll().filterNotNull()
   }
 
   /**
-   * Fetches the details of an artist, or builds a placeholder named after its identifier when the
-   * catalog rejects its identifier.
+   * Fetches the details of an artist.
    *
-   * Hiding such an artist would leave it in the user's preferences with no way to remove it, so a
-   * card is still shown for it. Network failures are not caught: they fail the whole load, which
-   * the user can retry.
+   * An artist the catalog does not know or whose identifier it rejects is left out of the screen,
+   * so one bad identifier does not prevent the others from showing. Network failures are not
+   * caught: they fail the whole load, which the user can retry.
    *
    * @param id identifier of the artist
-   * @return the artist, or a placeholder carrying [id] as its name
+   * @return the artist, or null when it cannot be resolved
    */
-  private suspend fun resolveArtist(id: ArtistId): Artist {
+  private suspend fun resolveArtist(id: ArtistId): Artist? {
     val artist =
         try {
           wikiDataRepository.getArtist(id)
         } catch (_: AppException.InvalidInput) {
-          // Only reached by identifiers that are not Wikidata QIDs, such as the mock IDs saved
-          // before the screen used Wikidata.
+          // An identifier that is not a Wikidata QID, such as a mock ID saved before the screen
+          // used Wikidata. Failing would lock the user on the error state, so it is only skipped.
           null
         }
-    return artist ?: Artist(uid = id, name = id)
+    if (artist == null) Log.w(TAG, "Skipped saved artist $id, which could not be resolved.")
+    return artist
   }
 
   /**
