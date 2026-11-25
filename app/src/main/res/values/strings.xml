@@ -48,12 +48,10 @@
     <string name="profile_username_cancel">Cancel</string>
     <!-- Artist preferences screen -->
     <string name="artist_preferences_title">Artist Preferences</string>
-    <string name="artist_preferences_description">Select your favorite artists to personalize your recommendations</string>
+    <string name="artist_preferences_description">Untoggle the artists to remove from your favorites, then save</string>
     <string name="artist_preferences_search_placeholder">Search artists…</string>
-    <string name="artist_preferences_popular_artists">Popular Artists</string>
-    <string name="artist_preferences_save">Save Preferences</string>
-    <string name="artist_preferences_saved">Your favorite artists have been saved.</string>
-    <string name="artist_preferences_load_error_state">Popular artists couldn\'t be loaded.</string>
+    <string name="artist_preferences_save">Save</string>
+    <string name="artist_preferences_empty_state">You have no favorite artists yet.</string>
     <string name="artist_preferences_saved_artists_load_error">Your saved artists couldn\'t be loaded.</string>
     <string name="artist_preferences_artist_picture_description">Picture of %1$s</string>
     <!-- Map screen -->
