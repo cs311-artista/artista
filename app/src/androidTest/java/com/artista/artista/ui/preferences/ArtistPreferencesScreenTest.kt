@@ -170,6 +170,12 @@ class ArtistPreferencesScreenTest {
   fun saveButton_click_removesUntoggledArtists() {
     val userRepository = setLoadedContent()
     val (picasso, vanGogh, monet) = testArtists
+    // Every saved artist is shown before anything is removed.
+    testArtists.forEach {
+      val cardTag = ArtistPreferencesTestTags.getArtistCardTestTag(it.uid)
+      scrollToCard(cardTag)
+      composeTestRule.onNodeWithTag(cardTag).assertIsDisplayed()
+    }
     clickCard(picasso)
     clickCard(monet)
 
@@ -183,6 +189,10 @@ class ArtistPreferencesScreenTest {
           .onNodeWithTag(ArtistPreferencesTestTags.getArtistCardTestTag(it.uid))
           .assertDoesNotExist()
     }
+    // The artist that was kept is still shown.
+    composeTestRule
+        .onNodeWithTag(ArtistPreferencesTestTags.getArtistCardTestTag(vanGogh.uid))
+        .assertIsDisplayed()
     assertEquals(listOf(vanGogh.uid), userRepository.storedUser(UID)?.preference?.artists)
     // The user stays on the screen.
     composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SCREEN).assertIsDisplayed()

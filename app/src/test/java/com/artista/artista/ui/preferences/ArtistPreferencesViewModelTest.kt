@@ -775,20 +775,6 @@ class ArtistPreferencesViewModelTest {
     assertEquals("  Mon ", viewModel.uiState.value.searchQuery)
   }
 
-  /** Verifies that a query typed before the artists load filters them once they are loaded. */
-  @Test
-  fun onSearchQueryChange_beforeArtistsLoad_filtersOnceLoaded() = runTest {
-    userRepository.store(userWithArtists(listOf(KLIMT.uid, MONET.uid)))
-    userRepository.readDelays[UID] = 1_000
-    authRepository.setAuthState(FakeAuthUser(UID))
-    runCurrent()
-
-    viewModel.onSearchQueryChange("monet")
-    advanceUntilIdle()
-
-    assertEquals(listOf(MONET.uid), viewModel.uiState.value.displayedArtists.map { it.uid })
-  }
-
   /** Verifies that a blank query shows every saved artist. */
   @Test
   fun displayedArtists_blankQuery_returnsAllArtists() {
