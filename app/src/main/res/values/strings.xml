@@ -29,6 +29,7 @@
 
     <!-- Artwork details screen -->
     <string name="artwork_screen_title">Artwork</string>
+    <string name="artwork_map_title">Map</string>
     <string name="artwork_map_recenter">Recenter map</string>
 
     <string name="back">Back</string>

@@ -90,7 +90,7 @@ object ArtworkTestTags {
   const val ARTWORK_TITLE = "artwork_title"
   const val ARTWORK_TOP_BAR_TITLE = "artwork_top_bar_title"
   const val ARTWORK_MAP_RECENTER_BUTTON = "artwork_map_recenter_button"
-  const val ARTWORK_LOCATION_HEADER = "artwork_location_header"
+  const val ARTWORK_MAP_HEADER = "artwork_map_header"
   const val ARTWORK_MAP_TILE = "artwork_map_tile"
   const val ARTWORK_MAP_MARKER = "artwork_map_marker"
   const val ARTWORK_IMAGE = "artwork_image"
@@ -310,13 +310,15 @@ fun ArtworkScreen(
                 MarkerState(position = artwork.location.let { LatLng(it.latitude, it.longitude) })
               }
 
+          // "Map" rather than "Location": the address card just above already carries the
+          // "Location" label, and the same word twice in a row read as a duplicate.
           Text(
-              text = stringResource(R.string.artwork_label_location),
+              text = stringResource(R.string.artwork_map_title),
               style = MaterialTheme.typography.titleMedium,
               color = MaterialTheme.colorScheme.onSurface,
               modifier =
-                  Modifier.padding(top = Dimensions.artworkDetailsLocationHeaderTopPadding)
-                      .testTag(ArtworkTestTags.ARTWORK_LOCATION_HEADER),
+                  Modifier.padding(top = Dimensions.artworkDetailsMapHeaderTopPadding)
+                      .testTag(ArtworkTestTags.ARTWORK_MAP_HEADER),
           )
 
           MapTile(

@@ -51,7 +51,7 @@ internal object Dimensions {
   val artworkDetailsContentVerticalPadding = 20.dp
   val artworkDetailsSectionSpacing = 12.dp
   val artworkDetailsHeaderBottomPadding = 8.dp
-  val artworkDetailsLocationHeaderTopPadding = 8.dp
+  val artworkDetailsMapHeaderTopPadding = 8.dp
   val artworkFieldContentPadding = 14.dp
   val artworkFieldLabelValueSpacing = 8.dp
   val artworkMapTileHeight = 284.dp

@@ -80,24 +80,22 @@ class ArtworkScreenLayoutTest {
     composeTestRule.onNodeWithTag(ArtworkTestTags.ARTWORK_MAP_RECENTER_BUTTON).assertDoesNotExist()
   }
 
-  /** Checks that a "Location" section title is shown above the map when the artwork has one. */
+  /** Checks that a "Map" section title is shown above the map when the artwork has a location. */
   @Test
-  fun artworkScreen_withLocation_displaysLocationHeader() {
+  fun artworkScreen_withLocation_displaysMapHeader() {
     setScreenContent(sampleArtwork.copy(location = Location(48.86, 2.34, "Paris")))
 
     composeTestRule
-        .onNodeWithTag(ArtworkTestTags.ARTWORK_LOCATION_HEADER, useUnmergedTree = true)
-        .assertTextEquals("Location")
+        .onNodeWithTag(ArtworkTestTags.ARTWORK_MAP_HEADER, useUnmergedTree = true)
+        .assertTextEquals("Map")
   }
 
-  /**
-   * Checks that no location section title exists when the artwork has no location, hence no map.
-   */
+  /** Checks that no map section title exists when the artwork has no location, hence no map. */
   @Test
-  fun artworkScreen_withoutLocation_hasNoLocationHeader() {
+  fun artworkScreen_withoutLocation_hasNoMapHeader() {
     setScreenContent(sampleArtwork)
 
-    composeTestRule.onNodeWithTag(ArtworkTestTags.ARTWORK_LOCATION_HEADER).assertDoesNotExist()
+    composeTestRule.onNodeWithTag(ArtworkTestTags.ARTWORK_MAP_HEADER).assertDoesNotExist()
   }
 
   private fun setScreenContent(artwork: Artwork) {
