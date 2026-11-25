@@ -123,7 +123,7 @@ class SavedArtworksScreenNavigationTest {
       composeTestRule.runOnUiThread { navController.currentDestination?.route } ==
           Screen.SavedArtworks.route
     }
-    val artworkCard = SavedArtworksTestTags.card(artwork)
+    val artworkCard = ArtworkTileTestTags.tile(artwork)
     composeTestRule.waitUntil(timeoutMillis = NAVIGATION_TIMEOUT_MILLIS) {
       composeTestRule.onAllNodesWithTag(artworkCard).fetchSemanticsNodes().isNotEmpty()
     }

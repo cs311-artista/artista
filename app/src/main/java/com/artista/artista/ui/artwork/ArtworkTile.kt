@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -34,21 +35,64 @@ import com.artista.artista.ui.theme.ArtistaColors
 import com.artista.artista.ui.theme.Dimensions
 
 /**
- * Displays a saved artwork as a grid tile: its image, an unsave button, a map button when the
- * artwork has a location, and its title and artist.
+ * Provides stable semantics test tags for [ArtworkTile].
+ *
+ * Tags contain the artwork uid so that tests can target one tile among many.
+ *
+ * @author Timz3rr, hixeum
+ */
+object ArtworkTileTestTags {
+  /** Start of every bookmark button tag, to match a tile's button without knowing its artwork. */
+  const val SAVE_BUTTON_PREFIX = "artwork_tile_save_button_"
+
+  /** Start of every map button tag, to match a tile's button without knowing its artwork. */
+  const val MAP_BUTTON_PREFIX = "artwork_tile_map_button_"
+
+  /** Tag of the clickable tile showing [artwork]. */
+  fun tile(artwork: Artwork): String = "artwork_tile_${artwork.uid}"
+
+  /** Tag of the bookmark button that saves or unsaves [artwork]. */
+  fun saveButton(artwork: Artwork): String = "$SAVE_BUTTON_PREFIX${artwork.uid}"
+
+  /** Tag of the map button of [artwork]'s tile. */
+  fun mapButton(artwork: Artwork): String = "$MAP_BUTTON_PREFIX${artwork.uid}"
+
+  /** Tag of the title text of [artwork]'s tile. */
+  fun title(artwork: Artwork): String = "artwork_tile_title_${artwork.uid}"
+
+  /** Tag of the artist text of [artwork]'s tile. */
+  fun artist(artwork: Artwork): String = "artwork_tile_artist_${artwork.uid}"
+
+  /** Tag of the image of [artwork]'s tile. */
+  fun image(artwork: Artwork): String = "artwork_tile_image_${artwork.uid}"
+
+  /** Tag of the icon shown instead of [artwork]'s image while it is missing or loading. */
+  fun imageFallback(artwork: Artwork): String = "artwork_tile_image_fallback_${artwork.uid}"
+}
+
+/**
+ * Displays an artwork as a grid tile: its image, a bookmark button, a map button when the artwork
+ * has a location, and its title and artist.
+ *
+ * Shared by every screen that shows artworks as a grid, such as the saved artworks and the overview
+ * screens.
  *
  * @param artwork artwork shown by the tile
+ * @param isSaved whether [artwork] is currently saved, which selects the bookmark icon and its
+ *   description
  * @param onClick called with [artwork] when the user taps the tile to open its details
- * @param onUnsaveClick called with [artwork] when the user taps the bookmark to unsave it
+ * @param onSaveClick called with [artwork] when the user taps the bookmark to save or unsave it
  * @param onMapClick called with [artwork] when the user taps the map button
- * @param modifier modifier applied to the tile
- * @author Timz3rr
+ * @param modifier modifier applied to the tile; a test tag set here replaces
+ *   [ArtworkTileTestTags.tile]
+ * @author Timz3rr, hixeum
  */
 @Composable
-fun SavedArtworkTile(
+fun ArtworkTile(
     artwork: Artwork,
+    isSaved: Boolean,
     onClick: (Artwork) -> Unit,
-    onUnsaveClick: (Artwork) -> Unit,
+    onSaveClick: (Artwork) -> Unit,
     onMapClick: (Artwork) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -58,11 +102,11 @@ fun SavedArtworkTile(
   Box(
       modifier =
           modifier
-              .aspectRatio(Dimensions.SAVED_ARTWORK_TILE_ASPECT_RATIO)
-              .clip(RoundedCornerShape(Dimensions.savedArtworkTileCornerRadius))
+              .aspectRatio(Dimensions.ARTWORK_TILE_ASPECT_RATIO)
+              .clip(RoundedCornerShape(Dimensions.artworkTileCornerRadius))
               .background(MaterialTheme.colorScheme.surfaceVariant)
               .clickable { onClick(artwork) }
-              .testTag(SavedArtworksTestTags.card(artwork))
+              .testTag(ArtworkTileTestTags.tile(artwork))
   ) {
     // Crop fills the whole tile: paintings come in many aspect ratios, and the grid should stay
     // even.
@@ -70,30 +114,31 @@ fun SavedArtworkTile(
         imageUrl = artwork.imageUrl,
         contentDescription = stringResource(R.string.artwork_card_image_description, title),
         contentScale = ContentScale.Crop,
-        imageTestTag = SavedArtworksTestTags.image(artwork),
-        fallbackTestTag = SavedArtworksTestTags.imageFallback(artwork),
+        imageTestTag = ArtworkTileTestTags.image(artwork),
+        fallbackTestTag = ArtworkTileTestTags.imageFallback(artwork),
         modifier = Modifier.fillMaxSize(),
     )
 
     // Same translucent circle as the map button: a bare white bookmark disappears on light images
     // and on the no-image fallback.
-    SavedArtworkTileButton(
-        icon = Icons.Filled.Bookmark,
-        contentDescription = stringResource(R.string.saved_artworks_unsave, title),
-        onClick = { onUnsaveClick(artwork) },
+    ArtworkTileButton(
+        icon = if (isSaved) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
+        contentDescription =
+            stringResource(if (isSaved) R.string.artwork_unsave else R.string.artwork_save, title),
+        onClick = { onSaveClick(artwork) },
         modifier =
-            Modifier.align(Alignment.TopStart).testTag(SavedArtworksTestTags.unsaveButton(artwork)),
+            Modifier.align(Alignment.TopStart).testTag(ArtworkTileTestTags.saveButton(artwork)),
     )
 
     // Hidden rather than disabled: a greyed-out icon on top of an image is hard to see and looks
     // like a bug.
     if (artwork.location != null) {
-      SavedArtworkTileButton(
+      ArtworkTileButton(
           icon = Icons.Outlined.LocationOn,
-          contentDescription = stringResource(R.string.saved_artworks_show_on_map, title),
+          contentDescription = stringResource(R.string.artwork_show_on_map, title),
           onClick = { onMapClick(artwork) },
           modifier =
-              Modifier.align(Alignment.TopEnd).testTag(SavedArtworksTestTags.mapButton(artwork)),
+              Modifier.align(Alignment.TopEnd).testTag(ArtworkTileTestTags.mapButton(artwork)),
       )
     }
 
@@ -101,34 +146,34 @@ fun SavedArtworkTile(
         modifier =
             Modifier.align(Alignment.BottomStart)
                 .fillMaxWidth()
-                .background(ArtistaColors.SavedArtworkTileBand)
+                .background(ArtistaColors.ArtworkTileBand)
                 .padding(
-                    horizontal = Dimensions.savedArtworkTileBandHorizontalPadding,
-                    vertical = Dimensions.savedArtworkTileBandVerticalPadding,
+                    horizontal = Dimensions.artworkTileBandHorizontalPadding,
+                    vertical = Dimensions.artworkTileBandVerticalPadding,
                 )
     ) {
       Text(
           text = title,
           style = MaterialTheme.typography.titleMedium,
-          color = ArtistaColors.OnSavedArtworkTile,
+          color = ArtistaColors.OnArtworkTile,
           maxLines = 1,
           overflow = TextOverflow.Ellipsis,
-          modifier = Modifier.testTag(SavedArtworksTestTags.title(artwork)),
+          modifier = Modifier.testTag(ArtworkTileTestTags.title(artwork)),
       )
       Text(
           text = artwork.artist?.name ?: stringResource(R.string.artwork_unknown_artist),
           style = MaterialTheme.typography.bodySmall,
-          color = ArtistaColors.OnSavedArtworkTile,
+          color = ArtistaColors.OnArtworkTile,
           maxLines = 1,
           overflow = TextOverflow.Ellipsis,
-          modifier = Modifier.testTag(SavedArtworksTestTags.artist(artwork)),
+          modifier = Modifier.testTag(ArtworkTileTestTags.artist(artwork)),
       )
     }
   }
 }
 
 /**
- * Displays a small white icon in a translucent circle, drawn over a saved artwork tile's image.
+ * Displays a small white icon in a translucent circle, drawn over an artwork tile's image.
  *
  * @param icon icon shown in the button
  * @param contentDescription description of the action for accessibility services
@@ -137,7 +182,7 @@ fun SavedArtworkTile(
  * @author Timz3rr
  */
 @Composable
-private fun SavedArtworkTileButton(
+private fun ArtworkTileButton(
     icon: ImageVector,
     contentDescription: String,
     onClick: () -> Unit,
@@ -147,18 +192,18 @@ private fun SavedArtworkTileButton(
       onClick = onClick,
       modifier =
           modifier
-              .padding(Dimensions.savedArtworkTileButtonPadding)
-              .size(Dimensions.savedArtworkTileButtonSize),
+              .padding(Dimensions.artworkTileButtonPadding)
+              .size(Dimensions.artworkTileButtonSize),
       colors =
           IconButtonDefaults.iconButtonColors(
-              containerColor = ArtistaColors.SavedArtworkTileButtonScrim,
-              contentColor = ArtistaColors.OnSavedArtworkTile,
+              containerColor = ArtistaColors.ArtworkTileButtonScrim,
+              contentColor = ArtistaColors.OnArtworkTile,
           ),
   ) {
     Icon(
         imageVector = icon,
         contentDescription = contentDescription,
-        modifier = Modifier.size(Dimensions.savedArtworkTileIconSize),
+        modifier = Modifier.size(Dimensions.artworkTileIconSize),
     )
   }
 }

@@ -27,6 +27,7 @@ import com.artista.artista.model.location.FakeLocationProvider
 import com.artista.artista.model.user.UserRepositoryLocal
 import com.artista.artista.resources.C
 import com.artista.artista.ui.artwork.ArtworkTestTags
+import com.artista.artista.ui.artwork.ArtworkTileTestTags
 import com.artista.artista.ui.artwork.SavedArtworksTestTags
 import com.artista.artista.ui.authentication.AuthViewModel
 import com.artista.artista.ui.authentication.FakeGoogleCredentialProvider
@@ -212,7 +213,7 @@ class CurrentAppUserJourneyTest {
     waitUntilDisplayed(SavedArtworksTestTags.SCREEN)
 
     mockArtworks.take(2).forEach { artwork ->
-      waitUntilDisplayed(SavedArtworksTestTags.card(artwork))
+      waitUntilDisplayed(ArtworkTileTestTags.tile(artwork))
     }
     composeTestRule.onNodeWithTag(SavedArtworksTestTags.BACK_BUTTON).performClick()
     waitUntilDisplayed(UserProfileTestTags.SCREEN)
@@ -226,9 +227,9 @@ class CurrentAppUserJourneyTest {
         .assertIsDisplayed()
     composeTestRule.onNodeWithTag(UserProfileTestTags.SAVED_ARTWORK_BUTTON).performClick()
     waitUntilDisplayed(SavedArtworksTestTags.SCREEN)
-    val savedArtworkCard = SavedArtworksTestTags.card(mockArtworks.first())
+    val savedArtworkCard = ArtworkTileTestTags.tile(mockArtworks.first())
     composeTestRule
-        .onNodeWithTag(SavedArtworksTestTags.unsaveButton(mockArtworks.first()))
+        .onNodeWithTag(ArtworkTileTestTags.saveButton(mockArtworks.first()))
         .performClick()
     composeTestRule.waitForIdle()
     composeTestRule.waitUntil(timeoutMillis = timeoutMillis) {
@@ -263,10 +264,10 @@ class CurrentAppUserJourneyTest {
     waitUntilDisplayed(SavedArtworksTestTags.SCREEN)
 
     mockArtworks.forEach { artwork ->
-      if (composeTestRule.onNodeWithTag(SavedArtworksTestTags.card(artwork)).isDisplayed()) {
-        composeTestRule.onNodeWithTag(SavedArtworksTestTags.unsaveButton(artwork)).performClick()
+      if (composeTestRule.onNodeWithTag(ArtworkTileTestTags.tile(artwork)).isDisplayed()) {
+        composeTestRule.onNodeWithTag(ArtworkTileTestTags.saveButton(artwork)).performClick()
         composeTestRule.waitForIdle()
-        composeTestRule.onNodeWithTag(SavedArtworksTestTags.card(artwork)).assertDoesNotExist()
+        composeTestRule.onNodeWithTag(ArtworkTileTestTags.tile(artwork)).assertDoesNotExist()
       }
     }
 
