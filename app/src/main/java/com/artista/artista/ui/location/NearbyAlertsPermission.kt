@@ -30,20 +30,64 @@ import com.artista.artista.R
 private fun Context.granted(permission: String) =
     ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
 
-/** Background location is a separate permission only from API 29; before, foreground implies it. */
+/**
+ * Reports whether the necessary runtime permission for accessing device location from background
+ * are granted.
+ *
+ * @param context The context to check the permission against.
+ * @return True if the necessary runtime permission for accessing device location from background
+ *   are granted, false otherwise.
+ * @author 5kyPhy
+ */
 internal fun hasBackgroundLocationPermission(context: Context): Boolean =
-    Build.VERSION.SDK_INT < Build.VERSION_CODES.Q ||
-        context.granted(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+    backgroundLocationPermission()?.let { context.granted(it) } ?: true
 
-/** Notifications need a runtime permission from API 33. */
+/**
+ * Reports whether the necessary runtime permission for notifications are granted.
+ *
+ * @param context The context to check the permission against.
+ * @return True if the necessary runtime permission for notifications are granted, false otherwise.
+ * @author 5kyPhy
+ */
 internal fun hasNotificationPermission(context: Context): Boolean =
-    Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
-        context.granted(Manifest.permission.POST_NOTIFICATIONS)
+    notificationPermission()?.let { context.granted(it) } ?: true
 
+/**
+ * Reports whether all necessary runtime permissions are granted in order to serve location based
+ * notifications to the user.
+ *
+ * @param context The context to check the permissions against.
+ * @return True if all necessary runtime permissions are granted, false otherwise.
+ * @author 5kyPhy
+ */
 internal fun hasNearbyAlertPermissions(context: Context): Boolean =
     hasUserLocationPermissions(context) &&
         hasBackgroundLocationPermission(context) &&
         hasNotificationPermission(context)
+
+/**
+ * Returns the required runtime permission for background location access permissions. Null below
+ * API 19, where foreground location already covers background access.
+ *
+ * @return The required runtime permission for background location access, or null if not needed.
+ * @author 5kyPhy
+ */
+internal fun backgroundLocationPermission(): String? =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+      Manifest.permission.ACCESS_BACKGROUND_LOCATION
+    } else null
+
+/**
+ * Returns the required runtime permission for notifications. Null below API 33, where notifications
+ * need no runtime permission.
+ *
+ * @return The required runtime permission for notifications, or null if not needed.
+ * @author 5kyPhy
+ */
+internal fun notificationPermission(): String? =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+      Manifest.permission.POST_NOTIFICATIONS
+    } else null
 
 private enum class Step {
   Foreground,
@@ -98,7 +142,7 @@ fun NearbyAlertsPermission(requested: Boolean, onPermissionResult: (Boolean) -> 
     when (next) {
       Step.Foreground -> foregroundLauncher.launch(USER_LOCATION_PERMISSIONS.toTypedArray())
       Step.Background -> showBackgroundRationale = true
-      Step.Notifications -> notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+      Step.Notifications -> notificationPermission()?.let { notificationLauncher.launch(it) }
     }
   }
 
@@ -122,7 +166,7 @@ fun NearbyAlertsPermission(requested: Boolean, onPermissionResult: (Boolean) -> 
           TextButton(
               onClick = {
                 showBackgroundRationale = false
-                backgroundLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+                backgroundLocationPermission()?.let { backgroundLauncher.launch(it) }
               }
           ) {
             Text(stringResource(R.string.nearby_alerts_permissions_continue))
