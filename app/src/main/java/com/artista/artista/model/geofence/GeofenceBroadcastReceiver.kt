@@ -25,8 +25,7 @@ import kotlinx.coroutines.SupervisorJob
  * @author 5kyPhy
  */
 class GeofenceBroadcastReceiver(
-    private val savedArtworksRepository: SavedArtworksRepository =
-        ArtworkRepositoryProvider.savedArtworksRepository
+    private val savedArtworksRepository: SavedArtworksRepository? = null
 ) : BroadcastReceiver() {
 
   override fun onReceive(
@@ -51,7 +50,9 @@ class GeofenceBroadcastReceiver(
               Log.e(TAG, "Error occurred while processing geofence event", error)
             },
         ) {
-          val artworks = savedArtworksRepository.getSavedArtworks()
+          val repository =
+              savedArtworksRepository ?: ArtworkRepositoryProvider.savedArtworksRepository
+          val artworks = repository.getSavedArtworks()
           ids.forEach { id ->
             val artwork = artworks.find { it.uid == id } ?: return@forEach
             NotificationHelper.showProximityNotification(

@@ -20,10 +20,8 @@ import kotlinx.coroutines.SupervisorJob
  *   constructors.
  * @author 5kyPhy
  */
-class BootReceiver(
-    private val savedArtworksRepository: SavedArtworksRepository =
-        ArtworkRepositoryProvider.savedArtworksRepository
-) : BroadcastReceiver() {
+class BootReceiver(private val savedArtworksRepository: SavedArtworksRepository? = null) :
+    BroadcastReceiver() {
   override fun onReceive(context: Context, intent: Intent) {
     if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
     val appContext = context.applicationContext
@@ -33,7 +31,9 @@ class BootReceiver(
             tag = TAG,
             onError = { error -> Log.e(TAG, "Error occurred while processing boot event", error) },
         ) {
-          GeofenceManager(appContext).register(savedArtworksRepository.getSavedArtworks())
+          val repository =
+              savedArtworksRepository ?: ArtworkRepositoryProvider.savedArtworksRepository
+          GeofenceManager(appContext).register(repository.getSavedArtworks())
         }
         .invokeOnCompletion { pending.finish() }
   }
