@@ -306,5 +306,11 @@ class SavedArtworksViewModelTest {
       loadFailure?.let { throw it }
       return pendingLoads.removeFirstOrNull()?.await() ?: savedList
     }
+
+    override suspend fun getSavedArtwork(uid: ArtworkId): Artwork? = savedList.firstOrNull {
+      it.uid == uid
+    }
+
+    override suspend fun getCachedSavedArtwork(uid: ArtworkId): Artwork? = getSavedArtwork(uid)
   }
 }

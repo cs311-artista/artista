@@ -123,6 +123,55 @@ class SavedArtworksRepositoryFirestoreTest {
     assertNull(repository.getSavedArtworks().single().imageUrl)
   }
 
+  /** Checks that one saved artwork can be read back on its own, and an unknown one is null. */
+  @Test
+  fun getSavedArtworkReturnsTheSavedArtworkOrNull() = runBlocking {
+    val artwork = completeArtwork()
+    repository.saveArtwork(artwork)
+
+    assertEquals(artwork, repository.getSavedArtwork(artwork.uid))
+    assertNull(repository.getSavedArtwork("not-saved"))
+  }
+
+  /** Checks that a saved artwork is available from the local cache without a network read. */
+  @Test
+  fun getCachedSavedArtworkReturnsArtworkKeptInTheLocalCache() = runBlocking {
+    val artwork = completeArtwork()
+    repository.saveArtwork(artwork)
+
+    assertEquals(artwork, repository.getCachedSavedArtwork(artwork.uid))
+  }
+
+  /** Checks that a document never read on this device is a cache miss rather than an error. */
+  @Test
+  fun getCachedSavedArtworkReturnsNullForADocumentMissingFromTheCache() = runBlocking {
+    assertNull(repository.getCachedSavedArtwork("never-read"))
+  }
+
+  /** Checks that the cached copy is still served while Firestore cannot reach the network. */
+  @Test
+  fun getCachedSavedArtworkAnswersWhileOffline() = runBlocking {
+    val artwork = completeArtwork()
+    repository.saveArtwork(artwork)
+
+    firestore.disableNetwork().await()
+    try {
+      assertEquals(artwork, repository.getCachedSavedArtwork(artwork.uid))
+    } finally {
+      firestore.enableNetwork().await()
+    }
+  }
+
+  /** Checks that a removed artwork is no longer served from the local cache. */
+  @Test
+  fun getCachedSavedArtworkReturnsNullAfterRemoval() = runBlocking {
+    val artwork = completeArtwork()
+    repository.saveArtwork(artwork)
+    repository.removeArtworkFromSaved(artwork.uid)
+
+    assertNull(repository.getCachedSavedArtwork(artwork.uid))
+  }
+
   @Test
   fun isArtworkSavedReturnsFalseForAnUnknownUid() = runBlocking {
     assertFalse(repository.isArtworkSaved("not-saved"))
@@ -140,6 +189,8 @@ class SavedArtworksRepositoryFirestoreTest {
       repository.saveArtwork(completeArtwork().copy(uid = ""))
     }
     assertThrowsSuspend<AppException.InvalidInput> { repository.removeArtworkFromSaved("\n") }
+    assertThrowsSuspend<AppException.InvalidInput> { repository.getSavedArtwork("") }
+    assertThrowsSuspend<AppException.InvalidInput> { repository.getCachedSavedArtwork(" ") }
   }
 
   @Test
@@ -152,6 +203,8 @@ class SavedArtworksRepositoryFirestoreTest {
       repository.removeArtworkFromSaved("artwork-1")
     }
     assertThrowsSuspend<AppException.Unauthorized> { repository.getSavedArtworks() }
+    assertThrowsSuspend<AppException.Unauthorized> { repository.getSavedArtwork("artwork-1") }
+    assertThrowsSuspend<AppException.Unauthorized> { repository.getCachedSavedArtwork("artwork-1") }
   }
 
   @Test

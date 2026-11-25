@@ -683,5 +683,11 @@ class SavedArtworksScreenTest {
       if (shouldThrowError) throw RuntimeException("Simulated database failure")
       return savedArtworks.toList()
     }
+
+    override suspend fun getSavedArtwork(uid: ArtworkId): Artwork? = savedArtworks.firstOrNull {
+      it.uid == uid
+    }
+
+    override suspend fun getCachedSavedArtwork(uid: ArtworkId): Artwork? = getSavedArtwork(uid)
   }
 }
