@@ -499,7 +499,7 @@ class WikiDataRepositoryRemote(
             bd:serviceParam wikibase:endpoint "www.wikidata.org" ;
             wikibase:api "Generator" ;
             mwapi:generator "search" ;
-            mwapi:gsrsearch haswbstatement:${WikiDataProperty.INSTANCE_OF}=${WikiDataItems.HUMAN} "$query" ;
+            mwapi:gsrsearch "haswbstatement:${WikiDataProperty.INSTANCE_OF}=${WikiDataItems.HUMAN} $query" ;
             mwapi:gsrlimit "$limit" .
             ?artist wikibase:apiOutputItem mwapi:title .
           }
