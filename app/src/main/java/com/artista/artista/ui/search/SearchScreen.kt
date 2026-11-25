@@ -328,7 +328,7 @@ private fun SearchTextField(
     onExpandedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-  // Same shape and fill as the Overview search bar, which follows the artwork cards.
+  // Same rounded shape and card fill as the Overview search bar.
   val containerColor =
       if (hasInvalidSearchInput) SearchBarPalette.invalidContainer
       else CardDefaults.cardColors().containerColor
@@ -337,7 +337,7 @@ private fun SearchTextField(
       onSearch = onSearch,
       expanded = false,
       onExpandedChange = onExpandedChange,
-      shape = CardDefaults.shape,
+      shape = MaterialTheme.shapes.extraLarge,
       colors =
           SearchBarDefaults.inputFieldColors(
               focusedContainerColor = containerColor,

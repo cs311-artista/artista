@@ -286,9 +286,10 @@ private fun OverviewSearchBar(
               .clickable(role = Role.Button, onClick = onClick)
               .semantics(mergeDescendants = true) {}
               .testTag(OverviewTestTags.SEARCH_BAR),
-      // Matches the artwork cards. No tonal elevation: it tinted the white towards the purple
-      // surface tint, which made the bar blend into the background.
-      shape = CardDefaults.shape,
+      // Same fill as the artwork cards, but fully rounded to pair with the round filter button.
+      // No tonal elevation: it tinted the white towards the purple surface tint, which made the
+      // bar blend into the background.
+      shape = MaterialTheme.shapes.extraLarge,
       color = CardDefaults.cardColors().containerColor,
   ) {
     Row(
