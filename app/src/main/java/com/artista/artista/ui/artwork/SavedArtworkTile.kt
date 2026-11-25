@@ -13,7 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
-import androidx.compose.material.icons.outlined.Map
+import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -80,7 +80,8 @@ fun SavedArtworkTile(
         icon = Icons.Filled.Bookmark,
         contentDescription = stringResource(R.string.saved_artworks_unsave, title),
         onClick = { onUnsaveClick(artwork) },
-        containerColor = ArtistaColors.SavedArtworkTileIconScrim,
+        // A plain white bookmark, without a backdrop, as in the V2 mockup.
+        containerColor = Color.Transparent,
         contentColor = ArtistaColors.OnSavedArtworkTile,
         modifier =
             Modifier.align(Alignment.TopStart).testTag(SavedArtworksTestTags.unsaveButton(artwork)),
@@ -90,11 +91,12 @@ fun SavedArtworkTile(
     // like a bug.
     if (artwork.location != null) {
       SavedArtworkTileButton(
-          icon = Icons.Outlined.Map,
+          icon = Icons.Outlined.LocationOn,
           contentDescription = stringResource(R.string.saved_artworks_show_on_map, title),
           onClick = { onMapClick(artwork) },
-          containerColor = MaterialTheme.colorScheme.surface,
-          contentColor = MaterialTheme.colorScheme.onSurface,
+          // Translucent pin matching the Figma map button shared with the overview screen.
+          containerColor = ArtistaColors.SavedArtworkTileMapButtonScrim,
+          contentColor = ArtistaColors.OnSavedArtworkTile,
           modifier =
               Modifier.align(Alignment.TopEnd).testTag(SavedArtworksTestTags.mapButton(artwork)),
       )
