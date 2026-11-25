@@ -76,7 +76,7 @@ class GeofenceManager(
             }
             .take(MAX_NOTIFIABLE_ARTWORKS)
 
-    client.removeGeofences(pendingIntent).await() // remove old geofences before adding new ones
+    unregisterAll() // remove old geofences before adding new ones
     if (geofences.isEmpty()) return // No need to register the geofences when there are none.
 
     val request =
