@@ -106,9 +106,9 @@ class WikiDataRepositoryRemoteTest {
     }
   }
 
-    @Ignore(
-        "This test performs real network requests to the Wikidata SPARQL endpoint. It is intended to verify the correctness of the SPARQL query and the ability to fetch data from the remote API."
-    )
+  @Ignore(
+      "This test performs real network requests to the Wikidata SPARQL endpoint. It is intended to verify the correctness of the SPARQL query and the ability to fetch data from the remote API."
+  )
   @Test
   fun runRealRequestForArtist() = runTest {
     val repository = WikiDataRepositoryRemote(jsonResponseParser = fakeParser())
@@ -122,9 +122,9 @@ class WikiDataRepositoryRemoteTest {
     }
   }
 
-    @Ignore(
-        "This test performs real network requests to the Wikidata SPARQL endpoint. It is intended to verify the correctness of the SPARQL query and the ability to fetch data from the remote API."
-    )
+  @Ignore(
+      "This test performs real network requests to the Wikidata SPARQL endpoint. It is intended to verify the correctness of the SPARQL query and the ability to fetch data from the remote API."
+  )
   @Test
   fun runRealRequestForArtistsQuery() = runTest {
     val repository = WikiDataRepositoryRemote()

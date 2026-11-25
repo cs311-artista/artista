@@ -161,7 +161,7 @@ class ArtworkScreenViewModel(
             errorMessageResId = null,
         )
       }
-      loadAddress(artwork.location)
+      loadAddress(artwork?.location)
     }
   }
 
