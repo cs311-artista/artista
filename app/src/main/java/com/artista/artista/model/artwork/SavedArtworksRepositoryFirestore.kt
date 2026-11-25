@@ -93,6 +93,28 @@ class SavedArtworksRepositoryFirestore(
   }
 
   /**
+   * Loads the current user's saved artworks from Firestore's local cache only, never waiting for
+   * the network.
+   *
+   * A default `get()` tries the server first, which can take minutes while the device is offline,
+   * so this read lets the saved list appear right away from the copy already on the device.
+   *
+   * @return the cached saved artworks, empty if none are in the local cache
+   * @throws AppException.Unauthorized if no user is authenticated
+   * @throws AppException.InvalidData if a cached document is malformed
+   * @throws AppException if Firestore cannot read its local cache
+   */
+  override suspend fun getCachedSavedArtworks(): List<Artwork> = translateFirestoreErrors {
+    // Unlike a single document, a query on the cache never fails on a miss: it returns the
+    // documents it has, possibly none.
+    savedArtworksCollection(currentUserId())
+        .get(Source.CACHE)
+        .await()
+        .documents
+        .map(::documentToArtwork)
+  }
+
+  /**
    * Loads one saved artwork from Firestore, falling back to the local cache when offline.
    *
    * @param uid identifier of the artwork to load

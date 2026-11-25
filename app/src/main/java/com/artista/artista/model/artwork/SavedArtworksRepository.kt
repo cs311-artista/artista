@@ -56,6 +56,19 @@ interface SavedArtworksRepository {
   suspend fun getSavedArtworks(): List<Artwork>
 
   /**
+   * Retrieves the current user's saved artworks from the copy kept on the device only, without
+   * waiting for the network.
+   *
+   * It lets the saved list appear instantly, even offline. The result may be stale or incomplete,
+   * and an empty list can also mean nothing is stored locally yet, so callers should still refresh
+   * it with [getSavedArtworks].
+   *
+   * @return the locally stored saved artworks, empty if none are stored locally
+   * @author hixeum
+   */
+  suspend fun getCachedSavedArtworks(): List<Artwork>
+
+  /**
    * Retrieves one artwork saved by the current user, with the most up-to-date data available.
    *
    * @param uid unique identifier of the artwork

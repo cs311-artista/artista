@@ -191,6 +191,15 @@ class ArtworkRepositoryLocalTest {
   }
 
   @Test
+  fun getCachedSavedArtworks_returnsAllSavedArtworks() = runTest {
+    val repository = ArtworkRepositoryLocal()
+    val artwork = artwork("saved", "Saved Artwork")
+    repository.saveArtwork(artwork)
+
+    assertEquals(listOf(artwork), repository.getCachedSavedArtworks())
+  }
+
+  @Test
   fun getSavedArtwork_whenUidIsBlank_throwsInvalidInput() = runTest {
     val repository = ArtworkRepositoryLocal()
 

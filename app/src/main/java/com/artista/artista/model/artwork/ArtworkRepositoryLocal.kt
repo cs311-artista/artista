@@ -85,6 +85,8 @@ class ArtworkRepositoryLocal : SavedArtworksRepository, WikiDataRepository {
   // Everything lives in memory, so the local copy is always the complete, up-to-date one.
   override suspend fun getCachedSavedArtwork(uid: ArtworkId): Artwork? = getSavedArtwork(uid)
 
+  override suspend fun getCachedSavedArtworks(): List<Artwork> = getSavedArtworks()
+
   /**
    * This function is a helper to instantiate a test/demo environment. It accesses parts of the
    * Repository which would not be accessible like it in production code. Its purpose is to set up

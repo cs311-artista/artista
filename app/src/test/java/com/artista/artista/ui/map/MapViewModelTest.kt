@@ -709,6 +709,8 @@ class MapViewModelTest {
     override suspend fun getSavedArtwork(uid: ArtworkId): Artwork? = null
 
     override suspend fun getCachedSavedArtwork(uid: ArtworkId): Artwork? = null
+
+    override suspend fun getCachedSavedArtworks(): List<Artwork> = emptyList()
   }
 
   private class FailingSavedArtworksRepository : EmptySavedArtworksRepository() {

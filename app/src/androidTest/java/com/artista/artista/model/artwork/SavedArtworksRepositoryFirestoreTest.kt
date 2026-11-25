@@ -123,6 +123,26 @@ class SavedArtworksRepositoryFirestoreTest {
     assertNull(repository.getSavedArtworks().single().imageUrl)
   }
 
+  /** Checks that saved artworks are available from the local cache, even while offline. */
+  @Test
+  fun getCachedSavedArtworksAnswersFromTheLocalCacheWhileOffline() = runBlocking {
+    val artwork = completeArtwork()
+    repository.saveArtwork(artwork)
+
+    firestore.disableNetwork().await()
+    try {
+      assertEquals(listOf(artwork), repository.getCachedSavedArtworks())
+    } finally {
+      firestore.enableNetwork().await()
+    }
+  }
+
+  /** Checks that an empty cache is an empty list rather than an error. */
+  @Test
+  fun getCachedSavedArtworksReturnsEmptyListWhenNothingIsCached() = runBlocking {
+    assertTrue(repository.getCachedSavedArtworks().isEmpty())
+  }
+
   /** Checks that one saved artwork can be read back on its own, and an unknown one is null. */
   @Test
   fun getSavedArtworkReturnsTheSavedArtworkOrNull() = runBlocking {
@@ -205,6 +225,7 @@ class SavedArtworksRepositoryFirestoreTest {
     assertThrowsSuspend<AppException.Unauthorized> { repository.getSavedArtworks() }
     assertThrowsSuspend<AppException.Unauthorized> { repository.getSavedArtwork("artwork-1") }
     assertThrowsSuspend<AppException.Unauthorized> { repository.getCachedSavedArtwork("artwork-1") }
+    assertThrowsSuspend<AppException.Unauthorized> { repository.getCachedSavedArtworks() }
   }
 
   @Test

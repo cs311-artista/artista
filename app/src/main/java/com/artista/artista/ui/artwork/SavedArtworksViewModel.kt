@@ -3,6 +3,7 @@
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.artwork
 
+import android.util.Log
 import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -74,6 +75,10 @@ class SavedArtworksViewModel(
   /**
    * Loads the user's saved artworks from the repository.
    *
+   * The artworks stored on the device are shown first, so the list appears instantly even offline,
+   * then replaced by the up-to-date list once the network answers. If that refresh fails while
+   * artworks are already shown, they stay on screen without an error.
+   *
    * The loading state is only shown when no artworks are displayed yet, so refreshing an existing
    * list keeps it visible until the new one arrives.
    *
@@ -101,20 +106,45 @@ class SavedArtworksViewModel(
               }
             },
         ) {
-          val loadedArtworks = savedArtworksRepository.getSavedArtworks()
-          allSavedArtworks = loadedArtworks
-          _uiState.update { current ->
-            current.copy(
-                artworks = loadedArtworks.applyFilter(current.activeFilter),
-                artistOptions = artistOptions(loadedArtworks),
-                museumOptions = museumOptions(loadedArtworks),
-                locationOptions = locationOptions(loadedArtworks),
-                isLoading = false,
-                hasLoadFailed = false,
-                loadErrorMessageResId = null,
-            )
-          }
+          // An empty cache can also mean it was never filled (e.g. a fresh install), so the
+          // loading state stays until the network answers instead of showing an empty list.
+          val cachedArtworks = savedArtworksRepository.getCachedSavedArtworks()
+          if (cachedArtworks.isNotEmpty()) showSavedArtworks(cachedArtworks)
+
+          val loadedArtworks =
+              try {
+                savedArtworksRepository.getSavedArtworks()
+              } catch (appException: AppException) {
+                if (cachedArtworks.isEmpty()) throw appException
+                Log.w(
+                    TAG,
+                    "Could not refresh saved artworks, keeping the cached list",
+                    appException,
+                )
+                return@launchCatching
+              }
+          showSavedArtworks(loadedArtworks)
         }
+  }
+
+  /**
+   * Displays loaded saved artworks, filtered by the active filter.
+   *
+   * @param loadedArtworks the unfiltered saved artworks to display
+   */
+  private fun showSavedArtworks(loadedArtworks: List<Artwork>) {
+    allSavedArtworks = loadedArtworks
+    _uiState.update { current ->
+      current.copy(
+          artworks = loadedArtworks.applyFilter(current.activeFilter),
+          artistOptions = artistOptions(loadedArtworks),
+          museumOptions = museumOptions(loadedArtworks),
+          locationOptions = locationOptions(loadedArtworks),
+          isLoading = false,
+          hasLoadFailed = false,
+          loadErrorMessageResId = null,
+      )
+    }
   }
 
   /**
