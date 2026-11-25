@@ -54,6 +54,21 @@ fun normalizeUsername(name: String): String =
 fun isValidUsername(name: String): Boolean =
     normalizeUsername(name).isNotEmpty() && findUsernameIssue(name) == null
 
+/**
+ * Counts the characters of a username as the edit dialog counter shows them.
+ *
+ * Leading spaces are ignored, since they are always removed on save. Trailing spaces are counted,
+ * because while the user types, a space at the end may still be followed by a letter, and the
+ * counter should move on each keystroke. An accent typed in decomposed form counts as one
+ * character, as in [isValidUsername].
+ *
+ * @param name the username as typed by the user.
+ * @return the number of characters to display in the counter.
+ * @author krfpn
+ */
+fun countUsernameCharacters(name: String): Int =
+    Normalizer.normalize(name.trimStart(), Normalizer.Form.NFC).length
+
 /** A rule broken by a username that is not empty, so that the UI can tell the user which one. */
 enum class UsernameIssue {
   /** The name is longer than [MAX_USERNAME_LENGTH] characters. */

@@ -45,6 +45,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -66,9 +68,9 @@ import com.artista.artista.model.user.UsernameCacheInMemory
 import com.artista.artista.ui.components.RemoteImage
 import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
+import com.artista.artista.ui.theme.ArtistaColors
 import com.artista.artista.ui.theme.ArtistaTheme
 import com.artista.artista.ui.theme.Dimensions
-import java.text.Normalizer
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 
@@ -436,8 +438,6 @@ private fun ChangePhotoSheet(onDismiss: () -> Unit) {
       onDismissRequest = onDismiss,
       modifier = Modifier.testTag(UserProfileTestTags.CHANGE_PHOTO_SHEET),
       containerColor = MaterialTheme.colorScheme.background,
-      // The design shows no drag handle; the sheet can still be swiped down.
-      dragHandle = null,
   ) {
     Column(
         modifier = Modifier.fillMaxWidth().padding(Dimensions.profileSheetPadding),
@@ -458,8 +458,6 @@ private fun ChangePhotoSheet(onDismiss: () -> Unit) {
         )
         Spacer(modifier = Modifier.height(Dimensions.profileSheetSubtitleOptionsSpacing))
       }
-      // TODO: make both options pick the profile photo; left to whoever implements the custom
-      //  profile picture. Until then they are displayed but not clickable, as issue #376 asks.
       ProfileOptionCard(
           title = stringResource(R.string.profile_change_photo_library),
           subtitle = stringResource(R.string.profile_change_photo_library_subtitle),
@@ -535,8 +533,9 @@ private fun LogoutButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
  * Dialog letting the user enter a new username.
  *
  * The save button stays disabled while the entered name is rejected by [isValidUsername]. Under the
- * field, a hint states the allowed characters and turns into an error naming the broken rule, next
- * to a counter of the characters typed out of [MAX_USERNAME_LENGTH].
+ * field, a hint states the allowed characters and turns into an error naming the broken rule, or
+ * into a warning when trailing spaces alone exceed the limit, next to a counter of the characters
+ * typed out of [MAX_USERNAME_LENGTH].
  *
  * @param initialUsername Text the field starts with.
  * @param onSave Callback invoked with the entered username when the user saves it.
@@ -597,41 +596,52 @@ private fun EditUsernameDialog(
 }
 
 /**
- * Line under the username field: the hint, or the error naming the broken rule, on the left, and
- * the character counter on the right.
+ * Line under the username field: the hint, the error naming the broken rule, or a warning about
+ * trailing spaces on the left, and the character counter on the right.
  *
  * @param draft Username typed so far.
- * @param issue Rule broken by [draft], or null to show the hint.
+ * @param issue Rule broken by [draft], or null when it breaks none.
  */
 @Composable
 private fun UsernameSupportingText(draft: String, issue: UsernameIssue?) {
+  val length = countUsernameCharacters(draft)
+  // Only trailing spaces can push a valid name over the counter's limit. They are removed on save,
+  // so the name stays valid, but the user is warned instead of seeing a silent "21 / 20".
+  val isOverOnlyBySpaces = issue == null && length > MAX_USERNAME_LENGTH
   val message =
-      when (issue) {
-        null -> stringResource(R.string.profile_username_hint)
-        UsernameIssue.INVALID_CHARACTERS ->
+      when {
+        isOverOnlyBySpaces -> stringResource(R.string.profile_username_warning_trailing_spaces)
+        issue == null -> stringResource(R.string.profile_username_hint)
+        issue == UsernameIssue.INVALID_CHARACTERS ->
             stringResource(R.string.profile_username_error_characters)
-        // The limit is passed as an argument so that the text follows MAX_USERNAME_LENGTH.
-        UsernameIssue.TOO_LONG ->
-            stringResource(R.string.profile_username_error_too_long, MAX_USERNAME_LENGTH)
+        else -> stringResource(R.string.profile_username_error_too_long, MAX_USERNAME_LENGTH)
       }
+  val color = if (isOverOnlyBySpaces) warningColor() else Color.Unspecified
   Row(modifier = Modifier.fillMaxWidth()) {
     Text(
         text = message,
         modifier = Modifier.weight(1f).testTag(UserProfileTestTags.USERNAME_SUPPORTING_TEXT),
+        color = color,
     )
     Text(
-        // Counts every character typed, spaces included, so the counter moves on each keystroke.
-        // NFC keeps an accent typed in decomposed form counted as one character, as in the limit.
-        text =
-            stringResource(
-                R.string.profile_username_counter,
-                Normalizer.normalize(draft, Normalizer.Form.NFC).length,
-                MAX_USERNAME_LENGTH,
-            ),
+        text = stringResource(R.string.profile_username_counter, length, MAX_USERNAME_LENGTH),
         modifier = Modifier.testTag(UserProfileTestTags.USERNAME_COUNTER),
+        color = color,
     )
   }
 }
+
+/**
+ * Picks the warning color readable on the current theme.
+ *
+ * @return the warning color for a light or a dark background
+ */
+@Composable
+private fun warningColor(): Color =
+    // The background of the theme in use tells light from dark, even when the app overrides the
+    // system setting.
+    if (MaterialTheme.colorScheme.background.luminance() < 0.5f) ArtistaColors.WarningDark
+    else ArtistaColors.Warning
 
 /** Previews the user profile screen with a sample user in Android Studio. */
 @Preview(showBackground = true)

@@ -1028,6 +1028,30 @@ class UserProfileViewModelTest {
     assertFalse(isValidUsername("John\nDoe"))
   }
 
+  /** Verifies that the counter ignores leading spaces, which are always removed on save. */
+  @Test
+  fun countUsernameCharacters_ignoresLeadingSpaces() {
+    assertEquals(3, countUsernameCharacters("   Bob"))
+  }
+
+  /** Verifies that trailing spaces count, so the counter moves while the user types a space. */
+  @Test
+  fun countUsernameCharacters_countsTrailingSpaces() {
+    assertEquals(4, countUsernameCharacters("Bob "))
+  }
+
+  /** Verifies that spaces between words count, since they are kept on save. */
+  @Test
+  fun countUsernameCharacters_countsInnerSpaces() {
+    assertEquals(8, countUsernameCharacters("John Doe"))
+  }
+
+  /** Verifies that a decomposed accent counts as one character, as in the length limit. */
+  @Test
+  fun countUsernameCharacters_countsDecomposedAccentAsOneCharacter() {
+    assertEquals(8, countUsernameCharacters("Timothe\u0301e"))
+  }
+
   /** Verifies that a valid username breaks no rule. */
   @Test
   fun findUsernameIssue_returnsNull_forValidName() {

@@ -61,6 +61,7 @@
     <string name="profile_username_error_characters">Use only letters, numbers and spaces</string>
     <!-- Always formatted with MAX_USERNAME_LENGTH (20), which never needs the singular form. -->
     <string name="profile_username_error_too_long" tools:ignore="PluralsCandidate">Up to %1$d characters</string>
+    <string name="profile_username_warning_trailing_spaces">Spaces at the end will be removed</string>
     <!-- Characters typed so far, then the maximum, such as "7 / 20". -->
     <string name="profile_username_counter">%1$d / %2$d</string>
     <string name="profile_username_save">Save</string>

@@ -142,8 +142,8 @@ class UserProfileScreenNavigationTest {
   }
 
   /**
-   * Checks that a username just saved is still the one prefilled in the edit dialog after a round
-   * trip through Overview.
+   * Checks that a username just saved is still shown on the Name card and prefilled in the edit
+   * dialog after a round trip through Overview.
    *
    * Instrumented rather than on Robolectric, where Compose never becomes idle once the username
    * dialog is open.
@@ -178,8 +178,9 @@ class UserProfileScreenNavigationTest {
       composeTestRule.onNodeWithTag(OverviewTestTags.SCREEN).assertIsDisplayed()
       composeTestRule.onNodeWithTag(NavigationTestTags.getTabTestTag(Tab.Profile)).performClick()
 
-      // The profile screen no longer shows the username: the edit dialog prefills it instead.
-      composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME).performScrollTo().performClick()
+      val nameCard = composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME).performScrollTo()
+      nameCard.assertTextContains(NEW_USERNAME)
+      nameCard.performClick()
       composeTestRule
           .onNodeWithTag(UserProfileTestTags.USERNAME_FIELD)
           .assertTextContains(NEW_USERNAME)

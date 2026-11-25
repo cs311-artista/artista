@@ -293,6 +293,8 @@ class UserProfileScreenTest {
    * Verifies that the photo source options are displayed but not clickable, since picking a photo
    * is not implemented yet.
    */
+  // TODO: update or remove this test when implementing the custom profile picture: it checks the
+  //  temporary state of the options, which must become clickable (see ChangePhotoSheet).
   @Test
   fun changePhotoSheet_optionsAreNotClickable() {
     setProfileContent()
@@ -468,7 +470,7 @@ class UserProfileScreenTest {
     composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME_FIELD).assertEditableTextEquals("")
   }
 
-  /** Verifies that saving closes the dialog and keeps the entered username for the next edit. */
+  /** Verifies that saving closes the dialog and shows the new username on the card and dialog. */
   @Test
   fun usernameDialog_save_displaysNewUsername() {
     val viewModel = signedOutViewModel().apply { setUser(userNamed("Alice")) }
@@ -479,7 +481,7 @@ class UserProfileScreenTest {
     composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME_SAVE).performClick()
 
     composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME_DIALOG).assertDoesNotExist()
-    // The profile screen no longer shows the username, so the reopened dialog is where it appears.
+    composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME).assertTextContains("Bob")
     openUsernameDialog()
     composeTestRule
         .onNodeWithTag(UserProfileTestTags.USERNAME_FIELD)
@@ -497,6 +499,10 @@ class UserProfileScreenTest {
     composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME_CANCEL).performClick()
 
     composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME_DIALOG).assertDoesNotExist()
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.USERNAME)
+        .assertTextContains("Alice")
+        .assert(!hasText("Bob", substring = true))
     openUsernameDialog()
     composeTestRule
         .onNodeWithTag(UserProfileTestTags.USERNAME_FIELD)
@@ -572,9 +578,12 @@ class UserProfileScreenTest {
     counter().assertTextEquals(counterText(3))
   }
 
-  /** Verifies that the counter counts spaces too, so it moves on every keystroke. */
+  /**
+   * Verifies that the counter ignores leading spaces, which are always removed, but counts trailing
+   * ones, so it moves on every keystroke.
+   */
   @Test
-  fun usernameDialog_counter_countsSpaces() {
+  fun usernameDialog_counter_ignoresLeadingSpacesButCountsTrailingOnes() {
     setProfileContent()
     openUsernameDialog()
 
@@ -582,7 +591,39 @@ class UserProfileScreenTest {
         .onNodeWithTag(UserProfileTestTags.USERNAME_FIELD)
         .performTextReplacement("  Bob  ")
 
-    counter().assertTextEquals(counterText(7))
+    counter().assertTextEquals(counterText(5))
+  }
+
+  /**
+   * Verifies that trailing spaces pushing the counter over the limit show a warning, not an error,
+   * and still let the user save, since they are removed on save.
+   */
+  @Test
+  fun usernameDialog_showsTrailingSpacesWarning_whenSpacesExceedLimit() {
+    setProfileContent()
+    openUsernameDialog()
+
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.USERNAME_FIELD)
+        .performTextReplacement("Bob" + " ".repeat(MAX_USERNAME_LENGTH - 2))
+
+    supportingText().assertTextEquals(string(R.string.profile_username_warning_trailing_spaces))
+    counter().assertTextEquals(counterText(MAX_USERNAME_LENGTH + 1))
+    composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME_SAVE).assertIsEnabled()
+  }
+
+  /** Verifies that trailing spaces up to the limit keep the hint, without any warning. */
+  @Test
+  fun usernameDialog_showsHint_whenTrailingSpacesReachLimit() {
+    setProfileContent()
+    openUsernameDialog()
+
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.USERNAME_FIELD)
+        .performTextReplacement("Bob" + " ".repeat(MAX_USERNAME_LENGTH - 3))
+
+    supportingText().assertTextEquals(string(R.string.profile_username_hint))
+    counter().assertTextEquals(counterText(MAX_USERNAME_LENGTH))
   }
 
   /** Verifies that a name with a symbol shows the invalid characters' error. */
