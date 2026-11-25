@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import com.artista.artista.model.artwork.Artwork
+import com.artista.artista.model.error.AppException
 import com.artista.artista.resources.C
 import com.google.android.gms.location.Geofence
 import com.google.android.gms.location.GeofencingClient
@@ -46,6 +47,8 @@ class GeofenceManager(
    * Registers geofences for a list of artworks.
    *
    * @param artworks List of artworks for which geofences need to be registered.
+   * @throws [AppException.InvalidInput] when too many (more than [MAX_NOTIFIABLE_ARTWORKS]) are
+   *   expected to be registered for notifications.
    * @author 5kyPhy
    */
   @SuppressLint("MissingPermission") // caller guarantees permissions
@@ -54,6 +57,11 @@ class GeofenceManager(
       client.removeGeofences(pendingIntent).await()
       return
     }
+
+    if (artworks.size > MAX_NOTIFIABLE_ARTWORKS)
+        throw AppException.InvalidInput(
+            message = "Too many artworks are set-up for geofenced notifications."
+        )
 
     val geofences =
         artworks
