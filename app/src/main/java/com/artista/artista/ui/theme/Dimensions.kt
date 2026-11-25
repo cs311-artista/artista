@@ -74,14 +74,15 @@ internal object Dimensions {
   val savedArtworksListVerticalPadding = 12.dp
   val savedArtworksItemSpacing = 12.dp
 
-  /** Width over height of a saved artwork tile, slightly taller than wide like most paintings. */
-  const val SAVED_ARTWORK_TILE_ASPECT_RATIO = 5f / 6f
-  val savedArtworkTileCornerRadius = 4.dp
-  val savedArtworkTileBandHorizontalPadding = 8.dp
-  val savedArtworkTileBandVerticalPadding = 4.dp
-  val savedArtworkTileButtonPadding = 6.dp
-  val savedArtworkTileButtonSize = 36.dp
-  val savedArtworkTileIconSize = 20.dp
+  // Artwork tiles, shared by the saved artworks grid and the overview grid.
+  /** Width over height of an artwork tile, slightly taller than wide like most paintings. */
+  const val ARTWORK_TILE_ASPECT_RATIO = 5f / 6f
+  val artworkTileCornerRadius = 4.dp
+  val artworkTileBandHorizontalPadding = 8.dp
+  val artworkTileBandVerticalPadding = 4.dp
+  val artworkTileButtonPadding = 6.dp
+  val artworkTileButtonSize = 36.dp
+  val artworkTileIconSize = 20.dp
 
   // Overview screen.
   val overviewListHorizontalPadding = 16.dp
@@ -97,6 +98,23 @@ internal object Dimensions {
   val artworkFilterSuggestionsMaxHeight = 160.dp
   val overviewSearchBarHeight = standardControlHeight
   val overviewSearchBarElevation = 2.dp
+  val overviewSectionTitleTopPadding = 8.dp
+  val overviewGridItemSpacing = 12.dp
+  val overviewEmptyStateHorizontalPadding = 24.dp
+
+  // Artwork list cards, used by the overview list mode.
+  val artworkListCardCornerRadius = 4.dp
+  val artworkListCardHeaderHorizontalPadding = 16.dp
+  val artworkListCardHeaderVerticalPadding = 12.dp
+  val artworkListCardAvatarSize = 40.dp
+  val artworkListCardAvatarIconSize = 24.dp
+  val artworkListCardHeaderSpacing = 12.dp
+  val artworkListCardFooterHorizontalPadding = 16.dp
+  val artworkListCardFooterVerticalPadding = 12.dp
+  val artworkListCardFooterTextSpacing = 4.dp
+
+  /** Width over height of the image in an artwork list card, close to the V2 mockup. */
+  const val ARTWORK_LIST_CARD_IMAGE_ASPECT_RATIO = 1f
 
   // Search screen.
   val searchRecommendationVerticalPadding = 8.dp

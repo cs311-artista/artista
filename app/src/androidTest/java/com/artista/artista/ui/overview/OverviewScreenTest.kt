@@ -4,6 +4,7 @@ package com.artista.artista.ui.overview
 
 import android.app.Instrumentation
 import androidx.activity.ComponentActivity
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
@@ -11,6 +12,7 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextContains
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
@@ -28,8 +30,9 @@ import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
 import com.artista.artista.model.location.FakeLocationProvider
 import com.artista.artista.model.map.Location
-import com.artista.artista.ui.artwork.ArtworkCardTestTag
 import com.artista.artista.ui.artwork.ArtworkFilterTestTags
+import com.artista.artista.ui.artwork.ArtworkListCardTestTags
+import com.artista.artista.ui.artwork.ArtworkTileTestTags
 import com.artista.artista.ui.navigation.NavigationTestTags
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaTheme
@@ -44,7 +47,7 @@ import org.junit.runner.RunWith
 /**
  * Verifies the user-visible behavior of the Overview screen.
  *
- * @author patrickmcdan
+ * @author patrickmcdan, hixeum
  */
 @RunWith(AndroidJUnit4::class)
 class OverviewScreenTest {
@@ -125,7 +128,7 @@ class OverviewScreenTest {
     var mappedArtwork: Artwork? = null
     setOverviewContent(listOf(artwork), onMapClick = { mappedArtwork = it })
 
-    composeTestRule.onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD_MAP_BUTTON).performClick()
+    composeTestRule.onNodeWithTag(ArtworkTileTestTags.mapButton(artwork)).performClick()
 
     assertEquals(artwork, mappedArtwork)
   }
@@ -166,6 +169,41 @@ class OverviewScreenTest {
     assertTrue(savedArtworksRequested)
   }
 
+  /** Verifies that the clear-filters button of an empty filter result restores the artworks. */
+  @Test
+  fun overviewScreen_filterWithNoMatches_clearFiltersButtonRestoresArtworks() {
+    setOverviewContent(listOf(artwork(name = "The Starry Night", artistName = "Vincent van Gogh")))
+
+    composeTestRule.onNodeWithTag(OverviewTestTags.FILTER_BUTTON).performClick()
+    composeTestRule.onNodeWithTag(ArtworkFilterTestTags.FROM_YEAR).performTextInput("3000")
+    composeTestRule.onNodeWithTag(ArtworkFilterTestTags.APPLY_BUTTON).performClick()
+    composeTestRule.onNodeWithTag(OverviewTestTags.CLEAR_FILTERS_BUTTON).performClick()
+
+    composeTestRule.onNodeWithTag(OverviewTestTags.EMPTY_FILTER_RESULTS).assertDoesNotExist()
+    composeTestRule.onAllNodesWithTag(OverviewTestTags.ARTWORK_ITEM).assertCountEquals(1)
+    composeTestRule
+        .onNodeWithTag(OverviewTestTags.FILTER_ACTIVE, useUnmergedTree = true)
+        .assertDoesNotExist()
+  }
+
+  /** Verifies that the display mode button switches the artworks to a list and back. */
+  @Test
+  fun overviewScreen_displayModeButton_switchesBetweenGridAndList() {
+    val artwork = artwork(name = "The Starry Night", artistName = "Vincent van Gogh")
+    setOverviewContent(listOf(artwork))
+
+    composeTestRule.onNodeWithTag(ArtworkTileTestTags.saveButton(artwork)).assertIsDisplayed()
+
+    composeTestRule.onNodeWithTag(OverviewTestTags.DISPLAY_MODE_BUTTON).performClick()
+
+    composeTestRule.onNodeWithTag(ArtworkListCardTestTags.saveButton(artwork)).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(ArtworkTileTestTags.saveButton(artwork)).assertDoesNotExist()
+
+    composeTestRule.onNodeWithTag(OverviewTestTags.DISPLAY_MODE_BUTTON).performClick()
+
+    composeTestRule.onNodeWithTag(ArtworkTileTestTags.saveButton(artwork)).assertIsDisplayed()
+  }
+
   /** Verifies the save-error effect clears errors after displaying their message. */
   @Test
   fun overviewScreen_whenSavingArtworkFails_clearsSaveErrorAndRestoresCard() {
@@ -177,14 +215,14 @@ class OverviewScreenTest {
     setOverviewContent(viewModel)
 
     composeTestRule
-        .onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD_SAVE_BUTTON)
-        .assertTextContains(composeTestRule.activity.getString(R.string.artwork_card_save))
+        .onNodeWithTag(ArtworkTileTestTags.saveButton(artwork))
+        .assert(hasContentDescription(saveDescription(artwork)))
         .performClick()
     composeTestRule.waitForIdle()
     assertTrue(viewModel.uiState.value.saveErrorMessageRes == null)
     composeTestRule
-        .onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD_SAVE_BUTTON)
-        .assertTextContains(composeTestRule.activity.getString(R.string.artwork_card_save))
+        .onNodeWithTag(ArtworkTileTestTags.saveButton(artwork))
+        .assert(hasContentDescription(saveDescription(artwork)))
   }
 
   /**
@@ -231,16 +269,16 @@ class OverviewScreenTest {
     setOverviewContent(viewModel)
 
     composeTestRule
-        .onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD_SAVE_BUTTON)
-        .assertTextContains(composeTestRule.activity.getString(R.string.artwork_card_save))
+        .onNodeWithTag(ArtworkTileTestTags.saveButton(artwork))
+        .assert(hasContentDescription(saveDescription(artwork)))
 
     composeTestRule.activityRule.scenario.moveToState(Lifecycle.State.CREATED)
     runBlocking { repository.saveArtwork(artwork) }
     composeTestRule.activityRule.scenario.moveToState(Lifecycle.State.RESUMED)
 
     composeTestRule
-        .onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD_SAVE_BUTTON)
-        .assertTextContains(composeTestRule.activity.getString(R.string.artwork_card_saved))
+        .onNodeWithTag(ArtworkTileTestTags.saveButton(artwork))
+        .assert(hasContentDescription(unsaveDescription(artwork)))
     composeTestRule.waitUntil(SAVE_OPERATION_TIMEOUT_MILLIS) {
       runBlocking { artwork.uid in repository.getSavedArtworks().map { it.uid } }
     }
@@ -380,6 +418,12 @@ class OverviewScreenTest {
       }
     }
   }
+
+  private fun saveDescription(artwork: Artwork): String =
+      composeTestRule.activity.getString(R.string.artwork_save, artwork.name)
+
+  private fun unsaveDescription(artwork: Artwork): String =
+      composeTestRule.activity.getString(R.string.artwork_unsave, artwork.name)
 
   private fun artwork(name: String, artistName: String): Artwork =
       Artwork(

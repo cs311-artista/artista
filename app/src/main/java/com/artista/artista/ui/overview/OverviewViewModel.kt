@@ -28,10 +28,24 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
 /**
+ * How the Overview screen lays out nearby artworks.
+ *
+ * @author hixeum
+ */
+enum class OverviewDisplayMode {
+  /** Two-column grid of image tiles. */
+  GRID,
+
+  /** Single column of detailed cards. */
+  LIST,
+}
+
+/**
  * Immutable state displayed by the Overview screen.
  *
  * @property artworks artwork entries currently available to display
  * @property savedArtworkIds identifiers of artworks saved by the user
+ * @property displayMode whether nearby artworks are shown as a grid or as a list
  * @property activeFilter criteria currently applied to the artwork entries
  * @property artistOptions distinct artists from the unfiltered list
  * @property museumOptions distinct museums from the unfiltered list
@@ -39,11 +53,12 @@ import kotlinx.coroutines.flow.update
  * @property errorMessageRes localized error resource, or null when there is no error
  * @property saveErrorMessageRes localized save-operation error resource, or null when there is no
  *   error
- * @author patrickmcdan
+ * @author patrickmcdan, hixeum
  */
 data class OverviewUiState(
     val artworks: List<Artwork> = emptyList(),
     val savedArtworkIds: Set<ArtworkId> = emptySet(),
+    val displayMode: OverviewDisplayMode = OverviewDisplayMode.GRID,
     val activeFilter: ArtworkFilter = ArtworkFilter(),
     val artistOptions: List<String> = emptyList(),
     val museumOptions: List<String> = emptyList(),
@@ -197,11 +212,36 @@ class OverviewViewModel(
    * @author patrickmcdan
    */
   fun applyFilter(filter: ArtworkFilter) {
-    _uiState.value =
-        _uiState.value.copy(
-            activeFilter = filter,
-            artworks = allArtworks.applyFilter(filter),
-        )
+    _uiState.update { state ->
+      state.copy(
+          activeFilter = filter,
+          artworks = allArtworks.applyFilter(filter),
+      )
+    }
+  }
+
+  /**
+   * Removes every filter criterion so all loaded artworks are displayed again.
+   *
+   * @author hixeum
+   */
+  fun clearFilter() = applyFilter(ArtworkFilter())
+
+  /**
+   * Switches nearby artworks between the grid and the list layouts.
+   *
+   * @author hixeum
+   */
+  fun toggleDisplayMode() {
+    _uiState.update { state ->
+      state.copy(
+          displayMode =
+              when (state.displayMode) {
+                OverviewDisplayMode.GRID -> OverviewDisplayMode.LIST
+                OverviewDisplayMode.LIST -> OverviewDisplayMode.GRID
+              }
+      )
+    }
   }
 
   /**

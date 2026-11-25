@@ -21,6 +21,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -29,7 +30,7 @@ import org.junit.Test
 /**
  * Tests the state exposed by [OverviewViewModel].
  *
- * @author patrickmcdan
+ * @author patrickmcdan, hixeum
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class OverviewScreenViewModelTest {
@@ -315,6 +316,43 @@ class OverviewScreenViewModelTest {
     assertEquals(listOf(first, second), viewModel.uiState.value.artworks)
   }
 
+  /** Verifies that clearing the filter restores every artwork and deactivates the filter. */
+  @Test
+  fun clearFilter_restoresAllArtworksAndDeactivatesFilter() = runTest {
+    val first = artwork(name = "The Starry Night", artistName = "Vincent van Gogh")
+    val second = artwork(name = "Girl with a Pearl Earring", artistName = "Johannes Vermeer")
+    val viewModel =
+        OverviewViewModel(
+            nearbyRepository(listOf(first, second)),
+            ArtworkRepositoryLocal(),
+            FakeLocationProvider(),
+        )
+
+    advanceUntilIdle()
+    viewModel.applyFilter(ArtworkFilter(fromYear = 3000))
+    assertTrue(viewModel.uiState.value.artworks.isEmpty())
+
+    viewModel.clearFilter()
+
+    assertEquals(listOf(first, second), viewModel.uiState.value.artworks)
+    assertFalse(viewModel.uiState.value.activeFilter.isActive())
+  }
+
+  /** Verifies that artworks start as a grid and that the toggle alternates grid and list. */
+  @Test
+  fun toggleDisplayMode_alternatesBetweenGridAndList() = runTest {
+    val repository = ArtworkRepositoryLocal()
+    val viewModel = OverviewViewModel(repository, repository, FakeLocationProvider())
+
+    assertEquals(OverviewDisplayMode.GRID, viewModel.uiState.value.displayMode)
+
+    viewModel.toggleDisplayMode()
+    assertEquals(OverviewDisplayMode.LIST, viewModel.uiState.value.displayMode)
+
+    viewModel.toggleDisplayMode()
+    assertEquals(OverviewDisplayMode.GRID, viewModel.uiState.value.displayMode)
+  }
+
   /** Verifies that the factory refuses to create a ViewModel of another class. */
   @Test
   fun provideFactory_forUnknownViewModelClass_throws() {
@@ -330,6 +368,15 @@ class OverviewScreenViewModelTest {
 
   /** ViewModel unrelated to the overview screen, used to trigger the factory's error. */
   private class OtherViewModel : ViewModel()
+
+  private fun nearbyRepository(artworks: List<Artwork>): WikiDataRepository =
+      object : WikiDataRepository by ArtworkRepositoryLocal() {
+        override suspend fun getArtworksNearLocation(
+            searchArea: SearchArea,
+            typeValues: List<ArtworkType>,
+            limit: Int,
+        ): List<Artwork> = artworks
+      }
 
   private fun artwork(name: String, artistName: String): Artwork =
       Artwork(
