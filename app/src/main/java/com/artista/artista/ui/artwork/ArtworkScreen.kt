@@ -428,7 +428,9 @@ fun MapTile(
                 }
               }
             },
-        uiSettings = MapUiSettings(mapToolbarEnabled = false),
+        // No zoom buttons: they sat where the V2 mockup puts the recenter button, and pinch and
+        // double-tap zoom still work on such a small map.
+        uiSettings = MapUiSettings(mapToolbarEnabled = false, zoomControlsEnabled = false),
         cameraPositionState = cameraPositionState,
     ) {
       Marker(
@@ -441,12 +443,11 @@ fun MapTile(
 
     // TODO(#351): make this button recenter the map on the artwork.
     // Only drawn for now: recentering is a follow-up, so the button is not clickable yet rather
-    // than doing nothing on tap. It sits at the top end because at the bottom end it overlapped the
-    // Google Maps zoom controls. Unlike the top bar buttons, it keeps a circle behind it so the
+    // than doing nothing on tap. Unlike the top bar buttons, it keeps a circle behind it so the
     // icon stays readable over the map.
     Box(
         modifier =
-            Modifier.align(Alignment.TopEnd)
+            Modifier.align(Alignment.BottomEnd)
                 .padding(Dimensions.artworkMapRecenterButtonPadding)
                 .size(Dimensions.artworkMapRecenterButtonSize)
                 .background(MaterialTheme.colorScheme.surface, CircleShape)
