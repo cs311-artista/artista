@@ -17,9 +17,16 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 
+/**
+ * Handles geofence dwell events and shows proximity notifications for matching saved artworks.
+ *
+ * @param savedArtworksRepository repository used to retrieve saved artworks. Must be handed down by
+ *   the caller/instantiator, the default is only provided as receivers need default constructors.
+ * @author 5kyPhy
+ */
 class GeofenceBroadcastReceiver(
     private val savedArtworksRepository: SavedArtworksRepository =
-        ArtworkRepositoryProvider.mockRepository
+        ArtworkRepositoryProvider.savedArtworksRepository
 ) : BroadcastReceiver() {
 
   override fun onReceive(

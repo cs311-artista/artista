@@ -12,9 +12,17 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 
+/**
+ * Re-registers geofences for saved artworks after the device finishes booting.
+ *
+ * @param savedArtworksRepository repository used to retrieve the saved artworks. Must be handed
+ *   down by the caller/instantiator, the default is only provided as receivers need default
+ *   constructors.
+ * @author 5kyPhy
+ */
 class BootReceiver(
     private val savedArtworksRepository: SavedArtworksRepository =
-        ArtworkRepositoryProvider.mockRepository
+        ArtworkRepositoryProvider.savedArtworksRepository
 ) : BroadcastReceiver() {
   override fun onReceive(context: Context, intent: Intent) {
     if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
