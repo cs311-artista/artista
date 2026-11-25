@@ -113,6 +113,14 @@
     <string name="profile_initialization_failed">Your profile could not be set up. You can continue using the app and retry.</string>
     <string name="profile_initialization_retry">Retry</string>
 
+    <!-- Location permission onboarding -->
+    <string name="location_permission_title">Discover art around you</string>
+    <string name="location_permission_rationale">Artista uses your location to find and display artworks near you. Without location access, nearby artworks can\'t be loaded.</string>
+    <string name="location_permission_allow">Allow location access</string>
+    <string name="location_permission_not_now">Not now</string>
+    <string name="location_permission_denied">Location access is off. You can still search for artworks and browse your saved ones, but nearby artworks won\'t load.</string>
+    <string name="location_permission_continue">Continue without location</string>
+
     <!-- Overview screen -->
     <string name="overview_load_error">Unable to load nearby artworks.</string>
     <string name="overview_saved_artworks_action">Saved artworks</string>
