@@ -1,4 +1,5 @@
 // Co-authored-by: Claude Sonnet 5.5 <noreply@anthropic.com>
+// Co-authored-by: qwen3.5
 package com.artista.artista.model.geofence
 
 import android.annotation.SuppressLint
@@ -9,19 +10,28 @@ import android.os.Build
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.resources.C
 import com.google.android.gms.location.Geofence
+import com.google.android.gms.location.GeofencingClient
 import com.google.android.gms.location.GeofencingRequest
 import com.google.android.gms.location.LocationServices
 import kotlin.jvm.java
 import kotlinx.coroutines.tasks.await
 
-class GeofenceManager(private val context: Context) {
+/**
+ * Manages geofences for artworks in the application.
+ *
+ * This class provides functionality to register and unregister geofences for a list of artworks. It
+ * uses the Geofencing API to monitor the user's proximity to the artworks and triggers
+ * notifications when the user loiters within a specified region.
+ */
+class GeofenceManager(
+    private val context: Context,
+    private val client: GeofencingClient = LocationServices.getGeofencingClient(context),
+) {
   companion object {
     private const val MILLIS_PER_MINUTE = 60_000
     private const val LOITERING_MINUTES = 2
     private const val MAX_NOTIFIABLE_ARTWORKS = 100
   }
-
-  private val client = LocationServices.getGeofencingClient(context)
 
   private val pendingIntent: PendingIntent by lazy {
     // Must be explicit (Android 14) and mutable (Android 12+)
@@ -32,7 +42,12 @@ class GeofenceManager(private val context: Context) {
     PendingIntent.getBroadcast(context, 0, intent, flags)
   }
 
-  /** Replaces all currently registered geofences with the given artworks. */
+  /**
+   * Registers geofences for a list of artworks.
+   *
+   * @param artworks List of artworks for which geofences need to be registered.
+   * @author 5kyPhy
+   */
   @SuppressLint("MissingPermission") // caller guarantees permissions
   suspend fun register(artworks: List<Artwork>) {
     if (artworks.isEmpty()) {
@@ -41,34 +56,48 @@ class GeofenceManager(private val context: Context) {
     }
 
     val geofences =
-        artworks.take(MAX_NOTIFIABLE_ARTWORKS).map { artwork ->
-          artwork.location?.let {
-            Geofence.Builder()
-                .setRequestId(artwork.uid)
-                .setCircularRegion(
-                    it.latitude,
-                    it.longitude,
-                    C.Geofence.GEOFENCE_RADIUS,
-                )
-                .setExpirationDuration(Geofence.NEVER_EXPIRE)
-                .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_DWELL)
-                .setLoiteringDelay(
-                    LOITERING_MINUTES * MILLIS_PER_MINUTE
-                ) // todo extract loitering delay (user preferences?)
-                .build()
-          }
-        }
+        artworks
+            .mapNotNull { artwork ->
+              artwork.location?.let {
+                Geofence.Builder()
+                    .setRequestId(artwork.uid)
+                    .setCircularRegion(
+                        it.latitude,
+                        it.longitude,
+                        C.Geofence.GEOFENCE_RADIUS,
+                    )
+                    .setExpirationDuration(Geofence.NEVER_EXPIRE)
+                    .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_DWELL)
+                    .setLoiteringDelay(
+                        LOITERING_MINUTES * MILLIS_PER_MINUTE
+                    ) // todo extract loitering delay (user preferences?)
+                    .build()
+              }
+            }
+            .take(MAX_NOTIFIABLE_ARTWORKS)
+
+    client.removeGeofences(pendingIntent).await() // remove old geofences before adding new ones
+    if (geofences.isEmpty()) return // No need to register the geofences when there are none.
 
     val request =
         GeofencingRequest.Builder()
             .setInitialTrigger(GeofencingRequest.INITIAL_TRIGGER_DWELL)
-            .addGeofences(geofences.filterNotNull())
+            .addGeofences(geofences)
             .build()
 
-    client.removeGeofences(pendingIntent).await() // remove old geofences before adding new ones
     client.addGeofences(request, pendingIntent).await()
   }
 
+  /**
+   * Unregisters all geofences associated with the current pending intent.
+   *
+   * This method attempts to remove all geofences that were previously registered using the
+   * [GeofenceManager] instance. It returns a [Result] indicating the success or failure of the
+   * operation.
+   *
+   * @return A [Result] containing [Unit] on success, or an exception on failure.
+   * @author 5kyPhy
+   */
   suspend fun unregisterAll(): Result<Unit> = runCatching {
     client.removeGeofences(pendingIntent).await()
   }
