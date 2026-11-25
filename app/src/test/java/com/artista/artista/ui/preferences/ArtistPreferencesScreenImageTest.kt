@@ -5,7 +5,7 @@ import android.content.Context
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertIsOn
+import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
@@ -19,11 +19,14 @@ import coil3.test.FakeImage
 import coil3.test.FakeImageLoaderEngine
 import com.artista.artista.R
 import com.artista.artista.model.artist.Artist
+import com.artista.artista.model.artist.ArtistId
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
 import com.artista.artista.model.artwork.WikiDataRepository
 import com.artista.artista.model.authentication.FakeAuthRepository
 import com.artista.artista.model.authentication.FakeAuthUser
 import com.artista.artista.model.user.FakeUserRepository
+import com.artista.artista.model.user.User
+import com.artista.artista.model.user.UserPreference
 import com.artista.artista.ui.artwork.BROKEN_IMAGE_URL
 import com.artista.artista.ui.artwork.IMAGE_TIMEOUT_MS
 import com.artista.artista.ui.artwork.IMAGE_URL
@@ -41,10 +44,7 @@ import org.robolectric.RobolectricTestRunner
 /**
  * Unit tests for the artist pictures shown in the cards of [ArtistPreferencesScreen].
  *
- * A user is signed in, so the screen also loads their saved artists, as in the app; every test
- * waits for that load to end, since the cards are locked until then.
- *
- * @author Timz3rr
+ * @author Timz3rr, krfpn
  */
 @OptIn(DelicateCoilApi::class, ExperimentalCoilApi::class)
 @RunWith(RobolectricTestRunner::class)
@@ -55,6 +55,8 @@ class ArtistPreferencesScreenImageTest {
   private val context: Context = ApplicationProvider.getApplicationContext()
 
   private val artistWithPicture = Artist("test-picasso", "Pablo Picasso", imageUrl = IMAGE_URL)
+
+  private val userRepository = FakeUserRepository()
 
   // The image loader is a process-wide singleton, so each test that replaces it must restore it.
   @After
@@ -141,9 +143,9 @@ class ArtistPreferencesScreenImageTest {
         .assertIsDisplayed()
   }
 
-  /** Checks that clicking a card whose picture has loaded still selects the artist. */
+  /** Checks that clicking a card whose picture has loaded still untoggles the artist. */
   @Test
-  fun artistCard_withLoadedPicture_clickSelectsArtist() {
+  fun artistCard_withLoadedPicture_clickUntogglesArtist() {
     installFakeImageLoader(
         FakeImageLoaderEngine.Builder().intercept(IMAGE_URL, FakeImage()).build()
     )
@@ -166,21 +168,23 @@ class ArtistPreferencesScreenImageTest {
 
     composeTestRule
         .onNodeWithTag(ArtistPreferencesTestTags.getArtistCardTestTag(artistWithPicture.uid))
-        .assertIsOn()
+        .assertIsOff()
   }
 
   /**
-   * Shows the screen with [artists] as popular artists, and waits until both the popular artists
-   * and the saved artists of the signed-in user have loaded.
+   * Shows the screen with [artists] saved by the signed-in user, and waits until they have loaded.
    *
-   * @param artists the popular artists served by the repository
+   * @param artists the saved artists, whose details are served by the repository
    */
   private fun setScreenContent(artists: List<Artist>) {
+    userRepository.store(
+        User(uid = USER_ID, preference = UserPreference(artists = artists.map { it.uid }))
+    )
     val viewModel =
         ArtistPreferencesViewModel(
-            artworkRepository = PopularArtistsWikiDataRepository(artists),
-            authRepository = FakeAuthRepository(FakeAuthUser(uid = "test-user")),
-            userRepository = FakeUserRepository(),
+            wikiDataRepository = ArtistsWikiDataRepository(artists),
+            authRepository = FakeAuthRepository(FakeAuthUser(uid = USER_ID)),
+            userRepository = userRepository,
         )
     composeTestRule.setContent {
       MaterialTheme {
@@ -191,7 +195,7 @@ class ArtistPreferencesScreenImageTest {
         )
       }
     }
-    // Until both loads end, the loading state replaces the grid and the cards are locked.
+    // Until the load ends, the loading state replaces the grid.
     composeTestRule.waitUntil(IMAGE_TIMEOUT_MS) {
       composeTestRule
           .onAllNodesWithTag(ArtistPreferencesTestTags.LOADING_STATE)
@@ -201,12 +205,15 @@ class ArtistPreferencesScreenImageTest {
   }
 
   /**
-   * Catalog whose popular artists are [artists]; every other method is forwarded to an empty
-   * [ArtworkRepositoryLocal], since this screen only needs the popular artists.
+   * Catalog that knows only [artists]; every other method is forwarded to an empty
+   * [ArtworkRepositoryLocal], since this screen only looks artists up by identifier.
    */
-  private class PopularArtistsWikiDataRepository(private val artists: List<Artist>) :
+  private class ArtistsWikiDataRepository(private val artists: List<Artist>) :
       WikiDataRepository by ArtworkRepositoryLocal() {
-    override suspend fun getArtistsFromQuery(query: String, limit: Int): List<Artist> =
-        artists.take(limit)
+    override suspend fun getArtist(qid: ArtistId): Artist? = artists.find { it.uid == qid }
+  }
+
+  private companion object {
+    const val USER_ID = "test-user"
   }
 }

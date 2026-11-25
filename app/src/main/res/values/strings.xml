@@ -19,13 +19,19 @@
     <string name="artwork_no_museum">No information about museum</string>
     <string name="artwork_no_description">No description available</string>
     <string name="artwork_no_location">Location not specified</string>
+    <string name="artwork_address_loading">Finding address…</string>
+    <string name="artwork_address_unavailable">Address unavailable</string>
     <string name="artwork_no_dimensions">Dimensions unavailable</string>
-
-    <string name="artwork_location_format">%1$.5f, %2$.5f</string>
     <string name="artwork_card_map">Map</string>
     <string name="artwork_card_save">Save</string>
     <string name="artwork_card_saved">Saved</string>
     <string name="artwork_card_image_description">Image of %1$s</string>
+
+    <!-- Artwork details screen -->
+    <string name="artwork_screen_title">Artwork</string>
+    <string name="artwork_map_title">Map</string>
+    <string name="artwork_map_recenter">Recenter map</string>
+
     <string name="back">Back</string>
     <!-- User profile screen -->
     <string name="profile_logout">Logout</string>
@@ -42,12 +48,10 @@
     <string name="profile_username_cancel">Cancel</string>
     <!-- Artist preferences screen -->
     <string name="artist_preferences_title">Artist Preferences</string>
-    <string name="artist_preferences_description">Select your favorite artists to personalize your recommendations</string>
+    <string name="artist_preferences_description">Untoggle the artists to remove from your favorites, then save</string>
     <string name="artist_preferences_search_placeholder">Search artists…</string>
-    <string name="artist_preferences_popular_artists">Popular Artists</string>
-    <string name="artist_preferences_save">Save Preferences</string>
-    <string name="artist_preferences_saved">Your favorite artists have been saved.</string>
-    <string name="artist_preferences_load_error_state">Popular artists couldn\'t be loaded.</string>
+    <string name="artist_preferences_save">Save</string>
+    <string name="artist_preferences_empty_state">You have no favorite artists yet.</string>
     <string name="artist_preferences_saved_artists_load_error">Your saved artists couldn\'t be loaded.</string>
     <string name="artist_preferences_artist_picture_description">Picture of %1$s</string>
     <!-- Map screen -->
@@ -60,6 +64,8 @@
     <string name="saved_artworks_empty">You have no saved artworks yet.</string>
     <string name="saved_artworks_loading">Loading saved artworks...</string>
     <string name="saved_artworks_load_error_state">Your saved artworks couldn\'t be loaded.</string>
+    <string name="saved_artworks_unsave">Remove %1$s from saved artworks</string>
+    <string name="saved_artworks_show_on_map">Show %1$s on the map</string>
     <string name="artwork_filter_open">Filter artworks</string>
     <string name="artwork_filter_title">Filter artworks</string>
     <string name="artwork_filter_artist">Artist</string>

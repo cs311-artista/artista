@@ -1,10 +1,10 @@
 package com.artista.artista.ui.preferences
 
+import android.util.Log
 import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.artista.artista.R
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artist.ArtistId
 import com.artista.artista.model.artwork.WikiDataRepository
@@ -13,11 +13,13 @@ import com.artista.artista.model.authentication.AuthUser
 import com.artista.artista.model.error.AppException
 import com.artista.artista.model.user.User
 import com.artista.artista.model.user.UserId
-import com.artista.artista.model.user.UserPreference
 import com.artista.artista.model.user.UserRepository
 import com.artista.artista.ui.error.launchCatching
 import com.artista.artista.ui.error.toMessageRes
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -29,95 +31,85 @@ import kotlinx.coroutines.launch
 /**
  * UI state of the artist preferences screen.
  *
- * Kept separate from [com.artista.artista.model.user.UserPreference]: the suggested artists are not
- * user data, and the selection only becomes a preference once the user saves it.
- *
- * @property popularArtists the artists suggested to the user, in display order.
- * @property selectedArtists identifiers of the artists the user has selected as favorites.
+ * @property savedArtists the artists the signed-in user saved as favorites, in the order they were
+ *   saved. An artist being removed stays here until the removal succeeds, so a failed removal puts
+ *   its card back at the same place.
+ * @property deselectedArtists identifiers of the saved artists the user has untoggled, ready for
+ *   removal. Their cards stay shown, unchecked, until the user taps Save.
+ * @property removingArtists identifiers of the artists who is being removed. Their cards are hidden
+ *   at once; while the write runs, no card can be toggled and Save is disabled.
  * @property searchQuery the text typed in the search field, exactly as the user entered it.
- * @property savedArtists identifiers of the artists in the last saved selection, compared with
- *   [selectedArtists] to know whether there is anything to save.
- * @property isSaving whether the selection is being saved, during which saving again is disabled.
- * @property isLoadingSavedArtists whether the stored artists of the signed-in user are loading,
- *   during which the artists cannot be selected, so a tap is not replaced by the loaded selection.
- * @property isLoadingPopularArtists whether the popular artists are loading, during which another
- *   load is not started.
- * @property hasPopularArtistsLoadFailed whether the last load of the popular artists failed. Unlike
- *   [messageResId], it stays set after the error has been shown, so the screen can keep offering a
- *   retry.
- * @property hasSavedArtistsLoadFailed whether the last load of the signed-in user's stored artists
- *   failed. Like [hasPopularArtistsLoadFailed], it stays set after the error has been shown. While
- *   it is set, the selection cannot be edited or saved, so an empty selection never replaces
- *   artists that could not be read.
- * @property messageResId string resource of the message shown once a save succeeds or fails, or
- *   when loading the popular or saved artists fails; null when there is nothing to show.
+ * @property isLoading whether the saved artists of the signed-in user are loading.
+ * @property hasLoadFailed whether the last load of the saved artists failed. Unlike [messageResId],
+ *   it stays set after the error has been shown, so the screen can keep offering a retry.
+ * @property messageResId string resource of the message shown when loading the saved artists or
+ *   removing one of them fails; null when there is nothing to show.
  * @author Timz3rr, patrickmcdan, krfpn
  */
 data class ArtistPreferencesUiState(
-    val popularArtists: List<Artist> = emptyList(),
-    val selectedArtists: Set<ArtistId> = emptySet(),
+    val savedArtists: List<Artist> = emptyList(),
+    val deselectedArtists: Set<ArtistId> = emptySet(),
+    val removingArtists: Set<ArtistId> = emptySet(),
     val searchQuery: String = "",
-    val savedArtists: Set<ArtistId> = emptySet(),
-    val isSaving: Boolean = false,
-    val isLoadingSavedArtists: Boolean = false,
-    val isLoadingPopularArtists: Boolean = false,
-    val hasPopularArtistsLoadFailed: Boolean = false,
-    val hasSavedArtistsLoadFailed: Boolean = false,
+    val isLoading: Boolean = false,
+    val hasLoadFailed: Boolean = false,
     @param:StringRes val messageResId: Int? = null,
 ) {
-  /** Whether any load is running: the popular artists or the saved artists. */
-  val isLoading: Boolean
-    get() = isLoadingPopularArtists || isLoadingSavedArtists
+  /** Whether the search field can be used: not while the saved artists load or failed to load. */
+  val canSearch: Boolean
+    get() = !isLoading && !hasLoadFailed
 
-  /** Whether any load failed: the popular artists or the saved artists. */
-  val hasLoadFailed: Boolean
-    get() = hasPopularArtistsLoadFailed || hasSavedArtistsLoadFailed
+  /** Whether a save is being written, during which the user cannot change anything. */
+  val isSaving: Boolean
+    get() = removingArtists.isNotEmpty()
 
   /**
-   * Whether the Save button can be used: the selection differs from the last saved one, no save is
-   * running, nothing is loading, and no load failed.
+   * Whether the Save button can be used: the loading of the user's saved artists was successful,
+   * the user has untoggled at least one artist, and no save is running.
    *
-   * Comparing with the saved selection, rather than tracking toggles, makes the button disabled
-   * again when the user undoes their changes. Checking the loads does not rely on the selection
-   * being unchanged while they run or after they fail, so a save can never start before the screen
-   * is ready.
+   * The empty state has no card to untoggle, so the button is disabled there too.
    */
   val canSave: Boolean
-    get() = selectedArtists != savedArtists && !isSaving && !isLoading && !hasLoadFailed
+    get() = deselectedArtists.isNotEmpty() && !isLoading && !hasLoadFailed && !isSaving
 
   /**
-   * Whether the search field can be used: not while the saved artists are loading or failed to
-   * load, since the selection they are part of cannot be edited then.
+   * Whether the user has no saved artist left to show, so the screen shows its empty state.
+   *
+   * Artists being removed do not count, so the empty state appears as soon as the last removal is
+   * saved; it is ignored while loading or after a failed load, which have their own states.
    */
-  val canSearch: Boolean
-    get() = !isLoadingSavedArtists && !hasSavedArtistsLoadFailed
+  val hasNoSavedArtists: Boolean
+    get() = !isLoading && !hasLoadFailed && savedArtists.all { it.uid in removingArtists }
 
   /**
-   * The popular artists whose name matches [searchQuery], in display order.
+   * The saved artists that are not being removed and whose name matches [searchQuery], in saved
+   * order.
    *
    * Derived rather than stored, so it stays correct when the artists finish loading after the user
-   * has started typing.
+   * has started typing, and when a failed removal brings an artist back.
    */
   val displayedArtists: List<Artist>
     get() {
       // Trimmed so stray spaces do not hide every artist; an empty query matches all of them.
       val query = searchQuery.trim()
-      return popularArtists.filter { it.name.contains(query, ignoreCase = true) }
+      return savedArtists.filter {
+        it.uid !in removingArtists && it.name.contains(query, ignoreCase = true)
+      }
     }
 }
 
 /**
- * Holds the popular artists and the selection made by the user on the artist preferences screen,
- * pre-selects the artists the signed-in user saved earlier, and saves the selection in their
- * preferences.
+ * Shows the artists the signed-in user saved as favorites, lets the user untoggle some of them, and
+ * removes the untoggled ones from their preferences when the user saves.
  *
- * @param artworkRepository source of the popular artists
- * @param authRepository source of the signed-in user, whose preferences are saved
+ * @param wikiDataRepository source of the details (name, picture) of the saved artists, which the
+ *   user profile only stores by identifier
+ * @param authRepository source of the signed-in user, whose preferences are shown and edited
  * @param userRepository storage of the user profiles
  * @author Timz3rr, patrickmcdan, krfpn
  */
 class ArtistPreferencesViewModel(
-    private val artworkRepository: WikiDataRepository,
+    private val wikiDataRepository: WikiDataRepository,
     private val authRepository: AuthRepository,
     private val userRepository: UserRepository,
 ) : ViewModel() {
@@ -134,12 +126,11 @@ class ArtistPreferencesViewModel(
   /** Identifier of the signed-in user, or null when nobody is signed in. */
   private var signedInUid: UserId? = null
 
-  // A slow load for a user who has since signed out could finish last and select their artists
-  // for the next user, so only the load of the current user is kept running.
+  // A slow load for a user who has since signed out could finish last and show their artists to
+  // the next user, so only the load of the current user is kept running.
   private var loadJob: Job? = null
 
   init {
-    loadPopularArtists()
     // A plain launch is enough: collecting the auth state only listens to sign-ins and sign-outs
     // and does not fail (see AuthRepository.authState). The load of the saved artists, which can
     // fail, is protected by launchCatching in loadSavedArtists.
@@ -147,153 +138,169 @@ class ArtistPreferencesViewModel(
   }
 
   /**
-   * Reruns every load that failed: the popular artists, the saved artists of the signed-in user, or
-   * both.
-   *
-   * Called when the user taps Try again. A load that did not fail is left as it is, and a double
-   * tap starts no second request, since each load clears its failed flag as soon as it starts.
+   * Reloads the saved artists of the signed-in user after a failed load.
    *
    * @author krfpn
    */
-  fun retryFailedLoads() {
-    val state = _uiState.value
-    if (state.hasPopularArtistsLoadFailed) loadPopularArtists()
-    val uid = signedInUid
-    if (state.hasSavedArtistsLoadFailed && uid != null) loadSavedArtists(uid)
+  fun retryLoad() {
+    val uid = signedInUid ?: return
+    if (_uiState.value.hasLoadFailed) loadSavedArtists(uid)
   }
 
   /**
-   * Loads the popular artists suggested to the user.
-   *
-   * Called when the ViewModel is created and by [retryFailedLoads]. On failure,
-   * [ArtistPreferencesUiState.hasPopularArtistsLoadFailed] is set and an error message is exposed.
-   * The call is ignored while a load is already running, so a double tap on Try again does not
-   * start a second request.
-   *
-   * @author krfpn
-   */
-  fun loadPopularArtists() {
-    if (_uiState.value.isLoadingPopularArtists) return
-
-    _uiState.update {
-      it.copy(
-          isLoadingPopularArtists = true,
-          hasPopularArtistsLoadFailed = false,
-          messageResId = null,
-      )
-    }
-
-    viewModelScope.launchCatching(
-        tag = TAG,
-        onError = { error ->
-          _uiState.update {
-            it.copy(
-                isLoadingPopularArtists = false,
-                hasPopularArtistsLoadFailed = true,
-                messageResId = error.toMessageRes(),
-            )
-          }
-        },
-    ) {
-      val artists = artworkRepository.getArtistsFromQuery("", POPULAR_ARTIST_LIMIT)
-      _uiState.update {
-        it.copy(
-            popularArtists = artists,
-            isLoadingPopularArtists = false,
-            hasPopularArtistsLoadFailed = false,
-        )
-      }
-    }
-  }
-
-  /**
-   * Pre-selects the saved artists of the user who just signed in, or clears the selection of the
-   * user who left.
+   * Shows the saved artists of the user who just signed in, or clears those of the user who left.
    *
    * @param authUser the signed-in user, or null when nobody is signed in
    */
   private fun onAuthStateChanged(authUser: AuthUser?) {
-    // Stops the load of the previous user, whose late result would otherwise replace the
-    // selection of the new one.
+    // Stops the load of the previous user, whose late result would otherwise replace the artists
+    // of the new one.
     loadJob?.cancel()
-    if (authUser == null) {
-      // Nobody signed in from the start: an in-memory selection belongs to no one who left, so it
-      // is kept. After a sign-out, the previous user's choices are cleared.
-      if (signedInUid != null) clearSelection()
-      signedInUid = null
-      // The canceled load cannot reset the flags itself, so the screen would stay locked. A
-      // failure belonged to the user who left, so it is cleared too.
-      _uiState.update { it.copy(isLoadingSavedArtists = false, hasSavedArtistsLoadFailed = false) }
-      return
+    signedInUid = authUser?.uid
+    // The previous user's artists, pending removals, failure, canceled load belong to them, so none
+    // is kept.
+    _uiState.update {
+      it.copy(
+          savedArtists = emptyList(),
+          deselectedArtists = emptySet(),
+          removingArtists = emptySet(),
+          isLoading = false,
+          hasLoadFailed = false,
+      )
     }
-    signedInUid = authUser.uid
-    // Clears the previous user's selection, so it is not shown while the new one loads.
-    clearSelection()
-    loadSavedArtists(authUser.uid)
+    authUser?.let { loadSavedArtists(it.uid) }
   }
 
   /**
-   * Loads the stored artists of a user and pre-selects them.
+   * Loads the saved artists of a user.
    *
-   * On failure, [ArtistPreferencesUiState.hasSavedArtistsLoadFailed] is set and an error message is
-   * exposed; the selection then stays locked until a retry succeeds.
+   * On failure, [ArtistPreferencesUiState.hasLoadFailed] is set and an error message is exposed.
    *
    * @param uid identifier of the user whose artists are loaded
    */
   private fun loadSavedArtists(uid: UserId) {
-    // Clears the failure of the previous user or attempt, so the screen shows the loading state.
-    _uiState.update { it.copy(isLoadingSavedArtists = true, hasSavedArtistsLoadFailed = false) }
+    // Clears the failure of the previous attempt, so the screen shows the loading state.
+    _uiState.update { it.copy(isLoading = true, hasLoadFailed = false) }
     loadJob =
         viewModelScope.launchCatching(
             tag = TAG,
             onError = { error ->
-              // The selection stays empty and locked: saving it now could replace artists the user
-              // saved before but could not see.
               _uiState.update {
                 it.copy(
-                    isLoadingSavedArtists = false,
-                    hasSavedArtistsLoadFailed = true,
+                    isLoading = false,
+                    hasLoadFailed = true,
                     messageResId = error.toMessageRes(),
                 )
               }
             },
         ) {
-          // No profile yet means no saved artists, so the selection stays empty. toSet() keeps the
-          // saved order, and artists that are not popular stay selected, so the next save does not
-          // drop them.
-          val artists = findUser(uid)?.preference?.artists.orEmpty().toSet()
-          _uiState.update {
-            it.copy(
-                selectedArtists = artists,
-                savedArtists = artists,
-                isLoadingSavedArtists = false,
-            )
-          }
+          val ids = findUser(uid)?.preference?.artists.orEmpty().distinct()
+          val artists = resolveAllArtists(ids)
+          _uiState.update { it.copy(savedArtists = artists, isLoading = false) }
         }
   }
 
-  /** Empties both the current and the saved selection. */
-  private fun clearSelection() {
-    _uiState.update { it.copy(selectedArtists = emptySet(), savedArtists = emptySet()) }
+  /**
+   * Fetches the details of the given artists, all at once rather than one after the other.
+   *
+   * @param ids identifiers of the artists, in the order they are returned
+   * @return the artists that could be resolved, in the same order; the others are left out
+   */
+  private suspend fun resolveAllArtists(ids: List<ArtistId>): List<Artist> = coroutineScope {
+    ids.map { id -> async { resolveArtist(id) } }.awaitAll().filterNotNull()
   }
 
   /**
-   * Selects the given artist, or deselects it if it is already selected.
+   * Fetches the details of an artist.
    *
-   * Ignored while the saved artists load or after they failed to load.
+   * An artist the catalog does not know or whose identifier it rejects is left out of the screen,
+   * so one bad identifier does not prevent the others from showing. Network failures are not
+   * caught: they fail the whole load, which the user can retry.
    *
-   * @param artistId the identifier of the artist to toggle.
+   * @param id identifier of the artist
+   * @return the artist, or null when it cannot be resolved
+   */
+  private suspend fun resolveArtist(id: ArtistId): Artist? {
+    val artist =
+        try {
+          wikiDataRepository.getArtist(id)
+        } catch (_: AppException.InvalidInput) {
+          // An identifier that is not a Wikidata QID, such as a mock ID saved before the screen
+          // used Wikidata. Failing would lock the user on the error state, so it is only skipped.
+          null
+        }
+    if (artist == null) Log.w(TAG, "Skipped saved artist $id, which could not be resolved.")
+    return artist
+  }
+
+  /**
+   * Untoggles a saved artist, or toggles it back if it is already untoggled.
+   *
+   * Nothing is written until [saveChanges]. Ignored while the saved artists load, or after they
+   * failed to load, while a save runs, and for an artist that is not shown.
+   *
+   * @param artistId identifier of the artist to toggle
    * @author Timz3rr, patrickmcdan, krfpn
    */
   fun toggleArtist(artistId: ArtistId) {
-    // The cards are hidden then; checking here keeps the state valid whatever the caller.
     val state = _uiState.value
-    if (state.isLoadingSavedArtists || state.hasSavedArtistsLoadFailed) return
-    _uiState.update { state ->
-      val selectedArtists =
-          if (artistId in state.selectedArtists) state.selectedArtists - artistId
-          else state.selectedArtists + artistId
-      state.copy(selectedArtists = selectedArtists)
+    if (state.isLoading || state.hasLoadFailed || state.isSaving) return
+    if (state.savedArtists.none { it.uid == artistId }) {
+      // The screen only shows cards of saved artists, so this means a caller is out of sync.
+      Log.w(TAG, "Ignored a toggle of artist $artistId, which is not among the saved artists.")
+      return
+    }
+    _uiState.update {
+      val deselected =
+          if (artistId in it.deselectedArtists) it.deselectedArtists - artistId
+          else it.deselectedArtists + artistId
+      it.copy(deselectedArtists = deselected)
+    }
+  }
+
+  /**
+   * Removes the untoggled artists from the favorites of the signed-in user.
+   *
+   * Their cards are hidden at once, before the write ends, and nothing can be changed until it
+   * ends. If the write fails, the cards come back where they were, checked again as they were
+   * before the user untoggled them, and an error message is exposed. The call is ignored when
+   * [ArtistPreferencesUiState.canSave] is false, which also makes a double tap write once.
+   *
+   * @author krfpn
+   */
+  fun saveChanges() {
+    val state = _uiState.value
+    if (!state.canSave) return
+    val uid =
+        signedInUid
+            ?: run {
+              // Signing out clears the untoggled artists, so canSave should already be false here.
+              Log.w(TAG, "Ignored a save while nobody is signed in.")
+              return
+            }
+    val artistIds = state.deselectedArtists
+
+    _uiState.update { it.copy(deselectedArtists = emptySet(), removingArtists = artistIds) }
+    viewModelScope.launchCatching(
+        tag = TAG,
+        onError = { error ->
+          // A user who signed out meanwhile no longer sees these artists, so nothing comes back.
+          if (signedInUid != uid) return@launchCatching
+          // In case of error, the cards come back checked (as initially) and the save button stays
+          // disabled.
+          _uiState.update {
+            it.copy(removingArtists = emptySet(), messageResId = error.toMessageRes())
+          }
+        },
+    ) {
+      removeStoredArtists(uid, artistIds)
+      if (signedInUid != uid) return@launchCatching
+      _uiState.update { s ->
+        s.copy(
+            savedArtists = s.savedArtists.filterNot { it.uid in artistIds },
+            removingArtists = emptySet(),
+        )
+      }
     }
   }
 
@@ -308,53 +315,6 @@ class ArtistPreferencesViewModel(
   }
 
   /**
-   * Saves the selected artists in the preferences of the signed-in user.
-   *
-   * Only the favorite artists of the stored profile are replaced; its other fields are kept. On
-   * success, the selection becomes the saved one and a confirmation message is exposed; on failure,
-   * an error message is exposed instead and the selection stays unsaved, so the user can retry.
-   * When nobody is signed in, the selection only becomes the saved one in memory. The call is
-   * ignored when [ArtistPreferencesUiState.canSave] is false.
-   *
-   * @author krfpn
-   */
-  fun saveSelectedArtists() {
-    // Also covers a double tap: the first tap sets isSaving, so the second one is ignored.
-    if (!_uiState.value.canSave) return
-    // Taken now, so a toggle made while the write runs does not change what is saved.
-    val artists = _uiState.value.selectedArtists
-    // Nobody signed in (the sign-in screen is still a placeholder, and in the UI tests and the
-    // preview): there is no one to save the selection for, so it is only kept in memory, as the
-    // profile screen does for the username.
-    val uid =
-        signedInUid
-            ?: run {
-              _uiState.update { it.copy(savedArtists = artists) }
-              return
-            }
-    _uiState.update { it.copy(isSaving = true) }
-    viewModelScope.launchCatching(
-        tag = TAG,
-        onError = { error ->
-          // savedArtists is unchanged, so the button is enabled again for a retry.
-          _uiState.update { it.copy(isSaving = false, messageResId = error.toMessageRes()) }
-        },
-    ) {
-      saveArtists(uid, artists.toList())
-      // Reached only when the writing succeeded, since a failure jumps to onError. If the user
-      // toggled during the save, the selection now differs from savedArtists, so the button is
-      // enabled again for the next save.
-      _uiState.update {
-        it.copy(
-            savedArtists = artists,
-            isSaving = false,
-            messageResId = R.string.artist_preferences_saved,
-        )
-      }
-    }
-  }
-
-  /**
    * Clears the message after the screen has shown it.
    *
    * @author krfpn
@@ -364,25 +324,20 @@ class ArtistPreferencesViewModel(
   }
 
   /**
-   * Saves the favorite artists of a user, creating their profile if they have none yet.
+   * Removes artists from the favorites stored in a user's profile, keeping its other fields.
    *
    * @param uid identifier of the user
-   * @param artists the favorite artists to save, in the order they were selected
+   * @param artistIds identifiers of the artists to remove
    */
-  private suspend fun saveArtists(uid: UserId, artists: List<ArtistId>) {
-    // The stored profile is read right before writing so that the fields saved by other screens,
-    // such as the username, are written back unchanged instead of being reset.
-    val storedUser = findUser(uid)
-    if (storedUser == null) {
-      // Kept as a fallback for accounts created before initial profile creation was added at
-      // sign-in or in case initial profile creation at sign-in failed.
-      userRepository.createUser(User(uid = uid, preference = UserPreference(artists = artists)))
-    } else {
-      userRepository.updateUser(
-          uid,
-          storedUser.copy(preference = storedUser.preference.copy(artists = artists)),
-      )
-    }
+  private suspend fun removeStoredArtists(uid: UserId, artistIds: Set<ArtistId>) {
+    // A missing profile has no artist to remove, so we return directly.
+    val storedUser = findUser(uid) ?: return
+    val artists = storedUser.preference.artists
+    val remainingArtists = artists.filterNot { it in artistIds }
+    userRepository.updateUser(
+        uid,
+        storedUser.copy(preference = storedUser.preference.copy(artists = remainingArtists)),
+    )
   }
 
   /**
@@ -394,7 +349,7 @@ class ArtistPreferencesViewModel(
   private suspend fun findUser(uid: UserId): User? =
       try {
         userRepository.getUser(uid)
-      } catch (exception: AppException.NotFound) {
+      } catch (_: AppException.NotFound) {
         // Caught here because launchCatching would report it as a failure, while it is expected.
         null
       }
@@ -403,12 +358,11 @@ class ArtistPreferencesViewModel(
   companion object {
     /** Log tag identifying messages emitted by [ArtistPreferencesViewModel]. */
     private const val TAG = "ArtistPreferencesViewModel"
-    private const val POPULAR_ARTIST_LIMIT = 50
 
     /**
      * Creates a factory for an artist-preferences ViewModel with its repository dependencies.
      *
-     * @param wikiDataRepository repository used to load popular artists
+     * @param wikiDataRepository repository used to load the details of the saved artists
      * @param authRepository source of the signed-in user
      * @param userRepository storage of the user profiles
      * @return factory that creates [ArtistPreferencesViewModel] instances

@@ -1,4 +1,5 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.artwork
 
 import androidx.compose.material3.MaterialTheme
@@ -15,6 +16,7 @@ import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.artwork.ArtworkType
 import com.artista.artista.model.artwork.SearchArea
 import com.artista.artista.model.artwork.WikiDataRepository
+import com.artista.artista.model.map.FakeAddressRepository
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -101,7 +103,12 @@ class ArtworkScreenLoadingTest {
   }
 
   private fun createViewModel(repository: WikiDataRepository) =
-      ArtworkScreenViewModel(sampleArtwork.uid, repository, savedRepository)
+      ArtworkScreenViewModel(
+          sampleArtwork.uid,
+          repository,
+          savedRepository,
+          FakeAddressRepository(),
+      )
 
   private class DelayedWikiDataRepository(private val artworkResult: CompletableDeferred<Artwork>) :
       WikiDataRepository by ArtworkRepositoryLocal() {
