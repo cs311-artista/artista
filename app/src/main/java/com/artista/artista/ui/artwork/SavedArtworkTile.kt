@@ -28,6 +28,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
@@ -76,13 +77,9 @@ fun SavedArtworkTile(
         modifier = Modifier.fillMaxSize(),
     )
 
-    SavedArtworkTileButton(
-        icon = Icons.Filled.Bookmark,
+    SavedArtworkTileBookmark(
         contentDescription = stringResource(R.string.saved_artworks_unsave, title),
         onClick = { onUnsaveClick(artwork) },
-        // A plain white bookmark, without a backdrop, as in the V2 mockup.
-        containerColor = Color.Transparent,
-        contentColor = ArtistaColors.OnSavedArtworkTile,
         modifier =
             Modifier.align(Alignment.TopStart).testTag(SavedArtworksTestTags.unsaveButton(artwork)),
     )
@@ -129,6 +126,40 @@ fun SavedArtworkTile(
           modifier = Modifier.testTag(SavedArtworksTestTags.artist(artwork)),
       )
     }
+  }
+}
+
+/**
+ * Displays the plain white bookmark that unsaves an artwork, in the top corner of its tile.
+ *
+ * @param contentDescription description of the action for accessibility services
+ * @param onClick called when the user taps the bookmark
+ * @param modifier modifier applied to the bookmark's touch target
+ * @author Timz3rr
+ */
+@Composable
+private fun SavedArtworkTileBookmark(
+    contentDescription: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+  // Not an IconButton: it centers its icon, while the V2 mockup puts the bookmark almost against
+  // the tile's corner. The touch target keeps the standard 48 dp so the bookmark stays easy to tap.
+  Box(
+      modifier =
+          modifier
+              .size(Dimensions.standardTouchTargetSize)
+              .clickable(role = Role.Button, onClick = onClick),
+      contentAlignment = Alignment.TopStart,
+  ) {
+    Icon(
+        imageVector = Icons.Filled.Bookmark,
+        contentDescription = contentDescription,
+        tint = ArtistaColors.OnSavedArtworkTile,
+        modifier =
+            Modifier.padding(Dimensions.savedArtworkTileBookmarkPadding)
+                .size(Dimensions.savedArtworkTileBookmarkIconSize),
+    )
   }
 }
 
