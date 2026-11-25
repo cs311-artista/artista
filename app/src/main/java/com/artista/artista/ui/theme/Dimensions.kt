@@ -27,7 +27,6 @@ internal object Dimensions {
   val standardStrokeWidth = 2.dp
 
   private val standardControlHeight = 56.dp
-  private val shallowElevation = 2.dp
 
   // Authentication screen.
   val authenticationScreenHorizontalPadding = 24.dp
@@ -90,7 +89,7 @@ internal object Dimensions {
   val artworkFilterContentVerticalPadding = 4.dp
   val artworkFilterSuggestionsMaxHeight = 160.dp
   val overviewSearchBarHeight = standardControlHeight
-  val overviewSearchBarElevation = shallowElevation
+  val overviewSearchBarElevation = 2.dp
 
   // Search screen.
   val searchRecommendationVerticalPadding = 8.dp
