@@ -1,4 +1,5 @@
 // Co-authored-by: DeepSeek Flash
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista
 
 import androidx.compose.ui.semantics.SemanticsActions
@@ -14,6 +15,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
 import com.artista.artista.model.artwork.mockArtworks
+import com.artista.artista.model.map.FakeAddressRepository
 import com.artista.artista.model.walking.WalkingRouteRepositoryRemote
 import com.artista.artista.ui.artwork.ArtworkCardTestTag
 import com.artista.artista.ui.artwork.ArtworkTestTags
@@ -122,6 +124,7 @@ class ArtistaNavHostTest {
           wikiDataRepository = repository,
           savedArtworksRepository = repository,
           walkingRouteRepository = WalkingRouteRepositoryRemote(),
+          addressRepository = FakeAddressRepository(),
       )
     }
   }

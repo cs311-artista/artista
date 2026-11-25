@@ -49,13 +49,15 @@ internal object Dimensions {
   val artworkCardTextSpacing = 4.dp
   val artworkCardPreviewPadding = 16.dp
   val artworkDetailsContentHorizontalPadding = 20.dp
+  val artworkDetailsContentVerticalPadding = 20.dp
   val artworkDetailsSectionSpacing = 12.dp
-  val artworkDetailsImageVerticalSpacing = 4.dp
-  val artworkFieldContentPadding = 10.dp
-  val artworkFieldLabelValueSpacing = 4.dp
-  val artworkMapTileContentPadding = 10.dp
-  val artworkMapTileTitleSpacing = 4.dp
+  val artworkDetailsHeaderBottomPadding = 8.dp
+  val artworkDetailsMapHeaderTopPadding = 8.dp
+  val artworkFieldContentPadding = 14.dp
+  val artworkFieldLabelValueSpacing = 8.dp
   val artworkMapTileHeight = 284.dp
+  val artworkMapRecenterButtonPadding = 12.dp
+  val artworkMapRecenterButtonSize = 44.dp
 
   /** Height of artwork images in artwork cards. */
   val artworkCardImageHeight = 160.dp
@@ -76,6 +78,15 @@ internal object Dimensions {
   val savedArtworksListHorizontalPadding = 16.dp
   val savedArtworksListVerticalPadding = 12.dp
   val savedArtworksItemSpacing = 12.dp
+
+  /** Width over height of a saved artwork tile, slightly taller than wide like most paintings. */
+  const val SAVED_ARTWORK_TILE_ASPECT_RATIO = 5f / 6f
+  val savedArtworkTileCornerRadius = 4.dp
+  val savedArtworkTileBandHorizontalPadding = 8.dp
+  val savedArtworkTileBandVerticalPadding = 4.dp
+  val savedArtworkTileButtonPadding = 6.dp
+  val savedArtworkTileButtonSize = 36.dp
+  val savedArtworkTileIconSize = 20.dp
 
   // Overview screen.
   val overviewListHorizontalPadding = 16.dp

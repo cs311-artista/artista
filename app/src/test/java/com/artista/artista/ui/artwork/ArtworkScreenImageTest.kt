@@ -21,6 +21,7 @@ import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.artwork.WikiDataRepository
+import com.artista.artista.model.map.FakeAddressRepository
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
@@ -144,7 +145,12 @@ class ArtworkScreenImageTest {
 
   private fun setScreenContent(artwork: Artwork) {
     val viewModel =
-        ArtworkScreenViewModel(artwork.uid, SingleArtworkWikiDataRepository(artwork), repository)
+        ArtworkScreenViewModel(
+            artwork.uid,
+            SingleArtworkWikiDataRepository(artwork),
+            repository,
+            FakeAddressRepository(),
+        )
     composeTestRule.setContent {
       MaterialTheme { ArtworkScreen(artworkScreenViewModel = viewModel, onBackClick = {}) }
     }
