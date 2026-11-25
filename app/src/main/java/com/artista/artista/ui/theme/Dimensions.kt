@@ -86,6 +86,17 @@ internal object Dimensions {
   val artworkTileButtonSize = 36.dp
   val artworkTileIconSize = 20.dp
 
+  // Location permission onboarding screen.
+  val locationPermissionHorizontalPadding = 32.dp
+  val locationPermissionVerticalPadding = 32.dp
+  val locationPermissionIconContainerSize = 88.dp
+  val locationPermissionIconSize = 44.dp
+  val locationPermissionIconTitleSpacing = 24.dp
+  val locationPermissionTitleBodySpacing = 12.dp
+  val locationPermissionDeniedMessageSpacing = 16.dp
+  val locationPermissionActionTopSpacing = 32.dp
+  val locationPermissionActionSpacing = 12.dp
+
   // Overview screen.
   val overviewListHorizontalPadding = 16.dp
   val overviewListVerticalPadding = 8.dp
