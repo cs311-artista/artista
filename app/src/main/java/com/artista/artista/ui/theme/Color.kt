@@ -59,10 +59,10 @@ internal object ArtistaColors {
   val SavedArtworkTileBand = Color(0x33000000)
 
   /**
-   * Translucent circle behind a saved artwork tile's map button, following the map button shared
-   * with the overview screen in the Figma.
+   * Translucent circle behind a saved artwork tile's bookmark and map buttons, following the map
+   * button shared with the overview screen in the Figma.
    */
-  val SavedArtworkTileMapButtonScrim = Color(0x66000000)
+  val SavedArtworkTileButtonScrim = Color(0x66000000)
 
   /** Text and icons drawn over a saved artwork tile's image or band. */
   val OnSavedArtworkTile = Color.White
