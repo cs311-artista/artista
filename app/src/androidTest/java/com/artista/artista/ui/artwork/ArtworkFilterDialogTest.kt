@@ -14,9 +14,11 @@ import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
-import androidx.compose.ui.test.onChildAt
+import androidx.compose.ui.test.onChildren
+import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -93,15 +95,18 @@ class ArtworkFilterDialogTest {
   fun selectingOptions_appendsChipsInSelectionOrder() {
     setDialog()
 
-    selectArtist("Pablo Picasso")
-    selectArtist("Claude Monet")
-    selectArtist("Vincent van Gogh")
+    // The lazy row only composes the chips that fit on screen, so checking children by index
+    // breaks on narrow devices. Instead, each new chip must be the last one once the row is
+    // scrolled to its end. The names are picked out of alphabetical order, so a sorted row
+    // would fail too.
+    listOf("Pablo Picasso", "Claude Monet", "Vincent van Gogh").forEachIndexed { index, name ->
+      selectArtist(name)
 
-    val row = composeTestRule.onNodeWithTag(selectedRowTag)
-    row.assertIsDisplayed()
-    row.onChildAt(0).assert(hasTestTag("$artistTag-chip-Pablo Picasso"))
-    row.onChildAt(1).assert(hasTestTag("$artistTag-chip-Claude Monet"))
-    row.onChildAt(2).assert(hasTestTag("$artistTag-chip-Vincent van Gogh"))
+      val row = composeTestRule.onNodeWithTag(selectedRowTag)
+      row.assertIsDisplayed()
+      row.performScrollToIndex(index)
+      row.onChildren().onLast().assert(hasTestTag("$artistTag-chip-$name"))
+    }
   }
 
   @Test
