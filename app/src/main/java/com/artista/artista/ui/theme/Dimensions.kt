@@ -99,7 +99,11 @@ internal object Dimensions {
   val overviewSearchBarHeight = standardControlHeight
   val overviewSearchBarElevation = 2.dp
   val overviewSectionTitleTopPadding = 8.dp
+  val overviewSectionSpacing = 24.dp
   val overviewGridItemSpacing = 12.dp
+
+  /** Width of a tile in the row of saved artworks close to the user. */
+  val overviewCloseSavedTileWidth = 160.dp
   val overviewEmptyStateHorizontalPadding = 24.dp
 
   // Artwork list cards, used by the overview list mode.

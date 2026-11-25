@@ -14,10 +14,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material.icons.outlined.GridView
@@ -55,6 +60,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
+import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
 import com.artista.artista.model.artwork.mockArtworks
 import com.artista.artista.model.error.AppException
@@ -88,6 +94,8 @@ object OverviewTestTags {
   const val FILTER_ACTIVE = "overview_filter_active"
   const val EMPTY_FILTER_RESULTS = "overview_empty_filter_results"
   const val CLEAR_FILTERS_BUTTON = "overview_clear_filters_button"
+  const val CLOSE_SAVED_ARTWORKS = "overview_close_saved_artworks"
+  const val CLOSE_SAVED_ARTWORK_ITEM = "overview_close_saved_artwork_item"
   const val NEARBY_ARTWORKS_TITLE = "overview_nearby_artworks_title"
   const val DISPLAY_MODE_BUTTON = "overview_display_mode_button"
 }
@@ -226,7 +234,11 @@ fun OverviewScreen(
           actionTestTag = OverviewTestTags.SAVED_ARTWORKS_BUTTON,
           modifier = contentModifier.testTag(OverviewTestTags.ERROR_MESSAGE),
       )
-    } else if (uiState.artworks.isEmpty() && uiState.activeFilter.isActive()) {
+    } else if (
+        uiState.artworks.isEmpty() &&
+            uiState.closeSavedArtworks.isEmpty() &&
+            uiState.activeFilter.isActive()
+    ) {
       OverviewMessageWithAction(
           message = stringResource(R.string.overview_empty_filter_results),
           actionLabel = stringResource(R.string.overview_clear_filters),
@@ -248,10 +260,11 @@ fun OverviewScreen(
 }
 
 /**
- * Displays the scrolling content of the overview: the section title with the layout button,
- * followed by the nearby artworks as a grid or as a list.
+ * Displays the scrolling content of the overview: the saved artworks close to the user in a
+ * horizontal row, followed by the nearby artworks as a grid or as a list.
  *
- * The title lives in the lazy grid as a full-width item so that it scrolls with the artworks.
+ * Both sections live in one lazy grid so that the whole screen scrolls together, the full-width
+ * items spanning every column.
  *
  * @param uiState state providing the artworks, their saved status and the display mode
  * @param onArtworkClick called when an artwork is selected to open its details
@@ -271,9 +284,15 @@ private fun OverviewArtworks(
     modifier: Modifier = Modifier,
 ) {
   val isGrid = uiState.displayMode == OverviewDisplayMode.GRID
+  val gridState = rememberLazyGridState()
+  KeepCloseSavedArtworksInView(
+      hasCloseSavedArtworks = uiState.closeSavedArtworks.isNotEmpty(),
+      gridState = gridState,
+  )
   LazyVerticalGrid(
       columns = GridCells.Fixed(if (isGrid) GRID_COLUMNS else LIST_COLUMNS),
       modifier = modifier.testTag(OverviewTestTags.ARTWORK_LIST),
+      state = gridState,
       contentPadding =
           PaddingValues(
               horizontal = Dimensions.overviewListHorizontalPadding,
@@ -282,10 +301,29 @@ private fun OverviewArtworks(
       horizontalArrangement = Arrangement.spacedBy(Dimensions.overviewGridItemSpacing),
       verticalArrangement = Arrangement.spacedBy(Dimensions.overviewGridItemSpacing),
   ) {
+    if (uiState.closeSavedArtworks.isNotEmpty()) {
+      item(key = CLOSE_SAVED_TITLE_KEY, span = { GridItemSpan(maxLineSpan) }) {
+        OverviewSectionTitle(text = stringResource(R.string.overview_close_saved_artworks_title))
+      }
+      item(key = CLOSE_SAVED_ROW_KEY, span = { GridItemSpan(maxLineSpan) }) {
+        CloseSavedArtworksRow(
+            artworks = uiState.closeSavedArtworks,
+            savedArtworkIds = uiState.savedArtworkIds,
+            onArtworkClick = onArtworkClick,
+            onSaveClick = onSaveClick,
+            onMapClick = onMapClick,
+        )
+      }
+    }
     item(key = NEARBY_TITLE_KEY, span = { GridItemSpan(maxLineSpan) }) {
       NearbyArtworksHeader(
           displayMode = uiState.displayMode,
           onDisplayModeClick = onDisplayModeClick,
+          // Separates the two sections more than two rows of the same section.
+          modifier =
+              if (uiState.closeSavedArtworks.isNotEmpty())
+                  Modifier.padding(top = Dimensions.overviewSectionSpacing)
+              else Modifier,
       )
     }
     items(uiState.artworks, key = { it.uid }) { artwork ->
@@ -310,6 +348,73 @@ private fun OverviewArtworks(
             modifier = itemModifier,
         )
       }
+    }
+  }
+}
+
+/**
+ * Keeps the screen starting at the close saved artworks when they appear above the nearby ones.
+ *
+ * Saved artworks usually load after the nearby artworks. A lazy grid keeps its first visible item
+ * in place when items are inserted before it, so without this the close row would be added above
+ * the viewport and the screen would open on the nearby artworks. Users who already scrolled down
+ * keep their position.
+ *
+ * @param hasCloseSavedArtworks whether the close saved artworks row is displayed
+ * @param gridState state of the lazy grid holding the row
+ * @author hixeum
+ */
+@Composable
+private fun KeepCloseSavedArtworksInView(
+    hasCloseSavedArtworks: Boolean,
+    gridState: LazyGridState,
+) {
+  // A plain holder rather than a snapshot state: it is read and written during composition and
+  // must not trigger another recomposition.
+  val wasShown = remember { BooleanArray(1) }
+  if (hasCloseSavedArtworks && !wasShown[0]) {
+    // Read before the next measure, so these still describe the grid without the new row.
+    val isAtTop =
+        gridState.firstVisibleItemIndex == 0 && gridState.firstVisibleItemScrollOffset == 0
+    // Requested during composition so that it overrides the anchoring of the coming measure.
+    if (isAtTop) gridState.requestScrollToItem(0)
+  }
+  wasShown[0] = hasCloseSavedArtworks
+}
+
+/**
+ * Displays the saved artworks close to the user as a horizontally scrolling row of tiles.
+ *
+ * @param artworks saved artworks close to the user
+ * @param savedArtworkIds identifiers of the artworks currently saved, to show each bookmark state
+ * @param onArtworkClick called when a tile is selected to open its details
+ * @param onSaveClick called when a tile's bookmark is selected
+ * @param onMapClick called when a tile's map action is selected
+ * @author hixeum
+ */
+@Composable
+private fun CloseSavedArtworksRow(
+    artworks: List<Artwork>,
+    savedArtworkIds: Set<ArtworkId>,
+    onArtworkClick: (Artwork) -> Unit,
+    onSaveClick: (Artwork) -> Unit,
+    onMapClick: (Artwork) -> Unit,
+) {
+  LazyRow(
+      modifier = Modifier.fillMaxWidth().testTag(OverviewTestTags.CLOSE_SAVED_ARTWORKS),
+      horizontalArrangement = Arrangement.spacedBy(Dimensions.overviewGridItemSpacing),
+  ) {
+    items(artworks, key = { it.uid }) { artwork ->
+      ArtworkTile(
+          artwork = artwork,
+          isSaved = artwork.uid in savedArtworkIds,
+          onClick = onArtworkClick,
+          onSaveClick = onSaveClick,
+          onMapClick = onMapClick,
+          modifier =
+              Modifier.width(Dimensions.overviewCloseSavedTileWidth)
+                  .testTag(OverviewTestTags.CLOSE_SAVED_ARTWORK_ITEM),
+      )
     }
   }
 }
@@ -466,6 +571,8 @@ private fun OverviewMessageWithAction(
 
 private const val GRID_COLUMNS = 2
 private const val LIST_COLUMNS = 1
+private const val CLOSE_SAVED_TITLE_KEY = "overview_close_saved_title"
+private const val CLOSE_SAVED_ROW_KEY = "overview_close_saved_row"
 private const val NEARBY_TITLE_KEY = "overview_nearby_title"
 
 /** Previews the overview screen with a sample set of artworks in Android Studio. */
