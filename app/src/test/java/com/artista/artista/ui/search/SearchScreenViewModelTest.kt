@@ -6,8 +6,10 @@ import androidx.compose.ui.text.TextRange
 import androidx.lifecycle.ViewModel
 import com.artista.artista.R
 import com.artista.artista.model.artist.Artist
+import com.artista.artista.model.artist.ArtistCandidate
 import com.artista.artista.model.artist.ArtistId
 import com.artista.artista.model.artwork.Artwork
+import com.artista.artista.model.artwork.ArtworkCandidate
 import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.ArtworkType
 import com.artista.artista.model.artwork.SavedArtworksRepository
@@ -57,12 +59,12 @@ class SearchScreenViewModelTest {
 
     assertEquals("star", viewModel.uiState.value.query)
     assertEquals(TextRange(2), viewModel.uiState.value.selection)
-    assertEquals(listOf("starryId"), viewModel.uiState.value.recommendations.map { it.uid })
+    assertEquals(listOf("starryId"), viewModel.uiState.value.savedRecommendations.map { it.uid })
     assertEquals(
         listOf("The Starry Night"),
-        viewModel.uiState.value.recommendations.map { it.name },
+        viewModel.uiState.value.savedRecommendations.map { it.name },
     )
-    assertTrue(viewModel.uiState.value.artworks.isEmpty())
+    assertTrue(viewModel.uiState.value.resultArtworks.isEmpty())
   }
 
   @Test
@@ -81,7 +83,7 @@ class SearchScreenViewModelTest {
     viewModel.onSearchInputChanged("star", TextRange(4))
     advanceUntilIdle()
 
-    assertEquals(listOf("starryId"), viewModel.uiState.value.recommendations.map { it.uid })
+    assertEquals(listOf("starryId"), viewModel.uiState.value.savedRecommendations.map { it.uid })
   }
 
   @Test
@@ -100,7 +102,7 @@ class SearchScreenViewModelTest {
     advanceUntilIdle()
 
     assertTrue(viewModel.uiState.value.savedArtworks.isEmpty())
-    assertEquals(listOf(SearchTestData.starryNight), viewModel.uiState.value.artworks)
+    assertEquals(listOf(SearchTestData.starryNight), viewModel.uiState.value.resultArtworks)
     assertFalse(viewModel.uiState.value.isLoading)
   }
 
@@ -132,22 +134,33 @@ class SearchScreenViewModelTest {
             throw NotImplementedError("Should not be used in this test")
           }
 
+          override suspend fun getArtworkCandidates(
+              query: String,
+              typeValues: List<ArtworkType>,
+              limit: Int,
+          ): List<ArtworkCandidate> {
+            throw NotImplementedError("Should not be used in this test")
+          }
+
           override suspend fun getArtist(uid: ArtistId): Artist? {
             throw NotImplementedError("Should not be used in this test")
           }
 
-          override suspend fun getArtistFromName(query: String): Artist? {
+          override suspend fun getArtistCandidates(
+              query: String,
+              limit: Int,
+          ): List<ArtistCandidate> {
             throw NotImplementedError("Should not be used in this test")
           }
 
-          override suspend fun getPopularArtists(): List<Artist> {
+          override suspend fun getArtistsFromQuery(query: String, limit: Int): List<Artist> {
             throw NotImplementedError("Should not be used in this test")
           }
 
           override suspend fun getArtwork(uid: ArtworkId): Artwork =
               throw NoSuchElementException("No artwork matching uid $uid was found")
 
-          override suspend fun searchArtworks(
+          override suspend fun getArtworksFromQuery(
               artworkTitle: String,
               typeValues: List<ArtworkType>,
               limit: Int,
@@ -162,7 +175,7 @@ class SearchScreenViewModelTest {
     assertEquals(R.string.error_network, viewModel.uiState.value.fetchErrorMessageResId)
     assertFalse(viewModel.uiState.value.hasInvalidSearchInput)
     assertFalse(viewModel.uiState.value.isLoading)
-    assertTrue(viewModel.uiState.value.artworks.isEmpty())
+    assertTrue(viewModel.uiState.value.resultArtworks.isEmpty())
 
     viewModel.clearSearchError()
 
@@ -173,12 +186,12 @@ class SearchScreenViewModelTest {
   fun onSearchSubmitted_withInvalidInputMarksSearchFieldUntilEdited() = runTest {
     val wikiRepository =
         object : WikiDataRepository by SearchTestData.wikiDataRepository() {
-          override suspend fun searchArtworks(
+          override suspend fun getArtworksFromQuery(
               artworkTitle: String,
               typeValues: List<ArtworkType>,
               limit: Int,
           ): List<Artwork> {
-            throw AppException.InvalidInput("Invalid search text")
+            throw AppException.InvalidInput("Invalid search query")
           }
         }
     val viewModel = SearchScreenViewModel(SearchTestData.savedArtworksRepository(), wikiRepository)
@@ -209,7 +222,7 @@ class SearchScreenViewModelTest {
     assertEquals("van gogh", viewModel.uiState.value.query)
     assertEquals(
         listOf("The Starry Night", "Sunflowers"),
-        viewModel.uiState.value.artworks.map { it.name },
+        viewModel.uiState.value.resultArtworks.map { it.name },
     )
   }
 
@@ -228,7 +241,7 @@ class SearchScreenViewModelTest {
   }
 
   @Test
-  fun toggleArtworkType_doesNotAllowRemovingLastSelectedType() = runTest {
+  fun toggleArtworkTypedoesNotAllowRemovingLastSelectedType() = runTest {
     val viewModel =
         SearchScreenViewModel(
             SearchTestData.savedArtworksRepository(),
@@ -250,7 +263,23 @@ class SearchScreenViewModelTest {
     val wikiRepository =
         object : WikiDataRepository {
 
-          override suspend fun getArtistFromName(query: String): Artist? {
+          override suspend fun getArtworksFromQuery(
+              searchQuery: String,
+              typeValues: List<ArtworkType>,
+              limit: Int,
+          ): List<Artwork> = results.await()
+
+          override suspend fun getArtistCandidates(
+              query: String,
+              limit: Int,
+          ): List<ArtistCandidate> {
+            throw NotImplementedError("Should not be used in this test")
+          }
+
+          override suspend fun getArtistsFromQuery(
+              query: String,
+              limit: Int,
+          ): List<Artist> {
             throw NotImplementedError("Should not be used in this test")
           }
 
@@ -266,18 +295,16 @@ class SearchScreenViewModelTest {
             throw NotImplementedError("Should not be used in this test")
           }
 
-          override suspend fun getPopularArtists(): List<Artist> {
-            throw NotImplementedError("Not yet implemented")
+          override suspend fun getArtworkCandidates(
+              query: String,
+              typeValues: List<ArtworkType>,
+              limit: Int,
+          ): List<ArtworkCandidate> {
+            throw NotImplementedError("Should not be used in this test")
           }
 
           override suspend fun getArtwork(uid: ArtworkId): Artwork =
               throw NoSuchElementException("No artwork matching uid $uid was found")
-
-          override suspend fun searchArtworks(
-              artworkTitle: String,
-              typeValues: List<ArtworkType>,
-              limit: Int,
-          ): List<Artwork> = results.await()
         }
     val viewModel = SearchScreenViewModel(SearchTestData.savedArtworksRepository(), wikiRepository)
 
@@ -289,7 +316,7 @@ class SearchScreenViewModelTest {
     advanceUntilIdle()
 
     assertFalse(viewModel.uiState.value.isLoading)
-    assertEquals(listOf(SearchTestData.starryNight), viewModel.uiState.value.artworks)
+    assertEquals(listOf(SearchTestData.starryNight), viewModel.uiState.value.resultArtworks)
   }
 
   @Test
@@ -298,7 +325,18 @@ class SearchScreenViewModelTest {
     val vanGoghResults = CompletableDeferred<List<Artwork>>()
     val wikiRepository =
         object : WikiDataRepository {
-          override suspend fun getArtistFromName(query: String): Artist? {
+
+          override suspend fun getArtistCandidates(
+              query: String,
+              limit: Int,
+          ): List<ArtistCandidate> {
+            throw NotImplementedError("Should not be used in this test")
+          }
+
+          override suspend fun getArtistsFromQuery(
+              query: String,
+              limit: Int,
+          ): List<Artist> {
             throw NotImplementedError("Should not be used in this test")
           }
 
@@ -314,14 +352,18 @@ class SearchScreenViewModelTest {
             throw NotImplementedError("Should not be used in this test")
           }
 
-          override suspend fun getPopularArtists(): List<Artist> {
-            throw NotImplementedError("Not yet implemented")
+          override suspend fun getArtworkCandidates(
+              query: String,
+              typeValues: List<ArtworkType>,
+              limit: Int,
+          ): List<ArtworkCandidate> {
+            throw NotImplementedError("Should not be used in this test")
           }
 
           override suspend fun getArtwork(uid: ArtworkId): Artwork =
               throw NoSuchElementException("No artwork matching uid $uid was found")
 
-          override suspend fun searchArtworks(
+          override suspend fun getArtworksFromQuery(
               artworkTitle: String,
               typeValues: List<ArtworkType>,
               limit: Int,
@@ -346,7 +388,7 @@ class SearchScreenViewModelTest {
     advanceUntilIdle()
 
     assertEquals("van Gogh", viewModel.uiState.value.query)
-    assertEquals(listOf(SearchTestData.starryNight), viewModel.uiState.value.artworks)
+    assertEquals(listOf(SearchTestData.starryNight), viewModel.uiState.value.resultArtworks)
     assertFalse(viewModel.uiState.value.isLoading)
   }
 
@@ -363,7 +405,7 @@ class SearchScreenViewModelTest {
     advanceUntilIdle()
 
     assertEquals(" ", viewModel.uiState.value.query)
-    assertTrue(viewModel.uiState.value.recommendations.isEmpty())
+    assertTrue(viewModel.uiState.value.savedRecommendations.isEmpty())
   }
 
   @Test

@@ -28,8 +28,8 @@ import kotlinx.coroutines.flow.update
  * @property selection current cursor or text selection range
  * @property savedArtworks artworks saved by the current user
  * @property typeValues artwork types included in submitted searches
- * @property recommendations saved artworks matching the current query
- * @property artworks results returned for the submitted query
+ * @property savedRecommendations saved artworks matching the current query
+ * @property resultArtworks results returned for the submitted query
  * @property isLoading whether submitted search results are being fetched
  * @property hasInvalidSearchInput whether the last search failed because its input was invalid
  * @property hasAlreadySearched whether a search as already been submitted
@@ -44,8 +44,8 @@ data class SearchScreenUiState(
     val selection: TextRange = TextRange.Zero,
     val savedArtworks: List<Artwork> = emptyList(),
     val typeValues: List<ArtworkType> = ArtworkType.entries,
-    val recommendations: List<Artwork> = emptyList(),
-    val artworks: List<Artwork> = emptyList(),
+    val savedRecommendations: List<Artwork> = emptyList(),
+    val resultArtworks: List<Artwork> = emptyList(),
     val isLoading: Boolean = false,
     val hasInvalidSearchInput: Boolean = false,
     val hasAlreadySearched: Boolean = false,
@@ -78,7 +78,9 @@ class SearchScreenViewModel(
         onError = { error ->
           if (error is AppException.Unauthorized) {
             // Signed-out users can still search; they just have no saved-artwork recommendations.
-            _uiState.update { it.copy(savedArtworks = emptyList(), recommendations = emptyList()) }
+            _uiState.update {
+              it.copy(savedArtworks = emptyList(), savedRecommendations = emptyList())
+            }
           } else {
             _uiState.update { it.copy(fetchErrorMessageResId = error.toMessageRes()) }
           }
@@ -88,7 +90,7 @@ class SearchScreenViewModel(
       _uiState.update {
         it.copy(
             savedArtworks = savedArtworks,
-            recommendations = recommendationsFor(it.query, savedArtworks),
+            savedRecommendations = recommendationsFor(it.query, savedArtworks),
         )
       }
     }
@@ -112,8 +114,8 @@ class SearchScreenViewModel(
         currentState.copy(
             query = query,
             selection = selection,
-            recommendations = recommendationsFor(query, currentState.savedArtworks),
-            artworks = currentState.artworks,
+            savedRecommendations = recommendationsFor(query, currentState.savedArtworks),
+            resultArtworks = currentState.resultArtworks,
             isLoading = if (queryChanged) false else currentState.isLoading,
             fetchErrorMessageResId = null,
             hasInvalidSearchInput = false,
@@ -135,8 +137,8 @@ class SearchScreenViewModel(
     _uiState.value =
         _uiState.value.copy(
             query = query,
-            recommendations = emptyList(),
-            artworks = if (query.isBlank()) emptyList() else _uiState.value.artworks,
+            savedRecommendations = emptyList(),
+            resultArtworks = if (query.isBlank()) emptyList() else _uiState.value.resultArtworks,
             isLoading = query.isNotBlank(),
             fetchErrorMessageResId = null,
             hasInvalidSearchInput = false,
@@ -151,7 +153,7 @@ class SearchScreenViewModel(
               if (requestId == searchRequestId) {
                 _uiState.update {
                   it.copy(
-                      artworks = emptyList(),
+                      resultArtworks = emptyList(),
                       isLoading = false,
                       fetchErrorMessageResId = error.toMessageRes(),
                       hasInvalidSearchInput = error is AppException.InvalidInput,
@@ -160,11 +162,11 @@ class SearchScreenViewModel(
               }
             },
         ) {
-          val results = wikiDataRepository.searchArtworks(query, typeValues)
+          val results = wikiDataRepository.getArtworksFromQuery(query, typeValues)
           if (requestId == searchRequestId) {
             _uiState.update {
               it.copy(
-                  artworks = results,
+                  resultArtworks = results,
                   isLoading = false,
                   fetchErrorMessageResId = null,
                   hasInvalidSearchInput = false,
@@ -225,7 +227,7 @@ class SearchScreenViewModel(
           _uiState.update {
             it.copy(
                 savedArtworks = savedArtworks,
-                recommendations = recommendationsFor(it.query, savedArtworks),
+                savedRecommendations = recommendationsFor(it.query, savedArtworks),
                 saveErrorMessageResId = null,
             )
           }

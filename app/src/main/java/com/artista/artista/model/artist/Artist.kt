@@ -34,3 +34,13 @@ data class Artist(
 
 /** Stable identifier type for an artist. */
 typealias ArtistId = String
+
+enum class ArtistOccupation(val qid: String) {
+  PAINTER("Q1028181"), // painter
+  SCULPTOR("Q1281618"), // sculptor
+  PHOTOGRAPHER("Q33231"), // photographer
+  VISUAL_ARTIST("Q3391743"), // visual artist, a common generic value
+  ARTIST("Q483501"), // artist, the most generic value
+  ILLUSTRATOR("Q644687"), // illustrator
+  ARCHITECT("Q42973"), // architect
+}

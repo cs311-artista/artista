@@ -152,7 +152,7 @@ fun SearchScreen(
       topBar = {
         SearchInput(
             textFieldState = textFieldState,
-            recommendations = uiState.recommendations,
+            recommendations = uiState.savedRecommendations,
             selectedTypeValues = uiState.typeValues,
             hasInvalidSearchInput = uiState.hasInvalidSearchInput,
             onQueryChanged = viewModel::onSearchInputChanged,
@@ -181,12 +181,14 @@ fun SearchScreen(
         )
       }
     } else if (
-        uiState.artworks.isEmpty() && uiState.hasAlreadySearched && !uiState.hasInvalidSearchInput
+        uiState.resultArtworks.isEmpty() &&
+            uiState.hasAlreadySearched &&
+            !uiState.hasInvalidSearchInput
     ) {
       EmptySearchResults(modifier = Modifier.fillMaxSize().padding(contentPadding))
     } else {
       ArtworkResults(
-          artworks = uiState.artworks,
+          artworks = uiState.resultArtworks,
           savedArtworkIds = uiState.savedArtworks.map { it.uid }.toSet(),
           onArtworkClick = onArtworkClick,
           onMapClick = onMapClick,
