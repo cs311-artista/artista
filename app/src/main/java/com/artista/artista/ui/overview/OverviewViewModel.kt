@@ -100,6 +100,8 @@ class OverviewViewModel(
 
   private val pendingSavedArtworkIds = mutableSetOf<ArtworkId>()
 
+  private var refreshJob: Job? = null
+
   init {
     refreshUiState()
     refreshSavedArtworkIds()
@@ -108,30 +110,39 @@ class OverviewViewModel(
   /**
    * Refreshes the Overview state by loading artworks from the repository.
    *
-   * @author patrickmcdan
+   * A call made while a previous load is still running is ignored.
+   *
+   * @author patrickmcdan, Timz3rr
    */
   fun refreshUiState() {
-    viewModelScope.launchCatching(
-        tag = TAG,
-        onError = { error -> _uiState.update { it.copy(errorMessageRes = error.toMessageRes()) } },
-    ) {
-      val userLocation = locationProvider.getUserLocation()
-      val searchArea = SearchArea(userLocation.latitude, userLocation.longitude, 50.0)
+    // The screen can ask for a refresh several times in a row at startup (permission check and
+    // resume). Each call would send the same heavy Wikidata query, and a duplicate that fails would
+    // replace the artworks loaded by the other with an error.
+    if (refreshJob?.isActive == true) return
+    refreshJob =
+        viewModelScope.launchCatching(
+            tag = TAG,
+            onError = { error ->
+              _uiState.update { it.copy(errorMessageRes = error.toMessageRes()) }
+            },
+        ) {
+          val userLocation = locationProvider.getUserLocation()
+          val searchArea = SearchArea(userLocation.latitude, userLocation.longitude, 50.0)
 
-      allArtworks = artworkRepository.getArtworksNearLocation(searchArea, limit = 100)
-      _uiState.update { current ->
-        val activeFilter = current.activeFilter
-        current.copy(
-            artworks = allArtworks.applyFilter(activeFilter),
-            userLocation = userLocation,
-            closeSavedArtworks = closeSavedArtworks(userLocation, activeFilter),
-            artistOptions = artistOptions(allArtworks),
-            museumOptions = museumOptions(allArtworks),
-            locationOptions = locationOptions(allArtworks),
-            errorMessageRes = null,
-        )
-      }
-    }
+          allArtworks = artworkRepository.getArtworksNearLocation(searchArea, limit = 100)
+          _uiState.update { current ->
+            val activeFilter = current.activeFilter
+            current.copy(
+                artworks = allArtworks.applyFilter(activeFilter),
+                userLocation = userLocation,
+                closeSavedArtworks = closeSavedArtworks(userLocation, activeFilter),
+                artistOptions = artistOptions(allArtworks),
+                museumOptions = museumOptions(allArtworks),
+                locationOptions = locationOptions(allArtworks),
+                errorMessageRes = null,
+            )
+          }
+        }
   }
 
   /**

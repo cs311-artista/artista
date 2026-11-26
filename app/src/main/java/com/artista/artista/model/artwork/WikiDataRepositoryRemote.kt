@@ -10,6 +10,7 @@ import com.artista.artista.model.artist.RemoteArtistRepository
 import com.artista.artista.model.error.AppException
 import java.text.Normalizer
 import java.util.Locale
+import java.util.concurrent.TimeUnit
 import kotlin.collections.forEach
 import kotlin.collections.ifEmpty
 import kotlin.collections.map
@@ -35,6 +36,23 @@ import okio.IOException
  * user-agent policy rejects generic clients, so requests identify the app and link to its project.
  */
 const val WIKIMEDIA_USER_AGENT = "Artista/1.0 (https://github.com/cs311-artista/artista)"
+
+/** Longest time, in seconds, a Wikidata request may take before it fails. */
+internal const val WIKIDATA_TIMEOUT_SECONDS = 30L
+
+/**
+ * Creates the HTTP client used for Wikidata requests.
+ *
+ * @return a client whose requests fail after [WIKIDATA_TIMEOUT_SECONDS]
+ * @author Timz3rr
+ */
+internal fun createWikiDataHttpClient(): OkHttpClient =
+    OkHttpClient.Builder()
+        .callTimeout(WIKIDATA_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        // The SPARQL service only sends the response headers once the query is done, and a nearby
+        // artworks query regularly takes more than OkHttp's default 10 second read timeout.
+        .readTimeout(WIKIDATA_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        .build()
 
 /**
  * Constants for Wikidata item identifiers.
@@ -86,8 +104,7 @@ enum class WikiDataItems(val qid: String) {
  * @author IJJA3141
  */
 class WikiDataRepositoryRemote(
-    private val client: OkHttpClient =
-        OkHttpClient().newBuilder().callTimeout(30, java.util.concurrent.TimeUnit.SECONDS).build(),
+    private val client: OkHttpClient = createWikiDataHttpClient(),
     private val jsonResponseParser: JsonResponseParser = JsonResponseParser(),
     private val caches: WikiDataCaches = WikiDataCaches(),
 ) : WikiDataRepository {
