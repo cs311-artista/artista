@@ -6,8 +6,6 @@ package com.artista.artista.e2e
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.ComposeTimeoutException
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertIsOff
-import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.isDisplayed
@@ -48,9 +46,9 @@ import org.junit.runner.RunWith
  * Exercises the currently wired end-to-end user journey.
  *
  * The journey signs in, visits Search, Map, artwork details, the Profile area and Saved Artworks,
- * verifies that two artworks can be saved, removes the first one from Saved Artworks, and verifies
- * that an artist preference card changes appearance when selected and deselected. It ends by
- * logging back out to the authentication screen.
+ * verifies that two artworks can be saved, removes the first one from Saved Artworks, and opens
+ * Artist Preferences once its saved artists have loaded. It ends by logging back out to the
+ * authentication screen.
  *
  * @author 5kyPhy
  */
@@ -100,8 +98,7 @@ class CurrentAppUserJourneyTest {
    *
    * The test asserts the initial authentication screen, the destination after each navigation
    * action, the selected bottom-navigation tab where applicable, the two saved-artwork cards, the
-   * removal of the first card from Saved Artworks, and the visual selection state of an artist
-   * preference card.
+   * removal of the first card from Saved Artworks, and that Artist Preferences finishes loading.
    */
   @Test
   fun currentUserJourney_signsInReachesEveryScreen() {
@@ -129,7 +126,7 @@ class CurrentAppUserJourneyTest {
     unsaveFromSavedArtworks()
     composeTestRule.waitForIdle()
 
-    // From Profile, verify that selecting and deselecting an artist changes its appearance.
+    // From Profile, verify that either the grid or empty state appears on ArtistPreferencesScreen
     openPreferences()
     composeTestRule.waitForIdle()
 
@@ -140,7 +137,10 @@ class CurrentAppUserJourneyTest {
     // Log-out through profile screen and check that it returns to log-in screen. The logout signs
     // out through the repository, so the gate, not a navigation action, brings the sign-in screen
     // back.
-    composeTestRule.onNodeWithTag(UserProfileTestTags.LOGOUT_BUTTON).assertIsDisplayed()
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.LOGOUT_BUTTON)
+        .performScrollTo()
+        .assertIsDisplayed()
     composeTestRule.onNodeWithTag(UserProfileTestTags.LOGOUT_BUTTON).performClick()
     waitUntilDisplayed(C.Tag.auth_screen_container)
   }
@@ -276,25 +276,20 @@ class CurrentAppUserJourneyTest {
   }
 
   /**
-   * Opens Artist Preferences, verifies that clicking an artist changes its selected appearance, and
-   * returns to Profile.
+   * Opens Artist Preferences, waits until its saved artists have loaded, and returns to Profile.
+   *
+   * The screen reads the user from the application's auth and user repositories, not from the fakes
+   * of this journey, so it may show either saved artists or the empty state; both mean the load
+   * ended. Removing an artist is covered by MilestoneTwoUserJourneyTest, which controls them.
    */
   private fun openPreferences() {
     composeTestRule.onNodeWithTag(UserProfileTestTags.PREFERENCES_BUTTON).performClick()
     waitUntilDisplayed(ArtistPreferencesTestTags.SCREEN)
-    // The grid only appears once the saved artists have loaded; a spinner replaces it until then.
-    waitUntilDisplayed(ArtistPreferencesTestTags.ARTISTS_GRID)
-
-    val artistCard = ArtistPreferencesTestTags.getArtistCardTestTag("mock-artist-001")
-    composeTestRule
-        .onNodeWithTag(ArtistPreferencesTestTags.ARTISTS_GRID)
-        .performScrollToNode(hasTestTag(artistCard))
-    composeTestRule.onNodeWithTag(artistCard).assertIsOff().performClick()
-    composeTestRule.waitForIdle()
-    composeTestRule.onNodeWithTag(artistCard).assertIsOn()
-    composeTestRule.onNodeWithTag(artistCard).performClick()
-    composeTestRule.waitForIdle()
-    composeTestRule.onNodeWithTag(artistCard).assertIsOff()
+    composeTestRule.waitUntil(timeoutMillis) {
+      listOf(ArtistPreferencesTestTags.ARTISTS_GRID, ArtistPreferencesTestTags.EMPTY_STATE).any {
+        composeTestRule.onAllNodesWithTag(it).fetchSemanticsNodes().isNotEmpty()
+      }
+    }
 
     composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.BACK_BUTTON).performClick()
     waitUntilDisplayed(UserProfileTestTags.SCREEN)

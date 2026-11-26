@@ -10,6 +10,7 @@ import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertContentDescriptionEquals
+import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -17,8 +18,11 @@ import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextReplacement
@@ -43,6 +47,7 @@ import com.artista.artista.utils.TEST_OTHER_PICTURE_URL
 import com.artista.artista.utils.TEST_PICTURE_URL
 import com.artista.artista.utils.userNamed
 import org.junit.After
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -73,7 +78,7 @@ class UserProfileScreenTest {
     SingletonImageLoader.reset()
   }
 
-  /** Verifies that the profile preview renders the profile and username. */
+  /** Verifies that the profile preview renders the profile and its Name card. */
   @Test
   fun userProfileScreenPreview_displaysSampleProfile() {
     composeTestRule.setContent { UserProfileScreenPreview() }
@@ -96,9 +101,8 @@ class UserProfileScreenTest {
     setProfileContent()
 
     composeTestRule.onNodeWithTag(UserProfileTestTags.SCREEN).assertIsDisplayed()
-    composeTestRule.onNodeWithTag(UserProfileTestTags.LOGOUT_BUTTON).assertIsDisplayed()
     composeTestRule.onNodeWithTag(NavigationTestTags.BOTTOM_NAVIGATION_MENU).assertIsDisplayed()
-    // The content scrolls on small screens, such as the CI emulator, so it may start off screen.
+    // The content scrolls on small screens, such as the CI emulator, so it may start off-screen.
     composeTestRule
         .onNodeWithTag(UserProfileTestTags.PROFILE_PICTURE)
         .performScrollTo()
@@ -115,40 +119,27 @@ class UserProfileScreenTest {
         .onNodeWithTag(UserProfileTestTags.SAVED_ARTWORK_BUTTON)
         .performScrollTo()
         .assertIsDisplayed()
-  }
-
-  /** Verifies that a placeholder is displayed when the user has no username. */
-  @Test
-  fun userProfileScreen_showsPlaceholder_whenUserHasNoUsername() {
-    val viewModel = signedOutViewModel().apply { setUser(userNamed(null)) }
-    setProfileContent(viewModel = viewModel)
-
     composeTestRule
-        .onNodeWithTag(UserProfileTestTags.USERNAME)
-        .assertTextEquals(composeTestRule.activity.getString(R.string.profile_username_placeholder))
+        .onNodeWithTag(UserProfileTestTags.LOGOUT_BUTTON)
+        .performScrollTo()
+        .assertIsDisplayed()
   }
 
-  /** Verifies that the username of the user is displayed. */
+  /** Verifies that the username prefilled in the edit dialog follows the state of the ViewModel. */
   @Test
-  fun userProfileScreen_showsUsername_whenUserHasUsername() {
-    val viewModel = signedOutViewModel().apply { setUser(userNamed("Alice")) }
-    setProfileContent(viewModel = viewModel)
-
-    composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME).assertTextEquals("Alice")
-  }
-
-  /** Verifies that the displayed username follows the state of the ViewModel. */
-  @Test
-  fun userProfileScreen_updatesUsername_whenUserChanges() {
+  fun usernameDialog_prefillsUsername_whenUserChanges() {
     val viewModel = signedOutViewModel()
     setProfileContent(viewModel = viewModel)
 
     composeTestRule.runOnIdle { viewModel.setUser(userNamed("Bob")) }
+    openUsernameDialog()
 
-    composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME).assertTextEquals("Bob")
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.USERNAME_FIELD)
+        .assertEditableTextEquals("Bob")
   }
 
-  /** Verifies that the preferences and saved artwork buttons display their labels. */
+  /** Verifies that the preferences and saved artwork cards display their titles. */
   @Test
   fun userProfileScreen_displaysButtonLabels() {
     setProfileContent()
@@ -159,6 +150,218 @@ class UserProfileScreenTest {
     composeTestRule
         .onNodeWithTag(UserProfileTestTags.SAVED_ARTWORK_BUTTON)
         .assertTextContains(composeTestRule.activity.getString(R.string.profile_saved_artwork))
+  }
+
+  /** Verifies that the header shows the title and subtitle of the screen. */
+  @Test
+  fun userProfileScreen_displaysHeader() {
+    setProfileContent()
+
+    composeTestRule.onNodeWithText(string(R.string.profile_title)).assertIsDisplayed()
+    composeTestRule.onNodeWithText(string(R.string.profile_subtitle)).assertIsDisplayed()
+  }
+
+  /** Verifies that the personal space label sits above the cards. */
+  @Test
+  fun userProfileScreen_displaysPersonalSpaceLabel() {
+    setProfileContent()
+
+    composeTestRule
+        .onNodeWithText(string(R.string.profile_personal_space))
+        .performScrollTo()
+        .assertIsDisplayed()
+  }
+
+  /** Verifies that each personal space card shows its title and subtitle. */
+  @Test
+  fun personalSpaceCards_displayTheirTitlesAndSubtitles() {
+    setProfileContent()
+
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.USERNAME)
+        .assertTextContains(string(R.string.profile_name))
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.PREFERENCES_BUTTON)
+        .assertTextContains(string(R.string.profile_preferences_subtitle))
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.SAVED_ARTWORK_BUTTON)
+        .assertTextContains(string(R.string.profile_saved_artwork_subtitle))
+  }
+
+  /** Verifies that the Name card shows the username as its subtitle instead of the prompt. */
+  @Test
+  fun nameCard_showsUsernameAsSubtitle_whenUserHasUsername() {
+    setProfileContentFor(userNamed("Alice"))
+
+    val nameCard = composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME)
+    nameCard.assertTextContains("Alice")
+    nameCard.assert(!hasText(string(R.string.profile_name_subtitle)))
+  }
+
+  /** Verifies that the Name card falls back to the prompt when the user has no username. */
+  @Test
+  fun nameCard_showsPrompt_whenUserHasNoUsername() {
+    setProfileContentFor(userNamed(null))
+
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.USERNAME)
+        .assertTextContains(string(R.string.profile_name_subtitle))
+  }
+
+  /** Verifies that the Name card subtitle follows the state of the ViewModel. */
+  @Test
+  fun nameCard_updatesSubtitle_whenUserChanges() {
+    val viewModel = signedOutViewModel()
+    setProfileContent(viewModel = viewModel)
+
+    composeTestRule.runOnIdle { viewModel.setUser(userNamed("Bob")) }
+
+    composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME).assertTextContains("Bob")
+  }
+
+  /** Verifies that a username saved from the dialog shows up on the Name card. */
+  @Test
+  fun usernameDialog_save_showsNewUsernameOnNameCard() {
+    setProfileContentFor(userNamed("Alice"))
+
+    openUsernameDialog()
+    composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME_FIELD).performTextReplacement("Bob")
+    composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME_SAVE).performClick()
+
+    composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME).assertTextContains("Bob")
+  }
+
+  /** Verifies that the edit photo button is shown on the banner with its label. */
+  @Test
+  fun editPhotoButton_isDisplayedWithItsLabel() {
+    setProfileContent()
+
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.EDIT_PHOTO_BUTTON)
+        .performScrollTo()
+        .assertIsDisplayed()
+        .assertTextEquals(string(R.string.profile_edit_photo))
+  }
+
+  /** Verifies that the change photo sheet stays closed until the user asks for it. */
+  @Test
+  fun changePhotoSheet_isClosedByDefault() {
+    setProfileContent()
+
+    composeTestRule.onNodeWithTag(UserProfileTestTags.CHANGE_PHOTO_SHEET).assertDoesNotExist()
+  }
+
+  /** Verifies that clicking the edit photo button opens the sheet with all its elements. */
+  @Test
+  fun editPhotoButton_click_opensChangePhotoSheet() {
+    setProfileContent()
+
+    openChangePhotoSheet()
+
+    composeTestRule.onNodeWithTag(UserProfileTestTags.CHANGE_PHOTO_SHEET).assertIsDisplayed()
+    composeTestRule.onNodeWithText(string(R.string.profile_change_photo_title)).assertIsDisplayed()
+    composeTestRule
+        .onNodeWithText(string(R.string.profile_change_photo_subtitle))
+        .assertIsDisplayed()
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.CHANGE_PHOTO_LIBRARY_OPTION)
+        .assertIsDisplayed()
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.CHANGE_PHOTO_SAVED_ARTWORK_OPTION)
+        .assertIsDisplayed()
+    composeTestRule.onNodeWithTag(UserProfileTestTags.CHANGE_PHOTO_CANCEL).assertIsDisplayed()
+  }
+
+  /** Verifies that each option of the sheet shows its title and subtitle. */
+  @Test
+  fun changePhotoSheet_optionsDisplayTheirTitlesAndSubtitles() {
+    setProfileContent()
+
+    openChangePhotoSheet()
+
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.CHANGE_PHOTO_LIBRARY_OPTION)
+        .assertTextContains(string(R.string.profile_change_photo_library))
+        .assertTextContains(string(R.string.profile_change_photo_library_subtitle))
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.CHANGE_PHOTO_SAVED_ARTWORK_OPTION)
+        .assertTextContains(string(R.string.profile_change_photo_saved_artwork))
+        .assertTextContains(string(R.string.profile_change_photo_saved_artwork_subtitle))
+  }
+
+  /**
+   * Verifies that the photo source options are displayed but not clickable, since picking a photo
+   * is not implemented yet.
+   */
+  // TODO: update or remove this test when implementing the custom profile picture: it checks the
+  //  temporary state of the options, which must become clickable (see ChangePhotoSheet).
+  @Test
+  fun changePhotoSheet_optionsAreNotClickable() {
+    setProfileContent()
+
+    openChangePhotoSheet()
+
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.CHANGE_PHOTO_LIBRARY_OPTION)
+        .assertHasNoClickAction()
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.CHANGE_PHOTO_SAVED_ARTWORK_OPTION)
+        .assertHasNoClickAction()
+  }
+
+  /** Verifies that the cancel button closes the sheet. */
+  @Test
+  fun changePhotoSheet_cancel_closesSheet() {
+    setProfileContent()
+    openChangePhotoSheet()
+
+    composeTestRule.onNodeWithTag(UserProfileTestTags.CHANGE_PHOTO_CANCEL).performClick()
+
+    composeTestRule.onNodeWithTag(UserProfileTestTags.CHANGE_PHOTO_SHEET).assertDoesNotExist()
+  }
+
+  /** Verifies that the sheet can be opened again after being closed. */
+  @Test
+  fun changePhotoSheet_canBeReopenedAfterCancel() {
+    setProfileContent()
+    openChangePhotoSheet()
+    composeTestRule.onNodeWithTag(UserProfileTestTags.CHANGE_PHOTO_CANCEL).performClick()
+
+    openChangePhotoSheet()
+
+    composeTestRule.onNodeWithTag(UserProfileTestTags.CHANGE_PHOTO_SHEET).assertIsDisplayed()
+  }
+
+  /** Verifies that the sheet stays open when the screen state is restored, as on a rotation. */
+  @Test
+  fun changePhotoSheet_staysOpen_afterStateRestoration() {
+    val restorationTester = StateRestorationTester(composeTestRule)
+    val viewModel = signedOutViewModel()
+    restorationTester.setContent {
+      MaterialTheme { UserProfileScreen(onLogoutClick = {}, userProfileViewModel = viewModel) }
+    }
+    openChangePhotoSheet()
+
+    restorationTester.emulateSavedInstanceStateRestore()
+
+    composeTestRule.onNodeWithTag(UserProfileTestTags.CHANGE_PHOTO_SHEET).assertIsDisplayed()
+  }
+
+  /** Verifies that opening the sheet does not trigger any of the screen's callbacks. */
+  @Test
+  fun editPhotoButton_click_invokesNoCallback() {
+    var callbackInvoked = false
+    setProfileContent(
+        onLogoutClick = { callbackInvoked = true },
+        onPreferencesClick = { callbackInvoked = true },
+        onSavedArtworkClick = { callbackInvoked = true },
+        onTabSelected = { callbackInvoked = true },
+    )
+
+    openChangePhotoSheet()
+    composeTestRule.onNodeWithTag(UserProfileTestTags.CHANGE_PHOTO_CANCEL).performClick()
+
+    composeTestRule.runOnIdle { assertFalse(callbackInvoked) }
   }
 
   /** Verifies that the profile tab is the one selected in the bottom navigation. */
@@ -214,7 +417,11 @@ class UserProfileScreenTest {
     var logoutClicked = false
     setProfileContent(onLogoutClick = { logoutClicked = true })
 
-    composeTestRule.onNodeWithTag(UserProfileTestTags.LOGOUT_BUTTON).performClick()
+    // The button sits below the cards, so it may start off-screen on small displays.
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.LOGOUT_BUTTON)
+        .performScrollTo()
+        .performClick()
 
     // Fails if the button is wired to another callback, such as onPreferencesClick.
     assertTrue(logoutClicked)
@@ -230,7 +437,7 @@ class UserProfileScreenTest {
         .assertTextEquals(composeTestRule.activity.getString(R.string.profile_logout))
   }
 
-  /** Verifies that clicking the username opens the dialog used to edit it. */
+  /** Verifies that clicking the Name card opens the dialog used to edit the username. */
   @Test
   fun username_click_opensEditDialog() {
     setProfileContent()
@@ -253,7 +460,7 @@ class UserProfileScreenTest {
         .assertEditableTextEquals("Alice")
   }
 
-  /** Verifies that the placeholder is not copied into the field when the user has no username. */
+  /** Verifies that the field starts empty when the user has no username yet. */
   @Test
   fun usernameDialog_startsEmpty_whenUserHasNoUsername() {
     setProfileContent()
@@ -263,7 +470,7 @@ class UserProfileScreenTest {
     composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME_FIELD).assertEditableTextEquals("")
   }
 
-  /** Verifies that saving closes the dialog and displays the entered username. */
+  /** Verifies that saving closes the dialog and shows the new username on the card and dialog. */
   @Test
   fun usernameDialog_save_displaysNewUsername() {
     val viewModel = signedOutViewModel().apply { setUser(userNamed("Alice")) }
@@ -274,7 +481,11 @@ class UserProfileScreenTest {
     composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME_SAVE).performClick()
 
     composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME_DIALOG).assertDoesNotExist()
-    composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME).assertTextEquals("Bob")
+    composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME).assertTextContains("Bob")
+    openUsernameDialog()
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.USERNAME_FIELD)
+        .assertEditableTextEquals("Bob")
   }
 
   /** Verifies that cancelling closes the dialog and discards the entered username. */
@@ -288,7 +499,14 @@ class UserProfileScreenTest {
     composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME_CANCEL).performClick()
 
     composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME_DIALOG).assertDoesNotExist()
-    composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME).assertTextEquals("Alice")
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.USERNAME)
+        .assertTextContains("Alice")
+        .assert(!hasText("Bob", substring = true))
+    openUsernameDialog()
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.USERNAME_FIELD)
+        .assertEditableTextEquals("Alice")
   }
 
   /** Verifies that the save button is only enabled while the entered username is valid. */
@@ -310,6 +528,143 @@ class UserProfileScreenTest {
 
     field.performTextReplacement("Timothée 42")
     saveButton.assertIsEnabled()
+  }
+
+  /** Verifies that the dialog shows its title and that the field is labeled with the new texts. */
+  @Test
+  fun usernameDialog_displaysTitleAndLabel() {
+    setProfileContent()
+
+    openUsernameDialog()
+
+    composeTestRule
+        .onNodeWithText(string(R.string.profile_username_dialog_title))
+        .assertIsDisplayed()
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.USERNAME_FIELD)
+        .assertTextContains(string(R.string.profile_username_label))
+  }
+
+  /** Verifies that the dialog starts with the hint and counts the characters of the name. */
+  @Test
+  fun usernameDialog_showsHintAndCounter_byDefault() {
+    setProfileContentFor(userNamed("Alice"))
+
+    openUsernameDialog()
+
+    supportingText().assertTextEquals(string(R.string.profile_username_hint))
+    counter().assertTextEquals(counterText(5))
+  }
+
+  /** Verifies that an empty field shows the hint rather than an error, with a zero counter. */
+  @Test
+  fun usernameDialog_showsHint_whenFieldIsEmpty() {
+    setProfileContent()
+
+    openUsernameDialog()
+
+    supportingText().assertTextEquals(string(R.string.profile_username_hint))
+    counter().assertTextEquals(counterText(0))
+  }
+
+  /** Verifies that the counter follows the text while the user types. */
+  @Test
+  fun usernameDialog_counter_updatesWhileTyping() {
+    setProfileContentFor(userNamed("Alice"))
+    openUsernameDialog()
+
+    composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME_FIELD).performTextReplacement("Bob")
+
+    counter().assertTextEquals(counterText(3))
+  }
+
+  /**
+   * Verifies that the counter ignores leading spaces, which are always removed, but counts trailing
+   * ones, so it moves on every keystroke.
+   */
+  @Test
+  fun usernameDialog_counter_ignoresLeadingSpacesButCountsTrailingOnes() {
+    setProfileContent()
+    openUsernameDialog()
+
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.USERNAME_FIELD)
+        .performTextReplacement("  Bob  ")
+
+    counter().assertTextEquals(counterText(5))
+  }
+
+  /**
+   * Verifies that trailing spaces pushing the counter over the limit show a warning, not an error,
+   * and still let the user save, since they are removed on save.
+   */
+  @Test
+  fun usernameDialog_showsTrailingSpacesWarning_whenSpacesExceedLimit() {
+    setProfileContent()
+    openUsernameDialog()
+
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.USERNAME_FIELD)
+        .performTextReplacement("Bob" + " ".repeat(MAX_USERNAME_LENGTH - 2))
+
+    supportingText().assertTextEquals(string(R.string.profile_username_warning_trailing_spaces))
+    counter().assertTextEquals(counterText(MAX_USERNAME_LENGTH + 1))
+    composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME_SAVE).assertIsEnabled()
+  }
+
+  /** Verifies that trailing spaces up to the limit keep the hint, without any warning. */
+  @Test
+  fun usernameDialog_showsHint_whenTrailingSpacesReachLimit() {
+    setProfileContent()
+    openUsernameDialog()
+
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.USERNAME_FIELD)
+        .performTextReplacement("Bob" + " ".repeat(MAX_USERNAME_LENGTH - 3))
+
+    supportingText().assertTextEquals(string(R.string.profile_username_hint))
+    counter().assertTextEquals(counterText(MAX_USERNAME_LENGTH))
+  }
+
+  /** Verifies that a name with a symbol shows the invalid characters' error. */
+  @Test
+  fun usernameDialog_showsCharactersError_forSymbols() {
+    setProfileContent()
+    openUsernameDialog()
+
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.USERNAME_FIELD)
+        .performTextReplacement("Tim_42")
+
+    supportingText().assertTextEquals(string(R.string.profile_username_error_characters))
+  }
+
+  /** Verifies that a name over the limit shows the length error and a counter above the limit. */
+  @Test
+  fun usernameDialog_showsTooLongError_forLongName() {
+    setProfileContent()
+    openUsernameDialog()
+
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.USERNAME_FIELD)
+        .performTextReplacement("a".repeat(MAX_USERNAME_LENGTH + 1))
+
+    supportingText()
+        .assertTextEquals(string(R.string.profile_username_error_too_long, MAX_USERNAME_LENGTH))
+    counter().assertTextEquals(counterText(MAX_USERNAME_LENGTH + 1))
+  }
+
+  /** Verifies that the hint comes back once the user fixes the name. */
+  @Test
+  fun usernameDialog_showsHintAgain_afterNameIsFixed() {
+    setProfileContent()
+    openUsernameDialog()
+    val field = composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME_FIELD)
+
+    field.performTextReplacement("Tim_42")
+    field.performTextReplacement("Tim 42")
+
+    supportingText().assertTextEquals(string(R.string.profile_username_hint))
   }
 
   /** Checks that the picture of the user replaces the placeholder once it has been downloaded. */
@@ -513,17 +868,60 @@ class UserProfileScreenTest {
     return viewModel
   }
 
-  /** Scrolls the picture area into view, since it starts off screen on small displays. */
+  /**
+   * Resolves a string resource, so the tests compare against the same text as the screen.
+   *
+   * @param resId the string resource to resolve
+   * @param args the values of its placeholders, if it has any
+   * @return the resolved text
+   */
+  private fun string(resId: Int, vararg args: Any): String =
+      composeTestRule.activity.getString(resId, *args)
+
+  /**
+   * Finds the hint or error under the username field. It sits inside the text field, whose node
+   * merges its texts, so it is looked up in the unmerged tree.
+   */
+  private fun supportingText(): SemanticsNodeInteraction =
+      composeTestRule.onNodeWithTag(
+          UserProfileTestTags.USERNAME_SUPPORTING_TEXT,
+          useUnmergedTree = true,
+      )
+
+  /** Finds the character counter under the username field, in the unmerged tree as well. */
+  private fun counter(): SemanticsNodeInteraction =
+      composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME_COUNTER, useUnmergedTree = true)
+
+  /**
+   * Builds the counter text the dialog should show.
+   *
+   * @param length the number of characters expected in the counter
+   * @return the counter text, such as "5 / 20"
+   */
+  private fun counterText(length: Int): String =
+      string(R.string.profile_username_counter, length, MAX_USERNAME_LENGTH)
+
+  /** Simulates the user clicking the edit photo button, which opens the change photo sheet. */
+  private fun openChangePhotoSheet() {
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.EDIT_PHOTO_BUTTON)
+        .performScrollTo()
+        .performClick()
+    // The sheet animates in, so the assertions wait for it to settle.
+    composeTestRule.waitForIdle()
+  }
+
+  /** Scrolls the picture area into view, since it starts off-screen on small displays. */
   private fun scrollToPictureArea() {
     composeTestRule.onNodeWithTag(UserProfileTestTags.PROFILE_PICTURE).performScrollTo()
   }
 
   /**
-   * Simulates the user clicking the username field, which opens the dialog used to edit the
-   * username. Shared by the dialog tests so that each of them starts from an open dialog.
+   * Simulates the user clicking the Name card, which opens the dialog used to edit the username.
+   * Shared by the dialog tests so that each of them starts from an open dialog.
    */
   private fun openUsernameDialog() {
-    // The profile content is scrollable: on a small screen the field may be off screen, and a click
+    // The profile content is scrollable: on a small screen the card may be off-screen, and a click
     // on a node that is not displayed fails.
     composeTestRule.onNodeWithTag(UserProfileTestTags.USERNAME).performScrollTo().performClick()
   }

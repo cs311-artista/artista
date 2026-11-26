@@ -25,8 +25,10 @@ import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextInputSelection
 import androidx.compose.ui.text.TextRange
 import com.artista.artista.model.artist.Artist
+import com.artista.artista.model.artist.ArtistCandidate
 import com.artista.artista.model.artist.ArtistId
 import com.artista.artista.model.artwork.Artwork
+import com.artista.artista.model.artwork.ArtworkCandidate
 import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.ArtworkType
 import com.artista.artista.model.artwork.SearchArea
@@ -65,16 +67,6 @@ class SearchScreenTest {
   @After
   fun tearDown() {
     Dispatchers.resetMain()
-  }
-
-  /** Verifies that the search preview renders its search input. */
-  @Test
-  fun searchScreenPreview_displaysSearchInput() = runTest {
-    composeTestRule.setContent { SearchScreenPreview() }
-    composeTestRule.waitForIdle()
-    advanceUntilIdle()
-
-    composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT).assertIsDisplayed()
   }
 
   @Test
@@ -237,16 +229,23 @@ class SearchScreenTest {
 
           override suspend fun getArtist(uid: ArtistId): Artist? = wikiRepository.getArtist(uid)
 
-          override suspend fun getArtistFromName(query: String): Artist? =
-              wikiRepository.getArtistFromName(query)
+          override suspend fun getArtistCandidates(
+              query: String,
+              limit: Int,
+          ): List<ArtistCandidate> {
+            throw NotImplementedError("Should not be used")
+          }
 
-          override suspend fun searchArtworks(
+          override suspend fun getArtistsFromQuery(query: String, limit: Int): List<Artist> =
+              wikiRepository.getArtistsFromQuery(query)
+
+          override suspend fun getArtworksFromQuery(
               artworkTitle: String,
               typeValues: List<ArtworkType>,
               limit: Int,
           ): List<Artwork> {
             resultsGate.await()
-            return wikiRepository.searchArtworks(artworkTitle)
+            return wikiRepository.getArtworksFromQuery(artworkTitle, typeValues, limit)
           }
 
           override suspend fun getArtworksNearLocation(
@@ -257,8 +256,12 @@ class SearchScreenTest {
             throw NotImplementedError("should not be used in this test")
           }
 
-          override suspend fun getPopularArtists(): List<Artist> {
-            throw NotImplementedError()
+          override suspend fun getArtworkCandidates(
+              query: String,
+              typeValues: List<ArtworkType>,
+              limit: Int,
+          ): List<ArtworkCandidate> {
+            throw NotImplementedError("Should not be used")
           }
         }
     val viewModel =
