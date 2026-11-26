@@ -1,4 +1,5 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.model.artwork
 
 import com.artista.artista.model.artist.Artist
@@ -75,6 +76,21 @@ class WikiDataRepositoryRemoteTest {
     override fun parseArtistCandidates(responseBody: String): List<ArtistCandidate> = candidate
 
     override fun parseFilteredArtists(body: String): List<ArtistId> = candidate.map { it.qid }
+  }
+
+  /**
+   * Checks that waiting for a slow Wikidata response is bounded by the whole request timeout, and
+   * not cut earlier by OkHttp's default 10 second read timeout.
+   *
+   * @author Timz3rr
+   */
+  @Test
+  fun createWikiDataHttpClient_readTimeoutMatchesCallTimeout() {
+    val client = createWikiDataHttpClient()
+    val timeoutMillis = WIKIDATA_TIMEOUT_SECONDS * 1_000
+
+    assertEquals(timeoutMillis, client.callTimeoutMillis.toLong())
+    assertEquals(timeoutMillis, client.readTimeoutMillis.toLong())
   }
 
   @Ignore(
