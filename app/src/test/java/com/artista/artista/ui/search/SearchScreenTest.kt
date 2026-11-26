@@ -548,6 +548,35 @@ class SearchScreenTest {
 
   // endregion
 
+  // region Suggestion merging
+
+  @Test
+  fun buildArtworkSuggestions_keepsDuplicateOnceWithFirstSourceAndPreservesOrder() {
+    val starryNight = artworkCandidate(id = "Q45585", label = "The Starry Night")
+    val pearlEarring = artworkCandidate(id = "Q155407", label = "Girl with a Pearl Earring")
+    val monaLisa = artworkCandidate(id = "Q12418", label = "Mona Lisa")
+    val guernica = artworkCandidate(id = "Q175036", label = "Guernica")
+
+    val suggestions =
+        buildArtworkSuggestions(
+            saved = listOf(starryNight, pearlEarring),
+            nearby = listOf(pearlEarring, monaLisa),
+            wikiData = listOf(starryNight, monaLisa, guernica),
+        )
+
+    assertEquals(
+        listOf(
+            ArtworkSuggestion(starryNight, SuggestionSource.SAVED),
+            ArtworkSuggestion(pearlEarring, SuggestionSource.SAVED),
+            ArtworkSuggestion(monaLisa, SuggestionSource.NEARBY),
+            ArtworkSuggestion(guernica, SuggestionSource.WIKIDATA),
+        ),
+        suggestions,
+    )
+  }
+
+  // endregion
+
   // region Helpers
 
   private fun createViewModel(
@@ -615,6 +644,9 @@ class SearchScreenTest {
 
   private fun artistCandidate(id: String, label: String, description: String?) =
       ArtistCandidate(qid = id, label = label, description = description)
+
+  private fun artworkCandidate(id: String, label: String, description: String? = null) =
+      ArtworkCandidate(qid = id, label = label, description = description)
 
   /**
    * Renders the stateless screen with the suggestions pane open and the given artist candidates.
