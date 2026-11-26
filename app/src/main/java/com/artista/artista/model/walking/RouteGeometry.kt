@@ -2,7 +2,6 @@
 package com.artista.artista.model.walking
 
 import com.artista.artista.model.map.Coordinate
-import kotlin.compareTo
 import kotlin.math.PI
 import kotlin.math.asin
 import kotlin.math.cos
