@@ -2,7 +2,6 @@
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.model.artwork
 
-import android.util.Log
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artist.ArtistCandidate
 import com.artista.artista.model.artist.ArtistId
@@ -202,7 +201,7 @@ class WikiDataRepositoryRemote(
       val url = buildMediaWikiQuery(text, max(limit * 5, 50))
       val body = executeRequest(url, accept = "application/json")
       val unfilteredCandidates = jsonResponseParser.parseArtistCandidates(body)
-      return filterArtistCandidate(unfilteredCandidates)
+      filterArtistCandidate(unfilteredCandidates)
     }
   }
 
@@ -210,15 +209,19 @@ class WikiDataRepositoryRemote(
       query: String,
       limit: Int,
   ): List<Artist> {
+    val normalizedQuery = normalizeSearchText(query)
+    validateLimit(limit)
+
     val key = ArtistQueryKey(cacheText(query), limit)
 
     return caches.searchedArtists.getOrLoad(key) {
-      val query = buildArtistQuery(query, limit)
+      val query = buildArtistQuery(normalizedQuery, limit)
+      println(query)
       val request = buildSparqlRequest(query)
       val body = executeRequest(request)
-      val artists = jsonResponseParser.parseArtistsResults(body).orderByNameMatch(normalizeSearchText(query))
+      val artists = jsonResponseParser.parseArtistsResults(body).orderByNameMatch(normalizedQuery)
       caches.rememberArtist(artists)
-      return artists
+      artists
     }
   }
 
@@ -368,17 +371,19 @@ class WikiDataRepositoryRemote(
     return normalizedSearchTerm
   }
 
-    /**
-     * Orders artist by relevance to [searchTerm], which must already be normalized (see [normalizeSearchText]).
-     */
-    private fun List<Artist>.orderByNameMatch(searchTerm: String): List<Artist> {
-        val tokens = fold(searchTerm).split(WHITESPACE).filter { it.isNotEmpty() }
-        val (named, others) = partition { artist ->
-            val name = fold(artist.name)
-            tokens.all { it in name }
+  /**
+   * Orders artist by relevance to [searchTerm], which must already be normalized (see
+   * [normalizeSearchText]).
+   */
+  private fun List<Artist>.orderByNameMatch(searchTerm: String): List<Artist> {
+    val tokens = fold(searchTerm).split(WHITESPACE).filter { it.isNotEmpty() }
+    val (named, others) =
+        partition { artist ->
+          val name = fold(artist.name)
+          tokens.all { it in name }
         }
-        return named + others
-    }
+    return named + others
+  }
 
   /**
    * Orders artworks by relevance to [searchTerm], which must already be normalized (see
