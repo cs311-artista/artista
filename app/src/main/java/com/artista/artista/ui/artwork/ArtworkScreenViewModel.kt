@@ -149,7 +149,13 @@ class ArtworkScreenViewModel(
       }
 
       val saved = readSavedArtworkOrNull { getSavedArtwork(artworkId) }
-      showArtwork(saved ?: wikiDataRepository.getArtwork(artworkId), isSaved = saved != null)
+      // getArtwork documents NotFound for a missing artwork but its signature is nullable, so a
+      // null answer is reported the same way instead of showing an empty screen.
+      val artwork =
+          saved
+              ?: wikiDataRepository.getArtwork(artworkId)
+              ?: throw AppException.NotFound("No artwork found for uid $artworkId")
+      showArtwork(artwork, isSaved = saved != null)
     }
   }
 

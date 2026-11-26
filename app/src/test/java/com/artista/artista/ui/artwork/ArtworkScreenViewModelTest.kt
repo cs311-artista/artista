@@ -589,6 +589,32 @@ class ArtworkScreenViewModelTest {
     assertFalse(viewModel.uiState.value.isSaved)
   }
 
+  /** Checks that an artwork neither saved nor found on Wikidata shows the not-found load error. */
+  @Test
+  fun setArtwork_whenWikiDataReturnsNull_showsNotFoundError() = runTest {
+    val emptyWikiData =
+        object : WikiDataRepository by wikiDataRepository {
+          override suspend fun getArtwork(qid: ArtworkId): Artwork? = null
+        }
+    viewModel =
+        ArtworkScreenViewModel(
+            sampleArtwork.uid,
+            emptyWikiData,
+            CacheFirstSavedRepository(
+                cached = null,
+                fresh = CompletableDeferred<Artwork?>().apply { complete(null) },
+            ),
+            addressRepository,
+        )
+    advanceUntilIdle()
+
+    val state = viewModel.uiState.value
+    assertEquals(null, state.artwork)
+    assertFalse(state.isLoading)
+    assertTrue(state.hasLoadFailed)
+    assertEquals(R.string.error_not_found, state.loadErrorMessageResId)
+  }
+
   private fun cacheFirst(
       cached: Artwork?,
       fresh: CompletableDeferred<Artwork?>,
