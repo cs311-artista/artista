@@ -170,7 +170,8 @@ class OverviewScreenLayoutTest {
     val closeSaved = artwork("close", "Fontaine Jo Siffert", "Jean Tinguely").locatedAt(USER)
     val nearby = manyNearbyArtworks()
     val savedGate = CompletableDeferred<Unit>()
-    setOverviewContent(nearby = nearby, saved = listOf(closeSaved), savedGate = savedGate)
+    val viewModel =
+        setOverviewContent(nearby = nearby, saved = listOf(closeSaved), savedGate = savedGate)
     composeTestRule
         .onNodeWithTag(OverviewTestTags.ARTWORK_LIST)
         .performScrollToNode(hasText(checkNotNull(nearby.last().name)))
@@ -178,6 +179,8 @@ class OverviewScreenLayoutTest {
     savedGate.complete(Unit)
     composeTestRule.waitForIdle()
 
+    // Without it, the assertions below would also pass if the close saved artworks never loaded.
+    assertTrue(viewModel.uiState.value.closeSavedArtworks.isNotEmpty())
     composeTestRule.onNodeWithTag(OverviewTestTags.CLOSE_SAVED_ARTWORKS).assertDoesNotExist()
     composeTestRule.onNodeWithText(checkNotNull(nearby.last().name)).assertIsDisplayed()
   }
