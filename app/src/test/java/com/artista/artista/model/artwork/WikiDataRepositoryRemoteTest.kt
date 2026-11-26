@@ -367,7 +367,7 @@ class WikiDataRepositoryRemoteTest {
     val client = testClient()
     val repository = WikiDataRepositoryRemote(client)
 
-    assertNull(repository.getArtwork("Q12418"))
+    assertThrowsSuspend<AppException.NotFound> { repository.getArtwork("Q12418") }
 
     val request = requireNotNull(client.lastRequest)
     val sparql = requireNotNull(request.url.queryParameter("query"))
@@ -857,7 +857,7 @@ class WikiDataRepositoryRemoteTest {
     val client = testClient()
     val repository = WikiDataRepositoryRemote(client)
 
-    repeat(2) { assertNull(repository.getArtwork("Q12418")) }
+    repeat(2) { assertThrowsSuspend<AppException.NotFound> { repository.getArtwork("Q12418") } }
 
     assertEquals(2, client.requestCount)
   }

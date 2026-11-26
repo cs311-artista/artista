@@ -183,11 +183,11 @@ class WikiDataRepositoryRemote(
 
     val request = buildSparqlRequest(query)
     val body = executeRequest(request)
-      val artwork =
-          jsonResponseParser.parseArtworkResults(body).firstOrNull()
-              ?: throw AppException.NotFound("No artwork found for uid $qid") // not cached
-      caches.artworksById.put(qid, artwork)
-      return artwork
+    val artwork =
+        jsonResponseParser.parseArtworkResults(body).firstOrNull()
+            ?: throw AppException.NotFound("No artwork found for uid $qid") // not cached
+    caches.artworksById.put(qid, artwork)
+    return artwork
   }
 
   // RemoteArtistRepository
@@ -218,7 +218,6 @@ class WikiDataRepositoryRemote(
 
     return caches.searchedArtists.getOrLoad(key) {
       val query = buildArtistQuery(normalizedQuery, limit)
-      println(query)
       val request = buildSparqlRequest(query)
       val body = executeRequest(request)
       val artists = jsonResponseParser.parseArtistsResults(body).orderByNameMatch(normalizedQuery)
@@ -652,19 +651,87 @@ class WikiDataRepositoryRemote(
   }
 }
 
-class ThrottleGuard {
-  @Volatile private var blockedUntilMs = 0L
+/**
+ * Stops the app from sending requests to a rate-limited service for a while after the service asked
+ * it to slow down.
+ *
+ * Wikimedia services answer 429 (Too Many Requests) or 503 (Service Unavailable), usually with a
+ * `Retry-After` header, when a client sends too much. Clients that ignore this and keep sending
+ * requests can be banned for a long time, so after such a response the guard rejects further calls
+ * locally, with no network traffic, until the requested delay has passed.
+ *
+ * Usage: call [check] before every request, and [record] with the status code and the parsed
+ * `Retry-After` value of every response, successful or not.
+ *
+ * Behavior:
+ * - Only 429 and 503 start a block. Every other status, including 500, is ignored, and none of them
+ *   lifts a block that is already active.
+ * - A block lasts `Retry-After` seconds, or [DEFAULT_BLOCK_SECONDS] when the header is missing or
+ *   is not a number of seconds (for example an HTTP date). The value is clamped to
+ *   [MIN_BLOCK_SECONDS]..[MAX_BLOCK_SECONDS], so a bad header can neither disable the guard nor
+ *   block the app for days.
+ * - A later response never shortens an active block. A longer one extends it.
+ * - Time comes from a monotonic clock, so changing the device date or time has no effect.
+ * - It is thread safe.
+ *
+ * Each Wikimedia service enforces its own limits, so use one instance per service (for example one
+ * for the SPARQL endpoint and one for the MediaWiki API) so that a block on one does not stop calls
+ * to the other.
+ *
+ * @param clock monotonic time source in nanoseconds, replaceable in tests
+ */
+class ThrottleGuard(private val clock: () -> Long = System::nanoTime) {
+  // Guarded by `this`. Null until the first block: the origin of a monotonic clock is arbitrary
+  // (it can even be negative), so no Long constant can stand for "never blocked".
+  private var blockedUntilNanos: Long? = null
 
+  /**
+   * Fails fast while a block is active.
+   *
+   * @throws AppException.Network if the service asked the app to wait and the delay has not passed
+   */
+  @Synchronized
   fun check() {
-    if (System.currentTimeMillis() < blockedUntilMs) {
+    val until = blockedUntilNanos ?: return
+    // Compared by difference so the check stays correct if the clock value ever wraps around.
+    if (until - clock() > 0) {
       throw AppException.Network("Wikidata is rate limiting this app, try again shortly")
     }
+    blockedUntilNanos = null
   }
 
+  /**
+   * Records the outcome of a request and starts or extends a block if the service asked for one.
+   *
+   * @param code HTTP status code of the response
+   * @param retryAfterSeconds value of the `Retry-After` header in seconds, or null if the header is
+   *   missing or could not be read as a number of seconds
+   */
+  @Synchronized
   fun record(code: Int, retryAfterSeconds: Long?) {
-    if (code == 429 || code == 503) {
-      blockedUntilMs = System.currentTimeMillis() + (retryAfterSeconds ?: 60L) * 1000
-    }
+    if (code != HTTP_TOO_MANY_REQUESTS && code != HTTP_SERVICE_UNAVAILABLE) return
+
+    val seconds =
+        (retryAfterSeconds ?: DEFAULT_BLOCK_SECONDS).coerceIn(MIN_BLOCK_SECONDS, MAX_BLOCK_SECONDS)
+    val until = clock() + seconds * NANOS_PER_SECOND
+
+    val current = blockedUntilNanos
+    if (current == null || until - current > 0) blockedUntilNanos = until
+  }
+
+  companion object {
+    /** Block length used when the response has no usable `Retry-After`. */
+    internal const val DEFAULT_BLOCK_SECONDS = 60L
+
+    /** Shortest block, so `Retry-After: 0` or a negative value still pauses briefly. */
+    internal const val MIN_BLOCK_SECONDS = 1L
+
+    /** Longest block, so an absurd `Retry-After` cannot lock the app out for days. */
+    internal const val MAX_BLOCK_SECONDS = 3_600L
+
+    private const val NANOS_PER_SECOND = 1_000_000_000L
+    private const val HTTP_TOO_MANY_REQUESTS = 429
+    private const val HTTP_SERVICE_UNAVAILABLE = 503
   }
 }
 
