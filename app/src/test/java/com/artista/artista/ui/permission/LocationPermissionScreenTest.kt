@@ -17,20 +17,20 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * Local (Robolectric) Compose UI tests for [LocationPermissionContent].
+ * Local (Robolectric) Compose UI tests for [LocationPermissionScreen].
  *
- * Drives the stateless content in both permission states, so no permission dialog, lifecycle or
+ * Drives the stateless screen in both permission states, so no permission dialog, lifecycle or
  * navigation is involved. Elements are located exclusively by test tag.
  */
 @RunWith(AndroidJUnit4::class)
-class LocationPermissionContentTest {
+class LocationPermissionScreenTest {
 
   @get:Rule val composeTestRule = createComposeRule()
 
   /** Verifies that the preview renders the primary action that asks for access. */
   @Test
   fun preview_whenComposed_showsAllowAction() {
-    composeTestRule.setContent { LocationPermissionContentPreview(permissionDenied = false) }
+    composeTestRule.setContent { LocationPermissionScreenPreview(permissionDenied = false) }
 
     composeTestRule.onNodeWithTag(LocationPermissionTestTags.ALLOW_BUTTON).assertIsDisplayed()
   }
@@ -38,7 +38,7 @@ class LocationPermissionContentTest {
   /** Verifies that the preview's refused state renders the continue action. */
   @Test
   fun preview_whenDenied_showsContinueAction() {
-    composeTestRule.setContent { LocationPermissionContentPreview(permissionDenied = true) }
+    composeTestRule.setContent { LocationPermissionScreenPreview(permissionDenied = true) }
 
     composeTestRule.onNodeWithTag(LocationPermissionTestTags.CONTINUE_BUTTON).assertIsDisplayed()
   }
@@ -121,7 +121,7 @@ class LocationPermissionContentTest {
       onContinueWithoutLocation: () -> Unit = {},
   ) {
     composeTestRule.setContent {
-      LocationPermissionContent(
+      LocationPermissionScreen(
           permissionDenied = permissionDenied,
           onAllowClick = onAllowClick,
           onContinueWithoutLocation = onContinueWithoutLocation,

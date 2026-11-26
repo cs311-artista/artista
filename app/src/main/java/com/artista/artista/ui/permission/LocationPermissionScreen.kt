@@ -41,7 +41,7 @@ import com.artista.artista.ui.theme.ArtistaTheme
 import com.artista.artista.ui.theme.Dimensions
 
 /**
- * Stateless content of the location permission explanation.
+ * Stateless explanation of the location permission request.
  *
  * Carries no platform interaction so it is directly previewable and testable. [permissionDenied]
  * selects the state shown after the user refuses: the same explanation plus the consequence, and a
@@ -54,7 +54,7 @@ import com.artista.artista.ui.theme.Dimensions
  * @author timo-by
  */
 @Composable
-fun LocationPermissionContent(
+fun LocationPermissionScreen(
     permissionDenied: Boolean,
     onAllowClick: () -> Unit,
     onContinueWithoutLocation: () -> Unit,
@@ -161,11 +161,11 @@ fun LocationPermissionContent(
 /** Previews the explanation shown before the location permission request, in both states. */
 @Preview(showBackground = true)
 @Composable
-internal fun LocationPermissionContentPreview(
+internal fun LocationPermissionScreenPreview(
     @PreviewParameter(PermissionDeniedPreviewParameter::class) permissionDenied: Boolean
 ) {
   ArtistaTheme {
-    LocationPermissionContent(
+    LocationPermissionScreen(
         permissionDenied = permissionDenied,
         onAllowClick = {},
         onContinueWithoutLocation = {},
