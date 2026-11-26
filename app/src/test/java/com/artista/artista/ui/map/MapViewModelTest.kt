@@ -389,6 +389,59 @@ class MapViewModelTest {
   }
 
   @Test
+  fun dismissSelectedArtwork_whenIdle_thenClearsOnlyTheSelection() = runTest {
+    val artwork = artworkWithLocation("selected")
+    val viewModel = createViewModel(FakeLocationProvider())
+    viewModel.selectArtwork(artwork)
+
+    viewModel.dismissSelectedArtwork()
+
+    assertNull(viewModel.uiState.selectedArtwork)
+    assertEquals(RouteUiState.Idle, viewModel.routeUiState)
+  }
+
+  @Test
+  fun dismissSelectedArtwork_whenRouteActive_thenKeepsSelectionAndRoute() = runTest {
+    val artwork = artworkWithLocation("destination")
+    val repository = FakeWalkingRouteRepository()
+    val viewModel =
+        MapViewModel(
+            FakeWikiDataRepository(listOf(artwork)),
+            EmptySavedArtworksRepository(),
+            repository,
+            FakeLocationProvider(),
+        )
+    viewModel.updateUserLocation(UserLocation(46.52, 6.63))
+    viewModel.loadRouteTo(artwork)
+    advanceUntilIdle()
+
+    viewModel.dismissSelectedArtwork()
+
+    assertEquals(artwork, viewModel.uiState.selectedArtwork)
+    assertEquals(RouteUiState.Success(repository.route, artwork), viewModel.routeUiState)
+  }
+
+  @Test
+  fun dismissSelectedArtwork_whenRouteErrorShown_thenKeepsSelectionAndError() = runTest {
+    val artwork = artworkWithLocation("destination")
+    val viewModel =
+        MapViewModel(
+            FakeWikiDataRepository(listOf(artwork)),
+            EmptySavedArtworksRepository(),
+            FakeWalkingRouteRepository(exception = AppException.Network()),
+            FakeLocationProvider(),
+        )
+    viewModel.updateUserLocation(UserLocation(46.52, 6.63))
+    viewModel.loadRouteTo(artwork)
+    advanceUntilIdle()
+
+    viewModel.dismissSelectedArtwork()
+
+    assertEquals(artwork, viewModel.uiState.selectedArtwork)
+    assertTrue(viewModel.routeUiState is RouteUiState.Error)
+  }
+
+  @Test
   fun clearRoute_whenRouteActive_thenStopsUpdatesAndClearsProgressAndSelection() = runTest {
     val provider = FakeLocationProvider()
     val viewModel = createRouteViewModel(provider, walkingRouteRepository = primaryRouteRepository())

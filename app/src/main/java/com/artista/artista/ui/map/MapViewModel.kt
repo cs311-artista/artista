@@ -536,6 +536,19 @@ class MapViewModel(
   }
 
   /**
+   * Clears the selected artwork card when no route is requested or shown.
+   *
+   * Tapping the map background is the second way to close the card, after its X. A route keeps its
+   * card, because tapping the map must not end the navigation.
+   *
+   * @author timo-by
+   */
+  fun dismissSelectedArtwork() {
+    if (_routeUiState.value != RouteUiState.Idle) return
+    _uiState.update { it.copy(selectedArtwork = null) }
+  }
+
+  /**
    * Loads a walking route from the user's current location to an artwork.
    *
    * @param artwork destination artwork

@@ -274,6 +274,7 @@ fun MapScreen(
         modifier = Modifier.fillMaxSize().testTag(MapScreenTestTags.MAP),
         cameraPositionState = cameraPositionState,
         onMapLoaded = { mapLoaded = true },
+        onMapClick = { mapViewModel.dismissSelectedArtwork() },
         properties = MapProperties(isMyLocationEnabled = uiState.hasLocationPermission),
         uiSettings =
             MapUiSettings(
