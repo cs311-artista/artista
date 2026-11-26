@@ -3,13 +3,12 @@
 package com.artista.artista.ui.preferences
 
 import android.widget.Toast
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -18,10 +17,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -29,49 +28,35 @@ import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.role
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.artista.artista.R
-import com.artista.artista.model.artist.Artist
-import com.artista.artista.model.artwork.ArtworkRepositoryProvider
-import com.artista.artista.model.authentication.AuthRepository
-import com.artista.artista.model.authentication.AuthUser
-import com.artista.artista.model.user.User
-import com.artista.artista.model.user.UserPreference
-import com.artista.artista.model.user.UserRepositoryLocal
-import com.artista.artista.ui.artwork.ArtworkImage
+import com.artista.artista.model.artist.ArtistId
+import com.artista.artista.model.artwork.mockPopularArtists
+import com.artista.artista.ui.components.ArtistCard
 import com.artista.artista.ui.navigation.BackButton
 import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaColors
 import com.artista.artista.ui.theme.ArtistaTheme
 import com.artista.artista.ui.theme.Dimensions
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.runBlocking
 
 private val PillShape = RoundedCornerShape(percent = 50)
 
@@ -91,7 +76,6 @@ private val PillShape = RoundedCornerShape(percent = 50)
  *   them.
  * @author Timz3rr, krfpn
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ArtistPreferencesScreen(
     onBackClick: () -> Unit,
@@ -112,6 +96,43 @@ fun ArtistPreferencesScreen(
     }
   }
 
+  ArtistPreferencesScreenLayout(
+      uiState = uiState,
+      onBackClick = onBackClick,
+      onTabSelected = onTabSelected,
+      onSearchQueryChange = artistPreferencesViewModel::onSearchQueryChange,
+      onRetry = artistPreferencesViewModel::retryLoad,
+      onToggleArtist = artistPreferencesViewModel::toggleArtist,
+      onSave = artistPreferencesViewModel::saveChanges,
+  )
+}
+
+/**
+ * Renders the artist preferences UI from an immutable state snapshot.
+ *
+ * Keeping this layout independent of the ViewModel makes the preview deterministic: the ViewModel
+ * loads the saved artists in a coroutine, which a static preview never lets finish.
+ *
+ * @param uiState state snapshot used to render the screen
+ * @param onBackClick called when the user leaves the screen
+ * @param onTabSelected called with the destination selected in the bottom navigation
+ * @param onSearchQueryChange called with the new text when the user types in the search field
+ * @param onRetry called when the user asks to load the saved artists again
+ * @param onToggleArtist called with the identifier of the artist whose card the user clicked
+ * @param onSave called when the user saves the removal of the untoggled artists
+ * @author krfpn
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ArtistPreferencesScreenLayout(
+    uiState: ArtistPreferencesUiState,
+    onBackClick: () -> Unit,
+    onTabSelected: (Tab) -> Unit,
+    onSearchQueryChange: (String) -> Unit,
+    onRetry: () -> Unit,
+    onToggleArtist: (ArtistId) -> Unit,
+    onSave: () -> Unit,
+) {
   Scaffold(
       modifier = Modifier.fillMaxSize().testTag(ArtistPreferencesTestTags.SCREEN),
       containerColor = MaterialTheme.colorScheme.background,
@@ -120,8 +141,8 @@ fun ArtistPreferencesScreen(
             title = {
               Text(
                   text = stringResource(R.string.artist_preferences_title),
-                  style = MaterialTheme.typography.titleLarge,
-                  fontWeight = FontWeight.Bold,
+                  style = MaterialTheme.typography.headlineSmall,
+                  fontWeight = FontWeight.SemiBold,
                   modifier = Modifier.testTag(ArtistPreferencesTestTags.TITLE),
               )
             },
@@ -131,6 +152,10 @@ fun ArtistPreferencesScreen(
                   modifier = Modifier.testTag(ArtistPreferencesTestTags.BACK_BUTTON),
               )
             },
+            colors =
+                TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                ),
         )
       },
       bottomBar = {
@@ -147,22 +172,16 @@ fun ArtistPreferencesScreen(
                 ),
         verticalArrangement = Arrangement.spacedBy(Dimensions.artistPreferencesSectionSpacing),
     ) {
-      Text(
-          text = stringResource(R.string.artist_preferences_description),
-          modifier = Modifier.testTag(ArtistPreferencesTestTags.DESCRIPTION),
-          style = MaterialTheme.typography.bodyLarge,
-          color = MaterialTheme.colorScheme.primary,
-      )
       SearchField(
           query = uiState.searchQuery,
-          onQueryChange = artistPreferencesViewModel::onSearchQueryChange,
+          onQueryChange = onSearchQueryChange,
           enabled = uiState.canSearch,
       )
       if (uiState.isLoading) {
         SavedArtistsLoadingView(modifier = Modifier.weight(1f).fillMaxWidth())
       } else if (uiState.hasLoadFailed) {
         SavedArtistsLoadErrorView(
-            onRetry = artistPreferencesViewModel::retryLoad,
+            onRetry = onRetry,
             modifier = Modifier.weight(1f).fillMaxWidth(),
         )
       } else if (uiState.hasNoSavedArtists) {
@@ -183,13 +202,17 @@ fun ArtistPreferencesScreen(
             ArtistCard(
                 artist = artist,
                 selected = artist.uid !in uiState.deselectedArtists,
-                onToggle = { artistPreferencesViewModel.toggleArtist(artist.uid) },
+                onToggle = { onToggleArtist(artist.uid) },
+                cardTestTag = ArtistPreferencesTestTags.getArtistCardTestTag(artist.uid),
+                imageTestTag = ArtistPreferencesTestTags.getArtistImageTestTag(artist.uid),
+                fallbackTestTag =
+                    ArtistPreferencesTestTags.getArtistImageFallbackTestTag(artist.uid),
             )
           }
         }
       }
       Button(
-          onClick = artistPreferencesViewModel::saveChanges,
+          onClick = onSave,
           // Disabled until some artist is untoggled, and in the loading, error and empty states.
           enabled = uiState.canSave,
           modifier =
@@ -200,7 +223,7 @@ fun ArtistPreferencesScreen(
           colors =
               ButtonDefaults.buttonColors(
                   containerColor = MaterialTheme.colorScheme.surface,
-                  contentColor = MaterialTheme.colorScheme.primary,
+                  contentColor = MaterialTheme.colorScheme.onSurface,
               ),
       ) {
         Text(
@@ -229,7 +252,7 @@ private fun SavedArtistsLoadingView(modifier: Modifier = Modifier) {
 }
 
 /**
- * Displays a load error with a Try again button, so the user can retry after the toast is gone.
+ * Displays a load error with a Try again pill, so the user can retry after the toast is gone.
  *
  * @param onRetry called when the user taps Try again
  * @param modifier modifier applied to the error-state container
@@ -241,7 +264,10 @@ private fun SavedArtistsLoadErrorView(
     modifier: Modifier = Modifier,
 ) {
   Column(
-      modifier = modifier.testTag(ArtistPreferencesTestTags.LOAD_ERROR_STATE),
+      modifier =
+          modifier
+              .padding(horizontal = Dimensions.artistPreferencesErrorHorizontalPadding)
+              .testTag(ArtistPreferencesTestTags.LOAD_ERROR_STATE),
       verticalArrangement = Arrangement.Center,
       horizontalAlignment = Alignment.CenterHorizontally,
   ) {
@@ -255,13 +281,26 @@ private fun SavedArtistsLoadErrorView(
     Button(
         onClick = onRetry,
         modifier = Modifier.testTag(ArtistPreferencesTestTags.RETRY_BUTTON),
+        shape = PillShape,
         colors =
             ButtonDefaults.buttonColors(
                 containerColor = MaterialTheme.colorScheme.surface,
-                contentColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onSurface,
             ),
     ) {
-      Text(text = stringResource(R.string.try_again))
+      Row(
+          verticalAlignment = Alignment.CenterVertically,
+          horizontalArrangement =
+              Arrangement.spacedBy(Dimensions.artistPreferencesRetryIconSpacing),
+      ) {
+        // The text already says what the button does, so the icon is decorative.
+        Icon(
+            imageVector = Icons.Filled.Refresh,
+            contentDescription = null,
+            modifier = Modifier.size(Dimensions.iconSizeMedium),
+        )
+        Text(text = stringResource(R.string.try_again))
+      }
     }
   }
 }
@@ -280,7 +319,7 @@ private fun SavedArtistsEmptyView(modifier: Modifier = Modifier) {
     Text(
         text = stringResource(R.string.artist_preferences_empty_state),
         style = MaterialTheme.typography.bodyLarge,
-        color = MaterialTheme.colorScheme.primary,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
         textAlign = TextAlign.Center,
     )
   }
@@ -303,6 +342,22 @@ private fun SearchField(query: String, onQueryChange: (String) -> Unit, enabled:
       modifier = Modifier.fillMaxWidth().testTag(ArtistPreferencesTestTags.SEARCH_BAR),
       placeholder = { Text(stringResource(R.string.artist_preferences_search_placeholder)) },
       leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
+      trailingIcon =
+          if (query.isNotEmpty()) {
+            {
+              IconButton(
+                  onClick = { onQueryChange("") },
+                  modifier = Modifier.testTag(ArtistPreferencesTestTags.CLEAR_SEARCH_BUTTON),
+              ) {
+                Icon(
+                    imageVector = Icons.Filled.Close,
+                    contentDescription = stringResource(R.string.artist_preferences_clear_search),
+                )
+              }
+            }
+          } else {
+            null
+          },
       singleLine = true,
       shape = PillShape,
       // The mockup shows a pill without an underline, whether the field has focus or is disabled.
@@ -311,10 +366,12 @@ private fun SearchField(query: String, onQueryChange: (String) -> Unit, enabled:
           TextFieldDefaults.colors(
               focusedContainerColor = MaterialTheme.colorScheme.surface,
               unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-              focusedPlaceholderColor = MaterialTheme.colorScheme.primary,
-              unfocusedPlaceholderColor = MaterialTheme.colorScheme.primary,
-              focusedLeadingIconColor = MaterialTheme.colorScheme.primary,
-              unfocusedLeadingIconColor = MaterialTheme.colorScheme.primary,
+              focusedPlaceholderColor = MaterialTheme.colorScheme.onSurface,
+              unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurface,
+              focusedLeadingIconColor = MaterialTheme.colorScheme.onSurface,
+              unfocusedLeadingIconColor = MaterialTheme.colorScheme.onSurface,
+              focusedTrailingIconColor = MaterialTheme.colorScheme.onSurface,
+              unfocusedTrailingIconColor = MaterialTheme.colorScheme.onSurface,
               focusedIndicatorColor = ArtistaColors.Transparent,
               unfocusedIndicatorColor = ArtistaColors.Transparent,
               disabledContainerColor = MaterialTheme.colorScheme.surface,
@@ -324,150 +381,29 @@ private fun SearchField(query: String, onQueryChange: (String) -> Unit, enabled:
 }
 
 /**
- * Card of a saved artist, which the user can click to untoggle, or toggle it back.
+ * Previews the artist preferences screen in Android Studio, with one artist untoggled to show both
+ * card states.
  *
- * The card is checked while the artist is kept; an unchecked card is removed on the next save.
- *
- * @param artist Artist displayed by the card.
- * @param selected Whether the artist is kept, i.e. not untoggled.
- * @param onToggle Callback invoked when the card is clicked.
+ * The picture links are removed, so the cards show their fallback icon: in a preview, Coil tries to
+ * download each picture on the spot, and without network access the preview never renders.
  */
-@Composable
-private fun ArtistCard(artist: Artist, selected: Boolean, onToggle: () -> Unit) {
-  // A checkable Surface, unlike a clickable one, exposes the on/off state used by assertIsOn.
-  Surface(
-      checked = selected,
-      onCheckedChange = { onToggle() },
-      modifier =
-          Modifier.fillMaxWidth()
-              // Lets accessibility services announce the card as a checkbox with its state.
-              .semantics { role = Role.Checkbox }
-              .testTag(ArtistPreferencesTestTags.getArtistCardTestTag(artist.uid)),
-      shape = RoundedCornerShape(Dimensions.cornerRadiusMedium),
-      color =
-          if (selected) MaterialTheme.colorScheme.surfaceContainerLowest
-          else MaterialTheme.colorScheme.secondaryContainer,
-      border =
-          if (selected) {
-            BorderStroke(Dimensions.standardStrokeWidth, MaterialTheme.colorScheme.primary)
-          } else {
-            null
-          },
-  ) {
-    Column(
-        modifier = Modifier.padding(Dimensions.artistCardContentPadding),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-      Box {
-        // Reuses the artwork image, which already handles loading, failed downloads and missing
-        // links by showing a fallback icon, so artist pictures behave like artwork pictures.
-        ArtworkImage(
-            imageUrl = artist.imageUrl,
-            contentDescription =
-                stringResource(R.string.artist_preferences_artist_picture_description, artist.name),
-            contentScale = ContentScale.Crop,
-            imageTestTag = ArtistPreferencesTestTags.getArtistImageTestTag(artist.uid),
-            fallbackTestTag = ArtistPreferencesTestTags.getArtistImageFallbackTestTag(artist.uid),
-            modifier =
-                Modifier.fillMaxWidth()
-                    .aspectRatio(4f / 3f)
-                    .clip(RoundedCornerShape(Dimensions.cornerRadiusSmall))
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-        )
-        SelectionIndicator(
-            selected = selected,
-            modifier =
-                Modifier.align(Alignment.TopEnd)
-                    .padding(Dimensions.artistCardSelectionIndicatorPadding),
-        )
-      }
-      Text(
-          text = artist.name,
-          modifier = Modifier.padding(top = Dimensions.artistCardNameTopSpacing),
-          style = MaterialTheme.typography.bodySmall,
-          textAlign = TextAlign.Center,
-          // Two lines for every name keeps all the cards of a row at the same height.
-          minLines = 2,
-          maxLines = 2,
-          overflow = TextOverflow.Ellipsis,
-      )
-    }
-  }
-}
-
-/**
- * Round indicator in the corner of an artist card, checked when the artist is selected.
- *
- * @param selected Whether the artist is currently selected.
- * @param modifier Modifier applied to the indicator.
- */
-@Composable
-private fun SelectionIndicator(selected: Boolean, modifier: Modifier = Modifier) {
-  Box(
-      modifier =
-          modifier
-              .size(Dimensions.iconSizeLarge)
-              .clip(CircleShape)
-              .background(
-                  if (selected) MaterialTheme.colorScheme.primary
-                  else MaterialTheme.colorScheme.surface
-              ),
-      contentAlignment = Alignment.Center,
-  ) {
-    if (selected) {
-      Icon(
-          imageVector = Icons.Filled.Check,
-          contentDescription = null,
-          modifier = Modifier.size(Dimensions.iconSizeSmall),
-          tint = MaterialTheme.colorScheme.onPrimary,
-      )
-    }
-  }
-}
-
-/** Previews the artist preferences screen with two saved artists in Android Studio. */
 @Preview(showBackground = true)
 @Composable
 internal fun ArtistPreferencesScreenPreview() {
-  val previewUserId = "preview-user"
-  val viewModel = remember {
-    val userRepository = UserRepositoryLocal()
-    // The local repository answers at once, so blocking here does not slow the preview down.
-    runBlocking {
-      userRepository.createUser(
-          User(
-              uid = previewUserId,
-              preference = UserPreference(artists = listOf("mock-artist-002", "mock-artist-004")),
-          )
-      )
-    }
-    // Declared here rather than at the top level, so that it only exists for this preview. It
-    // always answers that the preview user is signed in, since the preview cannot reach Firebase.
-    val previewAuthRepository =
-        object : AuthRepository {
-          override val authState: Flow<AuthUser?> =
-              flowOf(
-                  object : AuthUser {
-                    override val uid: String = previewUserId
-                  }
-              )
-
-          override suspend fun signIn(idToken: String): Result<AuthUser> =
-              Result.failure(UnsupportedOperationException("Sign-in is not available in previews"))
-
-          override suspend fun signOut(): Result<Unit> = Result.success(Unit)
-        }
-    ArtistPreferencesViewModel(
-        wikiDataRepository = ArtworkRepositoryProvider.mockRepository,
-        authRepository = previewAuthRepository,
-        userRepository = userRepository,
-    )
-  }
+  val artists = mockPopularArtists.map { it.copy(imageUrl = null) }
   ArtistaTheme {
-    ArtistPreferencesScreen(
+    ArtistPreferencesScreenLayout(
+        uiState =
+            ArtistPreferencesUiState(
+                savedArtists = artists,
+                deselectedArtists = setOf(artists[1].uid),
+            ),
         onBackClick = {},
         onTabSelected = {},
-        artistPreferencesViewModel = viewModel,
+        onSearchQueryChange = {},
+        onRetry = {},
+        onToggleArtist = {},
+        onSave = {},
     )
   }
 }
