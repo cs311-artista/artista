@@ -2,6 +2,8 @@
 package com.artista.artista.model.artwork
 
 import com.artista.artista.model.artist.Artist
+import com.artista.artista.model.artist.ArtistCandidate
+import com.artista.artista.model.artist.ArtistId
 import com.artista.artista.model.artist.ArtistOccupation
 import com.artista.artista.model.error.AppException
 import com.artista.artista.model.map.Location
@@ -55,6 +57,24 @@ class WikiDataRepositoryRemoteTest {
 
   private class ArtworkListParser(private val artworks: List<Artwork>) : JsonResponseParser() {
     override fun parseArtworkResults(responseBody: String): List<Artwork> = artworks
+  }
+
+  private class ArtistListParser(private val artists: List<Artist>) : JsonResponseParser() {
+    override fun parseArtistsResults(responseBody: String): List<Artist> = artists
+  }
+
+  private class ArtworkCandidateListParser(private val candidate: List<ArtworkCandidate>) :
+      JsonResponseParser() {
+    override fun parseArtworkCandidates(responseBody: String): List<ArtworkCandidate> = candidate
+
+    override fun parseFilteredArtworks(body: String): List<ArtworkId> = candidate.map { it.qid }
+  }
+
+  private class ArtistCandidateListParser(private val candidate: List<ArtistCandidate>) :
+      JsonResponseParser() {
+    override fun parseArtistCandidates(responseBody: String): List<ArtistCandidate> = candidate
+
+    override fun parseFilteredArtists(body: String): List<ArtistId> = candidate.map { it.qid }
   }
 
   @Ignore(
@@ -391,6 +411,47 @@ class WikiDataRepositoryRemoteTest {
   }
 
   @Test
+  fun getArtworksCandidate_reusesCachedResultsForTheSameQuery() = runTest {
+    val client = testClient()
+    val candidates =
+        listOf(
+            ArtworkCandidate("Q2", "Unrelated artwork", null),
+            ArtworkCandidate("Q1", "Mona Lisa", null),
+        )
+    val repository =
+        WikiDataRepositoryRemote(
+            client,
+            jsonResponseParser = ArtworkCandidateListParser(candidates),
+        )
+
+    val first = repository.getArtworkCandidates("Mona Lisa", ArtworkType.entries)
+    val second = repository.getArtworkCandidates("Mona Lisa", ArtworkType.entries)
+
+    assertEquals(listOf("Q2", "Q1"), first.map { it.qid })
+    assertEquals(first, second)
+    assertEquals(2, client.requestCount) // 2 since candidate resolution uses 2 request per call
+  }
+
+  @Test
+  fun getArtistsCandidate_reusesCachedResultsForTheSameQuery() = runTest {
+    val client = testClient()
+    val candidates =
+        listOf(
+            ArtistCandidate("Q2", "Unrelated artist", null),
+            ArtistCandidate("Q1", "Pablo Picasso", null),
+        )
+    val repository =
+        WikiDataRepositoryRemote(client, jsonResponseParser = ArtistCandidateListParser(candidates))
+
+    val first = repository.getArtistCandidates("Pablo Picasso")
+    val second = repository.getArtistCandidates("Pablo Picasso")
+
+    assertEquals(listOf("Q2", "Q1"), first.map { it.qid })
+    assertEquals(first, second)
+    assertEquals(2, client.requestCount) // 2 since candidate resolution uses 2 request per call
+  }
+
+  @Test
   fun getArtworksFromQuery_reusesCachedResultsForTheSameQuery() = runTest {
     val client = testClient()
     val artworks =
@@ -403,6 +464,25 @@ class WikiDataRepositoryRemoteTest {
 
     val first = repository.getArtworksFromQuery("Mona Lisa")
     val second = repository.getArtworksFromQuery("Mona Lisa")
+
+    assertEquals(listOf("Q1", "Q2"), first.map { it.uid })
+    assertEquals(first, second)
+    assertEquals(1, client.requestCount)
+  }
+
+  @Test
+  fun getArtistsFromQuery_reusesCachedResultsForTheSameQuery() = runTest {
+    val client = testClient()
+    val artists =
+        listOf(
+            Artist("Q2", "Unrelated artist", null, null, null, null, null, null),
+            Artist("Q1", "Pablo Picasso", null, null, null, null, null, null),
+        )
+    val repository =
+        WikiDataRepositoryRemote(client, jsonResponseParser = ArtistListParser(artists))
+
+    val first = repository.getArtistsFromQuery("Pablo Picasso")
+    val second = repository.getArtistsFromQuery("Pablo Picasso")
 
     assertEquals(listOf("Q1", "Q2"), first.map { it.uid })
     assertEquals(first, second)
