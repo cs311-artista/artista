@@ -197,6 +197,60 @@ class MapArtworkCardTest {
     composeTestRule.onNodeWithTag(MapScreenTestTags.ARTWORK_CARD).assertDoesNotExist()
   }
 
+  /** Verifies that a missing user location keeps the message card over the artwork card. */
+  @Test
+  fun artworkCard_whenLocationUnavailable_thenShowsMessageCardWithoutArtworkCard() {
+    setOverlay(routeUiState = RouteUiState.LocationUnavailable, selectedArtwork = artwork())
+
+    composeTestRule.onNodeWithTag(MapScreenTestTags.ROUTE_LOCATION_UNAVAILABLE).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(MapScreenTestTags.ARTWORK_CARD).assertDoesNotExist()
+  }
+
+  /** Verifies that the X of the location message card clears the route and the selection. */
+  @Test
+  fun artworkCard_whenLocationUnavailable_thenDismissInvokesClear() {
+    var cleared = false
+
+    setOverlay(
+        routeUiState = RouteUiState.LocationUnavailable,
+        selectedArtwork = artwork(),
+        onClear = { cleared = true },
+    )
+
+    composeTestRule.onNodeWithTag(MapScreenTestTags.ROUTE_CLOSE_BUTTON).performClick()
+    composeTestRule.waitForIdle()
+
+    assertTrue(cleared)
+  }
+
+  /**
+   * Verifies that a failed route keeps the message card over the artwork card and still wires both
+   * of its actions.
+   */
+  @Test
+  fun artworkCard_whenError_thenShowsMessageCardWithoutArtworkCardAndInvokesRetryAndClear() {
+    var retried = false
+    var cleared = false
+
+    setOverlay(
+        routeUiState = RouteUiState.Error(RouteErrorKind.NETWORK, R.string.error_network),
+        selectedArtwork = artwork(),
+        onClear = { cleared = true },
+        onRetry = { retried = true },
+    )
+
+    composeTestRule.onNodeWithTag(MapScreenTestTags.ROUTE_ERROR).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(MapScreenTestTags.ARTWORK_CARD).assertDoesNotExist()
+
+    composeTestRule.onNodeWithTag(MapScreenTestTags.ROUTE_RETRY_BUTTON).performClick()
+    composeTestRule.waitForIdle()
+    assertTrue(retried)
+
+    composeTestRule.onNodeWithTag(MapScreenTestTags.ROUTE_CLOSE_BUTTON).performClick()
+    composeTestRule.waitForIdle()
+    assertTrue(cleared)
+  }
+
   /** Verifies that an idle map with no selection renders nothing. */
   @Test
   fun artworkCard_whenNoSelectionAndIdle_thenShowsNothing() {
@@ -260,6 +314,7 @@ class MapArtworkCardTest {
       selectedArtwork: Artwork? = null,
       onNavigate: () -> Unit = {},
       onClear: () -> Unit = {},
+      onRetry: () -> Unit = {},
   ) {
     composeTestRule.setContent {
       ArtistaTheme {
@@ -269,7 +324,7 @@ class MapArtworkCardTest {
             selectedArtwork = selectedArtwork,
             onNavigate = onNavigate,
             onClearRoute = onClear,
-            onRetryRoute = {},
+            onRetryRoute = onRetry,
         )
       }
     }
