@@ -73,15 +73,19 @@ class MapScreenTest {
     assertEquals(ArtistaColors.RemoteArtworkMarker.toArgb(), MarkerType.RemoteArtwork.color)
   }
 
-  /** Verifies that saved artwork markers expose the saved artwork test tag. */
   @Test
-  fun markerTag_savedArtwork_usesSavedArtworkTag() {
-    assertEquals(MapScreenTestTags.SAVED_ARTWORK_MARKER, markerTag(MarkerType.SavedArtwork))
+  fun makerTag_remoteArtwork_providesCorrectTestTag() {
+    assertEquals(
+        "map_remote_artwork_marker_artworkId",
+        MapScreenTestTags.getArtworkMarkerTestTag(MarkerType.RemoteArtwork, "artworkId"),
+    )
   }
 
-  /** Verifies that remote artwork markers expose the remote artwork test tag. */
   @Test
-  fun markerTag_remoteArtwork_usesRemoteArtworkTag() {
-    assertEquals(MapScreenTestTags.REMOTE_ARTWORK_MARKER, markerTag(MarkerType.RemoteArtwork))
+  fun makerTag_savedArtwork_providesCorrectTestTag() {
+    assertEquals(
+        "map_saved_artwork_marker_artworkId",
+        MapScreenTestTags.getArtworkMarkerTestTag(MarkerType.SavedArtwork, "artworkId"),
+    )
   }
 }
