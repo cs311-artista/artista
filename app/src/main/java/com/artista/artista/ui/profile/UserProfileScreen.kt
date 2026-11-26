@@ -35,6 +35,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -437,6 +438,7 @@ private fun ChangePhotoSheet(onDismiss: () -> Unit) {
   ModalBottomSheet(
       onDismissRequest = onDismiss,
       modifier = Modifier.testTag(UserProfileTestTags.CHANGE_PHOTO_SHEET),
+      sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
       containerColor = MaterialTheme.colorScheme.background,
   ) {
     Column(
