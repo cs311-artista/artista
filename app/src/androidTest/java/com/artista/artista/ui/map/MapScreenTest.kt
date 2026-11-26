@@ -62,6 +62,7 @@ class MapScreenTest {
   private val instrumentation = InstrumentationRegistry.getInstrumentation()
   private var recalculationState by mutableStateOf(RouteRecalculationUiState())
   private var recalculateCalls = 0
+  private var arrived by mutableStateOf(false)
 
   /** Updates the recalculation state of an overlay already on screen. */
   private fun showRecalculation(newState: RouteRecalculationUiState) = composeTestRule.runOnIdle {
@@ -357,6 +358,24 @@ class MapScreenTest {
         .assertTextEquals("12 min · 850 m")
   }
 
+  @Test
+  fun arrivedCard_whenArrived_showsArrivalMessageAndCloseButton() {
+    var closeCalls = 0
+    setRouteOverlay(recalculationRoute(), onClearRoute = { closeCalls++ })
+    val context = InstrumentationRegistry.getInstrumentation().targetContext
+    val arrivedMessage = context.getString(R.string.map_route_arrived)
+    composeTestRule.onNodeWithText(arrivedMessage).assertDoesNotExist()
+
+    composeTestRule.runOnIdle { arrived = true }
+
+    composeTestRule.onNodeWithText(arrivedMessage).assertIsDisplayed()
+    composeTestRule
+        .onNodeWithText(context.getString(R.string.map_route_arrived_close))
+        .assertIsDisplayed()
+    composeTestRule.onNodeWithTag(MapScreenTestTags.ROUTE_CLOSE_BUTTON).performClick()
+    assertEquals(1, closeCalls)
+  }
+
   private fun setMapScreenContent() {
     composeTestRule.setContent {
       ArtistaTheme {
@@ -390,6 +409,7 @@ class MapScreenTest {
             onClearRoute = onClearRoute,
             onRetryRoute = onRetryRoute,
             onRecalculateRoute = onRecalculateRoute,
+            hasArrived = arrived,
         )
       }
     }

@@ -325,6 +325,7 @@ fun ArtistaNavHost(
                         SearchScreenViewModel.provideFactory(
                             savedArtworksRepository,
                             wikiDataRepository,
+                            locationProvider,
                         )
                 ),
             onTabSelected = { tab -> navigationActions.navigateTo(tab.destination) },
@@ -332,8 +333,8 @@ fun ArtistaNavHost(
               navController.navigate(Screen.ArtworkDetails.createRoute(artwork.uid))
             },
             onMapClick = showRouteOnMap,
-            onRecommendationSelected = { recommendation ->
-              navController.navigate(Screen.ArtworkDetails.createRoute(recommendation.uid))
+            onArtworkRecommendationSelected = { recommendation ->
+              navController.navigate(Screen.ArtworkDetails.createRoute(recommendation.qid))
             },
         )
       }
