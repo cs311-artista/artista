@@ -218,7 +218,7 @@ class WikiDataRepositoryRemote(
 
     return caches.searchedArtists.getOrLoad(key) {
       val query = buildArtistQuery(normalizedQuery, limit)
-        println(query)
+      println(query)
       val request = buildSparqlRequest(query)
       val body = executeRequest(request)
       val artists = jsonResponseParser.parseArtistsResults(body).orderByNameMatch(normalizedQuery)
@@ -536,6 +536,7 @@ class WikiDataRepositoryRemote(
       }
       FILTER EXISTS { ?work wdt:${WikiDataProperty.ARTIST} ?artist . }
         }
+        ORDER BY ASC(?ordinal)
         LIMIT $limit
       }
       $ARTIST_DETAILS
