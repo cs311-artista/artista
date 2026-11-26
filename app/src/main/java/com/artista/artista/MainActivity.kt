@@ -53,7 +53,7 @@ import com.artista.artista.model.user.UserRepositoryProvider
 import com.artista.artista.model.user.UsernameCacheDataStore
 import com.artista.artista.model.user.usernameDataStore
 import com.artista.artista.model.walking.WalkingRouteRepository
-import com.artista.artista.model.walking.WalkingRouteRepositoryRemote
+import com.artista.artista.model.walking.WalkingRouteRepositoryProvider
 import com.artista.artista.resources.C
 import com.artista.artista.ui.artwork.ArtworkScreen
 import com.artista.artista.ui.artwork.ArtworkScreenViewModel
@@ -162,7 +162,8 @@ fun ArtistaApp(
     wikiDataRepository: WikiDataRepository = ArtworkRepositoryProvider.wikiDataRepository,
     savedArtworksRepository: SavedArtworksRepository =
         ArtworkRepositoryProvider.savedArtworksRepository,
-    walkingRouteRepository: WalkingRouteRepository = WalkingRouteRepositoryRemote(),
+    walkingRouteRepository: WalkingRouteRepository =
+        WalkingRouteRepositoryProvider.walkingRouteRepository,
     addressRepository: AddressRepository =
         AddressRepositoryGeocoder(Geocoder(LocalContext.current)),
     locationProvider: LocationProvider =
