@@ -411,6 +411,40 @@ class WikiDataRepositoryRemoteTest {
   }
 
   @Test
+  fun getArtworksCandidate_respectsLimit() = runTest {
+    val client = testClient()
+    val candidates =
+        listOf(
+            ArtworkCandidate("Q2", "Unrelated artwork", null),
+            ArtworkCandidate("Q1", "Mona Lisa", null),
+        )
+    val repository =
+        WikiDataRepositoryRemote(
+            client,
+            jsonResponseParser = ArtworkCandidateListParser(candidates),
+        )
+
+    val first = repository.getArtworkCandidates("Mona Lisa", ArtworkType.entries, 1)
+    assertEquals(1, first.size)
+  }
+
+  @Test
+  fun getArtistsCandidate_respectsLimit() = runTest {
+    val client = testClient()
+    val candidates =
+        listOf(
+            ArtistCandidate("Q2", "Unrelated artist", null),
+            ArtistCandidate("Q1", "Pablo Picasso", null),
+        )
+    val repository =
+        WikiDataRepositoryRemote(client, jsonResponseParser = ArtistCandidateListParser(candidates))
+
+    val first = repository.getArtistCandidates("Pablo Picasso", 1)
+
+    assertEquals(1, first.size)
+  }
+
+  @Test
   fun getArtworksCandidate_reusesCachedResultsForTheSameQuery() = runTest {
     val client = testClient()
     val candidates =
