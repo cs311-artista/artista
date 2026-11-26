@@ -526,6 +526,13 @@ private fun SearchInput(
   val focusManager = LocalFocusManager.current
   val keyboardController = LocalSoftwareKeyboardController.current
 
+  var isClearingFocus by remember { mutableStateOf(false) }
+  val clearFocus = {
+    isClearingFocus = true
+    focusManager.clearFocus()
+    isClearingFocus = false
+  }
+
   LaunchedEffect(Unit) {
     focusRequester.requestFocus()
     keyboardController?.show()
@@ -552,11 +559,11 @@ private fun SearchInput(
         onSearch = { query ->
           onSearchSubmitted(query)
           onExpandedChange(false)
-          focusManager.clearFocus()
+          clearFocus()
         },
         onExpandedChange = {
-          onExpandedChange(it)
-          if (!it) focusManager.clearFocus()
+          if (!(it && isClearingFocus)) onExpandedChange(it)
+          if (!it) clearFocus()
         },
         modifier =
             Modifier.weight(1f)

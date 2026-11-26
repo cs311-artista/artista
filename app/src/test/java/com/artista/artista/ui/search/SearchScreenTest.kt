@@ -26,17 +26,15 @@ import androidx.compose.ui.test.performTextInputSelection
 import androidx.compose.ui.text.TextRange
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artist.ArtistCandidate
-import com.artista.artista.model.artist.ArtistId
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkCandidate
-import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.ArtworkType
+import com.artista.artista.model.artwork.SavedArtworksRepository
 import com.artista.artista.model.artwork.SearchArea
 import com.artista.artista.model.artwork.WikiDataRepository
 import com.artista.artista.model.location.FakeLocationProvider
 import com.artista.artista.model.map.Location
 import com.artista.artista.ui.artwork.ArtworkCardTestTag
-import kotlin.NotImplementedError
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -70,13 +68,13 @@ class SearchScreenTest {
     Dispatchers.resetMain()
   }
 
+  // region Input and suggestions
+
   @Test
   fun searchBar_requestsFocusWhenScreenIsOpened() = runTest {
     val viewModel = createViewModel()
 
-    composeTestRule.setContent {
-      MaterialTheme { SearchScreen(onTabSelected = {}, viewModel = viewModel) }
-    }
+    showSearchScreen(viewModel)
 
     composeTestRule.waitForIdle()
     composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT).assertIsFocused()
@@ -86,9 +84,7 @@ class SearchScreenTest {
   fun searchFilter_opensTypePopupAndUpdatesSelection() = runTest {
     val viewModel = createViewModel()
 
-    composeTestRule.setContent {
-      MaterialTheme { SearchScreen(onTabSelected = {}, viewModel = viewModel) }
-    }
+    showSearchScreen(viewModel)
 
     composeTestRule.waitForIdle()
     composeTestRule.onNodeWithContentDescription("Filter artworks").performClick()
@@ -140,9 +136,7 @@ class SearchScreenTest {
   fun searchBar_displaysMatchingRecommendationsFromSavedArtworks() = runTest {
     val viewModel = createViewModel()
 
-    composeTestRule.setContent {
-      MaterialTheme { SearchScreen(onTabSelected = {}, viewModel = viewModel) }
-    }
+    showSearchScreen(viewModel)
 
     composeTestRule.waitForIdle()
     advanceUntilIdle()
@@ -196,16 +190,9 @@ class SearchScreenTest {
   @Test
   fun searchBar_hidesDropdownAndSubmitsOnlyWhenQueryIsSubmitted() = runTest {
     val wikiRepository = SearchTestData.wikiDataRepository()
-    val viewModel =
-        SearchScreenViewModel(
-            SearchTestData.savedArtworksRepository(),
-            wikiRepository,
-            FakeLocationProvider(),
-        )
+    val viewModel = createViewModel(wikiDataRepository = wikiRepository)
 
-    composeTestRule.setContent {
-      MaterialTheme { SearchScreen(onTabSelected = {}, viewModel = viewModel) }
-    }
+    showSearchScreen(viewModel)
 
     composeTestRule.waitForIdle()
     advanceUntilIdle()
@@ -222,6 +209,7 @@ class SearchScreenTest {
 
     composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT).performImeAction()
     advanceUntilIdle()
+    closeSuggestions(viewModel)
 
     assertEquals(listOf("star"), wikiRepository.searchedQueries)
     composeTestRule
@@ -229,67 +217,23 @@ class SearchScreenTest {
         .assertCountEquals(0)
   }
 
+  // endregion
+
+  // region Artwork results
+
   @Test
   fun searchBar_showsLoadingIndicatorUntilSearchResultsArrive() = runTest {
     val resultsGate = CompletableDeferred<Unit>()
-    val wikiRepository = SearchTestData.wikiDataRepository()
-    val delayedWikiRepository =
-        object : WikiDataRepository {
-          override suspend fun getArtwork(uid: ArtworkId) = wikiRepository.getArtwork(uid)
+    val viewModel = createViewModel(wikiDataRepository = wikiRepositoryGatedBy(resultsGate))
 
-          override suspend fun getArtist(uid: ArtistId): Artist? = wikiRepository.getArtist(uid)
-
-          override suspend fun getArtistCandidates(
-              query: String,
-              limit: Int,
-          ): List<ArtistCandidate> {
-            throw NotImplementedError("Should not be used")
-          }
-
-          override suspend fun getArtistsFromQuery(query: String, limit: Int): List<Artist> =
-              wikiRepository.getArtistsFromQuery(query)
-
-          override suspend fun getArtworksFromQuery(
-              artworkTitle: String,
-              typeValues: List<ArtworkType>,
-              limit: Int,
-          ): List<Artwork> {
-            resultsGate.await()
-            return wikiRepository.getArtworksFromQuery(artworkTitle, typeValues, limit)
-          }
-
-          override suspend fun getArtworksNearLocation(
-              searchArea: SearchArea,
-              typeValues: List<ArtworkType>,
-              limit: Int,
-          ): List<Artwork> {
-            throw NotImplementedError("should not be used in this test")
-          }
-
-          override suspend fun getArtworkCandidates(
-              query: String,
-              typeValues: List<ArtworkType>,
-              limit: Int,
-          ): List<ArtworkCandidate> {
-            throw NotImplementedError("Should not be used")
-          }
-        }
-    val viewModel =
-        SearchScreenViewModel(
-            SearchTestData.savedArtworksRepository(),
-            delayedWikiRepository,
-            FakeLocationProvider(),
-        )
-
-    composeTestRule.setContent {
-      MaterialTheme { SearchScreen(onTabSelected = {}, viewModel = viewModel) }
-    }
+    showSearchScreen(viewModel)
 
     composeTestRule.waitForIdle()
     advanceUntilIdle()
     composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT).performTextInput("star")
     composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT).performImeAction()
     advanceUntilIdle()
+    closeSuggestions(viewModel)
 
     composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_LOADING_INDICATOR).assertIsDisplayed()
     resultsGate.complete(Unit)
@@ -309,9 +253,8 @@ class SearchScreenTest {
     viewModel.onSearchSubmitted("no matching artwork")
     advanceUntilIdle()
 
-    composeTestRule.setContent {
-      MaterialTheme { SearchScreen(onTabSelected = {}, viewModel = viewModel) }
-    }
+    showSearchScreen(viewModel)
+    closeSuggestions(viewModel)
 
     composeTestRule.onNodeWithTag(SearchScreenTestTags.EMPTY_RESULTS).assertIsDisplayed()
     composeTestRule.onNodeWithText("No artworks found").assertIsDisplayed()
@@ -328,9 +271,8 @@ class SearchScreenTest {
     viewModel.onSearchSubmitted("untitled")
     advanceUntilIdle()
 
-    composeTestRule.setContent {
-      MaterialTheme { SearchScreen(onTabSelected = {}, viewModel = viewModel) }
-    }
+    showSearchScreen(viewModel)
+    closeSuggestions(viewModel)
 
     composeTestRule
         .onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD_TITLE, useUnmergedTree = true)
@@ -344,12 +286,7 @@ class SearchScreenTest {
   fun toggleSavedArtwork_updatesRepositoryAndUiState() = runTest {
     val artwork = SearchTestData.girlWithPearlEarring
     val repository = SearchTestData.savedArtworksRepository(listOf(artwork))
-    val viewModel =
-        SearchScreenViewModel(
-            repository,
-            SearchTestData.wikiDataRepository(),
-            FakeLocationProvider(),
-        )
+    val viewModel = createViewModel(savedArtworksRepository = repository)
     advanceUntilIdle()
     assertEquals(listOf(artwork), viewModel.uiState.value.savedArtworks)
 
@@ -370,10 +307,9 @@ class SearchScreenTest {
   fun searchResults_whenMapButtonIsClicked_callsOnMapClickWithTappedArtwork() = runTest {
     val artwork = SearchTestData.starryNight.copy(location = Location(48.8606, 2.3376, "Louvre"))
     val viewModel =
-        SearchScreenViewModel(
-            SearchTestData.savedArtworksRepository(emptyList()),
-            FakeWikiDataRepository(listOf(artwork)),
-            FakeLocationProvider(),
+        createViewModel(
+            savedArtworksRepository = SearchTestData.savedArtworksRepository(emptyList()),
+            wikiDataRepository = FakeWikiDataRepository(listOf(artwork)),
         )
     viewModel.onSearchSubmitted("star")
     advanceUntilIdle()
@@ -389,6 +325,7 @@ class SearchScreenTest {
         )
       }
     }
+    closeSuggestions(viewModel)
 
     // Semantic click: performClick() does not reach the button in this Robolectric window.
     composeTestRule
@@ -398,10 +335,188 @@ class SearchScreenTest {
     assertEquals(artwork, mappedArtwork)
   }
 
-  private fun createViewModel() =
+  // endregion
+
+  // region Tabs
+
+  @Test
+  fun artistsTab_showsArtistResultsAfterSearch() = runTest {
+    val artist = checkNotNull(SearchTestData.starryNight.artist)
+    val viewModel = createViewModel(wikiDataRepository = wikiRepositoryWithArtists(listOf(artist)))
+    advanceUntilIdle()
+    viewModel.onSearchTabSelected(SearchTab.ARTISTS)
+    viewModel.onSearchSubmitted("van gogh")
+    advanceUntilIdle()
+
+    showSearchScreen(viewModel)
+    closeSuggestions(viewModel)
+
+    composeTestRule.onNodeWithText(artist.name).assertIsDisplayed()
+  }
+
+  @Test
+  fun artistsTab_showsEmptyStateWhenNoArtistMatches() = runTest {
+    val viewModel = createViewModel(wikiDataRepository = wikiRepositoryWithArtists(emptyList()))
+    advanceUntilIdle()
+    viewModel.onSearchTabSelected(SearchTab.ARTISTS)
+    viewModel.onSearchSubmitted("no matching artist")
+    advanceUntilIdle()
+
+    showSearchScreen(viewModel)
+    closeSuggestions(viewModel)
+
+    composeTestRule.onNodeWithTag(SearchScreenTestTags.EMPTY_RESULTS).assertIsDisplayed()
+  }
+
+  @Test
+  fun tabSwitch_keepsArtworkResultsWhenComingBack() = runTest {
+    val viewModel = createViewModel()
+    advanceUntilIdle()
+    viewModel.onSearchSubmitted("star")
+    advanceUntilIdle()
+
+    showSearchScreen(viewModel)
+    closeSuggestions(viewModel)
+    composeTestRule
+        .onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD_TITLE, useUnmergedTree = true)
+        .assert(hasText("The Starry Night"))
+
+    selectTab(SearchTab.ARTISTS)
+
+    composeTestRule
+        .onAllNodesWithTag(ArtworkCardTestTag.ARTWORK_CARD_TITLE, useUnmergedTree = true)
+        .assertCountEquals(0)
+
+    selectTab(SearchTab.ARTWORKS)
+
+    composeTestRule
+        .onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD_TITLE, useUnmergedTree = true)
+        .assert(hasText("The Starry Night"))
+  }
+
+  @Test
+  fun tabSwitch_keepsArtworkSearchRunningAndShowsItsSpinnerOnlyOnThatTab() = runTest {
+    val resultsGate = CompletableDeferred<Unit>()
+    val viewModel = createViewModel(wikiDataRepository = wikiRepositoryGatedBy(resultsGate))
+    advanceUntilIdle()
+    viewModel.onSearchSubmitted("star")
+    advanceUntilIdle()
+
+    showSearchScreen(viewModel)
+    closeSuggestions(viewModel)
+    composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_LOADING_INDICATOR).assertIsDisplayed()
+
+    selectTab(SearchTab.ARTISTS)
+
+    composeTestRule
+        .onAllNodesWithTag(SearchScreenTestTags.SEARCH_LOADING_INDICATOR)
+        .assertCountEquals(0)
+
+    selectTab(SearchTab.ARTWORKS)
+
+    composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_LOADING_INDICATOR).assertIsDisplayed()
+
+    resultsGate.complete(Unit)
+    advanceUntilIdle()
+    composeTestRule.waitForIdle()
+
+    composeTestRule
+        .onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD_TITLE, useUnmergedTree = true)
+        .assert(hasText("The Starry Night"))
+  }
+
+  // endregion
+
+  // region Helpers
+
+  private fun createViewModel(
+      savedArtworksRepository: SavedArtworksRepository = SearchTestData.savedArtworksRepository(),
+      wikiDataRepository: WikiDataRepository = SearchTestData.wikiDataRepository(),
+  ) =
       SearchScreenViewModel(
-          SearchTestData.savedArtworksRepository(),
-          SearchTestData.wikiDataRepository(),
+          savedArtworksRepository,
+          WithoutRemoteSuggestions(wikiDataRepository),
           FakeLocationProvider(),
       )
+
+  private fun showSearchScreen(viewModel: SearchScreenViewModel) {
+    composeTestRule.setContent {
+      MaterialTheme { SearchScreen(onTabSelected = {}, viewModel = viewModel) }
+    }
+  }
+
+  /**
+   * Makes the body show results rather than suggestions.
+   *
+   * The screen opens its suggestions pane as soon as the field gains focus, and under Robolectric
+   * clearing focus (which the screen does after a submit) hands focus straight back to the field,
+   * reopening the pane. Closing the pane through the ViewModel does not touch focus, so it stays
+   * closed.
+   */
+  private fun closeSuggestions(viewModel: SearchScreenViewModel) {
+    composeTestRule.waitForIdle()
+    composeTestRule.runOnIdle { viewModel.onSuggestingChange(false) }
+    composeTestRule.waitForIdle()
+  }
+
+  /**
+   * Selects a tab through its click semantics, like the other buttons in this Robolectric window.
+   */
+  private fun selectTab(tab: SearchTab) {
+    composeTestRule
+        .onNodeWithTag(SearchScreenTestTags.tab(tab))
+        .performSemanticsAction(SemanticsActions.OnClick)
+    composeTestRule.waitForIdle()
+  }
+
+  /** Test data repository whose artwork search only answers once [gate] is completed. */
+  private fun wikiRepositoryGatedBy(gate: CompletableDeferred<Unit>): WikiDataRepository {
+    val base = SearchTestData.wikiDataRepository()
+    return object : WikiDataRepository by base {
+      override suspend fun getArtworksFromQuery(
+          artworkTitle: String,
+          typeValues: List<ArtworkType>,
+          limit: Int,
+      ): List<Artwork> {
+        gate.await()
+        return base.getArtworksFromQuery(artworkTitle, typeValues, limit)
+      }
+    }
+  }
+
+  /** Test data repository whose artist search always returns [artists]. */
+  private fun wikiRepositoryWithArtists(artists: List<Artist>): WikiDataRepository {
+    val base = SearchTestData.wikiDataRepository()
+    return object : WikiDataRepository by base {
+      override suspend fun getArtistsFromQuery(query: String, limit: Int): List<Artist> = artists
+    }
+  }
+
+  // endregion
+
+  /**
+   * Wraps [base] so that the calls the ViewModel makes on its own (nearby artworks on start-up and
+   * suggestions whenever the field is focused or edited) return nothing instead of reaching methods
+   * that the test repositories leave as `TODO()`.
+   *
+   * Those calls run in the ViewModel's scope, where a `NotImplementedError` is not caught and fails
+   * whichever test happens to be running. Search and lookup calls still go to [base], so recorded
+   * queries and results are unchanged.
+   */
+  private class WithoutRemoteSuggestions(base: WikiDataRepository) : WikiDataRepository by base {
+    override suspend fun getArtworksNearLocation(
+        searchArea: SearchArea,
+        typeValues: List<ArtworkType>,
+        limit: Int,
+    ): List<Artwork> = emptyList()
+
+    override suspend fun getArtworkCandidates(
+        query: String,
+        typeValues: List<ArtworkType>,
+        limit: Int,
+    ): List<ArtworkCandidate> = emptyList()
+
+    override suspend fun getArtistCandidates(query: String, limit: Int): List<ArtistCandidate> =
+        emptyList()
+  }
 }

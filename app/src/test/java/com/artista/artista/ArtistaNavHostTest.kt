@@ -24,7 +24,6 @@ import com.artista.artista.ui.artwork.ArtworkTestTags
 import com.artista.artista.ui.navigation.Screen
 import com.artista.artista.ui.overview.OverviewTestTags
 import com.artista.artista.ui.search.SearchScreenTestTags
-import com.artista.artista.ui.search.SearchScreenTestTags.SEARCH_BACK_BUTTON
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Before
@@ -107,7 +106,6 @@ class ArtistaNavHostTest {
     // window, where a synthetic touch would land outside the screen and be dropped.
 
     composeTestRule.waitUntil(5_000) {
-      composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_BACK_BUTTON).performClick()
       composeTestRule
           .onAllNodesWithTag(ArtworkCardTestTag.ARTWORK_CARD)
           .fetchSemanticsNodes()
