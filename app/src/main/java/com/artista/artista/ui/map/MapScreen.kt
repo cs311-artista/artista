@@ -171,7 +171,8 @@ fun MapScreen(
   val routeUiState by mapViewModel.routeUiStateFlow.collectAsStateWithLifecycle()
   val routeProgressUiState by mapViewModel.routeProgressUiStateFlow.collectAsStateWithLifecycle()
   val recalculationUiState by mapViewModel.recalculationUiStateFlow.collectAsStateWithLifecycle()
-  val isRouteActive = routeUiState is RouteUiState.Success
+  val hasArrived by mapViewModel.hasArrived.collectAsStateWithLifecycle()
+  val isRouteActive = routeUiState is RouteUiState.Success && !hasArrived
   val context = LocalContext.current
   val userLocation = uiState.userLocation
   val latestRouteUiState by rememberUpdatedState(routeUiState)
@@ -266,7 +267,7 @@ fun MapScreen(
       success?.let { routeState ->
         // Fall back to the full path until the first progress is computed.
         val path = routeProgressUiState?.path ?: routeState.route.path
-        if (path.isNotEmpty()) {
+        if (path.isNotEmpty() && !hasArrived) {
           Polyline(
               points = path.map { LatLng(it.latitude, it.longitude) },
               color = ArtistaColors.Primary,
@@ -295,6 +296,7 @@ fun MapScreen(
         onClearRoute = mapViewModel::clearRoute,
         onRetryRoute = mapViewModel::retryRoute,
         onRecalculateRoute = mapViewModel::recalculateRoute,
+        hasArrived = hasArrived,
         modifier =
             Modifier.align(Alignment.TopCenter)
                 .padding(
@@ -346,6 +348,7 @@ internal fun routeBounds(
  *   "Recalculate route" button or the retry action of a failed recalculation
  * @param recalculationUiState state of the route recalculation: whether the button is offered, its
  *   loading and cooldown states, and the error of a failed request
+ * @param hasArrived whether the user is within the arrival threshold of the destination
  * @param modifier modifier applied to the overlay
  * @author patrickmcdan
  */
@@ -357,6 +360,7 @@ internal fun RouteOverlay(
     onRetryRoute: () -> Unit,
     onRecalculateRoute: () -> Unit,
     recalculationUiState: RouteRecalculationUiState,
+    hasArrived: Boolean,
     modifier: Modifier = Modifier,
 ) {
   when (routeUiState) {
@@ -393,16 +397,18 @@ internal fun RouteOverlay(
               Text(
                   modifier = Modifier.testTag(MapScreenTestTags.ROUTE_SUMMARY),
                   text =
-                      if (routeProgressUiState != null) {
-                        formatWalkingRouteSummary(
-                            routeProgressUiState.remainingDurationSeconds.seconds,
-                            routeProgressUiState.remainingDistanceMeters.roundToInt(),
-                        )
-                      } else {
-                        formatWalkingRouteSummary(
-                            routeUiState.route.duration,
-                            routeUiState.route.distanceMeters,
-                        )
+                      when {
+                        hasArrived -> stringResource(R.string.map_route_arrived)
+                        routeProgressUiState != null ->
+                            formatWalkingRouteSummary(
+                                routeProgressUiState.remainingDurationSeconds.seconds,
+                                routeProgressUiState.remainingDistanceMeters.roundToInt(),
+                            )
+                        else ->
+                            formatWalkingRouteSummary(
+                                routeUiState.route.duration,
+                                routeUiState.route.distanceMeters,
+                            )
                       },
                   style = MaterialTheme.typography.bodyMedium,
               )
@@ -424,14 +430,23 @@ internal fun RouteOverlay(
                 }
               }
             }
-            IconButton(
-                modifier = Modifier.testTag(MapScreenTestTags.ROUTE_CLOSE_BUTTON),
-                onClick = onClearRoute,
-            ) {
-              Icon(
-                  imageVector = Icons.Default.Close,
-                  contentDescription = stringResource(R.string.map_route_close),
-              )
+            if (hasArrived) {
+              Button(
+                  modifier = Modifier.testTag(MapScreenTestTags.ROUTE_CLOSE_BUTTON),
+                  onClick = onClearRoute,
+              ) {
+                Text(text = stringResource(R.string.map_route_arrived_close))
+              }
+            } else {
+              IconButton(
+                  modifier = Modifier.testTag(MapScreenTestTags.ROUTE_CLOSE_BUTTON),
+                  onClick = onClearRoute,
+              ) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = stringResource(R.string.map_route_close),
+                )
+              }
             }
           }
         }
