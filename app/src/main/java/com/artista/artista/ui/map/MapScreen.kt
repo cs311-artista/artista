@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.MyLocation
@@ -95,7 +96,7 @@ import kotlin.time.Duration.Companion.seconds
 /**
  * Contains test tags used by the map screen.
  *
- * @author Felix Burchardt, patrickmcdan
+ * @author 5kyPhy, patrickmcdan
  */
 object MapScreenTestTags {
   /** Tag identifying the Google Map surface. */
@@ -158,6 +159,9 @@ object MapScreenTestTags {
 
   /** Tag identifying the map's recenter action. */
   const val RECENTER_BUTTON = "map_recenter_button"
+
+  /** Tag identifying the go to details action on the selected-artwork card. */
+  const val ARTWORK_CARD_DETAILS = "map_artwork_details_button"
 }
 
 /**
@@ -193,12 +197,17 @@ internal fun remoteArtworksNotSaved(
  * Displays a map centered on the user's current position.
  *
  * @param mapViewModel ViewModel containing the latest user location.
+ * @param onNavigationBarTabSelected called when a navigation bar tab is selected
+ * @param onDetailsButtonClicked called when the selected artwork's details action is pressed
+ * @param hasLocationPermissions returns true when the user has granted location permissions. Made
+ *   injectable for testing and should not be changed for production.
  * @author 5kyPhy, patrickmcdan
  */
 @Composable
 fun MapScreen(
     mapViewModel: MapViewModel,
     onNavigationBarTabSelected: (Tab) -> Unit = {},
+    onDetailsButtonClicked: (Artwork) -> Unit,
     hasLocationPermissions: (Context) -> Boolean = ::hasUserLocationPermissions,
 ) {
   val uiState by mapViewModel.uiStateFlow.collectAsStateWithLifecycle()
@@ -351,6 +360,7 @@ fun MapScreen(
         onRetryRoute = mapViewModel::retryRoute,
         onRecalculateRoute = mapViewModel::recalculateRoute,
         hasArrived = hasArrived,
+        onDetailsButtonClicked = onDetailsButtonClicked,
         modifier =
             Modifier.align(Alignment.TopCenter)
                 .padding(
@@ -406,6 +416,7 @@ internal fun routeBounds(
  * @param recalculationUiState state of the route recalculation: whether the button is offered, its
  *   loading and cooldown states, and the error of a failed request
  * @param hasArrived whether the user is within the arrival threshold of the destination
+ * @param onDetailsButtonClicked called when the selected artwork's details action is pressed
  * @param modifier modifier applied to the overlay
  * @author patrickmcdan
  */
@@ -420,6 +431,7 @@ internal fun RouteOverlay(
     onRecalculateRoute: () -> Unit,
     recalculationUiState: RouteRecalculationUiState,
     hasArrived: Boolean,
+    onDetailsButtonClicked: (Artwork) -> Unit,
     modifier: Modifier = Modifier,
 ) {
   when (routeUiState) {
@@ -430,8 +442,10 @@ internal fun RouteOverlay(
             imageUrl = artwork.imageUrl,
             showImage = true,
             showSend = true,
+            showDetails = true,
             onNavigate = onNavigate,
             onDismiss = onClearRoute,
+            onDetails = { onDetailsButtonClicked(artwork) },
             cardTestTag = MapScreenTestTags.ARTWORK_CARD,
             modifier = modifier,
         )
@@ -443,8 +457,10 @@ internal fun RouteOverlay(
           imageUrl = null,
           showImage = false,
           showSend = false,
+          showDetails = selectedArtwork?.let { true } ?: false,
           onNavigate = onNavigate,
           onDismiss = onClearRoute,
+          onDetails = { selectedArtwork?.let { onDetailsButtonClicked(it) } },
           cardTestTag = MapScreenTestTags.ARTWORK_CARD,
           modifier = modifier,
           secondLine = { ArtworkCardLoadingLine() },
@@ -461,8 +477,10 @@ internal fun RouteOverlay(
             showImage = false,
             showSend = false,
             showDismiss = !hasArrived,
+            showDetails = selectedArtwork?.let { true } ?: false,
             onNavigate = onNavigate,
             onDismiss = onClearRoute,
+            onDetails = { selectedArtwork?.let { onDetailsButtonClicked(it) } },
             cardTestTag = MapScreenTestTags.ROUTE_SUMMARY_CARD,
             secondLine = {
               Text(
@@ -563,11 +581,14 @@ internal fun RouteOverlay(
  * @param showSend whether the send action is part of the header
  * @param showDismiss whether the close action is part of the header; the arrival state hides it
  *   because it offers an explicit close button under the card instead
+ * @param showDetails whether the details action is part of the header
  * @param onNavigate called when the send action is pressed
  * @param onDismiss called when the close action is pressed
+ * @param onDetails called when the details action is pressed
  * @param cardTestTag stable tag identifying the header in this state
  * @param modifier modifier applied to the column containing both surfaces
  * @param secondLine optional line under the name, such as the loading indicator or the ETA
+ * @author timo-by, 5kyPhy
  */
 @Composable
 private fun ArtworkCard(
@@ -576,8 +597,10 @@ private fun ArtworkCard(
     showImage: Boolean,
     showSend: Boolean,
     showDismiss: Boolean = true,
+    showDetails: Boolean,
     onNavigate: () -> Unit,
     onDismiss: () -> Unit,
+    onDetails: () -> Unit,
     cardTestTag: String,
     modifier: Modifier = Modifier,
     secondLine: (@Composable () -> Unit)? = null,
@@ -609,7 +632,19 @@ private fun ArtworkCard(
                 contentDescription = stringResource(R.string.map_artwork_navigate),
             )
           }
-        } else {
+        }
+        if (showDetails) {
+          IconButton(
+              modifier = Modifier.testTag(MapScreenTestTags.ARTWORK_CARD_DETAILS),
+              onClick = onDetails,
+          ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Outlined.OpenInNew,
+                contentDescription = stringResource(R.string.map_artwork_details),
+            )
+          }
+        }
+        if (!(showSend || showImage)) {
           Spacer(modifier = Modifier.size(Dimensions.standardTouchTargetSize))
         }
         Column(
@@ -873,7 +908,8 @@ internal fun MapScreenPreview() {
                         walkingRouteRepository = WalkingRouteRepositoryRemote(),
                         locationProvider = UserLocationProvider(locationClient),
                     )
-            )
+            ),
+        onDetailsButtonClicked = {},
     )
   }
 }

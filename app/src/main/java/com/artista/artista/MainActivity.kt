@@ -349,6 +349,9 @@ fun ArtistaNavHost(
         MapScreen(
             mapViewModel = mapViewModel,
             onNavigationBarTabSelected = { tab -> navigationActions.navigateTo(tab.destination) },
+            onDetailsButtonClicked = { artwork ->
+              navController.navigate(Screen.ArtworkDetails.createRoute(artwork.uid))
+            },
         )
       }
     }
