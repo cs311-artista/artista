@@ -87,7 +87,7 @@ class ArtistPreferencesScreenImageTest {
         .assertIsDisplayed()
         .assertContentDescriptionEquals(
             context.getString(
-                R.string.artist_preferences_artist_picture_description,
+                R.string.artist_card_picture_description,
                 artistWithPicture.name,
             )
         )

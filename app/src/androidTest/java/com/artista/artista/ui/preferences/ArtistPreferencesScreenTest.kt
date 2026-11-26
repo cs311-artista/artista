@@ -1,3 +1,4 @@
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.preferences
 
 import androidx.activity.ComponentActivity
@@ -78,14 +79,13 @@ class ArtistPreferencesScreenTest {
     composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SCREEN).assertIsDisplayed()
     composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.BACK_BUTTON).assertIsDisplayed()
     composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.TITLE).assertIsDisplayed()
-    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.DESCRIPTION).assertIsDisplayed()
     composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SEARCH_BAR).assertIsDisplayed()
     composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.ARTISTS_GRID).assertIsDisplayed()
     composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SAVE_BUTTON).assertIsDisplayed()
     composeTestRule.onNodeWithTag(NavigationTestTags.BOTTOM_NAVIGATION_MENU).assertIsDisplayed()
   }
 
-  /** Verifies that the title, description and save button display their texts. */
+  /** Verifies that the title and save button display their texts. */
   @Test
   fun artistPreferencesScreen_displaysTexts() {
     setLoadedContent()
@@ -93,9 +93,6 @@ class ArtistPreferencesScreenTest {
     composeTestRule
         .onNodeWithTag(ArtistPreferencesTestTags.TITLE)
         .assertTextEquals(stringOf(R.string.artist_preferences_title))
-    composeTestRule
-        .onNodeWithTag(ArtistPreferencesTestTags.DESCRIPTION)
-        .assertTextEquals(stringOf(R.string.artist_preferences_description))
     composeTestRule
         .onNodeWithTag(ArtistPreferencesTestTags.SAVE_BUTTON)
         .assertTextContains(stringOf(R.string.artist_preferences_save))
@@ -365,6 +362,34 @@ class ArtistPreferencesScreenTest {
 
     composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SEARCH_BAR).performTextClearance()
 
+    testArtists.forEach { artist ->
+      val cardTag = ArtistPreferencesTestTags.getArtistCardTestTag(artist.uid)
+      scrollToCard(cardTag)
+      composeTestRule.onNodeWithTag(cardTag).assertIsDisplayed()
+    }
+  }
+
+  /** Verifies that the clear button is hidden while the search field is empty. */
+  @Test
+  fun searchBar_empty_hidesClearButton() {
+    setLoadedContent()
+
+    composeTestRule
+        .onNodeWithTag(ArtistPreferencesTestTags.CLEAR_SEARCH_BUTTON)
+        .assertDoesNotExist()
+  }
+
+  /** Verifies that the clear button empties the query and brings every saved artist back. */
+  @Test
+  fun searchBar_clearButton_clearsQueryAndShowsAllArtists() {
+    setLoadedContent()
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.SEARCH_BAR).performTextInput("mon")
+
+    composeTestRule.onNodeWithTag(ArtistPreferencesTestTags.CLEAR_SEARCH_BUTTON).performClick()
+
+    composeTestRule
+        .onNodeWithTag(ArtistPreferencesTestTags.CLEAR_SEARCH_BUTTON)
+        .assertDoesNotExist()
     testArtists.forEach { artist ->
       val cardTag = ArtistPreferencesTestTags.getArtistCardTestTag(artist.uid)
       scrollToCard(cardTag)
