@@ -32,6 +32,7 @@ import com.artista.artista.model.artwork.ArtworkType
 import com.artista.artista.model.artwork.SavedArtworksRepository
 import com.artista.artista.model.artwork.SearchArea
 import com.artista.artista.model.artwork.WikiDataRepository
+import com.artista.artista.model.error.AppException
 import com.artista.artista.model.location.FakeLocationProvider
 import com.artista.artista.model.map.Location
 import com.artista.artista.ui.artwork.ArtworkCardTestTag
@@ -427,6 +428,68 @@ class SearchScreenTest {
         .assert(hasText("The Starry Night"))
   }
 
+  @Test
+  fun artistsTab_showsLoadingIndicatorWhileArtistSearchIsRunning() = runTest {
+    val resultsGate = CompletableDeferred<Unit>()
+    val base = SearchTestData.wikiDataRepository()
+
+    val wikiRepository =
+        object : WikiDataRepository by base {
+          override suspend fun getArtistsFromQuery(
+              query: String,
+              limit: Int,
+          ): List<Artist> {
+            resultsGate.await()
+            return emptyList()
+          }
+        }
+
+    val viewModel = createViewModel(wikiDataRepository = wikiRepository)
+
+    advanceUntilIdle()
+
+    viewModel.onSearchTabSelected(SearchTab.ARTISTS)
+    viewModel.onSearchSubmitted("van gogh")
+    advanceUntilIdle()
+
+    showSearchScreen(viewModel)
+    closeSuggestions(viewModel)
+
+    // Loading indicator must be visible while the repository is waiting.
+    composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_LOADING_INDICATOR).assertIsDisplayed()
+
+    resultsGate.complete(Unit)
+    advanceUntilIdle()
+    composeTestRule.waitForIdle()
+
+    // Loading indicator disappears after results arrive.
+    composeTestRule
+        .onAllNodesWithTag(SearchScreenTestTags.SEARCH_LOADING_INDICATOR)
+        .assertCountEquals(0)
+  }
+
+  // endregion
+
+  // region Error
+
+  @Test
+  fun saveError_showsToastAndClearsError() = runTest {
+    val artwork = SearchTestData.girlWithPearlEarring
+    val repository = failingSavedArtworksRepository()
+    val viewModel = createViewModel(savedArtworksRepository = repository)
+
+    advanceUntilIdle()
+    showSearchScreen(viewModel)
+    composeTestRule.waitForIdle()
+
+    viewModel.toggleSavedArtwork(artwork)
+    advanceUntilIdle()
+    composeTestRule.waitForIdle()
+
+    // LaunchedEffect should display the Toast and clear the error.
+    composeTestRule.runOnIdle { assertEquals(null, viewModel.uiState.value.saveErrorMessageResId) }
+  }
+
   // endregion
 
   // region Helpers
@@ -520,5 +583,15 @@ class SearchScreenTest {
 
     override suspend fun getArtistCandidates(query: String, limit: Int): List<ArtistCandidate> =
         emptyList()
+  }
+
+  private fun failingSavedArtworksRepository(): SavedArtworksRepository {
+    val base = SearchTestData.savedArtworksRepository()
+
+    return object : SavedArtworksRepository by base {
+      override suspend fun saveArtwork(artwork: Artwork) {
+        throw AppException.Network()
+      }
+    }
   }
 }
