@@ -111,7 +111,7 @@ object SearchScreenTestTags {
   const val WIKIDATA_ATTRIBUTION = "search_wikidata_attribution"
 
   /** Tag of the artwork results list. */
-  const val ARTWORK_RESULTS = "search_artwork_results"
+  const val SEARCH_RESULT = "search_artwork_results"
 
   /** Tag of the search loading indicator. */
   const val SEARCH_LOADING_INDICATOR = "search_loading_indicator"
@@ -410,7 +410,7 @@ private fun ArtistResults(
     modifier: Modifier = Modifier,
 ) {
   LazyColumn(
-      modifier = modifier.testTag(SearchScreenTestTags.ARTWORK_RESULTS),
+      modifier = modifier.testTag(SearchScreenTestTags.SEARCH_RESULT),
       contentPadding =
           PaddingValues(
               horizontal = Dimensions.searchResultsHorizontalPadding,
@@ -939,7 +939,7 @@ private fun ArtworkResults(
     modifier: Modifier = Modifier,
 ) {
   LazyColumn(
-      modifier = modifier.testTag(SearchScreenTestTags.ARTWORK_RESULTS),
+      modifier = modifier.testTag(SearchScreenTestTags.SEARCH_RESULT),
       contentPadding =
           PaddingValues(
               horizontal = Dimensions.searchResultsHorizontalPadding,

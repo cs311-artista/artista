@@ -351,7 +351,9 @@ class SearchScreenTest {
     showSearchScreen(viewModel)
     closeSuggestions(viewModel)
 
-    composeTestRule.onNodeWithText(artist.name).assertIsDisplayed()
+    // If this fails, the artists tab is showing the empty state although artists were found.
+    composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_RESULT).assertExists()
+    composeTestRule.onNodeWithText(artist.name).assertExists()
   }
 
   @Test

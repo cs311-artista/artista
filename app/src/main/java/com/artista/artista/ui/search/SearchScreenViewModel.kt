@@ -460,8 +460,6 @@ class SearchScreenViewModel(
           hasInvalidSearchInput = next.selectedTab in next.invalidInputTabs,
       )
     }
-
-      println(_uiState.value.resultArtist)
   }
 
   private fun SearchScreenUiState.withoutResults(tab: SearchTab): SearchScreenUiState =
