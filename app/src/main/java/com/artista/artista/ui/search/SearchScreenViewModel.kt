@@ -207,6 +207,7 @@ class SearchScreenViewModel(
    * Searches keep running in the background; each tab shows its own loading state and results.
    *
    * @param tab tab to select
+   * @author IJJA3141
    */
   fun onSearchTabSelected(tab: SearchTab) {
     if (_uiState.value.selectedTab == tab) return
@@ -223,6 +224,7 @@ class SearchScreenViewModel(
    * and closing it drops any pending suggestion request.
    *
    * @param isSuggesting whether the pane should be visible
+   * @author IJJA3141
    */
   fun onSuggestingChange(isSuggesting: Boolean) {
     if (_uiState.value.isSuggesting == isSuggesting) return
@@ -332,7 +334,7 @@ class SearchScreenViewModel(
         },
     ) {
       val userLocation = locationClient.getUserLocation()
-      val searchArea = SearchArea(userLocation.latitude, userLocation.longitude, 50.0)
+      val searchArea = SearchArea(userLocation.latitude, userLocation.longitude, SearchArea.MAX_RADIUS_KM)
 
       // The selected artwork types are deliberately not passed: all nearby artworks are fetched and
       // then filtered locally by the query.

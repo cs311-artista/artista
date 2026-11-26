@@ -107,7 +107,7 @@ object SearchScreenTestTags {
   /** Tag of the "Powered by Wikidata" attribution. */
   const val WIKIDATA_ATTRIBUTION = "search_wikidata_attribution"
 
-  /** Tag of the artwork results list. */
+  /** Tag of results list. */
   const val SEARCH_RESULT = "search_artwork_results"
 
   /** Tag of the search loading indicator. */
@@ -185,8 +185,6 @@ internal fun buildArtworkSuggestions(
         nearby.map { ArtworkSuggestion(it, SuggestionSource.NEARBY) } +
         wikiData.map { ArtworkSuggestion(it, SuggestionSource.WIKIDATA) })
 
-/** Layout values for the new search UI. Move into [Dimensions] once the design is final. */
-
 /**
  * Displays the search field, the Artworks/Artists switch, suggestions, and search results.
  *
@@ -261,7 +259,6 @@ fun SearchScreen(
  *
  * @param uiState state supplied by the ViewModel
  * @param textFieldState text and cursor state shown in the search field
- * @param artistSuggestions artist suggestions shown on the Artists tab
  * @param onSearchTabSelected called when the user picks a tab
  * @param onSuggestingChange called when the suggestions pane should open or close
  * @param onQueryChanged called when the user edits the query or selection
@@ -269,11 +266,11 @@ fun SearchScreen(
  * @param onArtworkTypeToggle called when the user toggles an artwork type
  * @param onBottomTabSelected called when the user picks a bottom-navigation tab
  * @param onArtworkClick called when the user selects an artwork result
+ * @param onArtistClick called when the user selects an artist result
  * @param onMapClick called when the user selects the map action of a result
  * @param onSaveClick called when the user saves or unsaves a result
  * @param onRecommendationSelected called when the user picks an artwork suggestion
  * @param onArtistRecommendationSelected called when the user picks an artist suggestion
- * @param artistResults slot for the artist results shown on the Artists tab after a submit
  */
 @Composable
 internal fun SearchScreenContent(
