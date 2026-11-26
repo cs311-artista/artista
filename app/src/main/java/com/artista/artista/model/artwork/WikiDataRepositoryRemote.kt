@@ -218,6 +218,7 @@ class WikiDataRepositoryRemote(
 
     return caches.searchedArtists.getOrLoad(key) {
       val query = buildArtistQuery(normalizedQuery, limit)
+        println(query)
       val request = buildSparqlRequest(query)
       val body = executeRequest(request)
       val artists = jsonResponseParser.parseArtistsResults(body).orderByNameMatch(normalizedQuery)
@@ -518,11 +519,12 @@ class WikiDataRepositoryRemote(
         WHERE {
           SERVICE wikibase:mwapi {
             bd:serviceParam wikibase:endpoint "www.wikidata.org" ;
-            wikibase:api "Generator" ;
-            mwapi:generator "search" ;
-            mwapi:gsrsearch "haswbstatement:${WikiDataProperty.INSTANCE_OF}=${WikiDataItems.HUMAN} $query" ;
-            mwapi:gsrlimit "$limit" .
+                            wikibase:api "Generator" ;
+                            mwapi:generator "search" ;
+                            mwapi:gsrsearch "haswbstatement:${WikiDataProperty.INSTANCE_OF}=${WikiDataItems.HUMAN} $query" ;
+                            mwapi:gsrlimit "$limit" .
             ?artist wikibase:apiOutputItem mwapi:title .
+            ?ordinal wikibase:apiOrdinal true .
           }
           ?artist rdfs:label ?artistLabel .
           FILTER(LANG(?artistLabel) = "en")
