@@ -236,7 +236,7 @@ class MapArtworkCardTest {
         routeUiState = RouteUiState.Error(RouteErrorKind.NETWORK, R.string.error_network),
         selectedArtwork = artwork(),
         onClear = { cleared = true },
-        onRetry = { retried = true },
+        onRetryRoute = { retried = true },
     )
 
     composeTestRule.onNodeWithTag(MapScreenTestTags.ROUTE_ERROR).assertIsDisplayed()
@@ -285,6 +285,9 @@ class MapArtworkCardTest {
     composeTestRule
         .onNodeWithContentDescription(context.getString(R.string.map_artwork_dismiss))
         .assertIsDisplayed()
+    composeTestRule
+        .onNodeWithContentDescription(context.getString(R.string.map_artwork_details))
+        .assertIsDisplayed()
   }
 
   /** Verifies that a loaded image is described to accessibility services with the artwork name. */
@@ -308,13 +311,34 @@ class MapArtworkCardTest {
         .assertContentDescriptionEquals("Image of Mona Lisa")
   }
 
+  @Test
+  fun artworkCard_whenDetailsButtonIsClicked_invokesCorrectCallback() {
+    var wrongCallbackInvoked = false
+    var rightCallbackInvoked = false
+
+    setOverlay(
+        selectedArtwork = artwork(),
+        onNavigate = { wrongCallbackInvoked = true },
+        onClear = { wrongCallbackInvoked = true },
+        onRetryRoute = { wrongCallbackInvoked = true },
+        onDetailsButtonClicked = { rightCallbackInvoked = true },
+    )
+
+    composeTestRule.onNodeWithTag(MapScreenTestTags.ARTWORK_CARD_DETAILS).performClick()
+    composeTestRule.waitForIdle()
+
+    assertTrue(!wrongCallbackInvoked)
+    assertTrue(rightCallbackInvoked)
+  }
+
   private fun setOverlay(
       routeUiState: RouteUiState = RouteUiState.Idle,
       routeProgressUiState: RouteProgressUiState? = null,
       selectedArtwork: Artwork? = null,
       onNavigate: () -> Unit = {},
       onClear: () -> Unit = {},
-      onRetry: () -> Unit = {},
+      onRetryRoute: () -> Unit = {},
+      onDetailsButtonClicked: (Artwork) -> Unit = {},
   ) {
     composeTestRule.setContent {
       ArtistaTheme {
@@ -324,11 +348,11 @@ class MapArtworkCardTest {
             selectedArtwork = selectedArtwork,
             onNavigate = onNavigate,
             onClearRoute = onClear,
-            onRetryRoute = onRetry,
+            onRetryRoute = onRetryRoute,
             onRecalculateRoute = {},
             recalculationUiState = RouteRecalculationUiState(),
             hasArrived = false,
-            onDetailsButtonClicked = {},
+            onDetailsButtonClicked = onDetailsButtonClicked,
         )
       }
     }
