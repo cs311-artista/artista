@@ -77,6 +77,7 @@ class LocationPermissionScreenTest {
         .assertIsDisplayed()
         .assertTextEquals(continueLabel)
     composeTestRule.onNodeWithTag(LocationPermissionTestTags.ALLOW_BUTTON).assertDoesNotExist()
+    composeTestRule.onNodeWithTag(LocationPermissionTestTags.NOT_NOW_BUTTON).assertDoesNotExist()
   }
 
   /** Verifies that the allow action reports the user's intent. */
