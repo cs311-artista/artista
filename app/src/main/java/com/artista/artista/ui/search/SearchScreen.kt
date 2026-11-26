@@ -70,7 +70,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
 import com.artista.artista.R
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artist.ArtistCandidate
@@ -84,6 +83,7 @@ import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.search.SearchScreenTestTags.SEARCH_BACK_BUTTON
 import com.artista.artista.ui.theme.Dimensions
 import com.artista.artista.ui.theme.SearchBarPalette
+import com.artista.artista.ui.theme.SearchLayout
 
 /** Stable semantics tags used by SearchScreen UI tests. */
 object SearchScreenTestTags {
@@ -157,13 +157,6 @@ enum class SuggestionSource {
  * @property source list the suggestion came from
  */
 data class ArtworkSuggestion(val candidate: ArtworkCandidate, val source: SuggestionSource)
-
-/** Layout values for the new search UI. Move into [Dimensions] once the design is final. */
-private object SearchLayout {
-  val TabSwitchHeight = 40.dp
-  val TabSwitchBottomSpacing = 12.dp
-  val AttributionVerticalPadding = 16.dp
-}
 
 /**
  * Merges the three suggestion lists into the single list shown under the search field.

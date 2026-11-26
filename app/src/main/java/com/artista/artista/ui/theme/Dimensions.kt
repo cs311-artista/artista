@@ -182,3 +182,10 @@ internal object TypographyDimensions {
   val bodyLargeLineHeight = 24.sp
   val bodyLargeLetterSpacing = 0.5.sp
 }
+
+/** Layout values for the new search UI. Move into [Dimensions] once the design is final. */
+internal object SearchLayout {
+  val TabSwitchHeight = 40.dp
+  val TabSwitchBottomSpacing = 12.dp
+  val AttributionVerticalPadding = 16.dp
+}
