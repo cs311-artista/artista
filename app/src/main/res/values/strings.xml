@@ -115,6 +115,7 @@
     <string name="overview_load_error">Unable to load nearby artworks.</string>
     <string name="overview_saved_artworks_action">Saved artworks</string>
     <string name="overview_search_placeholder">Search artworks or artists</string>
+    <string name="overview_close_saved_artworks_title">One of your favorites is close!</string>
     <string name="overview_nearby_artworks_title">Nearby artworks you might like.</string>
     <string name="overview_show_as_list">Show artworks as a list</string>
     <string name="overview_show_as_grid">Show artworks as a grid</string>

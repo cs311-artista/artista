@@ -98,8 +98,14 @@ internal object Dimensions {
   val artworkFilterSuggestionsMaxHeight = 160.dp
   val overviewSearchBarHeight = standardControlHeight
   val overviewSearchBarElevation = 2.dp
+  val overviewFilterButtonSize = standardControlHeight
+  val overviewSearchBarFilterSpacing = 12.dp
   val overviewSectionTitleTopPadding = 8.dp
+  val overviewSectionSpacing = 24.dp
   val overviewGridItemSpacing = 12.dp
+
+  /** Width of a tile in the row of saved artworks close to the user. */
+  val overviewCloseSavedTileWidth = 160.dp
   val overviewEmptyStateHorizontalPadding = 24.dp
 
   // Artwork list cards, used by the overview list mode.
@@ -115,8 +121,6 @@ internal object Dimensions {
 
   /** Width over height of the image in an artwork list card, close to the V2 mockup. */
   const val ARTWORK_LIST_CARD_IMAGE_ASPECT_RATIO = 1f
-  val overviewFilterButtonSize = standardControlHeight
-  val overviewSearchBarFilterSpacing = 12.dp
 
   // Search screen.
   val searchRecommendationVerticalPadding = 8.dp

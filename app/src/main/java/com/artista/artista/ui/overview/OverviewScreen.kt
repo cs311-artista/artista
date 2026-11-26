@@ -15,10 +15,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.FilterList
@@ -60,7 +63,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
-import com.artista.artista.model.artwork.ArtworkFilter
+import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
 import com.artista.artista.model.artwork.mockArtworks
 import com.artista.artista.model.error.AppException
@@ -94,6 +97,8 @@ object OverviewTestTags {
   const val FILTER_ACTIVE = "overview_filter_active"
   const val EMPTY_FILTER_RESULTS = "overview_empty_filter_results"
   const val CLEAR_FILTERS_BUTTON = "overview_clear_filters_button"
+  const val CLOSE_SAVED_ARTWORKS = "overview_close_saved_artworks"
+  const val CLOSE_SAVED_ARTWORK_ITEM = "overview_close_saved_artwork_item"
   const val NEARBY_ARTWORKS_TITLE = "overview_nearby_artworks_title"
   const val DISPLAY_MODE_BUTTON = "overview_display_mode_button"
 }
@@ -225,7 +230,7 @@ fun OverviewScreen(
             filterDialogVisible = false
           },
           onClear = {
-            viewModel.applyFilter(ArtworkFilter())
+            viewModel.clearFilter()
             filterDialogVisible = false
           },
           onDismiss = { filterDialogVisible = false },
@@ -243,7 +248,11 @@ fun OverviewScreen(
           actionTestTag = OverviewTestTags.SAVED_ARTWORKS_BUTTON,
           modifier = contentModifier.testTag(OverviewTestTags.ERROR_MESSAGE),
       )
-    } else if (uiState.artworks.isEmpty() && uiState.activeFilter.isActive()) {
+    } else if (
+        uiState.artworks.isEmpty() &&
+            uiState.closeSavedArtworks.isEmpty() &&
+            uiState.activeFilter.isActive()
+    ) {
       OverviewMessageWithAction(
           message = stringResource(R.string.overview_empty_filter_results),
           actionLabel = stringResource(R.string.overview_clear_filters),
@@ -265,10 +274,11 @@ fun OverviewScreen(
 }
 
 /**
- * Displays the scrolling content of the overview: the section title with the layout button,
- * followed by the nearby artworks as a grid or as a list.
+ * Displays the scrolling content of the overview: the saved artworks close to the user in a
+ * horizontal row, followed by the nearby artworks as a grid or as a list.
  *
- * The title lives in the lazy grid as a full-width item so that it scrolls with the artworks.
+ * Both sections live in one lazy grid so that the whole screen scrolls together, the full-width
+ * header spanning every column.
  *
  * @param uiState state providing the artworks, their saved status and the display mode
  * @param onArtworkClick called when an artwork is selected to open its details
@@ -299,9 +309,16 @@ private fun OverviewArtworks(
       horizontalArrangement = Arrangement.spacedBy(Dimensions.overviewGridItemSpacing),
       verticalArrangement = Arrangement.spacedBy(Dimensions.overviewGridItemSpacing),
   ) {
-    item(key = NEARBY_TITLE_KEY, span = { GridItemSpan(maxLineSpan) }) {
-      NearbyArtworksHeader(
-          displayMode = uiState.displayMode,
+    // Always the first item, even without close saved artworks: saved artworks usually load after
+    // the nearby ones, and a lazy grid keeps its first visible item anchored. Growing this item
+    // instead of inserting new ones above it keeps a user at the top on the close row, and leaves
+    // a user who scrolled down where they are.
+    item(key = HEADER_KEY, span = { GridItemSpan(maxLineSpan) }) {
+      OverviewArtworksHeader(
+          uiState = uiState,
+          onArtworkClick = onArtworkClick,
+          onSaveClick = onSaveClick,
+          onMapClick = onMapClick,
           onDisplayModeClick = onDisplayModeClick,
       )
     }
@@ -327,6 +344,86 @@ private fun OverviewArtworks(
             modifier = itemModifier,
         )
       }
+    }
+  }
+}
+
+/**
+ * Displays the top of the overview list: the saved artworks close to the user with their title,
+ * when there are any, followed by the title of the nearby artworks and the layout button.
+ *
+ * @param uiState state providing the close saved artworks, their saved status and the display mode
+ * @param onArtworkClick called when a close saved artwork is selected to open its details
+ * @param onSaveClick called when a close saved artwork's bookmark is selected
+ * @param onMapClick called when a close saved artwork's map action is selected
+ * @param onDisplayModeClick called when the user switches between the grid and the list
+ * @author hixeum
+ */
+@Composable
+private fun OverviewArtworksHeader(
+    uiState: OverviewUiState,
+    onArtworkClick: (Artwork) -> Unit,
+    onSaveClick: (Artwork) -> Unit,
+    onMapClick: (Artwork) -> Unit,
+    onDisplayModeClick: () -> Unit,
+) {
+  val hasCloseSavedArtworks = uiState.closeSavedArtworks.isNotEmpty()
+  // Same spacing as between grid rows, so the header looks like the rest of the list.
+  Column(verticalArrangement = Arrangement.spacedBy(Dimensions.overviewGridItemSpacing)) {
+    if (hasCloseSavedArtworks) {
+      OverviewSectionTitle(text = stringResource(R.string.overview_close_saved_artworks_title))
+      CloseSavedArtworksRow(
+          artworks = uiState.closeSavedArtworks,
+          savedArtworkIds = uiState.savedArtworkIds,
+          onArtworkClick = onArtworkClick,
+          onSaveClick = onSaveClick,
+          onMapClick = onMapClick,
+      )
+    }
+    NearbyArtworksHeader(
+        displayMode = uiState.displayMode,
+        onDisplayModeClick = onDisplayModeClick,
+        // Separates the two sections more than two rows of the same section.
+        modifier =
+            if (hasCloseSavedArtworks) Modifier.padding(top = Dimensions.overviewSectionSpacing)
+            else Modifier,
+    )
+  }
+}
+
+/**
+ * Displays the saved artworks close to the user as a horizontally scrolling row of tiles.
+ *
+ * @param artworks saved artworks close to the user
+ * @param savedArtworkIds identifiers of the artworks currently saved, to show each bookmark state
+ * @param onArtworkClick called when a tile is selected to open its details
+ * @param onSaveClick called when a tile's bookmark is selected
+ * @param onMapClick called when a tile's map action is selected
+ * @author hixeum
+ */
+@Composable
+private fun CloseSavedArtworksRow(
+    artworks: List<Artwork>,
+    savedArtworkIds: Set<ArtworkId>,
+    onArtworkClick: (Artwork) -> Unit,
+    onSaveClick: (Artwork) -> Unit,
+    onMapClick: (Artwork) -> Unit,
+) {
+  LazyRow(
+      modifier = Modifier.fillMaxWidth().testTag(OverviewTestTags.CLOSE_SAVED_ARTWORKS),
+      horizontalArrangement = Arrangement.spacedBy(Dimensions.overviewGridItemSpacing),
+  ) {
+    items(artworks, key = { it.uid }) { artwork ->
+      ArtworkTile(
+          artwork = artwork,
+          isSaved = artwork.uid in savedArtworkIds,
+          onClick = onArtworkClick,
+          onSaveClick = onSaveClick,
+          onMapClick = onMapClick,
+          modifier =
+              Modifier.width(Dimensions.overviewCloseSavedTileWidth)
+                  .testTag(OverviewTestTags.CLOSE_SAVED_ARTWORK_ITEM),
+      )
     }
   }
 }
@@ -485,7 +582,7 @@ private fun OverviewMessageWithAction(
 
 private const val GRID_COLUMNS = 2
 private const val LIST_COLUMNS = 1
-private const val NEARBY_TITLE_KEY = "overview_nearby_title"
+private const val HEADER_KEY = "overview_header"
 
 /** Previews the overview screen with a sample set of artworks in Android Studio. */
 @Preview(showBackground = true)
