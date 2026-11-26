@@ -19,11 +19,11 @@ object ArtistPreferencesTestTags {
   /** Tag identifying the title of the screen. */
   const val TITLE = "artist_preferences_title"
 
-  /** Tag identifying the text explaining what the preferences are used for. */
-  const val DESCRIPTION = "artist_preferences_description"
-
   /** Tag identifying the field used to search for artists. */
   const val SEARCH_BAR = "artist_preferences_search_bar"
+
+  /** Tag identifying the button clearing the search field. */
+  const val CLEAR_SEARCH_BUTTON = "artist_preferences_clear_search_button"
 
   /** Tag identifying the grid displaying the saved artists. */
   const val ARTISTS_GRID = "artist_preferences_artists_grid"

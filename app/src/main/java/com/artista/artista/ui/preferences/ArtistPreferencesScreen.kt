@@ -3,11 +3,11 @@
 package com.artista.artista.ui.preferences
 
 import android.widget.Toast
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,6 +22,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -29,12 +31,14 @@ import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -120,8 +124,8 @@ fun ArtistPreferencesScreen(
             title = {
               Text(
                   text = stringResource(R.string.artist_preferences_title),
-                  style = MaterialTheme.typography.titleLarge,
-                  fontWeight = FontWeight.Bold,
+                  style = MaterialTheme.typography.headlineSmall,
+                  fontWeight = FontWeight.SemiBold,
                   modifier = Modifier.testTag(ArtistPreferencesTestTags.TITLE),
               )
             },
@@ -131,6 +135,10 @@ fun ArtistPreferencesScreen(
                   modifier = Modifier.testTag(ArtistPreferencesTestTags.BACK_BUTTON),
               )
             },
+            colors =
+                TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                ),
         )
       },
       bottomBar = {
@@ -147,12 +155,6 @@ fun ArtistPreferencesScreen(
                 ),
         verticalArrangement = Arrangement.spacedBy(Dimensions.artistPreferencesSectionSpacing),
     ) {
-      Text(
-          text = stringResource(R.string.artist_preferences_description),
-          modifier = Modifier.testTag(ArtistPreferencesTestTags.DESCRIPTION),
-          style = MaterialTheme.typography.bodyLarge,
-          color = MaterialTheme.colorScheme.primary,
-      )
       SearchField(
           query = uiState.searchQuery,
           onQueryChange = artistPreferencesViewModel::onSearchQueryChange,
@@ -200,7 +202,7 @@ fun ArtistPreferencesScreen(
           colors =
               ButtonDefaults.buttonColors(
                   containerColor = MaterialTheme.colorScheme.surface,
-                  contentColor = MaterialTheme.colorScheme.primary,
+                  contentColor = MaterialTheme.colorScheme.onSurface,
               ),
       ) {
         Text(
@@ -229,7 +231,7 @@ private fun SavedArtistsLoadingView(modifier: Modifier = Modifier) {
 }
 
 /**
- * Displays a load error with a Try again button, so the user can retry after the toast is gone.
+ * Displays a load error with a Try again pill, so the user can retry after the toast is gone.
  *
  * @param onRetry called when the user taps Try again
  * @param modifier modifier applied to the error-state container
@@ -241,7 +243,10 @@ private fun SavedArtistsLoadErrorView(
     modifier: Modifier = Modifier,
 ) {
   Column(
-      modifier = modifier.testTag(ArtistPreferencesTestTags.LOAD_ERROR_STATE),
+      modifier =
+          modifier
+              .padding(horizontal = Dimensions.artistPreferencesErrorHorizontalPadding)
+              .testTag(ArtistPreferencesTestTags.LOAD_ERROR_STATE),
       verticalArrangement = Arrangement.Center,
       horizontalAlignment = Alignment.CenterHorizontally,
   ) {
@@ -255,13 +260,26 @@ private fun SavedArtistsLoadErrorView(
     Button(
         onClick = onRetry,
         modifier = Modifier.testTag(ArtistPreferencesTestTags.RETRY_BUTTON),
+        shape = PillShape,
         colors =
             ButtonDefaults.buttonColors(
                 containerColor = MaterialTheme.colorScheme.surface,
-                contentColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onSurface,
             ),
     ) {
-      Text(text = stringResource(R.string.try_again))
+      Row(
+          verticalAlignment = Alignment.CenterVertically,
+          horizontalArrangement =
+              Arrangement.spacedBy(Dimensions.artistPreferencesRetryIconSpacing),
+      ) {
+        // The text already says what the button does, so the icon is decorative.
+        Icon(
+            imageVector = Icons.Filled.Refresh,
+            contentDescription = null,
+            modifier = Modifier.size(Dimensions.iconSizeMedium),
+        )
+        Text(text = stringResource(R.string.try_again))
+      }
     }
   }
 }
@@ -280,7 +298,7 @@ private fun SavedArtistsEmptyView(modifier: Modifier = Modifier) {
     Text(
         text = stringResource(R.string.artist_preferences_empty_state),
         style = MaterialTheme.typography.bodyLarge,
-        color = MaterialTheme.colorScheme.primary,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
         textAlign = TextAlign.Center,
     )
   }
@@ -303,6 +321,22 @@ private fun SearchField(query: String, onQueryChange: (String) -> Unit, enabled:
       modifier = Modifier.fillMaxWidth().testTag(ArtistPreferencesTestTags.SEARCH_BAR),
       placeholder = { Text(stringResource(R.string.artist_preferences_search_placeholder)) },
       leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
+      trailingIcon =
+          if (query.isNotEmpty()) {
+            {
+              IconButton(
+                  onClick = { onQueryChange("") },
+                  modifier = Modifier.testTag(ArtistPreferencesTestTags.CLEAR_SEARCH_BUTTON),
+              ) {
+                Icon(
+                    imageVector = Icons.Filled.Close,
+                    contentDescription = stringResource(R.string.artist_preferences_clear_search),
+                )
+              }
+            }
+          } else {
+            null
+          },
       singleLine = true,
       shape = PillShape,
       // The mockup shows a pill without an underline, whether the field has focus or is disabled.
@@ -311,10 +345,12 @@ private fun SearchField(query: String, onQueryChange: (String) -> Unit, enabled:
           TextFieldDefaults.colors(
               focusedContainerColor = MaterialTheme.colorScheme.surface,
               unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-              focusedPlaceholderColor = MaterialTheme.colorScheme.primary,
-              unfocusedPlaceholderColor = MaterialTheme.colorScheme.primary,
-              focusedLeadingIconColor = MaterialTheme.colorScheme.primary,
-              unfocusedLeadingIconColor = MaterialTheme.colorScheme.primary,
+              focusedPlaceholderColor = MaterialTheme.colorScheme.onSurface,
+              unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurface,
+              focusedLeadingIconColor = MaterialTheme.colorScheme.onSurface,
+              unfocusedLeadingIconColor = MaterialTheme.colorScheme.onSurface,
+              focusedTrailingIconColor = MaterialTheme.colorScheme.onSurface,
+              unfocusedTrailingIconColor = MaterialTheme.colorScheme.onSurface,
               focusedIndicatorColor = ArtistaColors.Transparent,
               unfocusedIndicatorColor = ArtistaColors.Transparent,
               disabledContainerColor = MaterialTheme.colorScheme.surface,
@@ -345,14 +381,8 @@ private fun ArtistCard(artist: Artist, selected: Boolean, onToggle: () -> Unit) 
               .testTag(ArtistPreferencesTestTags.getArtistCardTestTag(artist.uid)),
       shape = RoundedCornerShape(Dimensions.cornerRadiusMedium),
       color =
-          if (selected) MaterialTheme.colorScheme.surfaceContainerLowest
-          else MaterialTheme.colorScheme.secondaryContainer,
-      border =
-          if (selected) {
-            BorderStroke(Dimensions.standardStrokeWidth, MaterialTheme.colorScheme.primary)
-          } else {
-            null
-          },
+          if (selected) MaterialTheme.colorScheme.surface
+          else MaterialTheme.colorScheme.surfaceVariant,
   ) {
     Column(
         modifier = Modifier.padding(Dimensions.artistCardContentPadding),

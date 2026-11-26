@@ -121,6 +121,8 @@ internal object Dimensions {
   val artistPreferencesGridHorizontalSpacing = 12.dp
   val artistPreferencesGridVerticalSpacing = 12.dp
   val artistPreferencesRetryButtonSpacing = 16.dp
+  val artistPreferencesRetryIconSpacing = 8.dp
+  val artistPreferencesErrorHorizontalPadding = 24.dp
   val artistCardContentPadding = 8.dp
   val artistCardSelectionIndicatorPadding = 4.dp
   val artistCardNameTopSpacing = 8.dp
