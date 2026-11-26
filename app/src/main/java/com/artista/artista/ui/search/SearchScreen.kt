@@ -184,6 +184,7 @@ internal fun buildArtworkSuggestions(
     (saved.map { ArtworkSuggestion(it, SuggestionSource.SAVED) } +
         nearby.map { ArtworkSuggestion(it, SuggestionSource.NEARBY) } +
         wikiData.map { ArtworkSuggestion(it, SuggestionSource.WIKIDATA) })
+        .distinctBy { it.candidate }
 
 /**
  * Displays the search field, the Artworks/Artists switch, suggestions, and search results.
@@ -387,7 +388,7 @@ private fun ArtistSearchBody(
         }
     uiState.resultArtist.isEmpty() &&
         uiState.hasAlreadySearched &&
-        !uiState.hasInvalidSearchInput -> EmptySearchResults(modifier = modifier)
+        !uiState.hasInvalidSearchInput -> EmptySearchResults(stringResource(R.string.search_empty_artist_results_title), stringResource(R.string.search_empty_artist_results_message), modifier = modifier)
     else ->
         ArtistResults(
             artists = uiState.resultArtist,
@@ -450,7 +451,7 @@ private fun ArtworkSearchBody(
         }
     uiState.resultArtworks.isEmpty() &&
         uiState.hasAlreadySearched &&
-        !uiState.hasInvalidSearchInput -> EmptySearchResults(modifier = modifier)
+        !uiState.hasInvalidSearchInput -> EmptySearchResults(stringResource(R.string.search_empty_artwork_results_title), stringResource(R.string.search_empty_artwork_results_message), modifier = modifier)
     else ->
         ArtworkResults(
             artworks = uiState.resultArtworks,
@@ -464,7 +465,7 @@ private fun ArtworkSearchBody(
 }
 
 @Composable
-private fun EmptySearchResults(modifier: Modifier = Modifier) {
+private fun EmptySearchResults(title: String, message: String, modifier: Modifier = Modifier) {
   Box(
       modifier = modifier.testTag(SearchScreenTestTags.EMPTY_RESULTS),
       contentAlignment = Alignment.Center,
@@ -477,12 +478,12 @@ private fun EmptySearchResults(modifier: Modifier = Modifier) {
         verticalArrangement = Arrangement.spacedBy(Dimensions.searchEmptyStateSpacing),
     ) {
       Text(
-          text = stringResource(R.string.search_empty_results_title),
+          text = title,
           style = MaterialTheme.typography.titleMedium,
           color = MaterialTheme.colorScheme.onSurface,
       )
       Text(
-          text = stringResource(R.string.search_empty_results_message),
+          text = message,
           modifier = Modifier.widthIn(max = Dimensions.searchEmptyStateMessageMaxWidth),
           style = MaterialTheme.typography.bodyMedium,
           color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -817,10 +818,7 @@ private fun ArtworkSuggestionRow(
     modifier: Modifier = Modifier,
 ) {
   Surface(
-      modifier
-          .fillMaxWidth()
-          .clickable { onClick() }
-          .padding(horizontal = Dimensions.searchRecommendationHorizontalPadding),
+      modifier.fillMaxWidth(),
       shape = MaterialTheme.shapes.extraLarge,
   ) {
     ListItem(
@@ -865,11 +863,7 @@ private fun ArtistSuggestionRow(
     modifier: Modifier = Modifier,
 ) {
   Surface(
-      modifier
-          .fillMaxWidth()
-          .clickable { onClick() }
-          .padding(horizontal = Dimensions.searchRecommendationHorizontalPadding)
-          .testTag(SearchScreenTestTags.SEARCH_ARTIST_RECOMMENDATION),
+      modifier.fillMaxWidth(),
       shape = MaterialTheme.shapes.extraLarge,
   ) {
     ListItem(

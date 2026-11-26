@@ -114,8 +114,10 @@
     <string name="overview_search_placeholder">Search artworks or artists</string>
     <string name="search_placeholder">Search artworks</string>
     <string name="search_loading">Loading artworks</string>
-    <string name="search_empty_results_title">No artworks found</string>
-    <string name="search_empty_results_message">Try another search or change the artwork type filters.</string>
+    <string name="search_empty_artwork_results_title">No artworks found.</string>
+    <string name="search_empty_artwork_results_message">Try another search or change the artwork type filters.</string>
+    <string name="search_empty_artist_results_title">No artist found.</string>
+    <string name="search_empty_artist_results_message">Try another search.</string>
     <string name="search_filter_title">Artwork types</string>
     <string name="search_filter_scroll_hint">Scroll down to see more artwork types</string>
     <string name="search_filter_type_painting">Painting</string>
