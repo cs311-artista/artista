@@ -25,14 +25,14 @@ object ArtistPreferencesTestTags {
   /** Tag identifying the field used to search for artists. */
   const val SEARCH_BAR = "artist_preferences_search_bar"
 
-  /** Tag identifying the title of the popular artists section. */
-  const val POPULAR_ARTISTS_TITLE = "artist_preferences_popular_artists_title"
-
-  /** Tag identifying the grid displaying the popular artists. */
+  /** Tag identifying the grid displaying the saved artists. */
   const val ARTISTS_GRID = "artist_preferences_artists_grid"
 
-  /** Tag identifying the button saving the selected artists. */
+  /** Tag identifying the button saving the removal of the untoggled artists. */
   const val SAVE_BUTTON = "artist_preferences_save_button"
+
+  /** Tag identifying the message shown instead of the grid when the user has no saved artist. */
+  const val EMPTY_STATE = "artist_preferences_empty_state"
 
   /** Tag identifying the spinner shown instead of the grid while the artists load. */
   const val LOADING_STATE = "artist_preferences_loading_state"
@@ -40,7 +40,7 @@ object ArtistPreferencesTestTags {
   /** Tag identifying the error state shown instead of the grid when loading the artists fails. */
   const val LOAD_ERROR_STATE = "artist_preferences_load_error_state"
 
-  /** Tag identifying the button retrying to load the popular artists. */
+  /** Tag identifying the button retrying to load the saved artists. */
   const val RETRY_BUTTON = "artist_preferences_retry_button"
 
   /**

@@ -43,6 +43,7 @@ espressoIntents = "3.7.0"
 kaspresso = "1.6.1"
 robolectric = "4.16.1"
 coroutinesTest = "1.10.2"
+mockk = "1.14.12"
 
 # Code quality and Firebase tooling
 sonar = "7.5.0.8588"
@@ -108,6 +109,7 @@ coil-test = { group = "io.coil-kt.coil3", name = "coil-test", version.ref = "coi
 # Additional test libraries
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-compose-ui-text = { group = "androidx.compose.ui", name = "ui-text", version.ref = "uiText" }
+mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk"}
 
 [plugins]
 # Android and Kotlin
