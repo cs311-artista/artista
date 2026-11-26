@@ -110,24 +110,36 @@ class LocationPermissionScreenTest {
   @Test
   fun content_whenContinueClicked_invokesContinueCallback() {
     var continueClicks = 0
-    setContent(permissionDenied = true, onContinueWithoutLocation = { continueClicks++ })
+    var backClicks = 0
+    setContent(
+        permissionDenied = true,
+        onContinueWithoutLocation = { continueClicks++ },
+        onBackClick = { backClicks++ },
+    )
 
     composeTestRule.onNodeWithTag(LocationPermissionTestTags.CONTINUE_BUTTON).performClick()
     composeTestRule.waitForIdle()
 
     assertEquals(1, continueClicks)
+    assertEquals(0, backClicks)
   }
 
-  /** Verifies that the back action returns the user to the initial explanation. */
+  /** Verifies that the back action reports the user's intent to return to the explanation. */
   @Test
   fun content_whenBackClicked_invokesBackCallback() {
     var backClicks = 0
-    setContent(permissionDenied = true, onBackClick = { backClicks++ })
+    var continueClicks = 0
+    setContent(
+        permissionDenied = true,
+        onContinueWithoutLocation = { continueClicks++ },
+        onBackClick = { backClicks++ },
+    )
 
     composeTestRule.onNodeWithTag(LocationPermissionTestTags.BACK_BUTTON).performClick()
     composeTestRule.waitForIdle()
 
     assertEquals(1, backClicks)
+    assertEquals(0, continueClicks)
   }
 
   private fun setContent(
