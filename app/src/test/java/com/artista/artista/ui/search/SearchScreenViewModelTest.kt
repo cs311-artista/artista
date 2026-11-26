@@ -16,7 +16,6 @@ import com.artista.artista.model.artwork.SearchArea
 import com.artista.artista.model.artwork.WikiDataRepository
 import com.artista.artista.model.error.AppException
 import com.artista.artista.model.location.FakeLocationProvider
-import com.artista.artista.model.location.LocationProvider
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -523,7 +522,7 @@ class SearchScreenViewModelTest {
         SearchScreenViewModel.provideFactory(
             SearchTestData.savedArtworksRepository(),
             SearchTestData.wikiDataRepository(),
-          FakeLocationProvider(errorType = AppException.PermissionsError()),
+            FakeLocationProvider(errorType = AppException.PermissionsError()),
         )
 
     assertThrows(IllegalArgumentException::class.java) {

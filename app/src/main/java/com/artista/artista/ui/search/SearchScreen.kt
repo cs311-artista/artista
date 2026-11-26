@@ -182,8 +182,8 @@ internal fun buildArtworkSuggestions(
     wikiData: List<ArtworkCandidate>,
 ): List<ArtworkSuggestion> =
     (saved.map { ArtworkSuggestion(it, SuggestionSource.SAVED) } +
-        nearby.map { ArtworkSuggestion(it, SuggestionSource.NEARBY) } +
-        wikiData.map { ArtworkSuggestion(it, SuggestionSource.WIKIDATA) })
+            nearby.map { ArtworkSuggestion(it, SuggestionSource.NEARBY) } +
+            wikiData.map { ArtworkSuggestion(it, SuggestionSource.WIKIDATA) })
         .distinctBy { it.candidate }
 
 /**
@@ -388,7 +388,12 @@ private fun ArtistSearchBody(
         }
     uiState.resultArtist.isEmpty() &&
         uiState.hasAlreadySearched &&
-        !uiState.hasInvalidSearchInput -> EmptySearchResults(stringResource(R.string.search_empty_artist_results_title), stringResource(R.string.search_empty_artist_results_message), modifier = modifier)
+        !uiState.hasInvalidSearchInput ->
+        EmptySearchResults(
+            stringResource(R.string.search_empty_artist_results_title),
+            stringResource(R.string.search_empty_artist_results_message),
+            modifier = modifier,
+        )
     else ->
         ArtistResults(
             artists = uiState.resultArtist,
@@ -451,7 +456,12 @@ private fun ArtworkSearchBody(
         }
     uiState.resultArtworks.isEmpty() &&
         uiState.hasAlreadySearched &&
-        !uiState.hasInvalidSearchInput -> EmptySearchResults(stringResource(R.string.search_empty_artwork_results_title), stringResource(R.string.search_empty_artwork_results_message), modifier = modifier)
+        !uiState.hasInvalidSearchInput ->
+        EmptySearchResults(
+            stringResource(R.string.search_empty_artwork_results_title),
+            stringResource(R.string.search_empty_artwork_results_message),
+            modifier = modifier,
+        )
     else ->
         ArtworkResults(
             artworks = uiState.resultArtworks,

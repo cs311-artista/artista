@@ -323,10 +323,10 @@ class SearchScreenViewModel(
         onError = { error ->
           if (
               error is AppException.PermissionsError ||
-              error is AppException.UserLocationError ||
-              error is AppException.InvalidData ||
-              error is AppException.NotFound ||
-              error is AppException.Network
+                  error is AppException.UserLocationError ||
+                  error is AppException.InvalidData ||
+                  error is AppException.NotFound ||
+                  error is AppException.Network
           ) {
             // Unlocated users can still search; they just have no near-artwork recommendations.
             updateState { it.copy(nearArtworks = emptyList()).withLocalRecommendations() }
