@@ -98,9 +98,6 @@ object SearchScreenTestTags {
   /** Tag of each artist recommendation in the suggestions list. */
   const val SEARCH_ARTIST_RECOMMENDATION = "search_artist_recommendation"
 
-  /** Tag of each artist recommendation in the suggestions list. */
-  const val ARTIST_RECOMMENDATION = "search_artist_recommendation"
-
   /** Tag of the suggestions list shown while the user is typing. */
   const val SUGGESTION_LIST = "search_suggestion_list"
 

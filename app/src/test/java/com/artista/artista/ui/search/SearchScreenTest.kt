@@ -259,7 +259,7 @@ class SearchScreenTest {
     closeSuggestions(viewModel)
 
     composeTestRule.onNodeWithTag(SearchScreenTestTags.EMPTY_RESULTS).assertIsDisplayed()
-    composeTestRule.onNodeWithText("No artworks found").assertIsDisplayed()
+    composeTestRule.onNodeWithText("No artworks found.").assertIsDisplayed()
     composeTestRule
         .onNodeWithText("Try another search or change the artwork type filters.")
         .assertIsDisplayed()
@@ -508,7 +508,7 @@ class SearchScreenTest {
     composeTestRule.onNodeWithText("Anonymous").assertIsDisplayed()
     composeTestRule
         .onAllNodesWithTag(SearchScreenTestTags.SEARCH_ARTIST_RECOMMENDATION)
-        .assertCountEquals(2 * 2) // each row carries the tag on its Surface and its ListItem
+        .assertCountEquals(2)
   }
 
   @Test
