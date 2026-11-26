@@ -38,7 +38,6 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -49,12 +48,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.artista.artista.R
-import com.artista.artista.model.artwork.ArtworkRepositoryProvider
-import com.artista.artista.model.authentication.AuthRepository
-import com.artista.artista.model.authentication.AuthUser
-import com.artista.artista.model.user.User
-import com.artista.artista.model.user.UserPreference
-import com.artista.artista.model.user.UserRepositoryLocal
+import com.artista.artista.model.artist.ArtistId
+import com.artista.artista.model.artwork.mockPopularArtists
 import com.artista.artista.ui.components.ArtistCard
 import com.artista.artista.ui.navigation.BackButton
 import com.artista.artista.ui.navigation.BottomNavigationMenu
@@ -62,9 +57,6 @@ import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaColors
 import com.artista.artista.ui.theme.ArtistaTheme
 import com.artista.artista.ui.theme.Dimensions
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.runBlocking
 
 private val PillShape = RoundedCornerShape(percent = 50)
 
@@ -84,7 +76,6 @@ private val PillShape = RoundedCornerShape(percent = 50)
  *   them.
  * @author Timz3rr, krfpn
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ArtistPreferencesScreen(
     onBackClick: () -> Unit,
@@ -105,6 +96,43 @@ fun ArtistPreferencesScreen(
     }
   }
 
+  ArtistPreferencesScreenLayout(
+      uiState = uiState,
+      onBackClick = onBackClick,
+      onTabSelected = onTabSelected,
+      onSearchQueryChange = artistPreferencesViewModel::onSearchQueryChange,
+      onRetry = artistPreferencesViewModel::retryLoad,
+      onToggleArtist = artistPreferencesViewModel::toggleArtist,
+      onSave = artistPreferencesViewModel::saveChanges,
+  )
+}
+
+/**
+ * Renders the artist preferences UI from an immutable state snapshot.
+ *
+ * Keeping this layout independent of the ViewModel makes the preview deterministic: the ViewModel
+ * loads the saved artists in a coroutine, which a static preview never lets finish.
+ *
+ * @param uiState state snapshot used to render the screen
+ * @param onBackClick called when the user leaves the screen
+ * @param onTabSelected called with the destination selected in the bottom navigation
+ * @param onSearchQueryChange called with the new text when the user types in the search field
+ * @param onRetry called when the user asks to load the saved artists again
+ * @param onToggleArtist called with the identifier of the artist whose card the user clicked
+ * @param onSave called when the user saves the removal of the untoggled artists
+ * @author krfpn
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ArtistPreferencesScreenLayout(
+    uiState: ArtistPreferencesUiState,
+    onBackClick: () -> Unit,
+    onTabSelected: (Tab) -> Unit,
+    onSearchQueryChange: (String) -> Unit,
+    onRetry: () -> Unit,
+    onToggleArtist: (ArtistId) -> Unit,
+    onSave: () -> Unit,
+) {
   Scaffold(
       modifier = Modifier.fillMaxSize().testTag(ArtistPreferencesTestTags.SCREEN),
       containerColor = MaterialTheme.colorScheme.background,
@@ -146,14 +174,14 @@ fun ArtistPreferencesScreen(
     ) {
       SearchField(
           query = uiState.searchQuery,
-          onQueryChange = artistPreferencesViewModel::onSearchQueryChange,
+          onQueryChange = onSearchQueryChange,
           enabled = uiState.canSearch,
       )
       if (uiState.isLoading) {
         SavedArtistsLoadingView(modifier = Modifier.weight(1f).fillMaxWidth())
       } else if (uiState.hasLoadFailed) {
         SavedArtistsLoadErrorView(
-            onRetry = artistPreferencesViewModel::retryLoad,
+            onRetry = onRetry,
             modifier = Modifier.weight(1f).fillMaxWidth(),
         )
       } else if (uiState.hasNoSavedArtists) {
@@ -174,7 +202,7 @@ fun ArtistPreferencesScreen(
             ArtistCard(
                 artist = artist,
                 selected = artist.uid !in uiState.deselectedArtists,
-                onToggle = { artistPreferencesViewModel.toggleArtist(artist.uid) },
+                onToggle = { onToggleArtist(artist.uid) },
                 cardTestTag = ArtistPreferencesTestTags.getArtistCardTestTag(artist.uid),
                 imageTestTag = ArtistPreferencesTestTags.getArtistImageTestTag(artist.uid),
                 fallbackTestTag =
@@ -184,7 +212,7 @@ fun ArtistPreferencesScreen(
         }
       }
       Button(
-          onClick = artistPreferencesViewModel::saveChanges,
+          onClick = onSave,
           // Disabled until some artist is untoggled, and in the loading, error and empty states.
           enabled = uiState.canSave,
           modifier =
@@ -352,49 +380,30 @@ private fun SearchField(query: String, onQueryChange: (String) -> Unit, enabled:
   )
 }
 
-/** Previews the artist preferences screen with two saved artists in Android Studio. */
+/**
+ * Previews the artist preferences screen in Android Studio, with one artist untoggled to show both
+ * card states.
+ *
+ * The picture links are removed, so the cards show their fallback icon: in a preview, Coil tries to
+ * download each picture on the spot, and without network access the preview never renders.
+ */
 @Preview(showBackground = true)
 @Composable
 internal fun ArtistPreferencesScreenPreview() {
-  val previewUserId = "preview-user"
-  val viewModel = remember {
-    val userRepository = UserRepositoryLocal()
-    // The local repository answers at once, so blocking here does not slow the preview down.
-    runBlocking {
-      userRepository.createUser(
-          User(
-              uid = previewUserId,
-              preference = UserPreference(artists = listOf("mock-artist-002", "mock-artist-004")),
-          )
-      )
-    }
-    // Declared here rather than at the top level, so that it only exists for this preview. It
-    // always answers that the preview user is signed in, since the preview cannot reach Firebase.
-    val previewAuthRepository =
-        object : AuthRepository {
-          override val authState: Flow<AuthUser?> =
-              flowOf(
-                  object : AuthUser {
-                    override val uid: String = previewUserId
-                  }
-              )
-
-          override suspend fun signIn(idToken: String): Result<AuthUser> =
-              Result.failure(UnsupportedOperationException("Sign-in is not available in previews"))
-
-          override suspend fun signOut(): Result<Unit> = Result.success(Unit)
-        }
-    ArtistPreferencesViewModel(
-        wikiDataRepository = ArtworkRepositoryProvider.mockRepository,
-        authRepository = previewAuthRepository,
-        userRepository = userRepository,
-    )
-  }
+  val artists = mockPopularArtists.map { it.copy(imageUrl = null) }
   ArtistaTheme {
-    ArtistPreferencesScreen(
+    ArtistPreferencesScreenLayout(
+        uiState =
+            ArtistPreferencesUiState(
+                savedArtists = artists,
+                deselectedArtists = setOf(artists[1].uid),
+            ),
         onBackClick = {},
         onTabSelected = {},
-        artistPreferencesViewModel = viewModel,
+        onSearchQueryChange = {},
+        onRetry = {},
+        onToggleArtist = {},
+        onSave = {},
     )
   }
 }
