@@ -15,6 +15,7 @@ import com.artista.artista.model.artwork.SavedArtworksRepository
 import com.artista.artista.model.artwork.SearchArea
 import com.artista.artista.model.artwork.WikiDataRepository
 import com.artista.artista.model.error.AppException
+import com.artista.artista.model.location.FakeLocationProvider
 import com.artista.artista.model.location.LocationProvider
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
@@ -522,7 +523,7 @@ class SearchScreenViewModelTest {
         SearchScreenViewModel.provideFactory(
             SearchTestData.savedArtworksRepository(),
             SearchTestData.wikiDataRepository(),
-            UnavailableLocationProvider,
+          FakeLocationProvider(errorType = AppException.PermissionsError()),
         )
 
     assertThrows(IllegalArgumentException::class.java) {
@@ -539,7 +540,7 @@ class SearchScreenViewModelTest {
       SearchScreenViewModel(
           savedArtworksRepository,
           wikiDataRepository,
-          UnavailableLocationProvider,
+          FakeLocationProvider(errorType = AppException.PermissionsError()),
       )
 
   /** Wiki repository whose artwork search is replaced by [search]. */
@@ -600,13 +601,6 @@ class SearchScreenViewModelTest {
     ): List<Artwork> =
         onArtworksFromQuery?.invoke(artworkTitle)
             ?: base.getArtworksFromQuery(artworkTitle, typeValues, limit)
-  }
-
-  /** Location provider of a user whose location cannot be determined. */
-  private object UnavailableLocationProvider : LocationProvider {
-    override suspend fun getUserLocation() = throw AppException.NotFound("Location unavailable")
-
-    override fun locationUpdates() = throw AppException.NotFound("Location unavailable")
   }
 
   private class OtherViewModel : ViewModel()

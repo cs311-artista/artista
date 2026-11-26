@@ -322,9 +322,11 @@ class SearchScreenViewModel(
         tag = TAG,
         onError = { error ->
           if (
+              error is AppException.PermissionsError ||
+              error is AppException.UserLocationError ||
               error is AppException.InvalidData ||
-                  error is AppException.NotFound ||
-                  error is AppException.Network
+              error is AppException.NotFound ||
+              error is AppException.Network
           ) {
             // Unlocated users can still search; they just have no near-artwork recommendations.
             updateState { it.copy(nearArtworks = emptyList()).withLocalRecommendations() }
@@ -334,7 +336,8 @@ class SearchScreenViewModel(
         },
     ) {
       val userLocation = locationClient.getUserLocation()
-      val searchArea = SearchArea(userLocation.latitude, userLocation.longitude, SearchArea.MAX_RADIUS_KM)
+      val searchArea =
+          SearchArea(userLocation.latitude, userLocation.longitude, SearchArea.MAX_RADIUS_KM)
 
       // The selected artwork types are deliberately not passed: all nearby artworks are fetched and
       // then filtered locally by the query.
