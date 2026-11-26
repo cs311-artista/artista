@@ -60,6 +60,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
+import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.error.AppException
 import com.artista.artista.model.location.UserLocationProvider
@@ -101,12 +102,6 @@ import kotlin.time.Duration.Companion.seconds
 object MapScreenTestTags {
   /** Tag identifying the Google Map surface. */
   const val MAP = "map_surface"
-
-  /** Tag identifying markers for artworks loaded from the remote repository. */
-  const val REMOTE_ARTWORK_MARKER = "map_remote_artwork_marker"
-
-  /** Tag identifying markers for artworks saved locally by the user. */
-  const val SAVED_ARTWORK_MARKER = "map_saved_artwork_marker"
 
   /** Tag identifying the walking route summary card. */
   const val ROUTE_SUMMARY_CARD = "map_route_summary_card"
@@ -162,20 +157,20 @@ object MapScreenTestTags {
 
   /** Tag identifying the go to details action on the selected-artwork card. */
   const val ARTWORK_CARD_DETAILS = "map_artwork_details_button"
-}
 
-/**
- * Returns the test tag associated with an artwork marker type.
- *
- * @param markerType source represented by the marker.
- * @return stable marker tag used by map tests and Google Maps marker metadata.
- * @author 5kyPhy
- */
-internal fun markerTag(markerType: MarkerType): String =
-    when (markerType) {
-      MarkerType.SavedArtwork -> MapScreenTestTags.SAVED_ARTWORK_MARKER
-      MarkerType.RemoteArtwork -> MapScreenTestTags.REMOTE_ARTWORK_MARKER
+  /**
+   * Returns the tag identifying the artworkMarker of a specific artwork.
+   *
+   * @param markerType [MarkerType] source represented by the marker.
+   * @param artworkId the UID of the associated artwork
+   */
+  fun getArtworkMarkerTestTag(markerType: MarkerType, artworkId: ArtworkId): String {
+    return when (markerType) {
+      MarkerType.SavedArtwork -> "map_saved_artwork_marker_$artworkId"
+      MarkerType.RemoteArtwork -> "map_remote_artwork_marker_$artworkId"
     }
+  }
+}
 
 /**
  * Removes remote artworks that are already represented by saved markers.
@@ -861,7 +856,7 @@ private fun DisplayArtworkMarker(
         }
     val icon = remember(markerType) { ArtworkMarker.artworkMarkerIcon(markerType) }
     Marker(
-        tag = markerTag(markerType),
+        tag = MapScreenTestTags.getArtworkMarkerTestTag(markerType, artwork.uid),
         state = artworkMarkerState,
         onClick = { _ ->
           onArtworkSelected(artwork)
