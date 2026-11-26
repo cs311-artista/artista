@@ -120,10 +120,8 @@ class ArtworkScreenLoadingTest {
         limit: Int,
     ): List<Artwork> = throw NotImplementedError()
 
-    override suspend fun getPopularArtists(): List<Artist> = throw NotImplementedError()
-
-    override suspend fun searchArtworks(
-        artworkTitle: String,
+    override suspend fun getArtworksFromQuery(
+        query: String,
         typeValues: List<ArtworkType>,
         limit: Int,
     ): List<Artwork> = throw NotImplementedError()

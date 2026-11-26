@@ -37,35 +37,61 @@
     <string name="profile_logout">Logout</string>
     <string name="profile_picture_placeholder">Profile\nPicture</string>
     <string name="profile_picture_description">Profile picture</string>
-    <string name="profile_username_placeholder">USERNAME</string>
-    <string name="profile_preferences">ARTIST PREFERENCES</string>
-    <string name="profile_saved_artwork">SAVED ARTWORKS</string>
-    <string name="profile_username_dialog_title">Edit username</string>
-    <string name="profile_username_label">Username</string>
+    <string name="profile_title">Your profile</string>
+    <string name="profile_subtitle">Your own corner of the art world.</string>
+    <string name="profile_edit_photo">Edit photo</string>
+    <string name="profile_personal_space">PERSONAL SPACE</string>
+    <string name="profile_name">Name</string>
+    <string name="profile_name_subtitle">Choose how you appear</string>
+    <string name="profile_preferences">Artist Pref</string>
+    <string name="profile_preferences_subtitle">Shape your next discoveries</string>
+    <string name="profile_saved_artwork">Saved Artwork</string>
+    <string name="profile_saved_artwork_subtitle">Revisit the works you love</string>
+    <string name="profile_change_photo_title">Change profile photo</string>
+    <string name="profile_change_photo_subtitle">Choose where your photo comes from.</string>
+    <string name="profile_change_photo_library">Choose from library</string>
+    <string name="profile_change_photo_library_subtitle">Pick a photo from your device</string>
+    <string name="profile_change_photo_saved_artwork">Choose from Saved Artwork</string>
+    <string name="profile_change_photo_saved_artwork_subtitle">Use an artwork you have saved</string>
+    <string name="profile_change_photo_cancel">Cancel</string>
+    <string name="profile_username_dialog_title">How should we call you?</string>
+    <string name="profile_username_label">Your name</string>
+    <string name="profile_username_example">e.g. Claude Monet</string>
+    <string name="profile_username_hint">Letters, numbers and spaces only</string>
+    <string name="profile_username_error_characters">Use only letters, numbers and spaces</string>
     <!-- Always formatted with MAX_USERNAME_LENGTH (20), which never needs the singular form. -->
-    <string name="profile_username_rules" tools:ignore="PluralsCandidate">Letters, digits and spaces, up to %1$d characters</string>
+    <string name="profile_username_error_too_long" tools:ignore="PluralsCandidate">Up to %1$d characters</string>
+    <string name="profile_username_warning_trailing_spaces">Spaces at the end will be removed</string>
+    <!-- Characters typed so far, then the maximum, such as "7 / 20". -->
+    <string name="profile_username_counter">%1$d / %2$d</string>
     <string name="profile_username_save">Save</string>
     <string name="profile_username_cancel">Cancel</string>
     <!-- Artist preferences screen -->
-    <string name="artist_preferences_title">Artist Preferences</string>
-    <string name="artist_preferences_description">Untoggle the artists to remove from your favorites, then save</string>
-    <string name="artist_preferences_search_placeholder">Search artists…</string>
+    <string name="artist_preferences_title">Artist Pref</string>
+    <string name="artist_preferences_search_placeholder">Filter by name</string>
+    <string name="artist_preferences_clear_search">Clear filter</string>
     <string name="artist_preferences_save">Save</string>
-    <string name="artist_preferences_empty_state">You have no favorite artists yet.</string>
-    <string name="artist_preferences_saved_artists_load_error">Your saved artists couldn\'t be loaded.</string>
-    <string name="artist_preferences_artist_picture_description">Picture of %1$s</string>
+    <string name="artist_preferences_empty_state">You have no favorite artist yet</string>
+    <string name="artist_preferences_saved_artists_load_error">Your saved artist couldn\'t be loaded. Try again</string>
+    <string name="artist_card_picture_description">Picture of %1$s</string>
     <!-- Map screen -->
-    <string name="map_marker_navigate_to">Navigate to</string>
+    <string name="map_artwork_navigate">Navigate to artwork</string>
+    <string name="map_artwork_dismiss">Dismiss artwork</string>
+    <string name="map_artwork_no_image">No image available</string>
+    <string name="map_recenter">Recenter on your location</string>
     <string name="map_route_loading">Finding a walking route...</string>
-    <string name="map_route_close">Close route</string>
     <string name="map_route_no_route">No route found.</string>
+    <string name="map_route_recalculate">Recalculate route</string>
+    <string name="map_route_arrived">You\'ve arrived</string>
+    <string name="map_route_arrived_close">Close</string>
     <!-- Saved artworks screen -->
     <string name="saved_artworks_title">Saved Artworks</string>
     <string name="saved_artworks_empty">You have no saved artworks yet.</string>
     <string name="saved_artworks_loading">Loading saved artworks...</string>
     <string name="saved_artworks_load_error_state">Your saved artworks couldn\'t be loaded.</string>
-    <string name="saved_artworks_unsave">Remove %1$s from saved artworks</string>
-    <string name="saved_artworks_show_on_map">Show %1$s on the map</string>
+    <string name="artwork_save">Save %1$s</string>
+    <string name="artwork_unsave">Remove %1$s from saved artworks</string>
+    <string name="artwork_show_on_map">Show %1$s on the map</string>
     <string name="artwork_filter_open">Filter artworks</string>
     <string name="artwork_filter_title">Filter artworks</string>
     <string name="artwork_filter_artist">Artist</string>
@@ -91,10 +117,18 @@
     <string name="overview_load_error">Unable to load nearby artworks.</string>
     <string name="overview_saved_artworks_action">Saved artworks</string>
     <string name="overview_search_placeholder">Search artworks or artists</string>
+    <string name="overview_close_saved_artworks_title">One of your favorites is close!</string>
+    <string name="overview_nearby_artworks_title">Nearby artworks you might like.</string>
+    <string name="overview_show_as_list">Show artworks as a list</string>
+    <string name="overview_show_as_grid">Show artworks as a grid</string>
+    <string name="overview_empty_filter_results">No artwork was found.\nTry to lessen the filters.</string>
+    <string name="overview_clear_filters">Clear filters</string>
     <string name="search_placeholder">Search artworks</string>
     <string name="search_loading">Loading artworks</string>
-    <string name="search_empty_results_title">No artworks found</string>
-    <string name="search_empty_results_message">Try another search or change the artwork type filters.</string>
+    <string name="search_empty_artwork_results_title">No artworks found.</string>
+    <string name="search_empty_artwork_results_message">Try another search or change the artwork type filters.</string>
+    <string name="search_empty_artist_results_title">No artist found.</string>
+    <string name="search_empty_artist_results_message">Try another search.</string>
     <string name="search_filter_title">Artwork types</string>
     <string name="search_filter_scroll_hint">Scroll down to see more artwork types</string>
     <string name="search_filter_type_painting">Painting</string>
@@ -106,6 +140,11 @@
     <string name="search_filter_type_oil_painting">Oil painting</string>
     <string name="search_filter_type_watercolor_painting">Watercolor painting</string>
     <string name="search_filter_type_mosaic">Mosaic</string>
+
+    <!-- Search screen -->
+    <string name="search_tab_artworks">Artworks</string>
+    <string name="search_tab_artists">Artists</string>
+    <string name="search_powered_by_wikidata">Powered by Wikidata</string>
 
     <!-- Notifications -->
     <string name="notification_proximity_title">Nearby: %s</string>
@@ -143,4 +182,5 @@
     <string name="navigation_profile">Profile</string>
     <string name="arrow_back_description">Back</string>
     <string name="search_icon_description">Search</string>
+    <string name="clear_icon_description">Close</string>
 </resources>

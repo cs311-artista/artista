@@ -1,4 +1,5 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.artwork
 
 import androidx.compose.foundation.layout.Arrangement
@@ -9,15 +10,18 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -172,19 +176,35 @@ private fun MultiSelectField(
       label = { Text(label) },
       singleLine = true,
   )
-  Row(horizontalArrangement = Arrangement.spacedBy(Dimensions.overviewFilterFieldSpacing)) {
-    selected.sorted().forEach { value ->
-      AssistChip(
-          onClick = { onSelectedChange(selected - value) },
-          label = { Text(value) },
-          trailingIcon = {
-            Icon(
-                Icons.Default.Close,
-                contentDescription = stringResource(R.string.artwork_filter_remove),
-            )
-          },
-          modifier = Modifier.testTag("$tagPrefix-chip-$value"),
-      )
+  if (selected.isNotEmpty()) {
+    // A scrollable row keeps chips in selection order on a single line, however many are picked;
+    // the sets built here preserve insertion order, so new chips are appended at the end.
+    LazyRow(
+        modifier = Modifier.fillMaxWidth().testTag("$tagPrefix-selected"),
+        horizontalArrangement = Arrangement.spacedBy(Dimensions.overviewFilterFieldSpacing),
+    ) {
+      items(selected.toList(), key = { it }) { value ->
+        AssistChip(
+            onClick = { onSelectedChange(selected - value) },
+            label = { Text(value) },
+            trailingIcon = {
+              Icon(
+                  Icons.Default.Close,
+                  contentDescription = stringResource(R.string.artwork_filter_remove),
+              )
+            },
+            modifier = Modifier.testTag("$tagPrefix-chip-$value"),
+            // The default outlined style blends into the dialog surface, so selected values are
+            // filled with the theme's primary color; on* roles keep them readable in both themes.
+            colors =
+                AssistChipDefaults.assistChipColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    labelColor = MaterialTheme.colorScheme.onPrimary,
+                    trailingIconContentColor = MaterialTheme.colorScheme.onPrimary,
+                ),
+            border = null,
+        )
+      }
     }
   }
   if (matchingOptions.isNotEmpty()) {

@@ -1,6 +1,6 @@
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
-// Co-authored-by: DeepSeek Flash
+// Co-authored-by: DeepSeek Flash <noreply@deepseek.com>
 package com.artista.artista
 
 import android.location.Geocoder
@@ -325,6 +325,7 @@ fun ArtistaNavHost(
                         SearchScreenViewModel.provideFactory(
                             savedArtworksRepository,
                             wikiDataRepository,
+                            locationProvider,
                         )
                 ),
             onTabSelected = { tab -> navigationActions.navigateTo(tab.destination) },
@@ -332,8 +333,8 @@ fun ArtistaNavHost(
               navController.navigate(Screen.ArtworkDetails.createRoute(artwork.uid))
             },
             onMapClick = showRouteOnMap,
-            onRecommendationSelected = { recommendation ->
-              navController.navigate(Screen.ArtworkDetails.createRoute(recommendation.uid))
+            onArtworkRecommendationSelected = { recommendation ->
+              navController.navigate(Screen.ArtworkDetails.createRoute(recommendation.qid))
             },
         )
       }
@@ -347,7 +348,6 @@ fun ArtistaNavHost(
       composable(Screen.Map.route) {
         MapScreen(
             mapViewModel = mapViewModel,
-            onArtworkMarkerClick = showRouteOnMap,
             onNavigationBarTabSelected = { tab -> navigationActions.navigateTo(tab.destination) },
         )
       }

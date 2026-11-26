@@ -1,3 +1,5 @@
+// Co-authored-by: DeepSeek Flash <noreply@deepseek.com>
+
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.theme
@@ -74,14 +76,15 @@ internal object Dimensions {
   val savedArtworksListVerticalPadding = 12.dp
   val savedArtworksItemSpacing = 12.dp
 
-  /** Width over height of a saved artwork tile, slightly taller than wide like most paintings. */
-  const val SAVED_ARTWORK_TILE_ASPECT_RATIO = 5f / 6f
-  val savedArtworkTileCornerRadius = 4.dp
-  val savedArtworkTileBandHorizontalPadding = 8.dp
-  val savedArtworkTileBandVerticalPadding = 4.dp
-  val savedArtworkTileButtonPadding = 6.dp
-  val savedArtworkTileButtonSize = 36.dp
-  val savedArtworkTileIconSize = 20.dp
+  // Artwork tiles, shared by the saved artworks grid and the overview grid.
+  /** Width over height of an artwork tile, slightly taller than wide like most paintings. */
+  const val ARTWORK_TILE_ASPECT_RATIO = 5f / 6f
+  val artworkTileCornerRadius = 4.dp
+  val artworkTileBandHorizontalPadding = 8.dp
+  val artworkTileBandVerticalPadding = 4.dp
+  val artworkTileButtonPadding = 6.dp
+  val artworkTileButtonSize = 36.dp
+  val artworkTileIconSize = 20.dp
 
   // Overview screen.
   val overviewListHorizontalPadding = 16.dp
@@ -97,6 +100,29 @@ internal object Dimensions {
   val artworkFilterSuggestionsMaxHeight = 160.dp
   val overviewSearchBarHeight = standardControlHeight
   val overviewSearchBarElevation = 2.dp
+  val overviewFilterButtonSize = standardControlHeight
+  val overviewSearchBarFilterSpacing = 12.dp
+  val overviewSectionTitleTopPadding = 8.dp
+  val overviewSectionSpacing = 24.dp
+  val overviewGridItemSpacing = 12.dp
+
+  /** Width of a tile in the row of saved artworks close to the user. */
+  val overviewCloseSavedTileWidth = 160.dp
+  val overviewEmptyStateHorizontalPadding = 24.dp
+
+  // Artwork list cards, used by the overview list mode.
+  val artworkListCardCornerRadius = 4.dp
+  val artworkListCardHeaderHorizontalPadding = 16.dp
+  val artworkListCardHeaderVerticalPadding = 12.dp
+  val artworkListCardAvatarSize = 40.dp
+  val artworkListCardAvatarIconSize = 24.dp
+  val artworkListCardHeaderSpacing = 12.dp
+  val artworkListCardFooterHorizontalPadding = 16.dp
+  val artworkListCardFooterVerticalPadding = 12.dp
+  val artworkListCardFooterTextSpacing = 4.dp
+
+  /** Width over height of the image in an artwork list card, close to the V2 mockup. */
+  const val ARTWORK_LIST_CARD_IMAGE_ASPECT_RATIO = 1f
 
   // Search screen.
   val searchRecommendationVerticalPadding = 8.dp
@@ -121,26 +147,50 @@ internal object Dimensions {
   val artistPreferencesGridHorizontalSpacing = 12.dp
   val artistPreferencesGridVerticalSpacing = 12.dp
   val artistPreferencesRetryButtonSpacing = 16.dp
+  val artistPreferencesRetryIconSpacing = 8.dp
+  val artistPreferencesErrorHorizontalPadding = 24.dp
   val artistCardContentPadding = 8.dp
   val artistCardSelectionIndicatorPadding = 4.dp
   val artistCardNameTopSpacing = 8.dp
+
+  /** Width over height of the picture in an artist card, a landscape frame for portraits. */
+  const val ARTIST_CARD_IMAGE_ASPECT_RATIO = 4f / 3f
+
+  /**
+   * Lines given to an artist's name in an artist card, both as minimum and maximum, so every card
+   * of a grid row has the same height.
+   */
+  const val ARTIST_CARD_NAME_LINES = 2
   val preferencesSaveButtonHeight = standardControlHeight
 
   // Profile screen.
-  val profileTopBarHorizontalPadding = 16.dp
-  val profileTopBarVerticalPadding = 8.dp
-  val profileContentHorizontalPadding = 24.dp
-  val profileContentTopPadding = 16.dp
-  val profileContentBottomPadding = 45.dp
-  val profilePictureFieldsSpacing = 48.dp
-  val profileFieldSpacing = 24.dp
+  val profileContentHorizontalPadding = 20.dp
+  val profileContentTopPadding = 24.dp
+  val profileContentBottomPadding = 24.dp
+  val profileTitleSubtitleSpacing = 4.dp
+  val profileHeaderBannerSpacing = 24.dp
+  /** Width-to-height ratio of the profile picture banner. */
+  const val PROFILE_BANNER_ASPECT_RATIO = 2.1f
+  val profileBannerSectionSpacing = 20.dp
+  val profileSectionLabelCardsSpacing = 12.dp
+  val profileOptionCardSpacing = 10.dp
+  val profileOptionCardHorizontalPadding = 14.dp
+  val profileOptionCardVerticalPadding = 14.dp
+  val profileOptionIconTextSpacing = 14.dp
+  val profileOptionTitleSubtitleSpacing = 2.dp
+  val profileOptionIconBoxSize = 40.dp
+  val profileEditPhotoPadding = 10.dp
+  val profileEditPhotoHorizontalPadding = 14.dp
+  val profileEditPhotoVerticalPadding = 6.dp
+  val profileLogoutTopSpacing = 64.dp
   val logoutButtonHorizontalPadding = 20.dp
   val logoutButtonVerticalPadding = 10.dp
   val logoutButtonIconLabelSpacing = 8.dp
-  val profileFieldHorizontalPadding = 24.dp
+  val profileSheetPadding = 20.dp
+  val profileSheetSubtitleOptionsSpacing = 20.dp
+  val profileSheetCancelTopSpacing = 16.dp
+  val profileSheetCancelVerticalPadding = 14.dp
   val profileInitializationWarningPadding = 16.dp
-  /** Height of each profile field. */
-  val profileFieldHeight = 70.dp
 
   // Bottom navigation.
   val navigationBarHorizontalPadding = 16.dp
@@ -149,6 +199,19 @@ internal object Dimensions {
   // Map screen.
   val bottomMapToolBarPadding = 110.dp
   val topMapToolBarPadding = 24.dp
+  val mapArtworkCardImageHeight = 160.dp
+  val mapArtworkCardEmptyImageHeight = 64.dp
+  val mapArtworkCardImageSpacing = 6.dp
+  val mapArtworkCardCompactVerticalPadding = 4.dp
+
+  /** Height of Google's zoom-control strip, which is not a Compose element. */
+  val mapZoomControlsHeight = 96.dp
+  val mapRecenterButtonEndPadding = 16.dp
+  val mapRecenterButtonSpacing = 12.dp
+
+  /** Keeps the recenter button above the map's bottom content padding and the zoom controls. */
+  val mapRecenterButtonBottomPadding =
+      bottomMapToolBarPadding + mapZoomControlsHeight + mapRecenterButtonSpacing
 
   // Map route overlays.
   val mapRouteOverlayHorizontalPadding = 16.dp
@@ -168,4 +231,11 @@ internal object TypographyDimensions {
   val bodyLargeFontSize = 16.sp
   val bodyLargeLineHeight = 24.sp
   val bodyLargeLetterSpacing = 0.5.sp
+}
+
+/** Layout values for the new search UI. Move into [Dimensions] once the design is final. */
+internal object SearchLayout {
+  val TabSwitchHeight = 40.dp
+  val TabSwitchBottomSpacing = 12.dp
+  val AttributionVerticalPadding = 16.dp
 }

@@ -1,3 +1,5 @@
+// Co-authored-by: DeepSeek Flash <noreply@deepseek.com>
+
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.map
@@ -5,8 +7,10 @@ package com.artista.artista.ui.map
 import com.artista.artista.MainDispatcherRule
 import com.artista.artista.R
 import com.artista.artista.model.artist.Artist
+import com.artista.artista.model.artist.ArtistCandidate
 import com.artista.artista.model.artist.ArtistId
 import com.artista.artista.model.artwork.Artwork
+import com.artista.artista.model.artwork.ArtworkCandidate
 import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.artwork.ArtworkType
@@ -18,16 +22,21 @@ import com.artista.artista.model.location.FakeLocationProvider
 import com.artista.artista.model.map.Coordinate
 import com.artista.artista.model.map.Location as ArtworkLocation
 import com.artista.artista.model.map.UserLocation
+import com.artista.artista.model.walking.OFF_ROUTE_UPDATES_REQUIRED
 import com.artista.artista.model.walking.WalkingRoute
 import com.artista.artista.model.walking.WalkingRouteRepository
 import com.artista.artista.resources.C
 import com.google.android.gms.maps.model.LatLng
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -205,6 +214,356 @@ class MapViewModelTest {
   }
 
   @Test
+  fun selectArtwork_whenNoArtworkSelected_thenStoresSelectionWithoutRoute() = runTest {
+    val artwork = artworkWithLocation("selected")
+    val repository = FakeWalkingRouteRepository()
+    val viewModel =
+        MapViewModel(
+            FakeWikiDataRepository(listOf(artwork)),
+            EmptySavedArtworksRepository(),
+            repository,
+            FakeLocationProvider(),
+        )
+
+    viewModel.selectArtwork(artwork)
+
+    assertEquals(artwork, viewModel.uiState.selectedArtwork)
+    assertEquals(RouteUiState.Idle, viewModel.routeUiState)
+    assertEquals(0, repository.callCount)
+  }
+
+  @Test
+  fun selectArtwork_whenSameArtworkIsRouteDestination_thenKeepsSelectionAndRoute() = runTest {
+    val artwork = artworkWithLocation("selected")
+    val viewModel = createViewModel(FakeLocationProvider())
+    viewModel.updateUserLocation(UserLocation(46.52, 6.63))
+    viewModel.loadRouteTo(artwork)
+    advanceUntilIdle()
+
+    viewModel.selectArtwork(artwork)
+
+    assertEquals(artwork, viewModel.uiState.selectedArtwork)
+    assertTrue(viewModel.routeUiState is RouteUiState.Success)
+  }
+
+  @Test
+  fun selectArtwork_whenSameArtworkSelectedAgainWhileIdle_thenClearsSelection() = runTest {
+    val artwork = artworkWithLocation("selected")
+    val viewModel = createViewModel(FakeLocationProvider())
+    viewModel.selectArtwork(artwork)
+
+    viewModel.selectArtwork(artwork)
+
+    assertNull(viewModel.uiState.selectedArtwork)
+    assertEquals(RouteUiState.Idle, viewModel.routeUiState)
+  }
+
+  @Test
+  fun selectArtwork_whenRouteLoadingForSameArtwork_thenKeepsRequest() = runTest {
+    val artwork = artworkWithLocation("destination")
+    val repository = FakeWalkingRouteRepository(blockCalls = true)
+    val viewModel =
+        MapViewModel(
+            FakeWikiDataRepository(listOf(artwork)),
+            EmptySavedArtworksRepository(),
+            repository,
+            FakeLocationProvider(),
+        )
+    viewModel.updateUserLocation(UserLocation(46.52, 6.63))
+    viewModel.loadRouteTo(artwork)
+    runCurrent()
+    assertEquals(RouteUiState.Loading, viewModel.routeUiState)
+
+    viewModel.selectArtwork(artwork)
+    repository.release(0)
+    advanceUntilIdle()
+
+    assertEquals(artwork, viewModel.uiState.selectedArtwork)
+    assertEquals(RouteUiState.Success(repository.route, artwork), viewModel.routeUiState)
+    assertEquals(1, repository.callCount)
+  }
+
+  @Test
+  fun selectArtwork_whenAnotherArtworkSelected_thenReplacesSelectionAndClearsRoute() = runTest {
+    val first = artworkWithLocation("first")
+    val second = artworkWithLocation("second")
+    val repository = FakeWalkingRouteRepository()
+    val viewModel =
+        MapViewModel(
+            FakeWikiDataRepository(listOf(first, second)),
+            EmptySavedArtworksRepository(),
+            repository,
+            FakeLocationProvider(),
+        )
+    viewModel.updateUserLocation(UserLocation(46.52, 6.63))
+    viewModel.loadRouteTo(first)
+    advanceUntilIdle()
+
+    viewModel.selectArtwork(second)
+
+    assertEquals(second, viewModel.uiState.selectedArtwork)
+    assertEquals(RouteUiState.Idle, viewModel.routeUiState)
+    assertNull(viewModel.routeProgressUiState)
+    assertEquals(1, repository.callCount)
+  }
+
+  @Test
+  fun selectArtwork_whenRouteLoadingForAnotherArtwork_thenCancelsRequest() = runTest {
+    val first = artworkWithLocation("first")
+    val second = artworkWithLocation("second")
+    val repository = FakeWalkingRouteRepository(blockCalls = true)
+    val viewModel =
+        MapViewModel(
+            FakeWikiDataRepository(listOf(first, second)),
+            EmptySavedArtworksRepository(),
+            repository,
+            FakeLocationProvider(),
+        )
+    viewModel.updateUserLocation(UserLocation(46.52, 6.63))
+    viewModel.loadRouteTo(first)
+    runCurrent()
+
+    viewModel.selectArtwork(second)
+    advanceUntilIdle()
+
+    assertEquals(second, viewModel.uiState.selectedArtwork)
+    assertEquals(RouteUiState.Idle, viewModel.routeUiState)
+    assertEquals(1, repository.callCount)
+
+    // Release the parked first request. It must have been cancelled, otherwise it would land
+    // after the selection changed and flip the card back to the first artwork.
+    repository.release(0)
+    advanceUntilIdle()
+
+    assertEquals(RouteUiState.Idle, viewModel.routeUiState)
+    assertEquals(second, viewModel.uiState.selectedArtwork)
+  }
+
+  @Test
+  fun selectArtwork_whenRouteErrorShown_thenClearsErrorAndSelects() = runTest {
+    val first = artworkWithLocation("first")
+    val second = artworkWithLocation("second")
+    val viewModel =
+        MapViewModel(
+            FakeWikiDataRepository(listOf(first, second)),
+            EmptySavedArtworksRepository(),
+            FakeWalkingRouteRepository(exception = AppException.Network()),
+            FakeLocationProvider(),
+        )
+    viewModel.updateUserLocation(UserLocation(46.52, 6.63))
+    viewModel.loadRouteTo(first)
+    advanceUntilIdle()
+    assertTrue(viewModel.routeUiState is RouteUiState.Error)
+
+    viewModel.selectArtwork(second)
+
+    assertEquals(second, viewModel.uiState.selectedArtwork)
+    assertEquals(RouteUiState.Idle, viewModel.routeUiState)
+  }
+
+  @Test
+  fun loadRouteTo_whenCalled_thenSelectsArtwork() = runTest {
+    val artwork = artworkWithLocation("destination")
+    val viewModel = createViewModel(FakeLocationProvider())
+    viewModel.updateUserLocation(UserLocation(46.52, 6.63))
+
+    viewModel.loadRouteTo(artwork)
+
+    assertEquals(artwork, viewModel.uiState.selectedArtwork)
+  }
+
+  @Test
+  fun navigateToSelectedArtwork_whenSelectionExists_thenLoadsRoute() = runTest {
+    val artwork = artworkWithLocation("destination")
+    val repository = FakeWalkingRouteRepository()
+    val viewModel =
+        MapViewModel(
+            FakeWikiDataRepository(listOf(artwork)),
+            EmptySavedArtworksRepository(),
+            repository,
+            FakeLocationProvider(),
+        )
+    viewModel.updateUserLocation(UserLocation(46.52, 6.63))
+    viewModel.selectArtwork(artwork)
+
+    viewModel.navigateToSelectedArtwork()
+    advanceUntilIdle()
+
+    assertEquals(artwork, viewModel.uiState.selectedArtwork)
+    assertEquals(RouteUiState.Success(repository.route, artwork), viewModel.routeUiState)
+    assertEquals(1, repository.callCount)
+  }
+
+  @Test
+  fun navigateToSelectedArtwork_whenNoSelection_thenDoesNothing() = runTest {
+    val repository = FakeWalkingRouteRepository()
+    val viewModel =
+        MapViewModel(
+            FakeWikiDataRepository(emptyList()),
+            EmptySavedArtworksRepository(),
+            repository,
+            FakeLocationProvider(),
+        )
+
+    viewModel.navigateToSelectedArtwork()
+    advanceUntilIdle()
+
+    assertNull(viewModel.uiState.selectedArtwork)
+    assertEquals(RouteUiState.Idle, viewModel.routeUiState)
+    assertEquals(0, repository.callCount)
+  }
+
+  @Test
+  fun clearRoute_whenArtworkSelected_thenClearsSelection() = runTest {
+    val artwork = artworkWithLocation("selected")
+    val viewModel = createViewModel(FakeLocationProvider())
+    viewModel.selectArtwork(artwork)
+
+    viewModel.clearRoute()
+
+    assertNull(viewModel.uiState.selectedArtwork)
+    assertEquals(RouteUiState.Idle, viewModel.routeUiState)
+  }
+
+  @Test
+  fun dismissSelectedArtwork_whenIdle_thenClearsOnlyTheSelection() = runTest {
+    val artwork = artworkWithLocation("selected")
+    val viewModel = createViewModel(FakeLocationProvider())
+    viewModel.selectArtwork(artwork)
+
+    viewModel.dismissSelectedArtwork()
+
+    assertNull(viewModel.uiState.selectedArtwork)
+    assertEquals(RouteUiState.Idle, viewModel.routeUiState)
+  }
+
+  @Test
+  fun dismissSelectedArtwork_whenRouteActive_thenKeepsSelectionAndRoute() = runTest {
+    val artwork = artworkWithLocation("destination")
+    val repository = FakeWalkingRouteRepository()
+    val viewModel =
+        MapViewModel(
+            FakeWikiDataRepository(listOf(artwork)),
+            EmptySavedArtworksRepository(),
+            repository,
+            FakeLocationProvider(),
+        )
+    viewModel.updateUserLocation(UserLocation(46.52, 6.63))
+    viewModel.loadRouteTo(artwork)
+    advanceUntilIdle()
+
+    viewModel.dismissSelectedArtwork()
+
+    assertEquals(artwork, viewModel.uiState.selectedArtwork)
+    assertEquals(RouteUiState.Success(repository.route, artwork), viewModel.routeUiState)
+  }
+
+  @Test
+  fun dismissSelectedArtwork_whenRouteLoading_thenKeepsSelectionAndRequest() = runTest {
+    val artwork = artworkWithLocation("destination")
+    val repository = FakeWalkingRouteRepository(blockCalls = true)
+    val viewModel =
+        MapViewModel(
+            FakeWikiDataRepository(listOf(artwork)),
+            EmptySavedArtworksRepository(),
+            repository,
+            FakeLocationProvider(),
+        )
+    viewModel.updateUserLocation(UserLocation(46.52, 6.63))
+    viewModel.loadRouteTo(artwork)
+    runCurrent()
+    assertEquals(RouteUiState.Loading, viewModel.routeUiState)
+
+    viewModel.dismissSelectedArtwork()
+    repository.release(0)
+    advanceUntilIdle()
+
+    assertEquals(artwork, viewModel.uiState.selectedArtwork)
+    assertEquals(RouteUiState.Success(repository.route, artwork), viewModel.routeUiState)
+    assertEquals(1, repository.callCount)
+  }
+
+  @Test
+  fun dismissSelectedArtwork_whenRouteErrorShown_thenClearsSelectionAndError() = runTest {
+    val artwork = artworkWithLocation("destination")
+    val viewModel =
+        MapViewModel(
+            FakeWikiDataRepository(listOf(artwork)),
+            EmptySavedArtworksRepository(),
+            FakeWalkingRouteRepository(exception = AppException.Network()),
+            FakeLocationProvider(),
+        )
+    viewModel.updateUserLocation(UserLocation(46.52, 6.63))
+    viewModel.loadRouteTo(artwork)
+    advanceUntilIdle()
+
+    viewModel.dismissSelectedArtwork()
+
+    assertNull(viewModel.uiState.selectedArtwork)
+    assertEquals(RouteUiState.Idle, viewModel.routeUiState)
+  }
+
+  @Test
+  fun dismissSelectedArtwork_whenLocationUnavailable_thenClearsSelectionAndState() = runTest {
+    val artwork = artworkWithLocation("destination")
+    val viewModel = createViewModel(FakeLocationProvider())
+    viewModel.loadRouteTo(artwork)
+    viewModel.setLocationError(AppException.UserLocationError())
+    assertEquals(RouteUiState.LocationUnavailable, viewModel.routeUiState)
+
+    viewModel.dismissSelectedArtwork()
+
+    assertNull(viewModel.uiState.selectedArtwork)
+    assertEquals(RouteUiState.Idle, viewModel.routeUiState)
+  }
+
+  @Test
+  fun clearRoute_whenRouteActive_thenStopsUpdatesAndClearsProgressAndSelection() = runTest {
+    val provider = FakeLocationProvider()
+    val viewModel =
+        createRouteViewModel(provider, walkingRouteRepository = primaryRouteRepository())
+    viewModel.updateUserLocation(UserLocation(46.0, 6.0))
+    viewModel.loadRouteTo(primaryRouteDestination)
+    viewModel.startLocationUpdates()
+    advanceUntilIdle()
+    assertEquals(primaryRouteDestination, viewModel.uiState.selectedArtwork)
+    assertNotNull(viewModel.routeProgressUiState)
+
+    viewModel.clearRoute()
+    advanceUntilIdle()
+
+    assertNull(viewModel.uiState.selectedArtwork)
+    assertNull(viewModel.routeProgressUiState)
+    assertEquals(RouteUiState.Idle, viewModel.routeUiState)
+    assertEquals(0, provider.activeCollectors)
+  }
+
+  @Test
+  fun retryRoute_afterError_keepsSelectedArtwork() = runTest {
+    val artwork = artworkWithLocation("destination")
+    val repository = FakeWalkingRouteRepository(exception = AppException.Network())
+    val viewModel =
+        MapViewModel(
+            FakeWikiDataRepository(listOf(artwork)),
+            EmptySavedArtworksRepository(),
+            repository,
+            FakeLocationProvider(),
+        )
+    viewModel.updateUserLocation(UserLocation(46.52, 6.63))
+    viewModel.loadRouteTo(artwork)
+    advanceUntilIdle()
+
+    assertEquals(artwork, viewModel.uiState.selectedArtwork)
+    assertTrue(viewModel.routeUiState is RouteUiState.Error)
+
+    viewModel.retryRoute()
+    advanceUntilIdle()
+
+    assertEquals(artwork, viewModel.uiState.selectedArtwork)
+    assertEquals(2, repository.callCount)
+  }
+
+  @Test
   fun loadRouteTo_withoutLocation_waitsForLocationThenLoadsRoute() = runTest {
     val artwork = artworkWithLocation("destination")
     val route = WalkingRoute(emptyList(), 12.minutes, 850)
@@ -375,7 +734,32 @@ class MapViewModelTest {
   }
 
   @Test
-  fun clearRoute_whileLoading_returnsToIdle() = runTest {
+  fun loadRouteTo_duringRecalculation_discardsTheLateRecalculationResponse() = runTest {
+    val provider = FakeLocationProvider()
+    val repository = primaryRouteRepository()
+    val viewModel = createRouteViewModel(provider, repository)
+    startOffRoute(viewModel, provider)
+    repository.blockCalls = true
+    viewModel.recalculateRoute()
+    runCurrent()
+
+    viewModel.loadRouteTo(alternateRouteDestination)
+    runCurrent()
+    assertEquals(RouteRecalculationUiState(), viewModel.recalculationUiStateFlow.value)
+
+    repository.release(1)
+    runCurrent()
+    repository.release(0)
+    runCurrent()
+
+    assertEquals(
+        RouteUiState.Success(repository.route, alternateRouteDestination),
+        viewModel.routeUiState,
+    )
+  }
+
+  @Test
+  fun clearRoute_whenRouteLoading_thenCancelsRequestAndClearsSelection() = runTest {
     val artwork = artworkWithLocation("destination")
     val repository = FakeWalkingRouteRepository(blockCalls = true)
     val viewModel =
@@ -389,10 +773,16 @@ class MapViewModelTest {
 
     viewModel.loadRouteTo(artwork)
     runCurrent()
+    assertEquals(RouteUiState.Loading, viewModel.routeUiState)
+    assertEquals(artwork, viewModel.uiState.selectedArtwork)
+
     viewModel.clearRoute()
+    repository.release(0)
     advanceUntilIdle()
 
     assertEquals(RouteUiState.Idle, viewModel.routeUiState)
+    assertNull(viewModel.uiState.selectedArtwork)
+    assertEquals(1, repository.callCount)
   }
 
   @Test
@@ -524,9 +914,9 @@ class MapViewModelTest {
 
   @Test
   fun routeProgress_remainingShrinksAndDurationScales() = runTest {
-    val viewModel = createRouteViewModel(walkingRouteRepository = northRepository())
+    val viewModel = createRouteViewModel(walkingRouteRepository = primaryRouteRepository())
     viewModel.updateUserLocation(UserLocation(46.0, 6.0))
-    viewModel.loadRouteTo(northDestination)
+    viewModel.loadRouteTo(primaryRouteDestination)
     advanceUntilIdle()
     val atStart = viewModel.routeProgressUiState!!
 
@@ -541,9 +931,9 @@ class MapViewModelTest {
 
   @Test
   fun routeProgress_doesNotMoveBackwards() = runTest {
-    val viewModel = createRouteViewModel(walkingRouteRepository = northRepository())
+    val viewModel = createRouteViewModel(walkingRouteRepository = primaryRouteRepository())
     viewModel.updateUserLocation(UserLocation(46.0025, 6.0))
-    viewModel.loadRouteTo(northDestination)
+    viewModel.loadRouteTo(primaryRouteDestination)
     advanceUntilIdle()
     val ahead = viewModel.routeProgressUiState!!
 
@@ -557,10 +947,10 @@ class MapViewModelTest {
 
   @Test
   fun routeProgress_makesNoExtraRoutingCalls() = runTest {
-    val repository = northRepository()
+    val repository = primaryRouteRepository()
     val viewModel = createRouteViewModel(walkingRouteRepository = repository)
     viewModel.updateUserLocation(UserLocation(46.0, 6.0))
-    viewModel.loadRouteTo(northDestination)
+    viewModel.loadRouteTo(primaryRouteDestination)
     advanceUntilIdle()
 
     viewModel.updateUserLocation(UserLocation(46.001, 6.0))
@@ -570,9 +960,9 @@ class MapViewModelTest {
 
   @Test
   fun routeProgress_resetsOnClearRoute() = runTest {
-    val viewModel = createRouteViewModel(walkingRouteRepository = northRepository())
+    val viewModel = createRouteViewModel(walkingRouteRepository = primaryRouteRepository())
     viewModel.updateUserLocation(UserLocation(46.0, 6.0))
-    viewModel.loadRouteTo(northDestination)
+    viewModel.loadRouteTo(primaryRouteDestination)
     advanceUntilIdle()
     assertNotNull(viewModel.routeProgressUiState)
 
@@ -583,7 +973,8 @@ class MapViewModelTest {
   @Test
   fun locationUpdates_areForwardedToUserLocation() = runTest {
     val provider = FakeLocationProvider()
-    val viewModel = createRouteViewModel(provider, walkingRouteRepository = northRepository())
+    val viewModel =
+        createRouteViewModel(provider, walkingRouteRepository = primaryRouteRepository())
     viewModel.startLocationUpdates()
     advanceUntilIdle()
 
@@ -595,7 +986,8 @@ class MapViewModelTest {
   @Test
   fun startLocationUpdates_twiceCreatesOneCollector() = runTest {
     val provider = FakeLocationProvider()
-    val viewModel = createRouteViewModel(provider, walkingRouteRepository = northRepository())
+    val viewModel =
+        createRouteViewModel(provider, walkingRouteRepository = primaryRouteRepository())
     viewModel.startLocationUpdates()
     viewModel.startLocationUpdates()
     advanceUntilIdle()
@@ -605,7 +997,8 @@ class MapViewModelTest {
   @Test
   fun stopLocationUpdates_cancelsCollectionAndIgnoresLaterLocations() = runTest {
     val provider = FakeLocationProvider()
-    val viewModel = createRouteViewModel(provider, walkingRouteRepository = northRepository())
+    val viewModel =
+        createRouteViewModel(provider, walkingRouteRepository = primaryRouteRepository())
     viewModel.startLocationUpdates()
     advanceUntilIdle()
 
@@ -621,9 +1014,10 @@ class MapViewModelTest {
   @Test
   fun clearRoute_stopsLocationUpdates() = runTest {
     val provider = FakeLocationProvider()
-    val viewModel = createRouteViewModel(provider, walkingRouteRepository = northRepository())
+    val viewModel =
+        createRouteViewModel(provider, walkingRouteRepository = primaryRouteRepository())
     viewModel.updateUserLocation(UserLocation(46.0, 6.0))
-    viewModel.loadRouteTo(northDestination)
+    viewModel.loadRouteTo(primaryRouteDestination)
     viewModel.startLocationUpdates()
     advanceUntilIdle()
     assertEquals(1, provider.activeCollectors)
@@ -636,9 +1030,10 @@ class MapViewModelTest {
   @Test
   fun locationUpdates_trimTheActiveRoute() = runTest {
     val provider = FakeLocationProvider()
-    val viewModel = createRouteViewModel(provider, walkingRouteRepository = northRepository())
+    val viewModel =
+        createRouteViewModel(provider, walkingRouteRepository = primaryRouteRepository())
     viewModel.updateUserLocation(UserLocation(46.0, 6.0))
-    viewModel.loadRouteTo(northDestination)
+    viewModel.loadRouteTo(primaryRouteDestination)
     viewModel.startLocationUpdates()
     advanceUntilIdle()
     val atStart = viewModel.routeProgressUiState!!
@@ -655,23 +1050,331 @@ class MapViewModelTest {
   @Test
   fun locationUpdates_failureSetsErrorInsteadOfCrashing() = runTest {
     val provider = FakeLocationProvider(errorType = AppException.UserLocationError())
-    val viewModel = createRouteViewModel(provider, walkingRouteRepository = northRepository())
+    val viewModel =
+        createRouteViewModel(provider, walkingRouteRepository = primaryRouteRepository())
     viewModel.startLocationUpdates()
     advanceUntilIdle()
     assertNotNull(viewModel.uiState.errorMsg)
   }
 
-  private val northPath =
+  @Test
+  fun offRouteDetection_afterConsecutiveOffRouteUpdates_offersRecalculationUntilBackOnRoute() =
+      runTest {
+        val provider = FakeLocationProvider()
+        val repository = primaryRouteRepository()
+        val viewModel = createRouteViewModel(provider, repository)
+        startPrimaryRoute(viewModel, provider)
+        val calls = repository.callCount
+
+        emit(provider, offRouteLocationBeyondThreshold, OFF_ROUTE_UPDATES_REQUIRED - 1)
+        assertFalse(viewModel.recalculationUiStateFlow.value.isAvailable)
+        viewModel.recalculateRoute() // not available yet: ignored
+        runCurrent()
+        assertEquals(calls, repository.callCount)
+
+        emit(provider, offRouteLocationBeyondThreshold)
+        assertTrue(viewModel.recalculationUiStateFlow.value.isAvailable)
+
+        emit(provider, backOnRouteLocation) // back on the route: hidden, and the count starts over
+        assertFalse(viewModel.recalculationUiStateFlow.value.isAvailable)
+        emit(provider, offRouteLocationBeyondThreshold, OFF_ROUTE_UPDATES_REQUIRED - 1)
+        assertFalse(viewModel.recalculationUiStateFlow.value.isAvailable)
+      }
+
+  @Test
+  fun recalculateRoute_whenRequested_keepsOldRouteWhileLoadingThenReplacesIt() = runTest {
+    val provider = FakeLocationProvider()
+    val repository = primaryRouteRepository()
+    val viewModel = createRouteViewModel(provider, repository)
+    startOffRoute(viewModel, provider)
+    val oldRoute = repository.route
+    repository.route = recalculatedRoute
+    repository.blockCalls = true
+
+    viewModel.recalculateRoute()
+    runCurrent()
+
+    assertTrue(viewModel.recalculationUiStateFlow.value.isLoading)
+    assertEquals(RouteUiState.Success(oldRoute, primaryRouteDestination), viewModel.routeUiState)
+    assertEquals(
+        Coordinate(
+            offRouteLocationBeyondThreshold.latitude,
+            offRouteLocationBeyondThreshold.longitude,
+        ),
+        repository.origin,
+    )
+
+    repository.release(0)
+    runCurrent()
+
+    assertEquals(
+        RouteUiState.Success(recalculatedRoute, primaryRouteDestination),
+        viewModel.routeUiState,
+    )
+    assertEquals(
+        RouteRecalculationUiState(isCoolingDown = true),
+        viewModel.recalculationUiStateFlow.value,
+    )
+  }
+
+  @Test
+  fun recalculateRoute_whenRequestFails_keepsOldRouteAndIgnoresRequestsUntilCooldownEnds() =
+      runTest {
+        val provider = FakeLocationProvider()
+        val repository = primaryRouteRepository()
+        val viewModel = createRouteViewModel(provider, repository)
+        startOffRoute(viewModel, provider)
+        val calls = repository.callCount
+        repository.exception =
+            AppException.NotFound() // not an Error state: must fall back to GENERIC
+
+        viewModel.recalculateRoute()
+        runCurrent()
+        assertEquals(
+            RouteUiState.Success(repository.route, primaryRouteDestination),
+            viewModel.routeUiState,
+        )
+        assertEquals(RouteErrorKind.GENERIC, viewModel.recalculationUiStateFlow.value.error?.kind)
+
+        viewModel.recalculateRoute() // still cooling down: ignored
+        runCurrent()
+        assertEquals(calls + 1, repository.callCount)
+
+        advanceTimeBy(RECALCULATE_COOLDOWN_MS.milliseconds)
+        runCurrent()
+        viewModel.recalculateRoute()
+        runCurrent()
+        assertEquals(calls + 2, repository.callCount)
+      }
+
+  @Test
+  fun clearRoute_duringRecalculation_cancelsRequestAndResetsState() = runTest {
+    val provider = FakeLocationProvider()
+    val repository = primaryRouteRepository()
+    val viewModel = createRouteViewModel(provider, repository)
+    startOffRoute(viewModel, provider)
+    repository.blockCalls = true
+    viewModel.recalculateRoute()
+    runCurrent()
+
+    viewModel.clearRoute()
+    repository.release(0) // a late response must not bring the route back
+    runCurrent()
+
+    assertEquals(RouteUiState.Idle, viewModel.routeUiState)
+    assertEquals(RouteRecalculationUiState(), viewModel.recalculationUiStateFlow.value)
+  }
+
+  @Test
+  fun arrival_withinThresholdOfDestination_marksArrivedAndStopsTracking() = runTest {
+    val provider = FakeLocationProvider()
+    val viewModel = createRouteViewModel(provider, primaryRouteRepository())
+    startPrimaryRoute(viewModel, provider)
+
+    emit(provider, locationOutsideArrivalThreshold)
+    assertFalse(viewModel.hasArrived.value)
+    assertEquals(1, provider.activeCollectors)
+
+    emit(provider, locationWithinArrivalThreshold)
+    assertTrue(viewModel.hasArrived.value)
+    assertEquals(0, provider.activeCollectors)
+  }
+
+  @Test
+  fun arrival_whenRouteLoadsWhileAlreadyAtDestination_marksArrived() = runTest {
+    val provider = FakeLocationProvider()
+    val viewModel = createRouteViewModel(provider, primaryRouteRepository())
+    viewModel.startLocationUpdates()
+    runCurrent()
+    viewModel.loadRouteTo(primaryRouteDestination)
+
+    emit(provider, locationWithinArrivalThreshold)
+
+    assertTrue(viewModel.hasArrived.value)
+    assertEquals(0, provider.activeCollectors)
+  }
+
+  @Test
+  fun startLocationUpdates_afterArrival_doesNotRestartTracking() = runTest {
+    val provider = FakeLocationProvider()
+    val viewModel = createRouteViewModel(provider, primaryRouteRepository())
+    startPrimaryRoute(viewModel, provider)
+    emit(provider, locationWithinArrivalThreshold)
+
+    viewModel.startLocationUpdates()
+    runCurrent()
+
+    assertEquals(0, provider.activeCollectors)
+    assertTrue(viewModel.hasArrived.value)
+  }
+
+  @Test
+  fun arrival_duringRecalculation_cancelsTheRequestAndHidesTheButton() = runTest {
+    val provider = FakeLocationProvider()
+    val repository = primaryRouteRepository()
+    val viewModel = createRouteViewModel(provider, repository)
+    startOffRoute(viewModel, provider)
+    val oldRoute = repository.route
+    repository.route = recalculatedRoute
+    repository.blockCalls = true
+    viewModel.recalculateRoute()
+    runCurrent()
+
+    emit(provider, locationWithinArrivalThreshold)
+    repository.release(0) // the late response must not replace the route
+    runCurrent()
+
+    assertEquals(RouteRecalculationUiState(), viewModel.recalculationUiStateFlow.value)
+    assertEquals(RouteUiState.Success(oldRoute, primaryRouteDestination), viewModel.routeUiState)
+  }
+
+  @Test
+  fun arrival_whenReachedWhileOffRoute_doesNotOfferRecalculation() = runTest {
+    val provider = FakeLocationProvider()
+    // The route ends 100 m short of the artwork, so the artwork can be reached far from the route.
+    val repository =
+        FakeWalkingRouteRepository(route = WalkingRoute(primaryRoutePath.take(3), 10.minutes, 222))
+    val viewModel = createRouteViewModel(provider, repository)
+    startPrimaryRoute(viewModel, provider)
+    emit(provider, offRouteLocationBeyondThreshold, OFF_ROUTE_UPDATES_REQUIRED - 1)
+
+    emit(
+        provider,
+        offRouteLocationWithinArrivalThreshold,
+    )
+
+    assertTrue(viewModel.hasArrived.value)
+    assertFalse(viewModel.recalculationUiStateFlow.value.isAvailable)
+  }
+
+  @Test
+  fun loadRouteTo_afterArrival_resetsArrivalAndAllowsTrackingAgain() = runTest {
+    val provider = FakeLocationProvider()
+    val viewModel = createRouteViewModel(provider, primaryRouteRepository())
+    startPrimaryRoute(viewModel, provider)
+    emit(provider, locationWithinArrivalThreshold)
+
+    viewModel.loadRouteTo(alternateRouteDestination)
+    runCurrent()
+    assertFalse(viewModel.hasArrived.value)
+
+    viewModel.startLocationUpdates()
+    runCurrent()
+    assertEquals(1, provider.activeCollectors)
+  }
+
+  @Test
+  fun loadRouteTo_sameArtworkAfterArrival_waitsForAFreshLocationThenStartsANewRoute() = runTest {
+    val provider = FakeLocationProvider()
+    val repository = primaryRouteRepository()
+    val viewModel = createRouteViewModel(provider, repository)
+    startPrimaryRoute(viewModel, provider)
+    emit(provider, locationWithinArrivalThreshold)
+    val calls = repository.callCount
+
+    viewModel.loadRouteTo(primaryRouteDestination)
+    runCurrent()
+    // The stored location is where the user arrived: no request until a fresh fix comes in.
+    assertEquals(RouteUiState.Loading, viewModel.routeUiState)
+    assertEquals(calls, repository.callCount)
+
+    viewModel.startLocationUpdates() // what the lifecycle effect does once arrival is reset
+    runCurrent()
+    emit(provider, onRouteLocation) // the user has walked away
+    assertFalse(viewModel.hasArrived.value)
+    assertEquals(calls + 1, repository.callCount)
+    assertEquals(
+        RouteUiState.Success(repository.route, primaryRouteDestination),
+        viewModel.routeUiState,
+    )
+  }
+
+  @Test
+  fun loadRouteTo_sameArtworkAfterArrival_arrivesAgainWhenStillAtDestination() = runTest {
+    val provider = FakeLocationProvider()
+    val viewModel = createRouteViewModel(provider, primaryRouteRepository())
+    startPrimaryRoute(viewModel, provider)
+    emit(provider, locationWithinArrivalThreshold)
+
+    viewModel.loadRouteTo(primaryRouteDestination)
+    viewModel.startLocationUpdates()
+    runCurrent()
+    emit(provider, locationWithinArrivalThreshold) // the user is still there
+
+    assertTrue(viewModel.hasArrived.value)
+  }
+
+  @Test
+  fun clearRoute_afterArrival_resetsArrival() = runTest {
+    val provider = FakeLocationProvider()
+    val viewModel = createRouteViewModel(provider, primaryRouteRepository())
+    startPrimaryRoute(viewModel, provider)
+    emit(provider, locationWithinArrivalThreshold)
+
+    viewModel.clearRoute()
+
+    assertFalse(viewModel.hasArrived.value)
+    assertEquals(RouteUiState.Idle, viewModel.routeUiState)
+  }
+
+  // Primary route fixture: a northbound route ending at the primary destination.
+  private val primaryRoutePath =
       listOf(
           Coordinate(46.000, 6.0),
           Coordinate(46.001, 6.0),
           Coordinate(46.002, 6.0),
           Coordinate(46.003, 6.0),
       )
-  private val northDestination = artworkWithLocation("north", latitude = 46.003, longitude = 6.0)
+  private val primaryRouteDestination =
+      artworkWithLocation("north", latitude = 46.003, longitude = 6.0)
+  private val alternateRouteDestination =
+      artworkWithLocation("south", latitude = 45.999, longitude = 6.0)
+  private val recalculatedRoute =
+      WalkingRoute(listOf(Coordinate(46.001, 6.001), Coordinate(46.003, 6.0)), 5.minutes, 250)
 
-  private fun northRepository() =
-      FakeWalkingRouteRepository(route = WalkingRoute(northPath, 10.minutes, 333))
+  // Location checkpoints used to simulate arrival and route deviation.
+  private val locationWithinArrivalThreshold =
+      UserLocation(46.0028, 6.0) // ~22 m from the artwork; marks arrival
+  private val locationOutsideArrivalThreshold =
+      UserLocation(46.0027, 6.0) // ~33 m from the artwork; does not mark arrival
+  private val offRouteLocationWithinArrivalThreshold =
+      UserLocation(46.0029, 6.0003) // ~26 m from artwork, ~100 m from shortened route
+  private val onRouteLocation = UserLocation(46.001, 6.0)
+  private val backOnRouteLocation =
+      UserLocation(46.001, 6.0004) // ~31 m from route; resets off-route tracking
+  private val offRouteLocationBeyondThreshold =
+      UserLocation(46.001, 6.001) // ~77 m from route; counts as off-route
+
+  private suspend fun TestScope.emit(
+      provider: FakeLocationProvider,
+      location: UserLocation,
+      times: Int = 1,
+  ) =
+      repeat(times) {
+        provider.updates.emit(location)
+        runCurrent()
+      }
+
+  private suspend fun TestScope.startPrimaryRoute(
+      viewModel: MapViewModel,
+      provider: FakeLocationProvider,
+  ) {
+    viewModel.startLocationUpdates()
+    runCurrent()
+    viewModel.loadRouteTo(primaryRouteDestination) // waits for the first fix
+    emit(provider, onRouteLocation)
+  }
+
+  private suspend fun TestScope.startOffRoute(
+      viewModel: MapViewModel,
+      provider: FakeLocationProvider,
+  ) {
+    startPrimaryRoute(viewModel, provider)
+    emit(provider, offRouteLocationBeyondThreshold, OFF_ROUTE_UPDATES_REQUIRED)
+  }
+
+  private fun primaryRouteRepository() =
+      FakeWalkingRouteRepository(route = WalkingRoute(primaryRoutePath, 10.minutes, 333))
 
   private fun createRouteViewModel(
       provider: FakeLocationProvider = FakeLocationProvider(),
@@ -733,10 +1436,22 @@ class MapViewModelTest {
       return artworks
     }
 
-    @Deprecated("Only required by the repository interface.")
-    override suspend fun getPopularArtists(): List<Artist> = emptyList()
+    override suspend fun getArtworkCandidates(
+        query: String,
+        typeValues: List<ArtworkType>,
+        limit: Int,
+    ): List<ArtworkCandidate> {
+      throw NotImplementedError("Should not be used")
+    }
 
-    override suspend fun getArtistFromName(query: String): Artist? {
+    override suspend fun getArtistCandidates(
+        query: String,
+        limit: Int,
+    ): List<ArtistCandidate> {
+      throw NotImplementedError("Should not be used")
+    }
+
+    override suspend fun getArtistsFromQuery(query: String, limit: Int): List<Artist> {
       throw NotImplementedError("Shouldn't be used in this test.")
     }
 
@@ -748,8 +1463,8 @@ class MapViewModelTest {
       return artworks.first { it.uid == uid }
     }
 
-    override suspend fun searchArtworks(
-        artworkTitle: String,
+    override suspend fun getArtworksFromQuery(
+        query: String,
         typeValues: List<ArtworkType>,
         limit: Int,
     ): List<Artwork> = emptyList()
@@ -762,9 +1477,9 @@ class MapViewModelTest {
    * verify the exact request sent by the ViewModel.
    */
   private class FakeWalkingRouteRepository(
-      val route: WalkingRoute = WalkingRoute(emptyList(), 1.minutes, 1),
-      private val exception: AppException? = null,
-      private val blockCalls: Boolean = false,
+      var route: WalkingRoute = WalkingRoute(emptyList(), 1.minutes, 1),
+      var exception: AppException? = null,
+      var blockCalls: Boolean = false,
   ) : WalkingRouteRepository {
     private val releaseSignals = mutableListOf<CompletableDeferred<Unit>>()
     var callCount = 0

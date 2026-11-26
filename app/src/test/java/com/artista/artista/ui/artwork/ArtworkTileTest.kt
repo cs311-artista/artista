@@ -6,6 +6,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ApplicationProvider
@@ -27,13 +28,13 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
 /**
- * Unit tests for [SavedArtworkTile].
+ * Unit tests for [ArtworkTile].
  *
- * @author Timz3rr
+ * @author Timz3rr, hixeum
  */
 @OptIn(DelicateCoilApi::class, ExperimentalCoilApi::class)
 @RunWith(RobolectricTestRunner::class)
-class SavedArtworkTileTest {
+class ArtworkTileTest {
 
   @get:Rule val composeTestRule = createComposeRule()
 
@@ -52,7 +53,7 @@ class SavedArtworkTileTest {
       )
 
   private var clickedArtwork: Artwork? = null
-  private var unsavedArtwork: Artwork? = null
+  private var bookmarkedArtwork: Artwork? = null
   private var mappedArtwork: Artwork? = null
 
   // The image loader is a process-wide singleton, so each test that replaces it must restore it.
@@ -63,126 +64,154 @@ class SavedArtworkTileTest {
 
   /** Checks that the tile shows the artwork's title and artist. */
   @Test
-  fun savedArtworkTile_displaysTitleAndArtist() {
+  fun artworkTile_displaysTitleAndArtist() {
     setTileContent(artwork)
 
     composeTestRule
-        .onNodeWithTag(SavedArtworksTestTags.title(artwork), useUnmergedTree = true)
+        .onNodeWithTag(ArtworkTileTestTags.title(artwork), useUnmergedTree = true)
         .assertIsDisplayed()
         .assertTextEquals("Mona Lisa")
     composeTestRule
-        .onNodeWithTag(SavedArtworksTestTags.artist(artwork), useUnmergedTree = true)
+        .onNodeWithTag(ArtworkTileTestTags.artist(artwork), useUnmergedTree = true)
         .assertIsDisplayed()
         .assertTextEquals("Leonardo da Vinci")
   }
 
   /** Checks that an artwork without a name or an artist shows the unknown title and artist. */
   @Test
-  fun savedArtworkTile_withoutNameAndArtist_displaysFallbackTexts() {
+  fun artworkTile_withoutNameAndArtist_displaysFallbackTexts() {
     val unknownArtwork = artwork.copy(name = null, artist = null)
     setTileContent(unknownArtwork)
 
     composeTestRule
-        .onNodeWithTag(SavedArtworksTestTags.title(unknownArtwork), useUnmergedTree = true)
+        .onNodeWithTag(ArtworkTileTestTags.title(unknownArtwork), useUnmergedTree = true)
         .assertTextEquals(context.getString(R.string.artwork_unknown_title))
     composeTestRule
-        .onNodeWithTag(SavedArtworksTestTags.artist(unknownArtwork), useUnmergedTree = true)
+        .onNodeWithTag(ArtworkTileTestTags.artist(unknownArtwork), useUnmergedTree = true)
         .assertTextEquals(context.getString(R.string.artwork_unknown_artist))
   }
 
   /** Checks that tapping the tile opens the artwork and triggers no other action. */
   @Test
-  fun savedArtworkTile_whenTileIsClicked_callsOnlyOnClick() {
+  fun artworkTile_whenTileIsClicked_callsOnlyOnClick() {
     setTileContent(artwork)
 
-    composeTestRule.onNodeWithTag(SavedArtworksTestTags.card(artwork)).performClick()
+    composeTestRule.onNodeWithTag(ArtworkTileTestTags.tile(artwork)).performClick()
 
     assertEquals(artwork, clickedArtwork)
-    assertNull(unsavedArtwork)
+    assertNull(bookmarkedArtwork)
     assertNull(mappedArtwork)
   }
 
-  /** Checks that tapping the bookmark unsaves the artwork without opening it. */
+  /** Checks that tapping the bookmark reports the artwork without opening it. */
   @Test
-  fun savedArtworkTile_whenBookmarkIsClicked_callsOnlyOnUnsaveClick() {
+  fun artworkTile_whenBookmarkIsClicked_callsOnlyOnSaveClick() {
     setTileContent(artwork)
 
-    composeTestRule.onNodeWithTag(SavedArtworksTestTags.unsaveButton(artwork)).performClick()
+    composeTestRule.onNodeWithTag(ArtworkTileTestTags.saveButton(artwork)).performClick()
 
-    assertEquals(artwork, unsavedArtwork)
+    assertEquals(artwork, bookmarkedArtwork)
     assertNull(clickedArtwork)
     assertNull(mappedArtwork)
   }
 
   /** Checks that tapping the map button of a located artwork shows it on the map only. */
   @Test
-  fun savedArtworkTile_whenMapButtonIsClicked_callsOnlyOnMapClick() {
+  fun artworkTile_whenMapButtonIsClicked_callsOnlyOnMapClick() {
     setTileContent(artwork)
 
     composeTestRule
-        .onNodeWithTag(SavedArtworksTestTags.mapButton(artwork))
+        .onNodeWithTag(ArtworkTileTestTags.mapButton(artwork))
         .assertIsDisplayed()
         .performClick()
 
     assertEquals(artwork, mappedArtwork)
     assertNull(clickedArtwork)
-    assertNull(unsavedArtwork)
+    assertNull(bookmarkedArtwork)
   }
 
   /** Checks that an artwork without a location has no map button but keeps its bookmark. */
   @Test
-  fun savedArtworkTile_withoutLocation_hidesMapButton() {
+  fun artworkTile_withoutLocation_hidesMapButton() {
     val unlocatedArtwork = artwork.copy(location = null)
     setTileContent(unlocatedArtwork)
 
     composeTestRule
-        .onNodeWithTag(SavedArtworksTestTags.unsaveButton(unlocatedArtwork))
+        .onNodeWithTag(ArtworkTileTestTags.saveButton(unlocatedArtwork))
         .assertIsDisplayed()
     composeTestRule
-        .onNodeWithTag(SavedArtworksTestTags.mapButton(unlocatedArtwork))
+        .onNodeWithTag(ArtworkTileTestTags.mapButton(unlocatedArtwork))
         .assertDoesNotExist()
   }
 
   /** Checks that an artwork without an image link shows the fallback icon and no image. */
   @Test
-  fun savedArtworkTile_withoutImageUrl_displaysFallbackOnly() {
+  fun artworkTile_withoutImageUrl_displaysFallbackOnly() {
     setTileContent(artwork.copy(imageUrl = null))
 
     composeTestRule
-        .onNodeWithTag(SavedArtworksTestTags.imageFallback(artwork), useUnmergedTree = true)
+        .onNodeWithTag(ArtworkTileTestTags.imageFallback(artwork), useUnmergedTree = true)
         .assertIsDisplayed()
     composeTestRule
-        .onNodeWithTag(SavedArtworksTestTags.image(artwork), useUnmergedTree = true)
+        .onNodeWithTag(ArtworkTileTestTags.image(artwork), useUnmergedTree = true)
         .assertDoesNotExist()
   }
 
   /** Checks that once the image has loaded, the tile shows it instead of the fallback icon. */
   @Test
-  fun savedArtworkTile_withLoadedImage_displaysImage() {
+  fun artworkTile_withLoadedImage_displaysImage() {
     installFakeImageLoader(
         FakeImageLoaderEngine.Builder().intercept(IMAGE_URL, FakeImage()).build()
     )
 
     setTileContent(artwork.copy(imageUrl = IMAGE_URL))
-    composeTestRule.waitUntilFallbackDisappears(SavedArtworksTestTags.imageFallback(artwork))
+    composeTestRule.waitUntilFallbackDisappears(ArtworkTileTestTags.imageFallback(artwork))
 
     composeTestRule
-        .onNodeWithTag(SavedArtworksTestTags.image(artwork), useUnmergedTree = true)
+        .onNodeWithTag(ArtworkTileTestTags.image(artwork), useUnmergedTree = true)
         .assertIsDisplayed()
   }
 
+  /** Checks that the bookmark of a saved artwork offers to remove it from saved artworks. */
+  @Test
+  fun artworkTile_whenSaved_describesBookmarkAsUnsave() {
+    setTileContent(artwork, isSaved = true)
+
+    composeTestRule
+        .onNodeWithContentDescription(context.getString(R.string.artwork_unsave, "Mona Lisa"))
+        .assertIsDisplayed()
+    composeTestRule
+        .onNodeWithContentDescription(context.getString(R.string.artwork_save, "Mona Lisa"))
+        .assertDoesNotExist()
+  }
+
+  /** Checks that the bookmark of an unsaved artwork offers to save it. */
+  @Test
+  fun artworkTile_whenNotSaved_describesBookmarkAsSave() {
+    setTileContent(artwork, isSaved = false)
+
+    composeTestRule
+        .onNodeWithContentDescription(context.getString(R.string.artwork_save, "Mona Lisa"))
+        .assertIsDisplayed()
+    composeTestRule
+        .onNodeWithContentDescription(context.getString(R.string.artwork_unsave, "Mona Lisa"))
+        .assertDoesNotExist()
+  }
+
   /**
-   * Displays a [SavedArtworkTile] for [tileArtwork] whose callbacks record the artwork they get.
+   * Displays an [ArtworkTile] for [tileArtwork] whose callbacks record the artwork they get.
    *
    * @param tileArtwork artwork shown by the tile
+   * @param isSaved whether the tile shows [tileArtwork] as saved
    */
-  private fun setTileContent(tileArtwork: Artwork) {
+  private fun setTileContent(tileArtwork: Artwork, isSaved: Boolean = true) {
     composeTestRule.setContent {
       MaterialTheme {
-        SavedArtworkTile(
+        ArtworkTile(
             artwork = tileArtwork,
+            isSaved = isSaved,
             onClick = { clickedArtwork = it },
-            onUnsaveClick = { unsavedArtwork = it },
+            onSaveClick = { bookmarkedArtwork = it },
             onMapClick = { mappedArtwork = it },
         )
       }

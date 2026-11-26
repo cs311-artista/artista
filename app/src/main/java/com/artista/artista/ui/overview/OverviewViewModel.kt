@@ -18,7 +18,9 @@ import com.artista.artista.model.artwork.locationOptions
 import com.artista.artista.model.artwork.museumOptions
 import com.artista.artista.model.error.AppException
 import com.artista.artista.model.location.LocationProvider
+import com.artista.artista.model.map.Coordinate
 import com.artista.artista.model.map.UserLocation
+import com.artista.artista.model.walking.distanceMeters
 import com.artista.artista.ui.error.launchCatching
 import com.artista.artista.ui.error.toMessageRes
 import kotlinx.coroutines.Job
@@ -28,22 +30,43 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
 /**
+ * How the Overview screen lays out nearby artworks.
+ *
+ * @author hixeum
+ */
+enum class OverviewDisplayMode {
+  /** Two-column grid of image tiles. */
+  GRID,
+
+  /** Single column of detailed cards. */
+  LIST,
+}
+
+/**
  * Immutable state displayed by the Overview screen.
  *
  * @property artworks artwork entries currently available to display
  * @property savedArtworkIds identifiers of artworks saved by the user
+ * @property closeSavedArtworks saved artworks within
+ *   [OverviewViewModel.CLOSE_SAVED_ARTWORK_RADIUS_METERS] of the user, closest first and matching
+ *   [activeFilter]
+ * @property displayMode whether nearby artworks are shown as a grid or as a list
  * @property activeFilter criteria currently applied to the artwork entries
  * @property artistOptions distinct artists from the unfiltered list
  * @property museumOptions distinct museums from the unfiltered list
  * @property locationOptions distinct location names from the unfiltered list
+ * @property hasLocationPermission whether the user granted the location permissions
+ * @property userLocation last known location of the user, or null before it is acquired
  * @property errorMessageRes localized error resource, or null when there is no error
  * @property saveErrorMessageRes localized save-operation error resource, or null when there is no
  *   error
- * @author patrickmcdan
+ * @author patrickmcdan, hixeum
  */
 data class OverviewUiState(
     val artworks: List<Artwork> = emptyList(),
     val savedArtworkIds: Set<ArtworkId> = emptySet(),
+    val closeSavedArtworks: List<Artwork> = emptyList(),
+    val displayMode: OverviewDisplayMode = OverviewDisplayMode.GRID,
     val activeFilter: ArtworkFilter = ArtworkFilter(),
     val artistOptions: List<String> = emptyList(),
     val museumOptions: List<String> = emptyList(),
@@ -71,6 +94,7 @@ class OverviewViewModel(
 
   private val _uiState = MutableStateFlow(OverviewUiState())
   private var allArtworks: List<Artwork> = emptyList()
+  private var savedArtworks: List<Artwork> = emptyList()
 
   val uiState: StateFlow<OverviewUiState> = _uiState.asStateFlow()
 
@@ -99,6 +123,8 @@ class OverviewViewModel(
         val activeFilter = current.activeFilter
         current.copy(
             artworks = allArtworks.applyFilter(activeFilter),
+            userLocation = userLocation,
+            closeSavedArtworks = closeSavedArtworks(userLocation, activeFilter),
             artistOptions = artistOptions(allArtworks),
             museumOptions = museumOptions(allArtworks),
             locationOptions = locationOptions(allArtworks),
@@ -109,7 +135,8 @@ class OverviewViewModel(
   }
 
   /**
-   * Reloads saved artwork identifiers from the repository.
+   * Reloads saved artworks from the repository, updating the bookmark state and the saved artworks
+   * close to the user.
    *
    * Overview can remain on the navigation back stack while another screen changes saved artworks.
    * Calling this when Overview resumes keeps its bookmark state synchronized with those changes.
@@ -121,13 +148,21 @@ class OverviewViewModel(
           _uiState.update { it.copy(saveErrorMessageRes = error.toMessageRes()) }
         },
     ) {
-      val savedArtworkIds = savedArtworksRepository.getSavedArtworks().map { it.uid }.toSet()
-      _uiState.update { it.copy(savedArtworkIds = savedArtworkIds) }
+      savedArtworks = savedArtworksRepository.getSavedArtworks()
+      _uiState.update { state ->
+        state.copy(
+            savedArtworkIds = savedArtworks.map { it.uid }.toSet(),
+            closeSavedArtworks = closeSavedArtworks(state.userLocation, state.activeFilter),
+        )
+      }
     }
   }
 
   /**
-   * Saves or removes an artwork and updates the bookmark state shown in Overview.
+   * Saves or removes an artwork and updates the bookmark state shown in Overview, including the
+   * saved artworks close to the user.
+   *
+   * The update is optimistic and is rolled back if the repository write fails.
    *
    * @param artwork artwork whose saved status should be toggled
    */
@@ -138,11 +173,17 @@ class OverviewViewModel(
     val wasSaved = artwork.uid in _uiState.value.savedArtworkIds
 
     fun updateSavedState(isSaved: Boolean, errorMessageRes: Int? = null) {
+      // Kept in step with the bookmark so that the close saved artworks row reacts to the tap
+      // immediately instead of waiting for the next refresh from the repository.
+      savedArtworks =
+          savedArtworks.filterNot { it.uid == artwork.uid } +
+              if (isSaved) listOf(artwork) else emptyList()
       _uiState.update { state ->
         state.copy(
             savedArtworkIds =
                 if (isSaved) state.savedArtworkIds + artwork.uid
                 else state.savedArtworkIds - artwork.uid,
+            closeSavedArtworks = closeSavedArtworks(state.userLocation, state.activeFilter),
             saveErrorMessageRes = errorMessageRes,
         )
       }
@@ -197,11 +238,62 @@ class OverviewViewModel(
    * @author patrickmcdan
    */
   fun applyFilter(filter: ArtworkFilter) {
-    _uiState.value =
-        _uiState.value.copy(
-            activeFilter = filter,
-            artworks = allArtworks.applyFilter(filter),
-        )
+    _uiState.update { state ->
+      state.copy(
+          activeFilter = filter,
+          artworks = allArtworks.applyFilter(filter),
+          closeSavedArtworks = closeSavedArtworks(state.userLocation, filter),
+      )
+    }
+  }
+
+  /**
+   * Removes every filter criterion so all loaded artworks are displayed again.
+   *
+   * @author hixeum
+   */
+  fun clearFilter() = applyFilter(ArtworkFilter())
+
+  /**
+   * Switches nearby artworks between the grid and the list layouts.
+   *
+   * @author hixeum
+   */
+  fun toggleDisplayMode() {
+    _uiState.update { state ->
+      state.copy(
+          displayMode =
+              when (state.displayMode) {
+                OverviewDisplayMode.GRID -> OverviewDisplayMode.LIST
+                OverviewDisplayMode.LIST -> OverviewDisplayMode.GRID
+              }
+      )
+    }
+  }
+
+  /**
+   * Selects the saved artworks close enough to [userLocation] to be highlighted, closest first.
+   *
+   * @param userLocation location of the user, or null when it is not known yet
+   * @param filter criteria the highlighted artworks must also match
+   * @return the matching saved artworks, or an empty list when [userLocation] is unknown
+   * @author hixeum
+   */
+  private fun closeSavedArtworks(
+      userLocation: UserLocation?,
+      filter: ArtworkFilter,
+  ): List<Artwork> {
+    if (userLocation == null) return emptyList()
+    val user = Coordinate(userLocation.latitude, userLocation.longitude)
+    return savedArtworks
+        .mapNotNull { artwork ->
+          val location = artwork.location ?: return@mapNotNull null
+          val distance = distanceMeters(user, Coordinate(location.latitude, location.longitude))
+          if (distance <= CLOSE_SAVED_ARTWORK_RADIUS_METERS) artwork to distance else null
+        }
+        .sortedBy { (_, distance) -> distance }
+        .map { (artwork, _) -> artwork }
+        .applyFilter(filter)
   }
 
   /**
@@ -224,6 +316,9 @@ class OverviewViewModel(
 
   companion object {
     private const val TAG = "OverviewViewModel"
+
+    /** Maximum distance, in meters, for a saved artwork to count as close to the user. */
+    const val CLOSE_SAVED_ARTWORK_RADIUS_METERS = 6_000.0
 
     /**
      * Creates a factory for an overview ViewModel with its repository dependency.

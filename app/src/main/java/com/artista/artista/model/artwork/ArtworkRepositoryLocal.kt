@@ -3,6 +3,7 @@
 package com.artista.artista.model.artwork
 
 import com.artista.artista.model.artist.Artist
+import com.artista.artista.model.artist.ArtistCandidate
 import com.artista.artista.model.artist.ArtistId
 import com.artista.artista.model.error.AppException
 
@@ -29,14 +30,41 @@ class ArtworkRepositoryLocal : SavedArtworksRepository, WikiDataRepository {
       limit: Int,
   ): List<Artwork> = artworks.values.toList()
 
-  /** Returns the locally defined popular artists. */
-  @Deprecated(
-      "This function will be moved outside of WikiDataRepository since the popularity isn't a Wikidata metric."
-  )
-  override suspend fun getPopularArtists(): List<Artist> = mockPopularArtists
+  override suspend fun getArtworkCandidates(
+      query: String,
+      typeValues: List<ArtworkType>,
+      limit: Int,
+  ): List<ArtworkCandidate> {
+    return mockArtworks
+        .filter { it.name?.contains(query, ignoreCase = true) ?: false }
+        .take(limit)
+        .map {
+          ArtworkCandidate(
+              qid = it.uid,
+              label = it.name ?: "",
+              description = null,
+          )
+        }
+  }
 
-  override suspend fun getArtistFromName(query: String): Artist? {
-    return mockPopularArtists.find { it.name.contains(query, ignoreCase = true) }
+  override suspend fun getArtistCandidates(
+      query: String,
+      limit: Int,
+  ): List<ArtistCandidate> {
+    return mockPopularArtists
+        .filter { it.name.contains(query, ignoreCase = true) }
+        .take(limit)
+        .map {
+          ArtistCandidate(
+              qid = it.uid,
+              label = it.name,
+              description = null,
+          )
+        }
+  }
+
+  override suspend fun getArtistsFromQuery(query: String, limit: Int): List<Artist> {
+    return mockPopularArtists.filter { it.name.contains(query, ignoreCase = true) }.take(limit)
   }
 
   override suspend fun getArtist(uid: ArtistId): Artist? {
@@ -48,7 +76,7 @@ class ArtworkRepositoryLocal : SavedArtworksRepository, WikiDataRepository {
     return artworks[uid] ?: throw AppException.NotFound("No Artwork match uid: $uid was found")
   }
 
-  override suspend fun searchArtworks(
+  override suspend fun getArtworksFromQuery(
       artworkTitle: String,
       typeValues: List<ArtworkType>,
       limit: Int,

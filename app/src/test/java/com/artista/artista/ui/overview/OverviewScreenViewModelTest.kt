@@ -16,11 +16,14 @@ import com.artista.artista.model.artwork.SearchArea
 import com.artista.artista.model.artwork.WikiDataRepository
 import com.artista.artista.model.error.AppException
 import com.artista.artista.model.location.FakeLocationProvider
+import com.artista.artista.model.map.Location
+import com.artista.artista.model.map.UserLocation
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -29,7 +32,7 @@ import org.junit.Test
 /**
  * Tests the state exposed by [OverviewViewModel].
  *
- * @author patrickmcdan
+ * @author patrickmcdan, hixeum
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class OverviewScreenViewModelTest {
@@ -315,6 +318,204 @@ class OverviewScreenViewModelTest {
     assertEquals(listOf(first, second), viewModel.uiState.value.artworks)
   }
 
+  /** Verifies that clearing the filter restores every artwork and deactivates the filter. */
+  @Test
+  fun clearFilter_restoresAllArtworksAndDeactivatesFilter() = runTest {
+    val first = artwork(name = "The Starry Night", artistName = "Vincent van Gogh")
+    val second = artwork(name = "Girl with a Pearl Earring", artistName = "Johannes Vermeer")
+    val viewModel =
+        OverviewViewModel(
+            nearbyRepository(listOf(first, second)),
+            ArtworkRepositoryLocal(),
+            FakeLocationProvider(),
+        )
+
+    advanceUntilIdle()
+    viewModel.applyFilter(ArtworkFilter(fromYear = 3000))
+    assertTrue(viewModel.uiState.value.artworks.isEmpty())
+
+    viewModel.clearFilter()
+
+    assertEquals(listOf(first, second), viewModel.uiState.value.artworks)
+    assertFalse(viewModel.uiState.value.activeFilter.isActive())
+  }
+
+  /** Verifies that artworks start as a grid and that the toggle alternates grid and list. */
+  @Test
+  fun toggleDisplayMode_alternatesBetweenGridAndList() = runTest {
+    val repository = ArtworkRepositoryLocal()
+    val viewModel = OverviewViewModel(repository, repository, FakeLocationProvider())
+
+    assertEquals(OverviewDisplayMode.GRID, viewModel.uiState.value.displayMode)
+
+    viewModel.toggleDisplayMode()
+    assertEquals(OverviewDisplayMode.LIST, viewModel.uiState.value.displayMode)
+
+    viewModel.toggleDisplayMode()
+    assertEquals(OverviewDisplayMode.GRID, viewModel.uiState.value.displayMode)
+  }
+
+  /** Verifies that the loaded user location is exposed in the state. */
+  @Test
+  fun overviewViewModel_afterLoading_exposesUserLocation() = runTest {
+    val repository = ArtworkRepositoryLocal()
+    val viewModel =
+        OverviewViewModel(repository, repository, FakeLocationProvider(providedLocation = USER))
+
+    advanceUntilIdle()
+
+    assertEquals(USER, viewModel.uiState.value.userLocation)
+  }
+
+  /** Verifies that only saved artworks within the close radius are highlighted, closest first. */
+  @Test
+  fun overviewViewModel_closeSavedArtworks_keepsOnlyCloseOnesSortedByDistance() = runTest {
+    val near = artworkAt("Near", latitudeOffset = 0.001)
+    val nearest = artworkAt("Nearest", latitudeOffset = 0.0001)
+    val far = artworkAt("Far", latitudeOffset = FAR_LATITUDE_OFFSET)
+    val unlocated = artwork(name = "Unlocated", artistName = "Nobody")
+    val savedRepository = ArtworkRepositoryLocal()
+    listOf(near, nearest, far, unlocated).forEach { savedRepository.saveArtwork(it) }
+    val viewModel =
+        OverviewViewModel(
+            ArtworkRepositoryLocal(),
+            savedRepository,
+            FakeLocationProvider(providedLocation = USER),
+        )
+
+    advanceUntilIdle()
+
+    assertEquals(listOf(nearest, near), viewModel.uiState.value.closeSavedArtworks)
+  }
+
+  /** Verifies that no saved artwork is highlighted while the user location is unknown. */
+  @Test
+  fun overviewViewModel_whenLocationFails_highlightsNoSavedArtwork() = runTest {
+    val savedRepository = ArtworkRepositoryLocal()
+    savedRepository.saveArtwork(artworkAt("Near", latitudeOffset = 0.001))
+    val viewModel =
+        OverviewViewModel(
+            ArtworkRepositoryLocal(),
+            savedRepository,
+            FakeLocationProvider(errorType = AppException.Network()),
+        )
+
+    advanceUntilIdle()
+
+    assertTrue(viewModel.uiState.value.closeSavedArtworks.isEmpty())
+  }
+
+  /** Verifies that the active filter also applies to the highlighted saved artworks. */
+  @Test
+  fun overviewViewModel_closeSavedArtworks_followActiveFilter() = runTest {
+    val vanGogh = artworkAt("Starry", latitudeOffset = 0.001, artistName = "Vincent van Gogh")
+    val vermeer = artworkAt("Pearl", latitudeOffset = 0.001, artistName = "Johannes Vermeer")
+    val savedRepository = ArtworkRepositoryLocal()
+    savedRepository.saveArtwork(vanGogh)
+    savedRepository.saveArtwork(vermeer)
+    val viewModel =
+        OverviewViewModel(
+            ArtworkRepositoryLocal(),
+            savedRepository,
+            FakeLocationProvider(providedLocation = USER),
+        )
+
+    advanceUntilIdle()
+    viewModel.applyFilter(ArtworkFilter(artists = setOf("Johannes Vermeer")))
+
+    assertEquals(listOf(vermeer), viewModel.uiState.value.closeSavedArtworks)
+
+    viewModel.clearFilter()
+
+    assertEquals(2, viewModel.uiState.value.closeSavedArtworks.size)
+  }
+
+  /** Verifies that an artwork saved elsewhere appears among the close ones after a refresh. */
+  @Test
+  fun overviewViewModel_refreshSavedArtworkIds_updatesCloseSavedArtworks() = runTest {
+    val close = artworkAt("Near", latitudeOffset = 0.001)
+    val repository = ArtworkRepositoryLocal()
+    val viewModel =
+        OverviewViewModel(repository, repository, FakeLocationProvider(providedLocation = USER))
+
+    advanceUntilIdle()
+    assertTrue(viewModel.uiState.value.closeSavedArtworks.isEmpty())
+
+    repository.saveArtwork(close)
+    viewModel.refreshSavedArtworkIds()
+    advanceUntilIdle()
+
+    assertEquals(listOf(close), viewModel.uiState.value.closeSavedArtworks)
+  }
+
+  /** Verifies that saving a close artwork from Overview highlights it right away. */
+  @Test
+  fun toggleSavedArtwork_whenSavingCloseArtwork_addsItToCloseSavedArtworks() = runTest {
+    val close = artworkAt("Near", latitudeOffset = 0.001)
+    val repository = ArtworkRepositoryLocal()
+    val viewModel =
+        OverviewViewModel(repository, repository, FakeLocationProvider(providedLocation = USER))
+    advanceUntilIdle()
+
+    viewModel.toggleSavedArtwork(close)
+
+    // Checked before the repository write completes: the row follows the bookmark optimistically.
+    assertEquals(listOf(close), viewModel.uiState.value.closeSavedArtworks)
+    advanceUntilIdle()
+    assertEquals(listOf(close), viewModel.uiState.value.closeSavedArtworks)
+  }
+
+  /** Verifies that saving a far artwork from Overview does not highlight it. */
+  @Test
+  fun toggleSavedArtwork_whenSavingFarArtwork_keepsCloseSavedArtworksEmpty() = runTest {
+    val far = artworkAt("Far", latitudeOffset = FAR_LATITUDE_OFFSET)
+    val repository = ArtworkRepositoryLocal()
+    val viewModel =
+        OverviewViewModel(repository, repository, FakeLocationProvider(providedLocation = USER))
+    advanceUntilIdle()
+
+    viewModel.toggleSavedArtwork(far)
+    advanceUntilIdle()
+
+    assertTrue(viewModel.uiState.value.closeSavedArtworks.isEmpty())
+  }
+
+  /** Verifies that unsaving a close artwork removes it from the highlighted ones right away. */
+  @Test
+  fun toggleSavedArtwork_whenUnsavingCloseArtwork_removesItFromCloseSavedArtworks() = runTest {
+    val close = artworkAt("Near", latitudeOffset = 0.001)
+    val repository = ArtworkRepositoryLocal()
+    repository.saveArtwork(close)
+    val viewModel =
+        OverviewViewModel(repository, repository, FakeLocationProvider(providedLocation = USER))
+    advanceUntilIdle()
+    assertEquals(listOf(close), viewModel.uiState.value.closeSavedArtworks)
+
+    viewModel.toggleSavedArtwork(close)
+
+    assertTrue(viewModel.uiState.value.closeSavedArtworks.isEmpty())
+  }
+
+  /** Verifies that a failed save of a close artwork removes it again from the highlighted ones. */
+  @Test
+  fun toggleSavedArtwork_whenSavingCloseArtworkFails_rollsBackCloseSavedArtworks() = runTest {
+    val close = artworkAt("Near", latitudeOffset = 0.001)
+    val repository = ArtworkRepositoryLocal()
+    val failingSaves =
+        object : SavedArtworksRepository by repository {
+          override suspend fun saveArtwork(artwork: Artwork) = throw AppException.Network()
+        }
+    val viewModel =
+        OverviewViewModel(repository, failingSaves, FakeLocationProvider(providedLocation = USER))
+    advanceUntilIdle()
+
+    viewModel.toggleSavedArtwork(close)
+    advanceUntilIdle()
+
+    assertTrue(viewModel.uiState.value.closeSavedArtworks.isEmpty())
+    assertEquals(R.string.error_network, viewModel.uiState.value.saveErrorMessageRes)
+  }
+
   /** Verifies that the factory refuses to create a ViewModel of another class. */
   @Test
   fun provideFactory_forUnknownViewModelClass_throws() {
@@ -330,6 +531,44 @@ class OverviewScreenViewModelTest {
 
   /** ViewModel unrelated to the overview screen, used to trigger the factory's error. */
   private class OtherViewModel : ViewModel()
+
+  private fun nearbyRepository(artworks: List<Artwork>): WikiDataRepository =
+      object : WikiDataRepository by ArtworkRepositoryLocal() {
+        override suspend fun getArtworksNearLocation(
+            searchArea: SearchArea,
+            typeValues: List<ArtworkType>,
+            limit: Int,
+        ): List<Artwork> = artworks
+      }
+
+  /** Builds an artwork located north of [USER]; 0.001 degree of latitude is about 111 meters. */
+  private fun artworkAt(
+      name: String,
+      latitudeOffset: Double,
+      artistName: String = "Artist",
+  ): Artwork =
+      artwork(name = name, artistName = artistName)
+          .copy(
+              location =
+                  Location(
+                      longitude = USER.longitude,
+                      latitude = USER.latitude + latitudeOffset,
+                      name = name,
+                  )
+          )
+
+  private companion object {
+    val USER = UserLocation(latitude = 46.5191, longitude = 6.5668)
+
+    private const val METERS_PER_DEGREE_OF_LATITUDE = 111_000.0
+
+    /**
+     * Latitude offset placing an artwork at twice the close radius, so it stays far whatever the
+     * radius is set to.
+     */
+    val FAR_LATITUDE_OFFSET =
+        2 * OverviewViewModel.CLOSE_SAVED_ARTWORK_RADIUS_METERS / METERS_PER_DEGREE_OF_LATITUDE
+  }
 
   private fun artwork(name: String, artistName: String): Artwork =
       Artwork(

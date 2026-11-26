@@ -1,3 +1,5 @@
+// Co-authored-by: DeepSeek Flash <noreply@deepseek.com>
+
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 package com.artista.artista.ui.map
@@ -14,20 +16,29 @@ import com.artista.artista.model.error.AppException
 import com.artista.artista.model.location.LocationProvider
 import com.artista.artista.model.map.Coordinate
 import com.artista.artista.model.map.UserLocation
+import com.artista.artista.model.walking.ARRIVAL_THRESHOLD_METERS
+import com.artista.artista.model.walking.OFF_ROUTE_THRESHOLD_METERS
+import com.artista.artista.model.walking.OFF_ROUTE_UPDATES_REQUIRED
 import com.artista.artista.model.walking.RouteProgress
 import com.artista.artista.model.walking.WalkingRoute
 import com.artista.artista.model.walking.WalkingRouteRepository
 import com.artista.artista.model.walking.advanceProgress
+import com.artista.artista.model.walking.distanceMeters
 import com.artista.artista.model.walking.pathLengthMeters
 import com.artista.artista.model.walking.trimPath
 import com.artista.artista.ui.error.launchCatching
 import com.artista.artista.ui.error.toMessageRes
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.DurationUnit
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+
+/** Minimum time between two route recalculation requests. */
+const val RECALCULATE_COOLDOWN_MS = 15_000L
 
 /**
  * Stores the location state displayed by the map.
@@ -37,6 +48,7 @@ import kotlinx.coroutines.flow.update
  * @property remoteArtworks List of artworks fetched from remote sources.
  * @property hasLocationPermission Indicates whether the app has location permissions.
  * @property errorMsg Resource ID for the error message, or null when no error exists.
+ * @property selectedArtwork Artwork whose card is currently shown, or null when no pin is selected.
  * @author Felix Burchardt
  */
 data class MapViewUiState(
@@ -45,6 +57,7 @@ data class MapViewUiState(
     val remoteArtworks: List<Artwork> = listOf(),
     val hasLocationPermission: Boolean = false,
     @param:StringRes val errorMsg: Int? = null,
+    val selectedArtwork: Artwork? = null,
 )
 
 /**
@@ -125,6 +138,26 @@ enum class RouteErrorKind(
 }
 
 /**
+ * State of the "Recalculate route" action for the active route.
+ *
+ * @property isAvailable whether the user is off-route, so the button is shown
+ * @property isLoading whether a recalculation request is in progress
+ * @property isCoolingDown whether the minimum delay since the last request has not elapsed yet
+ * @property error failure of the last recalculation, shown next to the still-visible route
+ * @author patrickmcdan
+ */
+data class RouteRecalculationUiState(
+    val isAvailable: Boolean = false,
+    val isLoading: Boolean = false,
+    val isCoolingDown: Boolean = false,
+    val error: RouteUiState.Error? = null,
+) {
+  /** Whether a new recalculation may be started now. */
+  val canRequest: Boolean
+    get() = isAvailable && !isLoading && !isCoolingDown
+}
+
+/**
  * Provides the user location to the map screen.
  *
  * @param wikiDataRepository repository used to load nearby artworks
@@ -147,12 +180,19 @@ class MapViewModel(
   private var pendingRouteArtwork: Artwork? = null
   private var locationFailed = false
   private var artworkLoadJob: Job? = null
+  private val _hasArrived = MutableStateFlow(false)
 
   /** Exposes the latest map state for reactive UI rendering. */
   val uiStateFlow: StateFlow<MapViewUiState> = _uiState.asStateFlow()
 
   /** Exposes the current walking route request state. */
   val routeUiStateFlow: StateFlow<RouteUiState> = _routeUiState.asStateFlow()
+
+  /**
+   * Whether the user has reached the destination of the active route. Once true it stays true, so
+   * GPS jitter cannot flip it back, until the route is closed or a new one is requested.
+   */
+  val hasArrived: StateFlow<Boolean> = _hasArrived.asStateFlow()
 
   /** Returns the current map state for synchronous consumers such as tests. */
   val uiState: MapViewUiState
@@ -166,9 +206,18 @@ class MapViewModel(
   private var routeProgress: RouteProgress? = null
   private var locationUpdatesJob: Job? = null
 
+  private var offRouteUpdates = 0
+  private var recalculationJob: Job? = null
+  private var cooldownJob: Job? = null
+  private val _recalculationUiState = MutableStateFlow(RouteRecalculationUiState())
+
   /** Exposes the remaining part of the active route, or null when no route is shown. */
   val routeProgressUiStateFlow: StateFlow<RouteProgressUiState?> =
       _routeProgressUiState.asStateFlow()
+
+  /** State of the "Recalculate route" action. */
+  val recalculationUiStateFlow: StateFlow<RouteRecalculationUiState> =
+      _recalculationUiState.asStateFlow()
 
   /** Returns the remaining route for synchronous consumers such as tests. */
   val routeProgressUiState: RouteProgressUiState?
@@ -194,7 +243,9 @@ class MapViewModel(
    * @param location the user's latest location
    */
   private fun updateRouteProgress(location: UserLocation) {
-    val route = (_routeUiState.value as? RouteUiState.Success)?.route ?: return
+    if (_hasArrived.value) return
+    val success = _routeUiState.value as? RouteUiState.Success ?: return
+    val route = success.route
     val path = route.path
     val progress =
         advanceProgress(path, Coordinate(location.latitude, location.longitude), routeProgress)
@@ -211,11 +262,28 @@ class MapViewModel(
             remaining,
             route.duration.toDouble(DurationUnit.SECONDS) * ratio,
         )
+    if (isAtDestination(success.destination, location)) markArrived()
+  }
+
+  private fun isAtDestination(destination: Artwork, location: UserLocation): Boolean {
+    val target = destination.location ?: return false
+    // Straight line to the artwork: the route end can be snapped to a path some meters away.
+    return distanceMeters(
+        Coordinate(location.latitude, location.longitude),
+        Coordinate(target.latitude, target.longitude),
+    ) < ARRIVAL_THRESHOLD_METERS
+  }
+
+  private fun markArrived() {
+    _hasArrived.value = true
+    resetRecalculation()
+    stopLocationUpdates()
   }
 
   private fun resetRouteProgress() {
     routeProgress = null
     _routeProgressUiState.value = null
+    resetOffRoute()
   }
 
   /**
@@ -227,6 +295,7 @@ class MapViewModel(
    * @author patrickmcdan
    */
   fun startLocationUpdates() {
+    if (_hasArrived.value) return
     if (locationUpdatesJob?.isActive == true) return
     locationUpdatesJob =
         viewModelScope.launchCatching(tag = TAG, onError = ::setLocationError) {
@@ -280,9 +349,97 @@ class MapViewModel(
     _uiState.update { it.copy(userLocation = location, errorMsg = null) }
     locationFailed = false
     updateRouteProgress(location)
+    trackOffRoute()
     pendingRouteArtwork?.let { artwork ->
       pendingRouteArtwork = null
       startRouteRequest(artwork, location)
+    }
+  }
+
+  /** Counts consecutive off-route fixes; a single fix back on the route starts over. */
+  private fun trackOffRoute() {
+    if (_hasArrived.value) return
+    val offRouteMeters = routeProgress?.offRouteMeters
+    if (offRouteMeters == null || offRouteMeters <= OFF_ROUTE_THRESHOLD_METERS) {
+      resetOffRoute()
+      return
+    }
+    offRouteUpdates++
+    if (offRouteUpdates >= OFF_ROUTE_UPDATES_REQUIRED) {
+      _recalculationUiState.update { it.copy(isAvailable = true) }
+    }
+  }
+
+  /**
+   * Hides the button and drops a stale failure. An in-flight recalculation is not cancelled: its
+   * request is already sent, so its response still replaces the route, and the cooldown keeps
+   * running. Closing the route or requesting another one cancels it, see [resetRecalculation].
+   */
+  private fun resetOffRoute() {
+    offRouteUpdates = 0
+    _recalculationUiState.update { it.copy(isAvailable = false, error = null) }
+  }
+
+  /** Cancels any recalculation and forgets its cooldown, for when the route itself goes away. */
+  private fun resetRecalculation() {
+    recalculationJob?.cancel()
+    recalculationJob = null
+    cooldownJob?.cancel()
+    cooldownJob = null
+    offRouteUpdates = 0
+    _recalculationUiState.value = RouteRecalculationUiState()
+  }
+
+  /**
+   * Requests a new walking route from the user's current location to the active route's
+   * destination. The current route stays displayed until the new one arrives, and a failure leaves
+   * it untouched. Does nothing unless the user is off-route and no request or cooldown is running.
+   *
+   * @author patrickmcdan
+   */
+  fun recalculateRoute() {
+    if (!_recalculationUiState.value.canRequest) return
+    val success = _routeUiState.value as? RouteUiState.Success ?: return
+    val origin = uiState.userLocation ?: return
+    val target = success.destination.location ?: return
+    startRecalculationCooldown()
+    _recalculationUiState.update { it.copy(isLoading = true, isCoolingDown = true, error = null) }
+    recalculationJob =
+        viewModelScope.launchCatching(tag = TAG, onError = ::setRecalculationError) {
+          val route =
+              walkingRouteRepository.getWalkingRoute(
+                  origin = Coordinate(origin.latitude, origin.longitude),
+                  destination = Coordinate(target.latitude, target.longitude),
+              )
+          _routeUiState.value = RouteUiState.Success(route, success.destination)
+          // Progress belongs to the old path: start over on the new one.
+          resetRouteProgress()
+          _recalculationUiState.update { it.copy(isLoading = false) }
+          uiState.userLocation?.let { updateRouteProgress(it) }
+        }
+  }
+
+  private fun startRecalculationCooldown() {
+    cooldownJob?.cancel()
+    cooldownJob =
+        viewModelScope.launchCatching(
+            tag = TAG,
+            // Fail open: a broken timer must not leave the button disabled for good.
+            onError = { _recalculationUiState.update { it.copy(isCoolingDown = false) } },
+        ) {
+          delay(RECALCULATE_COOLDOWN_MS.milliseconds)
+          _recalculationUiState.update { it.copy(isCoolingDown = false) }
+        }
+  }
+
+  private fun setRecalculationError(error: AppException) {
+    // "No route" is not a RouteUiState.Error, but here it must still be shown as one.
+    val routeError =
+        routeStateFor(error) as? RouteUiState.Error
+            ?: RouteUiState.Error(RouteErrorKind.GENERIC, error.toMessageRes())
+    // If the user is back on the route meanwhile, the failure is no longer relevant.
+    _recalculationUiState.update {
+      it.copy(isLoading = false, error = if (it.isAvailable) routeError else null)
     }
   }
 
@@ -349,30 +506,88 @@ class MapViewModel(
   }
 
   /**
+   * Selects [artwork] on the map without starting a route.
+   *
+   * The artwork the user is already routed to is a no-op: tapping a pin must not end the navigation
+   * the route card is describing. A selected artwork that is not being routed to clears on a second
+   * tap. Selecting a different artwork clears the route that belonged to the previous selection, so
+   * the card and the drawn route always describe the same artwork.
+   *
+   * @param artwork artwork whose card should be shown
+   * @author timo-by
+   */
+  fun selectArtwork(artwork: Artwork) {
+    if (isRoutingTo(artwork)) return
+    if (_uiState.value.selectedArtwork?.uid == artwork.uid) {
+      clearRoute()
+      return
+    }
+    if (_routeUiState.value != RouteUiState.Idle) {
+      clearRoute()
+    }
+    _uiState.update { it.copy(selectedArtwork = artwork) }
+  }
+
+  /**
+   * Starts a route to the currently selected artwork, when one is selected.
+   *
+   * @author timo-by
+   */
+  fun navigateToSelectedArtwork() {
+    _uiState.value.selectedArtwork?.let(::loadRouteTo)
+  }
+
+  /**
+   * Clears the selected artwork when the map background is tapped.
+   *
+   * A plain selection is cleared on its own. In the no-route, location-unavailable and error states
+   * the tap behaves like X and clears the selection with the message card, because nothing is being
+   * navigated to. A route that is loading or shown keeps its card: a stray tap must not end the
+   * navigation.
+   *
+   * @author timo-by
+   */
+  fun dismissSelectedArtwork() {
+    when (_routeUiState.value) {
+      RouteUiState.Idle -> _uiState.update { it.copy(selectedArtwork = null) }
+      RouteUiState.Loading,
+      is RouteUiState.Success -> return
+      else -> clearRoute()
+    }
+  }
+
+  /**
    * Loads a walking route from the user's current location to an artwork.
    *
    * @param artwork destination artwork
    * @author patrickmcdan
    */
   fun loadRouteTo(artwork: Artwork) {
+    _uiState.update { it.copy(selectedArtwork = artwork) }
     if (isRoutingTo(artwork)) return
     requestRoute(artwork)
   }
 
   private fun isRoutingTo(artwork: Artwork): Boolean =
       when (val state = _routeUiState.value) {
-        is RouteUiState.Success -> state.destination.uid == artwork.uid
+        // After arrival the card is stale: asking for the same artwork again starts a new route.
+        is RouteUiState.Success -> state.destination.uid == artwork.uid && !_hasArrived.value
         RouteUiState.Loading -> lastRouteArtwork?.uid == artwork.uid
         else -> false
       }
 
   private fun requestRoute(artwork: Artwork) {
+    // Tracking stops on arrival, so the stored location is where the user arrived, not where they
+    // are now: wait for a fresh fix instead of requesting a route from it.
+    val wasArrived = _hasArrived.value
     lastRouteArtwork = artwork
     routeRequestJob?.cancel()
     resetRouteProgress()
+    resetRecalculation()
+    _hasArrived.value = false
     pendingRouteArtwork = null
     _routeUiState.value = RouteUiState.Loading
-    val userLocation = uiState.userLocation
+    val userLocation = uiState.userLocation.takeUnless { wasArrived }
     when {
       userLocation != null -> startRouteRequest(artwork, userLocation)
       locationFailed -> _routeUiState.value = RouteUiState.LocationUnavailable
@@ -390,7 +605,7 @@ class MapViewModel(
   }
 
   /**
-   * Cancels any active walking route request and clears its state.
+   * Cancels any active walking route request, clears its state and clears the selected artwork.
    *
    * @author patrickmcdan
    */
@@ -400,8 +615,11 @@ class MapViewModel(
     pendingRouteArtwork = null
     lastRouteArtwork = null
     resetRouteProgress()
+    resetRecalculation()
+    _hasArrived.value = false
     stopLocationUpdates()
     _routeUiState.value = RouteUiState.Idle
+    _uiState.update { it.copy(selectedArtwork = null) }
   }
 
   private fun startRouteRequest(artwork: Artwork, userLocation: UserLocation) {
@@ -429,20 +647,22 @@ class MapViewModel(
         }
   }
 
+  private fun routeStateFor(error: AppException): RouteUiState =
+      when (error) {
+        is AppException.NotFound -> RouteUiState.NoRoute
+        is AppException.Network ->
+            RouteUiState.Error(RouteErrorKind.NETWORK, messageRes = error.toMessageRes())
+        is AppException.RateLimited ->
+            RouteUiState.Error(
+                if (error.isTransient) RouteErrorKind.TEMPORARY_RATE_LIMIT
+                else RouteErrorKind.DAILY_RATE_LIMIT,
+                messageRes = error.toMessageRes(),
+            )
+        else -> RouteUiState.Error(RouteErrorKind.GENERIC, messageRes = error.toMessageRes())
+      }
+
   private fun setRouteError(error: AppException) {
-    _routeUiState.value =
-        when (error) {
-          is AppException.NotFound -> RouteUiState.NoRoute
-          is AppException.Network ->
-              RouteUiState.Error(RouteErrorKind.NETWORK, messageRes = error.toMessageRes())
-          is AppException.RateLimited ->
-              RouteUiState.Error(
-                  if (error.isTransient) RouteErrorKind.TEMPORARY_RATE_LIMIT
-                  else RouteErrorKind.DAILY_RATE_LIMIT,
-                  messageRes = error.toMessageRes(),
-              )
-          else -> RouteUiState.Error(RouteErrorKind.GENERIC, messageRes = error.toMessageRes())
-        }
+    _routeUiState.value = routeStateFor(error)
   }
 
   /**

@@ -1,11 +1,11 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.overview
 
 import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -13,18 +13,30 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.FilterList
+import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.ViewAgenda
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -44,26 +56,28 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
-import com.artista.artista.model.artwork.ArtworkFilter
+import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
 import com.artista.artista.model.artwork.mockArtworks
 import com.artista.artista.model.error.AppException
 import com.artista.artista.model.location.UserLocationProvider
-import com.artista.artista.ui.artwork.ArtworkCard
 import com.artista.artista.ui.artwork.ArtworkFilterDialog
+import com.artista.artista.ui.artwork.ArtworkListCard
+import com.artista.artista.ui.artwork.ArtworkTile
 import com.artista.artista.ui.location.UserLocationPermission
 import com.artista.artista.ui.location.hasUserLocationPermissions
 import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.theme.ArtistaTheme
 import com.artista.artista.ui.theme.Dimensions
+import com.artista.artista.ui.theme.OverviewPalette
 import com.artista.artista.ui.theme.SearchBarPalette
 import com.google.android.gms.location.LocationServices
 
@@ -82,18 +96,25 @@ object OverviewTestTags {
   const val FILTER_BUTTON = "overview_filter_button"
   const val FILTER_ACTIVE = "overview_filter_active"
   const val EMPTY_FILTER_RESULTS = "overview_empty_filter_results"
+  const val CLEAR_FILTERS_BUTTON = "overview_clear_filters_button"
+  const val CLOSE_SAVED_ARTWORKS = "overview_close_saved_artworks"
+  const val CLOSE_SAVED_ARTWORK_ITEM = "overview_close_saved_artwork_item"
+  const val NEARBY_ARTWORKS_TITLE = "overview_nearby_artworks_title"
+  const val DISPLAY_MODE_BUTTON = "overview_display_mode_button"
 }
 
 /**
  * Displays the artwork overview using the state supplied by its ViewModel.
  *
  * @param onTabSelected callback invoked when a bottom-navigation destination is selected
+ * @param onArtworkClick callback invoked when an artwork is selected to open its details
  * @param onSavedArtworksClick callback invoked when the user chooses saved artworks after an
  *   overview loading error
  * @param onMapClick callback invoked when the user selects the map action for an artwork
  * @param viewModel ViewModel supplying the artwork entries
  * @param onSearchClick callback invoked when the search control is selected
- * @author patrickmcdan
+ * @param hasLocationPermissions checks whether the location permissions are granted
+ * @author patrickmcdan, hixeum
  */
 @Composable
 fun OverviewScreen(
@@ -160,15 +181,26 @@ fun OverviewScreen(
                         horizontal = Dimensions.overviewSearchBarHorizontalPadding,
                         vertical = Dimensions.overviewSearchBarVerticalPadding,
                     ),
+            horizontalArrangement = Arrangement.spacedBy(Dimensions.overviewSearchBarFilterSpacing),
             verticalAlignment = Alignment.CenterVertically,
         ) {
           OverviewSearchBar(
               onClick = onSearchClick,
               modifier = Modifier.weight(1f),
           )
-          IconButton(
+          // Same container as the artwork cards, so the controls read as distinct shapes on the
+          // screen background instead of blending into it.
+          FilledIconButton(
               onClick = { filterDialogVisible = true },
-              modifier = Modifier.testTag(OverviewTestTags.FILTER_BUTTON),
+              modifier =
+                  Modifier.size(Dimensions.overviewFilterButtonSize)
+                      .testTag(OverviewTestTags.FILTER_BUTTON),
+              shape = CircleShape,
+              colors =
+                  IconButtonDefaults.filledIconButtonColors(
+                      containerColor = CardDefaults.cardColors().containerColor,
+                      contentColor = MaterialTheme.colorScheme.onSurface,
+                  ),
           ) {
             BadgedBox(
                 badge = {
@@ -198,7 +230,7 @@ fun OverviewScreen(
             filterDialogVisible = false
           },
           onClear = {
-            viewModel.applyFilter(ArtworkFilter())
+            viewModel.clearFilter()
             filterDialogVisible = false
           },
           onDismiss = { filterDialogVisible = false },
@@ -207,47 +239,254 @@ fun OverviewScreen(
           locationOptions = uiState.locationOptions,
       )
     }
+    val contentModifier = Modifier.fillMaxSize().padding(innerPadding)
     if (errorMessage != null) {
-      Box(
-          modifier = Modifier.fillMaxSize().padding(innerPadding),
-          contentAlignment = Alignment.Center,
-      ) {
-        OverviewErrorContent(onSavedArtworksClick = onSavedArtworksClick)
-      }
-    } else if (uiState.artworks.isEmpty() && uiState.activeFilter.isActive()) {
-      Box(
-          modifier = Modifier.fillMaxSize().padding(innerPadding),
-          contentAlignment = Alignment.Center,
-      ) {
-        Text(
-            text = stringResource(R.string.artwork_filter_empty_results),
-            modifier = Modifier.testTag(OverviewTestTags.EMPTY_FILTER_RESULTS),
-        )
-      }
+      OverviewMessageWithAction(
+          message = stringResource(R.string.overview_load_error),
+          actionLabel = stringResource(R.string.overview_saved_artworks_action),
+          onActionClick = onSavedArtworksClick,
+          actionTestTag = OverviewTestTags.SAVED_ARTWORKS_BUTTON,
+          modifier = contentModifier.testTag(OverviewTestTags.ERROR_MESSAGE),
+      )
+    } else if (
+        uiState.artworks.isEmpty() &&
+            uiState.closeSavedArtworks.isEmpty() &&
+            uiState.activeFilter.isActive()
+    ) {
+      OverviewMessageWithAction(
+          message = stringResource(R.string.overview_empty_filter_results),
+          actionLabel = stringResource(R.string.overview_clear_filters),
+          onActionClick = viewModel::clearFilter,
+          actionTestTag = OverviewTestTags.CLEAR_FILTERS_BUTTON,
+          modifier = contentModifier.testTag(OverviewTestTags.EMPTY_FILTER_RESULTS),
+      )
     } else {
-      LazyColumn(
-          modifier =
-              Modifier.fillMaxSize().padding(innerPadding).testTag(OverviewTestTags.ARTWORK_LIST),
-          contentPadding =
-              PaddingValues(
-                  horizontal = Dimensions.overviewListHorizontalPadding,
-                  vertical = Dimensions.overviewListVerticalPadding,
-              ),
-          verticalArrangement = Arrangement.spacedBy(Dimensions.overviewListItemSpacing),
-      ) {
-        items(uiState.artworks, key = { it.uid }) { artwork ->
-          ArtworkCard(
-              artwork = artwork,
-              isSaved = artwork.uid in uiState.savedArtworkIds,
-              onArtworkClick = onArtworkClick,
-              onMapClick = onMapClick,
-              onSaveClick = viewModel::toggleSavedArtwork,
-              modifier = Modifier.testTag(OverviewTestTags.ARTWORK_ITEM),
-          )
-        }
+      OverviewArtworks(
+          uiState = uiState,
+          onArtworkClick = onArtworkClick,
+          onSaveClick = viewModel::toggleSavedArtwork,
+          onMapClick = onMapClick,
+          onDisplayModeClick = viewModel::toggleDisplayMode,
+          modifier = contentModifier,
+      )
+    }
+  }
+}
+
+/**
+ * Displays the scrolling content of the overview: the saved artworks close to the user in a
+ * horizontal row, followed by the nearby artworks as a grid or as a list.
+ *
+ * Both sections live in one lazy grid so that the whole screen scrolls together, the full-width
+ * header spanning every column.
+ *
+ * @param uiState state providing the artworks, their saved status and the display mode
+ * @param onArtworkClick called when an artwork is selected to open its details
+ * @param onSaveClick called when an artwork's bookmark is selected
+ * @param onMapClick called when an artwork's map action is selected
+ * @param onDisplayModeClick called when the user switches between the grid and the list
+ * @param modifier modifier applied to the lazy grid
+ * @author hixeum
+ */
+@Composable
+private fun OverviewArtworks(
+    uiState: OverviewUiState,
+    onArtworkClick: (Artwork) -> Unit,
+    onSaveClick: (Artwork) -> Unit,
+    onMapClick: (Artwork) -> Unit,
+    onDisplayModeClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+  val isGrid = uiState.displayMode == OverviewDisplayMode.GRID
+  LazyVerticalGrid(
+      columns = GridCells.Fixed(if (isGrid) GRID_COLUMNS else LIST_COLUMNS),
+      modifier = modifier.testTag(OverviewTestTags.ARTWORK_LIST),
+      contentPadding =
+          PaddingValues(
+              horizontal = Dimensions.overviewListHorizontalPadding,
+              vertical = Dimensions.overviewListVerticalPadding,
+          ),
+      horizontalArrangement = Arrangement.spacedBy(Dimensions.overviewGridItemSpacing),
+      verticalArrangement = Arrangement.spacedBy(Dimensions.overviewGridItemSpacing),
+  ) {
+    // Always the first item, even without close saved artworks: saved artworks usually load after
+    // the nearby ones, and a lazy grid keeps its first visible item anchored. Growing this item
+    // instead of inserting new ones above it keeps a user at the top on the close row, and leaves
+    // a user who scrolled down where they are.
+    item(key = HEADER_KEY, span = { GridItemSpan(maxLineSpan) }) {
+      OverviewArtworksHeader(
+          uiState = uiState,
+          onArtworkClick = onArtworkClick,
+          onSaveClick = onSaveClick,
+          onMapClick = onMapClick,
+          onDisplayModeClick = onDisplayModeClick,
+      )
+    }
+    items(uiState.artworks, key = { it.uid }) { artwork ->
+      val isSaved = artwork.uid in uiState.savedArtworkIds
+      val itemModifier = Modifier.testTag(OverviewTestTags.ARTWORK_ITEM)
+      if (isGrid) {
+        ArtworkTile(
+            artwork = artwork,
+            isSaved = isSaved,
+            onClick = onArtworkClick,
+            onSaveClick = onSaveClick,
+            onMapClick = onMapClick,
+            modifier = itemModifier,
+        )
+      } else {
+        ArtworkListCard(
+            artwork = artwork,
+            isSaved = isSaved,
+            onClick = onArtworkClick,
+            onSaveClick = onSaveClick,
+            onMapClick = onMapClick,
+            modifier = itemModifier,
+        )
       }
     }
   }
+}
+
+/**
+ * Displays the top of the overview list: the saved artworks close to the user with their title,
+ * when there are any, followed by the title of the nearby artworks and the layout button.
+ *
+ * @param uiState state providing the close saved artworks, their saved status and the display mode
+ * @param onArtworkClick called when a close saved artwork is selected to open its details
+ * @param onSaveClick called when a close saved artwork's bookmark is selected
+ * @param onMapClick called when a close saved artwork's map action is selected
+ * @param onDisplayModeClick called when the user switches between the grid and the list
+ * @author hixeum
+ */
+@Composable
+private fun OverviewArtworksHeader(
+    uiState: OverviewUiState,
+    onArtworkClick: (Artwork) -> Unit,
+    onSaveClick: (Artwork) -> Unit,
+    onMapClick: (Artwork) -> Unit,
+    onDisplayModeClick: () -> Unit,
+) {
+  val hasCloseSavedArtworks = uiState.closeSavedArtworks.isNotEmpty()
+  // Same spacing as between grid rows, so the header looks like the rest of the list.
+  Column(verticalArrangement = Arrangement.spacedBy(Dimensions.overviewGridItemSpacing)) {
+    if (hasCloseSavedArtworks) {
+      OverviewSectionTitle(text = stringResource(R.string.overview_close_saved_artworks_title))
+      CloseSavedArtworksRow(
+          artworks = uiState.closeSavedArtworks,
+          savedArtworkIds = uiState.savedArtworkIds,
+          onArtworkClick = onArtworkClick,
+          onSaveClick = onSaveClick,
+          onMapClick = onMapClick,
+      )
+    }
+    NearbyArtworksHeader(
+        displayMode = uiState.displayMode,
+        onDisplayModeClick = onDisplayModeClick,
+        // Separates the two sections more than two rows of the same section.
+        modifier =
+            if (hasCloseSavedArtworks) Modifier.padding(top = Dimensions.overviewSectionSpacing)
+            else Modifier,
+    )
+  }
+}
+
+/**
+ * Displays the saved artworks close to the user as a horizontally scrolling row of tiles.
+ *
+ * @param artworks saved artworks close to the user
+ * @param savedArtworkIds identifiers of the artworks currently saved, to show each bookmark state
+ * @param onArtworkClick called when a tile is selected to open its details
+ * @param onSaveClick called when a tile's bookmark is selected
+ * @param onMapClick called when a tile's map action is selected
+ * @author hixeum
+ */
+@Composable
+private fun CloseSavedArtworksRow(
+    artworks: List<Artwork>,
+    savedArtworkIds: Set<ArtworkId>,
+    onArtworkClick: (Artwork) -> Unit,
+    onSaveClick: (Artwork) -> Unit,
+    onMapClick: (Artwork) -> Unit,
+) {
+  LazyRow(
+      modifier = Modifier.fillMaxWidth().testTag(OverviewTestTags.CLOSE_SAVED_ARTWORKS),
+      horizontalArrangement = Arrangement.spacedBy(Dimensions.overviewGridItemSpacing),
+  ) {
+    items(artworks, key = { it.uid }) { artwork ->
+      ArtworkTile(
+          artwork = artwork,
+          isSaved = artwork.uid in savedArtworkIds,
+          onClick = onArtworkClick,
+          onSaveClick = onSaveClick,
+          onMapClick = onMapClick,
+          modifier =
+              Modifier.width(Dimensions.overviewCloseSavedTileWidth)
+                  .testTag(OverviewTestTags.CLOSE_SAVED_ARTWORK_ITEM),
+      )
+    }
+  }
+}
+
+/**
+ * Displays the title of the nearby artworks section and the button switching its layout.
+ *
+ * The button shows the icon of the current layout, as in the V2 mockup, and its description names
+ * the layout it switches to.
+ *
+ * @param displayMode layout currently used by the nearby artworks
+ * @param onDisplayModeClick called when the user taps the layout button
+ * @param modifier modifier applied to the header row
+ * @author hixeum
+ */
+@Composable
+private fun NearbyArtworksHeader(
+    displayMode: OverviewDisplayMode,
+    onDisplayModeClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+  Row(modifier = modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+    OverviewSectionTitle(
+        text = stringResource(R.string.overview_nearby_artworks_title),
+        modifier = Modifier.weight(1f).testTag(OverviewTestTags.NEARBY_ARTWORKS_TITLE),
+    )
+    IconButton(
+        onClick = onDisplayModeClick,
+        modifier = Modifier.testTag(OverviewTestTags.DISPLAY_MODE_BUTTON),
+    ) {
+      when (displayMode) {
+        OverviewDisplayMode.GRID ->
+            Icon(
+                imageVector = Icons.Outlined.GridView,
+                contentDescription = stringResource(R.string.overview_show_as_list),
+                tint = MaterialTheme.colorScheme.onSurface,
+            )
+        OverviewDisplayMode.LIST ->
+            Icon(
+                imageVector = Icons.Outlined.ViewAgenda,
+                contentDescription = stringResource(R.string.overview_show_as_grid),
+                tint = MaterialTheme.colorScheme.onSurface,
+            )
+      }
+    }
+  }
+}
+
+/**
+ * Displays the title of an overview section.
+ *
+ * @param text title to display
+ * @param modifier modifier applied to the text
+ * @author hixeum
+ */
+@Composable
+private fun OverviewSectionTitle(text: String, modifier: Modifier = Modifier) {
+  Text(
+      text = text,
+      style = MaterialTheme.typography.bodyLarge,
+      color = MaterialTheme.colorScheme.onBackground,
+      modifier = modifier.padding(top = Dimensions.overviewSectionTitleTopPadding),
+  )
 }
 
 /**
@@ -270,9 +509,11 @@ private fun OverviewSearchBar(
               .clickable(role = Role.Button, onClick = onClick)
               .semantics(mergeDescendants = true) {}
               .testTag(OverviewTestTags.SEARCH_BAR),
+      // Same fill as the artwork cards, but fully rounded to pair with the round filter button.
+      // No tonal elevation: it tinted the white towards the purple surface tint, which made the
+      // bar blend into the background.
       shape = MaterialTheme.shapes.extraLarge,
-      color = SearchBarPalette.container,
-      tonalElevation = Dimensions.overviewSearchBarElevation,
+      color = CardDefaults.cardColors().containerColor,
   ) {
     Row(
         modifier =
@@ -295,32 +536,53 @@ private fun OverviewSearchBar(
 }
 
 /**
- * Displays the loading error and the action available when nearby artworks cannot be loaded.
+ * Displays a centered message with a single grey action button below it, used by the overview
+ * states that replace the artworks: the loading error and the empty filter result.
  *
- * @param onSavedArtworksClick callback invoked when saved artworks are requested
- * @author patrickmcdan
+ * @param message text explaining the state
+ * @param actionLabel label of the action button
+ * @param onActionClick called when the action button is selected
+ * @param actionTestTag test tag applied to the action button
+ * @param modifier modifier applied to the container
+ * @author patrickmcdan, hixeum
  */
 @Composable
-private fun OverviewErrorContent(onSavedArtworksClick: () -> Unit) {
+private fun OverviewMessageWithAction(
+    message: String,
+    actionLabel: String,
+    onActionClick: () -> Unit,
+    actionTestTag: String,
+    modifier: Modifier = Modifier,
+) {
   Column(
-      modifier = Modifier.fillMaxWidth().testTag(OverviewTestTags.ERROR_MESSAGE),
+      modifier = modifier.padding(horizontal = Dimensions.overviewEmptyStateHorizontalPadding),
       horizontalAlignment = Alignment.CenterHorizontally,
-      verticalArrangement = Arrangement.spacedBy(Dimensions.overviewErrorActionSpacing),
+      verticalArrangement =
+          Arrangement.spacedBy(Dimensions.overviewErrorActionSpacing, Alignment.CenterVertically),
   ) {
-    Text(text = stringResource(R.string.overview_load_error))
+    Text(
+        text = message,
+        style = MaterialTheme.typography.bodyLarge,
+        color = MaterialTheme.colorScheme.onBackground,
+        textAlign = TextAlign.Center,
+    )
     Button(
-        onClick = onSavedArtworksClick,
-        modifier = Modifier.testTag(OverviewTestTags.SAVED_ARTWORKS_BUTTON),
+        onClick = onActionClick,
+        modifier = Modifier.testTag(actionTestTag),
         colors =
             ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.surface,
-                contentColor = MaterialTheme.colorScheme.primary,
+                containerColor = OverviewPalette.container,
+                contentColor = OverviewPalette.content,
             ),
     ) {
-      Text(text = stringResource(R.string.overview_saved_artworks_action))
+      Text(text = actionLabel)
     }
   }
 }
+
+private const val GRID_COLUMNS = 2
+private const val LIST_COLUMNS = 1
+private const val HEADER_KEY = "overview_header"
 
 /** Previews the overview screen with a sample set of artworks in Android Studio. */
 @Preview(showBackground = true)

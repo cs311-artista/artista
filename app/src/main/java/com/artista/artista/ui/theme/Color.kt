@@ -49,23 +49,30 @@ internal object ArtistaColors {
   val Scrim = Color(0x52000000)
   val SavedArtworkMarker = Color(0xFF2196F3)
   val RemoteArtworkMarker = Color(0xFFF44336)
+  val Warning = Color(0xFF8C5E00)
+  val WarningDark = Color(0xFFFFC46B)
 
-  // Saved artwork tiles draw on top of arbitrary images, so these colors stay the same in both
-  // themes.
+  // Artwork tiles draw on top of arbitrary images, so these colors stay the same in both themes.
   /**
-   * Light veil behind a saved artwork tile's title and artist: barely visible, as in the V2 mockup,
-   * but enough to keep the white text readable on light images.
+   * Light veil behind an artwork tile's title and artist: barely visible, as in the V2 mockup, but
+   * enough to keep the white text readable on light images.
    */
-  val SavedArtworkTileBand = Color(0x33000000)
+  val ArtworkTileBand = Color(0x33000000)
 
   /**
-   * Translucent circle behind a saved artwork tile's bookmark and map buttons, following the map
-   * button shared with the overview screen in the Figma.
+   * Translucent circle behind an artwork tile's bookmark and map buttons, following the map button
+   * shared with the overview screen in the Figma.
    */
-  val SavedArtworkTileButtonScrim = Color(0x66000000)
+  val ArtworkTileButtonScrim = Color(0x66000000)
 
-  /** Text and icons drawn over a saved artwork tile's image or band. */
-  val OnSavedArtworkTile = Color.White
+  /** Text and icons drawn over an artwork tile's image or band. */
+  val OnArtworkTile = Color.White
+
+  /** Grey of the overview list cards and action buttons in the V2 mockup. */
+  val OverviewContainer = Color(0xFFD9D9D9)
+
+  /** Grey of the avatar circle in an artwork list card header. */
+  val OverviewAvatarContainer = Color(0xFFB3B3B3)
 
   val PrimaryDark = Color(0xFFD0BCFF)
   val OnPrimaryDark = Color(0xFF381E72)
@@ -107,6 +114,8 @@ internal object ArtistaColors {
   val OutlineDark = Color(0xFF938F99)
   val OutlineVariantDark = Color(0xFF49454F)
   val ScrimDark = Color(0x52000000)
+  val OverviewContainerDark = Color(0xFF2D2C32)
+  val OverviewAvatarContainerDark = Color(0xFF49454F)
 
   val Transparent = Color.Transparent
 }

@@ -100,12 +100,10 @@ class SavedArtworksScreenTest {
     composeTestRule.onNodeWithTag(SavedArtworksTestTags.SCREEN).assertIsDisplayed()
     composeTestRule.onNodeWithTag(SavedArtworksTestTags.TITLE).assertIsDisplayed()
     composeTestRule.onNodeWithTag(SavedArtworksTestTags.LIST).assertIsDisplayed()
-    composeTestRule.onNodeWithTag(SavedArtworksTestTags.card(locatedArtwork)).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(ArtworkTileTestTags.tile(locatedArtwork)).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(ArtworkTileTestTags.mapButton(locatedArtwork)).assertIsDisplayed()
     composeTestRule
-        .onNodeWithTag(SavedArtworksTestTags.mapButton(locatedArtwork))
-        .assertIsDisplayed()
-    composeTestRule
-        .onNodeWithTag(SavedArtworksTestTags.unsaveButton(locatedArtwork))
+        .onNodeWithTag(ArtworkTileTestTags.saveButton(locatedArtwork))
         .assertIsDisplayed()
   }
 
@@ -150,8 +148,8 @@ class SavedArtworksScreenTest {
         .performClick()
     composeTestRule.onNodeWithTag(ArtworkFilterTestTags.APPLY_BUTTON).performClick()
 
-    composeTestRule.onNodeWithTag(SavedArtworksTestTags.card(savedArtwork)).assertIsDisplayed()
-    composeTestRule.onNodeWithTag(SavedArtworksTestTags.card(vermeerArtwork)).assertDoesNotExist()
+    composeTestRule.onNodeWithTag(ArtworkTileTestTags.tile(savedArtwork)).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(ArtworkTileTestTags.tile(vermeerArtwork)).assertDoesNotExist()
   }
 
   /** Verifies that a filter with no matching saved artworks shows the empty-result state. */
@@ -185,8 +183,8 @@ class SavedArtworksScreenTest {
     composeTestRule.onNodeWithTag(SavedArtworksTestTags.FILTER_BUTTON).performClick()
     composeTestRule.onNodeWithTag(ArtworkFilterTestTags.CLEAR_BUTTON).performClick()
 
-    composeTestRule.onNodeWithTag(SavedArtworksTestTags.card(savedArtwork)).assertIsDisplayed()
-    composeTestRule.onNodeWithTag(SavedArtworksTestTags.card(vermeerArtwork)).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(ArtworkTileTestTags.tile(savedArtwork)).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(ArtworkTileTestTags.tile(vermeerArtwork)).assertIsDisplayed()
   }
 
   /** Verifies that an artwork without an artist name displays the shared fallback text. */
@@ -228,8 +226,8 @@ class SavedArtworksScreenTest {
     val lastArtwork = artworks.last()
     composeTestRule
         .onNodeWithTag(SavedArtworksTestTags.LIST)
-        .performScrollToNode(hasTestTag(SavedArtworksTestTags.card(lastArtwork)))
-    composeTestRule.onNodeWithTag(SavedArtworksTestTags.card(lastArtwork)).assertIsDisplayed()
+        .performScrollToNode(hasTestTag(ArtworkTileTestTags.tile(lastArtwork)))
+    composeTestRule.onNodeWithTag(ArtworkTileTestTags.tile(lastArtwork)).assertIsDisplayed()
   }
 
   /** Verifies that an empty repository renders the empty state instead of a list. */
@@ -262,7 +260,7 @@ class SavedArtworksScreenTest {
     gate.complete(Unit)
     composeTestRule.waitUntil(3_000) {
       composeTestRule
-          .onAllNodesWithTag(SavedArtworksTestTags.card(savedArtwork))
+          .onAllNodesWithTag(ArtworkTileTestTags.tile(savedArtwork))
           .fetchSemanticsNodes()
           .isNotEmpty()
     }
@@ -312,7 +310,7 @@ class SavedArtworksScreenTest {
 
     composeTestRule.waitUntil(3_000) {
       composeTestRule
-          .onAllNodesWithTag(SavedArtworksTestTags.card(savedArtwork))
+          .onAllNodesWithTag(ArtworkTileTestTags.tile(savedArtwork))
           .fetchSemanticsNodes()
           .isNotEmpty()
     }
@@ -338,7 +336,7 @@ class SavedArtworksScreenTest {
     setScreenContent(onArtworkDetailsClick = { selectedArtwork = it })
 
     composeTestRule.waitForIdle()
-    composeTestRule.onNodeWithTag(SavedArtworksTestTags.card(savedArtwork)).performClick()
+    composeTestRule.onNodeWithTag(ArtworkTileTestTags.tile(savedArtwork)).performClick()
 
     assertEquals(savedArtwork, selectedArtwork)
   }
@@ -355,7 +353,7 @@ class SavedArtworksScreenTest {
     setScreenContent(onMapClick = { mappedArtwork = it })
 
     composeTestRule.waitForIdle()
-    composeTestRule.onNodeWithTag(SavedArtworksTestTags.mapButton(savedArtwork)).performClick()
+    composeTestRule.onNodeWithTag(ArtworkTileTestTags.mapButton(savedArtwork)).performClick()
 
     assertEquals(artwork, mappedArtwork)
   }
@@ -367,12 +365,12 @@ class SavedArtworksScreenTest {
     setScreenContent()
 
     composeTestRule.waitForIdle()
-    composeTestRule.onNodeWithTag(SavedArtworksTestTags.unsaveButton(savedArtwork)).performClick()
+    composeTestRule.onNodeWithTag(ArtworkTileTestTags.saveButton(savedArtwork)).performClick()
 
     composeTestRule.waitUntil(3_000) { !fakeRepository.savedArtworks.contains(savedArtwork) }
     composeTestRule.waitForIdle()
     composeTestRule.onNodeWithTag(SavedArtworksTestTags.EMPTY_STATE).assertIsDisplayed()
-    composeTestRule.onNodeWithTag(SavedArtworksTestTags.card(savedArtwork)).assertDoesNotExist()
+    composeTestRule.onNodeWithTag(ArtworkTileTestTags.tile(savedArtwork)).assertDoesNotExist()
   }
 
   /** Verifies that unsaving one of several artworks removes only that one. */
@@ -390,18 +388,18 @@ class SavedArtworksScreenTest {
     // visible part of the list, and a click there would land on another element.
     composeTestRule
         .onNodeWithTag(SavedArtworksTestTags.LIST)
-        .performScrollToNode(hasTestTag(SavedArtworksTestTags.unsaveButton(artworks[1])))
-    composeTestRule.onNodeWithTag(SavedArtworksTestTags.unsaveButton(artworks[1])).performClick()
+        .performScrollToNode(hasTestTag(ArtworkTileTestTags.saveButton(artworks[1])))
+    composeTestRule.onNodeWithTag(ArtworkTileTestTags.saveButton(artworks[1])).performClick()
     composeTestRule.waitUntil(3_000) { fakeRepository.savedArtworks.size == 2 }
 
     assertEquals(listOf(artworks[0], artworks[2]), fakeRepository.savedArtworks)
-    composeTestRule.onNodeWithTag(SavedArtworksTestTags.card(artworks[1])).assertDoesNotExist()
+    composeTestRule.onNodeWithTag(ArtworkTileTestTags.tile(artworks[1])).assertDoesNotExist()
     // The list only keeps visible cards, so scroll to each remaining card before checking it.
     listOf(artworks[0], artworks[2]).forEach { artwork ->
       composeTestRule
           .onNodeWithTag(SavedArtworksTestTags.LIST)
-          .performScrollToNode(hasTestTag(SavedArtworksTestTags.card(artwork)))
-      composeTestRule.onNodeWithTag(SavedArtworksTestTags.card(artwork)).assertIsDisplayed()
+          .performScrollToNode(hasTestTag(ArtworkTileTestTags.tile(artwork)))
+      composeTestRule.onNodeWithTag(ArtworkTileTestTags.tile(artwork)).assertIsDisplayed()
     }
   }
 
@@ -413,11 +411,11 @@ class SavedArtworksScreenTest {
 
     composeTestRule.waitForIdle()
     fakeRepository.shouldThrowError = true
-    composeTestRule.onNodeWithTag(SavedArtworksTestTags.unsaveButton(savedArtwork)).performClick()
+    composeTestRule.onNodeWithTag(ArtworkTileTestTags.saveButton(savedArtwork)).performClick()
 
     composeTestRule.waitForIdle()
     assertEquals(listOf(savedArtwork), fakeRepository.savedArtworks)
-    composeTestRule.onNodeWithTag(SavedArtworksTestTags.card(savedArtwork)).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(ArtworkTileTestTags.tile(savedArtwork)).assertIsDisplayed()
   }
 
   /** Verifies that the card disappears before the repository confirms the removal. */
@@ -430,15 +428,13 @@ class SavedArtworksScreenTest {
     setScreenContent()
 
     composeTestRule.waitForIdle()
-    composeTestRule.onNodeWithTag(SavedArtworksTestTags.unsaveButton(savedArtwork)).performClick()
+    composeTestRule.onNodeWithTag(ArtworkTileTestTags.saveButton(savedArtwork)).performClick()
     composeTestRule.waitForIdle()
 
     // The repository has not removed it yet, but the card and its button are already gone.
     assertEquals(listOf(savedArtwork), fakeRepository.savedArtworks)
-    composeTestRule.onNodeWithTag(SavedArtworksTestTags.card(savedArtwork)).assertDoesNotExist()
-    composeTestRule
-        .onNodeWithTag(SavedArtworksTestTags.unsaveButton(savedArtwork))
-        .assertDoesNotExist()
+    composeTestRule.onNodeWithTag(ArtworkTileTestTags.tile(savedArtwork)).assertDoesNotExist()
+    composeTestRule.onNodeWithTag(ArtworkTileTestTags.saveButton(savedArtwork)).assertDoesNotExist()
 
     // Opens the gate so the paused removal resumes and finishes.
     gate.complete(Unit)
@@ -455,13 +451,13 @@ class SavedArtworksScreenTest {
     composeTestRule.waitForIdle()
     // Simulates the artwork having been unsaved from another screen or device.
     fakeRepository.savedArtworks.remove(savedArtwork)
-    composeTestRule.onNodeWithTag(SavedArtworksTestTags.unsaveButton(savedArtwork)).performClick()
+    composeTestRule.onNodeWithTag(ArtworkTileTestTags.saveButton(savedArtwork)).performClick()
     composeTestRule.waitForIdle()
 
     // A failed unsave would restore the card, so its absence shows no error path was taken.
-    composeTestRule.onNodeWithTag(SavedArtworksTestTags.card(savedArtwork)).assertDoesNotExist()
+    composeTestRule.onNodeWithTag(ArtworkTileTestTags.tile(savedArtwork)).assertDoesNotExist()
     composeTestRule
-        .onNodeWithTag(SavedArtworksTestTags.card(alternatePearlEarringArtwork))
+        .onNodeWithTag(ArtworkTileTestTags.tile(alternatePearlEarringArtwork))
         .assertIsDisplayed()
     assertEquals(listOf(alternatePearlEarringArtwork), fakeRepository.savedArtworks)
   }
@@ -482,8 +478,8 @@ class SavedArtworksScreenTest {
     // visible part of the list, and a click there would land on another element.
     composeTestRule
         .onNodeWithTag(SavedArtworksTestTags.LIST)
-        .performScrollToNode(hasTestTag(SavedArtworksTestTags.unsaveButton(artworks[1])))
-    composeTestRule.onNodeWithTag(SavedArtworksTestTags.unsaveButton(artworks[1])).performClick()
+        .performScrollToNode(hasTestTag(ArtworkTileTestTags.saveButton(artworks[1])))
+    composeTestRule.onNodeWithTag(ArtworkTileTestTags.saveButton(artworks[1])).performClick()
     composeTestRule.waitForIdle()
     // Scrolling may have removed the first card from the list's children, so go back to the top
     // before checking positions.
@@ -493,7 +489,7 @@ class SavedArtworksScreenTest {
     composeTestRule
         .onNodeWithTag(SavedArtworksTestTags.LIST)
         .onChildAt(1)
-        .assert(hasTestTag(SavedArtworksTestTags.card(artworks[1])))
+        .assert(hasTestTag(ArtworkTileTestTags.tile(artworks[1])))
   }
 
   /** Verifies that a failed unsave does not duplicate a card that a reload already restored. */
@@ -506,7 +502,7 @@ class SavedArtworksScreenTest {
     // Keeps the removal paused so a reload can happen before it fails.
     val gate = CompletableDeferred<Unit>()
     fakeRepository.removeGate = gate
-    composeTestRule.onNodeWithTag(SavedArtworksTestTags.unsaveButton(savedArtwork)).performClick()
+    composeTestRule.onNodeWithTag(ArtworkTileTestTags.saveButton(savedArtwork)).performClick()
     composeTestRule.waitForIdle()
 
     // The repository still holds the artwork, so the reload brings its card back.
@@ -514,7 +510,7 @@ class SavedArtworksScreenTest {
     composeTestRule.runOnIdle { isScreenVisible = true }
     composeTestRule.waitUntil(3_000) {
       composeTestRule
-          .onAllNodesWithTag(SavedArtworksTestTags.card(savedArtwork))
+          .onAllNodesWithTag(ArtworkTileTestTags.tile(savedArtwork))
           .fetchSemanticsNodes()
           .isNotEmpty()
     }
@@ -524,7 +520,7 @@ class SavedArtworksScreenTest {
     gate.complete(Unit)
     composeTestRule.waitForIdle()
 
-    composeTestRule.onAllNodesWithTag(SavedArtworksTestTags.card(savedArtwork)).assertCountEquals(1)
+    composeTestRule.onAllNodesWithTag(ArtworkTileTestTags.tile(savedArtwork)).assertCountEquals(1)
     assertEquals(listOf(savedArtwork), fakeRepository.savedArtworks)
   }
 
@@ -537,22 +533,20 @@ class SavedArtworksScreenTest {
 
     composeTestRule.waitForIdle()
     // Both cards render: list keys and test tags come from the uid, not the shared title.
-    composeTestRule.onNodeWithTag(SavedArtworksTestTags.card(savedArtwork)).assertIsDisplayed()
-    composeTestRule.onNodeWithTag(SavedArtworksTestTags.card(sameTitleArtwork)).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(ArtworkTileTestTags.tile(savedArtwork)).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(ArtworkTileTestTags.tile(sameTitleArtwork)).assertIsDisplayed()
 
     // On small screens (such as the CI emulator) the second card's button can be outside the
     // visible part of the list, and a click there would land on another element.
     composeTestRule
         .onNodeWithTag(SavedArtworksTestTags.LIST)
-        .performScrollToNode(hasTestTag(SavedArtworksTestTags.unsaveButton(sameTitleArtwork)))
-    composeTestRule
-        .onNodeWithTag(SavedArtworksTestTags.unsaveButton(sameTitleArtwork))
-        .performClick()
+        .performScrollToNode(hasTestTag(ArtworkTileTestTags.saveButton(sameTitleArtwork)))
+    composeTestRule.onNodeWithTag(ArtworkTileTestTags.saveButton(sameTitleArtwork)).performClick()
     composeTestRule.waitUntil(3_000) { fakeRepository.savedArtworks.size == 1 }
 
     assertEquals(listOf(savedArtwork), fakeRepository.savedArtworks)
-    composeTestRule.onNodeWithTag(SavedArtworksTestTags.card(sameTitleArtwork)).assertDoesNotExist()
-    composeTestRule.onNodeWithTag(SavedArtworksTestTags.card(savedArtwork)).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(ArtworkTileTestTags.tile(sameTitleArtwork)).assertDoesNotExist()
+    composeTestRule.onNodeWithTag(ArtworkTileTestTags.tile(savedArtwork)).assertIsDisplayed()
   }
 
   /** Verifies that coming back to the screen reloads the list kept by the ViewModel. */
@@ -562,7 +556,7 @@ class SavedArtworksScreenTest {
     setScreenContent()
 
     composeTestRule.waitForIdle()
-    composeTestRule.onNodeWithTag(SavedArtworksTestTags.card(savedArtwork)).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(ArtworkTileTestTags.tile(savedArtwork)).assertIsDisplayed()
 
     // Simulates opening the details screen, unsaving the artwork there, and pressing back.
     composeTestRule.runOnIdle { isScreenVisible = false }
@@ -575,7 +569,7 @@ class SavedArtworksScreenTest {
           .fetchSemanticsNodes()
           .isNotEmpty()
     }
-    composeTestRule.onNodeWithTag(SavedArtworksTestTags.card(savedArtwork)).assertDoesNotExist()
+    composeTestRule.onNodeWithTag(ArtworkTileTestTags.tile(savedArtwork)).assertDoesNotExist()
   }
 
   /** Verifies that a load canceled by a newer one is not reported as a loading error. */
@@ -599,7 +593,7 @@ class SavedArtworksScreenTest {
     gate.complete(Unit)
     composeTestRule.waitUntil(3_000) {
       composeTestRule
-          .onAllNodesWithTag(SavedArtworksTestTags.card(savedArtwork))
+          .onAllNodesWithTag(ArtworkTileTestTags.tile(savedArtwork))
           .fetchSemanticsNodes()
           .isNotEmpty()
     }

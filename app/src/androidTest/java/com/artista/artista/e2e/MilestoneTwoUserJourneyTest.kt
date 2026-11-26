@@ -1,3 +1,4 @@
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 // Co-authored-by: Claude Sonnet 5.5
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
@@ -12,7 +13,7 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsOff
-import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasTestTag
@@ -40,12 +41,13 @@ import com.artista.artista.model.user.UserRepositoryProvider
 import com.artista.artista.model.walking.WalkingRoute
 import com.artista.artista.model.walking.WalkingRouteRepository
 import com.artista.artista.resources.C
-import com.artista.artista.ui.artwork.ArtworkCardTestTag
 import com.artista.artista.ui.artwork.ArtworkFilterTestTags
 import com.artista.artista.ui.artwork.ArtworkTestTags
+import com.artista.artista.ui.artwork.ArtworkTileTestTags
 import com.artista.artista.ui.artwork.SavedArtworksTestTags
 import com.artista.artista.ui.authentication.AuthViewModel
 import com.artista.artista.ui.authentication.FakeGoogleCredentialProvider
+import com.artista.artista.ui.hasTestTagStartingWith
 import com.artista.artista.ui.map.MapScreenTestTags
 import com.artista.artista.ui.navigation.NavigationTestTags
 import com.artista.artista.ui.navigation.Tab
@@ -265,7 +267,9 @@ class MilestoneTwoUserJourneyTest {
     val card = hasTestTag(OverviewTestTags.ARTWORK_ITEM) and hasText(title, ignoreCase = true)
     onDisplayed(OverviewTestTags.ARTWORK_LIST).performScrollToNode(card)
     composeTestRule
-        .onNode(hasTestTag(ArtworkCardTestTag.ARTWORK_CARD_SAVE_BUTTON) and hasAnyAncestor(card))
+        .onNode(
+            hasTestTagStartingWith(ArtworkTileTestTags.SAVE_BUTTON_PREFIX) and hasAnyAncestor(card)
+        )
         .performScrollTo()
         .performClick()
     savedArtworkTitles += title
@@ -289,7 +293,10 @@ class MilestoneTwoUserJourneyTest {
   /** Starts a route from the filtered artwork card and verifies the started route state. */
   private fun startWalkingRoute() {
     scrollOverviewToArtwork()
-    onDisplayed(ArtworkCardTestTag.ARTWORK_CARD_MAP_BUTTON, scrollTo = true).performClick()
+    composeTestRule
+        .onAllNodes(hasTestTagStartingWith(ArtworkTileTestTags.MAP_BUTTON_PREFIX))[0]
+        .performScrollTo()
+        .performClick()
     waitUntil("Map to be displayed") {
       composeTestRule.onAllNodesWithTag(MapScreenTestTags.MAP).fetchSemanticsNodes().isNotEmpty()
     }
@@ -304,21 +311,14 @@ class MilestoneTwoUserJourneyTest {
     onDisplayed(MapScreenTestTags.ROUTE_SUMMARY)
   }
 
-  /** Edits the username in Profile and verifies the saved value is rendered. */
+  /** Edits the username in Profile and verifies the saved value reaches the backend. */
   private fun editUsername() {
     onDisplayed(NavigationTestTags.getTabTestTag(Tab.Profile)).performClick()
     waitForDisplayed(UserProfileTestTags.SCREEN)
     onDisplayed(UserProfileTestTags.USERNAME, scrollTo = true).performClick()
     onDisplayed(UserProfileTestTags.USERNAME_FIELD).performTextInput("MilestoneTwo")
     onDisplayed(UserProfileTestTags.USERNAME_SAVE).performClick()
-    waitUntil("Username to be saved") {
-      composeTestRule
-          .onAllNodesWithTag(UserProfileTestTags.USERNAME)
-          .fetchSemanticsNodes()
-          .isNotEmpty()
-    }
-    onDisplayed(UserProfileTestTags.USERNAME, scrollTo = true).assertTextEquals("MilestoneTwo")
-    // The UI shows the new username before the Firestore write completes. Wait until the backend
+    // The UI takes the new username before the Firestore write completes. Wait until the backend
     // really holds it, otherwise signing out right after could race with (or cancel) the save and
     // make the persistence check flaky.
     waitUntil("Username to be persisted in the backend") {
@@ -395,7 +395,7 @@ class MilestoneTwoUserJourneyTest {
   private fun signOutAndSignBackIn() {
     onDisplayed(ArtistPreferencesTestTags.BACK_BUTTON).performClick()
     waitForDisplayed(UserProfileTestTags.SCREEN)
-    onDisplayed(UserProfileTestTags.LOGOUT_BUTTON).performClick()
+    onDisplayed(UserProfileTestTags.LOGOUT_BUTTON, scrollTo = true).performClick()
     waitForDisplayed(C.Tag.auth_screen_container)
     onDisplayed(C.Tag.auth_google_sign_in_button).performClick()
     waitForDisplayed(OverviewTestTags.SCREEN)
@@ -405,7 +405,10 @@ class MilestoneTwoUserJourneyTest {
   private fun verifyPersistedProfileAndArtistPreference() {
     onDisplayed(NavigationTestTags.getTabTestTag(Tab.Profile)).performClick()
     waitForDisplayed(UserProfileTestTags.SCREEN)
-    onDisplayed(UserProfileTestTags.USERNAME, scrollTo = true).assertTextEquals("MilestoneTwo")
+    // The profile screen no longer shows the username: the edit dialog prefills it instead.
+    onDisplayed(UserProfileTestTags.USERNAME, scrollTo = true).performClick()
+    onDisplayed(UserProfileTestTags.USERNAME_FIELD).assertTextContains("MilestoneTwo")
+    onDisplayed(UserProfileTestTags.USERNAME_CANCEL).performClick()
     onDisplayed(UserProfileTestTags.PREFERENCES_BUTTON, scrollTo = true).performClick()
     waitForDisplayed(ArtistPreferencesTestTags.SCREEN)
     verifyOnlyKlimtIsShown()

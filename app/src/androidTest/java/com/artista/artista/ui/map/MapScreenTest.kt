@@ -1,3 +1,5 @@
+// Co-authored-by: DeepSeek Flash <noreply@deepseek.com>
+
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.map
@@ -7,7 +9,12 @@ import androidx.activity.ComponentActivity
 import androidx.activity.result.ActivityResultRegistry
 import androidx.activity.result.ActivityResultRegistryOwner
 import androidx.activity.result.contract.ActivityResultContract
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -47,7 +54,7 @@ import org.junit.runner.RunWith
 /**
  * Verifies the map screen's connected user interface.
  *
- * @author Felix Burchardt
+ * @author Felix Burchardt, patrickmcdan
  */
 @RunWith(AndroidJUnit4::class)
 class MapScreenTest {
@@ -55,6 +62,64 @@ class MapScreenTest {
   @get:Rule val composeTestRule = createAndroidComposeRule<ComponentActivity>()
 
   private val instrumentation = InstrumentationRegistry.getInstrumentation()
+  private var recalculationState by mutableStateOf(RouteRecalculationUiState())
+  private var recalculateCalls = 0
+  private var arrived by mutableStateOf(false)
+
+  /** Updates the recalculation state of an overlay already on screen. */
+  private fun showRecalculation(newState: RouteRecalculationUiState) = composeTestRule.runOnIdle {
+    recalculationState = newState
+  }
+
+  private fun recalculationRoute() =
+      RouteUiState.Success(
+          WalkingRoute(listOf(Coordinate(46.0, 6.0), Coordinate(46.003, 6.0)), 10.minutes, 333),
+          routeArtwork().copy(location = ArtworkLocation(46.003, 6.0, "Museum")),
+      )
+
+  @Test
+  fun recalculateButton_followsRecalculationState_andCallsBackOnClick() {
+    setRouteOverlay(recalculationRoute(), onRecalculateRoute = { recalculateCalls++ })
+    val button = composeTestRule.onNodeWithTag(MapScreenTestTags.ROUTE_RECALCULATE_BUTTON)
+    button.assertDoesNotExist()
+
+    showRecalculation(RouteRecalculationUiState(isAvailable = true))
+    button.assertIsDisplayed().assertIsEnabled().performClick()
+    assertEquals(1, recalculateCalls)
+
+    showRecalculation(RouteRecalculationUiState(isAvailable = true, isLoading = true))
+    button.assertIsNotEnabled()
+    showRecalculation(RouteRecalculationUiState(isAvailable = true, isCoolingDown = true))
+    button.assertIsNotEnabled()
+  }
+
+  @Test
+  fun recalculationError_whenRequestFailed_isShownWithRouteAndRetryFollowsCooldownAndErrorKind() {
+    setRouteOverlay(recalculationRoute(), onRecalculateRoute = { recalculateCalls++ })
+    val retry = composeTestRule.onNodeWithTag(MapScreenTestTags.ROUTE_RETRY_BUTTON)
+    val networkError = RouteUiState.Error(RouteErrorKind.NETWORK, R.string.map_route_no_route)
+
+    showRecalculation(
+        RouteRecalculationUiState(isAvailable = true, isCoolingDown = true, error = networkError)
+    )
+    composeTestRule.onNodeWithTag(MapScreenTestTags.ROUTE_RECALCULATE_BUTTON).assertDoesNotExist()
+    composeTestRule.onNodeWithTag(MapScreenTestTags.ROUTE_SUMMARY_CARD).assertIsDisplayed()
+    composeTestRule.onNodeWithTag(MapScreenTestTags.ROUTE_RECALCULATE_ERROR).assertIsDisplayed()
+    retry.assertIsNotEnabled()
+
+    showRecalculation(RouteRecalculationUiState(isAvailable = true, error = networkError))
+    retry.assertIsEnabled().performClick()
+    assertEquals(1, recalculateCalls)
+
+    showRecalculation(
+        RouteRecalculationUiState(
+            isAvailable = true,
+            error =
+                RouteUiState.Error(RouteErrorKind.DAILY_RATE_LIMIT, R.string.map_route_no_route),
+        )
+    )
+    retry.assertDoesNotExist()
+  }
 
   /** Grants location permissions before the screen starts its location request. */
   @Before
@@ -173,7 +238,7 @@ class MapScreenTest {
     composeTestRule
         .onNodeWithTag(MapScreenTestTags.ROUTE_SUMMARY)
         .assertTextEquals("12 min · 850 m")
-    composeTestRule.onNodeWithTag(MapScreenTestTags.ROUTE_CLOSE_BUTTON).performClick()
+    composeTestRule.onNodeWithTag(MapScreenTestTags.ARTWORK_CARD_DISMISS).performClick()
     assertEquals(true, cleared)
   }
 
@@ -295,6 +360,24 @@ class MapScreenTest {
         .assertTextEquals("12 min · 850 m")
   }
 
+  @Test
+  fun arrivedCard_whenArrived_showsArrivalMessageAndCloseButton() {
+    var closeCalls = 0
+    setRouteOverlay(recalculationRoute(), onClearRoute = { closeCalls++ })
+    val context = InstrumentationRegistry.getInstrumentation().targetContext
+    val arrivedMessage = context.getString(R.string.map_route_arrived)
+    composeTestRule.onNodeWithText(arrivedMessage).assertDoesNotExist()
+
+    composeTestRule.runOnIdle { arrived = true }
+
+    composeTestRule.onNodeWithText(arrivedMessage).assertIsDisplayed()
+    composeTestRule
+        .onNodeWithText(context.getString(R.string.map_route_arrived_close))
+        .assertIsDisplayed()
+    composeTestRule.onNodeWithTag(MapScreenTestTags.ROUTE_CLOSE_BUTTON).performClick()
+    assertEquals(1, closeCalls)
+  }
+
   private fun setMapScreenContent() {
     composeTestRule.setContent {
       ArtistaTheme {
@@ -318,13 +401,17 @@ class MapScreenTest {
       routeUiState: RouteUiState,
       onClearRoute: () -> Unit = {},
       onRetryRoute: () -> Unit = {},
+      onRecalculateRoute: () -> Unit = {},
   ) {
     composeTestRule.setContent {
       ArtistaTheme {
         RouteOverlay(
             routeUiState = routeUiState,
+            recalculationUiState = recalculationState,
             onClearRoute = onClearRoute,
             onRetryRoute = onRetryRoute,
+            onRecalculateRoute = onRecalculateRoute,
+            hasArrived = arrived,
         )
       }
     }

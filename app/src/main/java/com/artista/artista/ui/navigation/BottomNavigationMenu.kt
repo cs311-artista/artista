@@ -2,8 +2,11 @@ package com.artista.artista.ui.navigation
 
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Home
@@ -24,6 +27,7 @@ import com.artista.artista.R
 import com.artista.artista.ui.theme.Dimensions
 
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 /**
  * Represents a destination that can be selected from the bottom navigation menu.
  *
@@ -70,6 +74,7 @@ fun BottomNavigationMenu(
         modifier =
             Modifier.align(Alignment.BottomCenter)
                 .fillMaxWidth()
+                .windowInsetsPadding(WindowInsets.navigationBars)
                 .padding(
                     horizontal = Dimensions.navigationBarHorizontalPadding,
                     vertical = Dimensions.navigationBarVerticalPadding,
