@@ -27,7 +27,6 @@ internal object Dimensions {
   val standardStrokeWidth = 2.dp
 
   private val standardControlHeight = 56.dp
-  private val shallowElevation = 2.dp
 
   // Authentication screen.
   val authenticationScreenHorizontalPadding = 24.dp
@@ -68,7 +67,7 @@ internal object Dimensions {
   /** Height of the artwork image on the artwork details screen. */
   val artworkDetailsImageHeight = 220.dp
 
-  val artworkCardElevation = shallowElevation
+  val artworkCardElevation = 2.dp
 
   // Saved artworks screen.
   val savedArtworksErrorHorizontalPadding = 24.dp
@@ -99,7 +98,7 @@ internal object Dimensions {
   val artworkFilterContentVerticalPadding = 4.dp
   val artworkFilterSuggestionsMaxHeight = 160.dp
   val overviewSearchBarHeight = standardControlHeight
-  val overviewSearchBarElevation = shallowElevation
+  val overviewSearchBarElevation = 2.dp
   val overviewFilterButtonSize = standardControlHeight
   val overviewSearchBarFilterSpacing = 12.dp
 
