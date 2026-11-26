@@ -167,7 +167,7 @@ fun MapScreen(
   val uiState by mapViewModel.uiStateFlow.collectAsStateWithLifecycle()
   val routeUiState by mapViewModel.routeUiStateFlow.collectAsStateWithLifecycle()
   val routeProgressUiState by mapViewModel.routeProgressUiStateFlow.collectAsStateWithLifecycle()
-  val recalculationUiState by mapViewModel.recalculationUiState.collectAsStateWithLifecycle()
+  val recalculationUiState by mapViewModel.recalculationUiStateFlow.collectAsStateWithLifecycle()
   val isRouteActive = routeUiState is RouteUiState.Success
   val context = LocalContext.current
   val userLocation = uiState.userLocation

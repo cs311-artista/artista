@@ -203,7 +203,7 @@ class MapViewModel(
       _routeProgressUiState.asStateFlow()
 
   /** State of the "Recalculate route" action. */
-  val recalculationUiState: StateFlow<RouteRecalculationUiState> =
+  val recalculationUiStateFlow: StateFlow<RouteRecalculationUiState> =
       _recalculationUiState.asStateFlow()
 
   /** Returns the remaining route for synchronous consumers such as tests. */
@@ -337,7 +337,11 @@ class MapViewModel(
     }
   }
 
-  /** Hides the button and drops a stale failure; the cooldown is deliberately left running. */
+  /**
+   * Hides the button and drops a stale failure. An in-flight recalculation is not cancelled: its
+   * request is already sent, so its response still replaces the route, and the cooldown keeps
+   * running. Closing the route or requesting another one cancels it, see [resetRecalculation].
+   */
   private fun resetOffRoute() {
     offRouteUpdates = 0
     _recalculationUiState.update { it.copy(isAvailable = false, error = null) }

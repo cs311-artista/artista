@@ -393,7 +393,7 @@ class MapViewModelTest {
 
     viewModel.loadRouteTo(southDestination)
     runCurrent()
-    assertEquals(RouteRecalculationUiState(), viewModel.recalculationUiState.value)
+    assertEquals(RouteRecalculationUiState(), viewModel.recalculationUiStateFlow.value)
 
     repository.release(1)
     runCurrent()
@@ -703,18 +703,18 @@ class MapViewModelTest {
         val calls = repository.callCount
 
         emit(provider, offRoute, OFF_ROUTE_UPDATES_REQUIRED - 1)
-        assertFalse(viewModel.recalculationUiState.value.isAvailable)
+        assertFalse(viewModel.recalculationUiStateFlow.value.isAvailable)
         viewModel.recalculateRoute() // not available yet: ignored
         runCurrent()
         assertEquals(calls, repository.callCount)
 
         emit(provider, offRoute)
-        assertTrue(viewModel.recalculationUiState.value.isAvailable)
+        assertTrue(viewModel.recalculationUiStateFlow.value.isAvailable)
 
         emit(provider, nearRoute) // back on the route: hidden, and the count starts over
-        assertFalse(viewModel.recalculationUiState.value.isAvailable)
+        assertFalse(viewModel.recalculationUiStateFlow.value.isAvailable)
         emit(provider, offRoute, OFF_ROUTE_UPDATES_REQUIRED - 1)
-        assertFalse(viewModel.recalculationUiState.value.isAvailable)
+        assertFalse(viewModel.recalculationUiStateFlow.value.isAvailable)
       }
 
   @Test
@@ -730,7 +730,7 @@ class MapViewModelTest {
     viewModel.recalculateRoute()
     runCurrent()
 
-    assertTrue(viewModel.recalculationUiState.value.isLoading)
+    assertTrue(viewModel.recalculationUiStateFlow.value.isLoading)
     assertEquals(RouteUiState.Success(oldRoute, northDestination), viewModel.routeUiState)
     assertEquals(Coordinate(offRoute.latitude, offRoute.longitude), repository.origin)
 
@@ -743,7 +743,7 @@ class MapViewModelTest {
     )
     assertEquals(
         RouteRecalculationUiState(isCoolingDown = true),
-        viewModel.recalculationUiState.value,
+        viewModel.recalculationUiStateFlow.value,
     )
   }
 
@@ -764,7 +764,7 @@ class MapViewModelTest {
             RouteUiState.Success(repository.route, northDestination),
             viewModel.routeUiState,
         )
-        assertEquals(RouteErrorKind.GENERIC, viewModel.recalculationUiState.value.error?.kind)
+        assertEquals(RouteErrorKind.GENERIC, viewModel.recalculationUiStateFlow.value.error?.kind)
 
         viewModel.recalculateRoute() // still cooling down: ignored
         runCurrent()
@@ -792,7 +792,7 @@ class MapViewModelTest {
     runCurrent()
 
     assertEquals(RouteUiState.Idle, viewModel.routeUiState)
-    assertEquals(RouteRecalculationUiState(), viewModel.recalculationUiState.value)
+    assertEquals(RouteRecalculationUiState(), viewModel.recalculationUiStateFlow.value)
   }
 
   private val onRoute = UserLocation(46.001, 6.0)
