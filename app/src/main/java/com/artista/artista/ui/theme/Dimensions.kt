@@ -67,8 +67,6 @@ internal object Dimensions {
   /** Height of the artwork image on the artwork details screen. */
   val artworkDetailsImageHeight = 220.dp
 
-  val artworkCardElevation = 2.dp
-
   // Saved artworks screen.
   val savedArtworksErrorHorizontalPadding = 24.dp
   val savedArtworksRetryButtonSpacing = 16.dp
