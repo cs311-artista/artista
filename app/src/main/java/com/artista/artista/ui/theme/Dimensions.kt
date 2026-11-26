@@ -97,6 +97,8 @@ internal object Dimensions {
   val artworkFilterSuggestionsMaxHeight = 160.dp
   val overviewSearchBarHeight = standardControlHeight
   val overviewSearchBarElevation = 2.dp
+  val overviewFilterButtonSize = standardControlHeight
+  val overviewSearchBarFilterSpacing = 12.dp
 
   // Search screen.
   val searchRecommendationVerticalPadding = 8.dp
