@@ -318,7 +318,7 @@ class OverviewViewModel(
     private const val TAG = "OverviewViewModel"
 
     /** Maximum distance, in meters, for a saved artwork to count as close to the user. */
-    const val CLOSE_SAVED_ARTWORK_RADIUS_METERS = 30_000.0
+    const val CLOSE_SAVED_ARTWORK_RADIUS_METERS = 6_000.0
 
     /**
      * Creates a factory for an overview ViewModel with its repository dependency.
