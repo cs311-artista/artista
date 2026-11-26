@@ -65,7 +65,6 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
-import com.artista.artista.model.artwork.ArtworkFilter
 import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
 import com.artista.artista.model.artwork.mockArtworks
@@ -233,7 +232,7 @@ fun OverviewScreen(
             filterDialogVisible = false
           },
           onClear = {
-            viewModel.applyFilter(ArtworkFilter())
+            viewModel.clearFilter()
             filterDialogVisible = false
           },
           onDismiss = { filterDialogVisible = false },
