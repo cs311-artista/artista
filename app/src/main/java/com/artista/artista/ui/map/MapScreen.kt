@@ -284,7 +284,7 @@ fun MapScreen(
         uiSettings =
             MapUiSettings(
                 mapToolbarEnabled = false,
-                // Hidden until the map has a recenter control that does not clip the status bar.
+                // The app draws its own recenter control; Google's sits under the artwork card.
                 myLocationButtonEnabled = false,
             ),
         contentPadding =
