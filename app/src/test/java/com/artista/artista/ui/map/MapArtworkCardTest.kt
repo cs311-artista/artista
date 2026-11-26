@@ -331,6 +331,28 @@ class MapArtworkCardTest {
     assertTrue(rightCallbackInvoked)
   }
 
+  @Test
+  fun routeOverlay_whenArrived_hidesDismissAndShowsCloseButton() {
+    var cleared = false
+    val destination = artwork()
+
+    setOverlay(
+        routeUiState =
+            RouteUiState.Success(
+                WalkingRoute(listOf(Coordinate(0.0, 0.0)), 10.minutes, 500),
+                destination,
+            ),
+        onClear = { cleared = true },
+        arrived = true,
+    )
+
+    composeTestRule.onNodeWithTag(MapScreenTestTags.ARTWORK_CARD_DISMISS).assertDoesNotExist()
+    composeTestRule.onNodeWithTag(MapScreenTestTags.ROUTE_CLOSE_BUTTON).performClick()
+    composeTestRule.waitForIdle()
+
+    assertTrue(cleared)
+  }
+
   private fun setOverlay(
       routeUiState: RouteUiState = RouteUiState.Idle,
       routeProgressUiState: RouteProgressUiState? = null,
@@ -339,6 +361,7 @@ class MapArtworkCardTest {
       onClear: () -> Unit = {},
       onRetryRoute: () -> Unit = {},
       onDetailsButtonClicked: (Artwork) -> Unit = {},
+      arrived: Boolean = false,
   ) {
     composeTestRule.setContent {
       ArtistaTheme {
@@ -351,7 +374,7 @@ class MapArtworkCardTest {
             onRetryRoute = onRetryRoute,
             onRecalculateRoute = {},
             recalculationUiState = RouteRecalculationUiState(),
-            hasArrived = false,
+            hasArrived = arrived,
             onDetailsButtonClicked = onDetailsButtonClicked,
         )
       }
