@@ -97,6 +97,8 @@ internal object Dimensions {
   val artworkFilterSuggestionsMaxHeight = 160.dp
   val overviewSearchBarHeight = standardControlHeight
   val overviewSearchBarElevation = 2.dp
+  val overviewFilterButtonSize = standardControlHeight
+  val overviewSearchBarFilterSpacing = 12.dp
 
   // Search screen.
   val searchRecommendationVerticalPadding = 8.dp
@@ -121,9 +123,20 @@ internal object Dimensions {
   val artistPreferencesGridHorizontalSpacing = 12.dp
   val artistPreferencesGridVerticalSpacing = 12.dp
   val artistPreferencesRetryButtonSpacing = 16.dp
+  val artistPreferencesRetryIconSpacing = 8.dp
+  val artistPreferencesErrorHorizontalPadding = 24.dp
   val artistCardContentPadding = 8.dp
   val artistCardSelectionIndicatorPadding = 4.dp
   val artistCardNameTopSpacing = 8.dp
+
+  /** Width over height of the picture in an artist card, a landscape frame for portraits. */
+  const val ARTIST_CARD_IMAGE_ASPECT_RATIO = 4f / 3f
+
+  /**
+   * Lines given to an artist's name in an artist card, both as minimum and maximum, so every card
+   * of a grid row has the same height.
+   */
+  const val ARTIST_CARD_NAME_LINES = 2
   val preferencesSaveButtonHeight = standardControlHeight
 
   // Profile screen.
