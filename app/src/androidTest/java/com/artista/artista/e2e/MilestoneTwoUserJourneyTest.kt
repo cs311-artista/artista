@@ -12,7 +12,7 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsOff
-import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasTestTag
@@ -304,21 +304,14 @@ class MilestoneTwoUserJourneyTest {
     onDisplayed(MapScreenTestTags.ROUTE_SUMMARY)
   }
 
-  /** Edits the username in Profile and verifies the saved value is rendered. */
+  /** Edits the username in Profile and verifies the saved value reaches the backend. */
   private fun editUsername() {
     onDisplayed(NavigationTestTags.getTabTestTag(Tab.Profile)).performClick()
     waitForDisplayed(UserProfileTestTags.SCREEN)
     onDisplayed(UserProfileTestTags.USERNAME, scrollTo = true).performClick()
     onDisplayed(UserProfileTestTags.USERNAME_FIELD).performTextInput("MilestoneTwo")
     onDisplayed(UserProfileTestTags.USERNAME_SAVE).performClick()
-    waitUntil("Username to be saved") {
-      composeTestRule
-          .onAllNodesWithTag(UserProfileTestTags.USERNAME)
-          .fetchSemanticsNodes()
-          .isNotEmpty()
-    }
-    onDisplayed(UserProfileTestTags.USERNAME, scrollTo = true).assertTextEquals("MilestoneTwo")
-    // The UI shows the new username before the Firestore write completes. Wait until the backend
+    // The UI takes the new username before the Firestore write completes. Wait until the backend
     // really holds it, otherwise signing out right after could race with (or cancel) the save and
     // make the persistence check flaky.
     waitUntil("Username to be persisted in the backend") {
@@ -395,7 +388,7 @@ class MilestoneTwoUserJourneyTest {
   private fun signOutAndSignBackIn() {
     onDisplayed(ArtistPreferencesTestTags.BACK_BUTTON).performClick()
     waitForDisplayed(UserProfileTestTags.SCREEN)
-    onDisplayed(UserProfileTestTags.LOGOUT_BUTTON).performClick()
+    onDisplayed(UserProfileTestTags.LOGOUT_BUTTON, scrollTo = true).performClick()
     waitForDisplayed(C.Tag.auth_screen_container)
     onDisplayed(C.Tag.auth_google_sign_in_button).performClick()
     waitForDisplayed(OverviewTestTags.SCREEN)
@@ -405,7 +398,10 @@ class MilestoneTwoUserJourneyTest {
   private fun verifyPersistedProfileAndArtistPreference() {
     onDisplayed(NavigationTestTags.getTabTestTag(Tab.Profile)).performClick()
     waitForDisplayed(UserProfileTestTags.SCREEN)
-    onDisplayed(UserProfileTestTags.USERNAME, scrollTo = true).assertTextEquals("MilestoneTwo")
+    // The profile screen no longer shows the username: the edit dialog prefills it instead.
+    onDisplayed(UserProfileTestTags.USERNAME, scrollTo = true).performClick()
+    onDisplayed(UserProfileTestTags.USERNAME_FIELD).assertTextContains("MilestoneTwo")
+    onDisplayed(UserProfileTestTags.USERNAME_CANCEL).performClick()
     onDisplayed(UserProfileTestTags.PREFERENCES_BUTTON, scrollTo = true).performClick()
     waitForDisplayed(ArtistPreferencesTestTags.SCREEN)
     verifyOnlyKlimtIsShown()
