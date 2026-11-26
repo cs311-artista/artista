@@ -60,6 +60,7 @@ class LocationPermissionScreenTest {
         .assertTextEquals(notNowLabel)
     composeTestRule.onNodeWithTag(LocationPermissionTestTags.DENIED_MESSAGE).assertDoesNotExist()
     composeTestRule.onNodeWithTag(LocationPermissionTestTags.CONTINUE_BUTTON).assertDoesNotExist()
+    composeTestRule.onNodeWithTag(LocationPermissionTestTags.BACK_BUTTON).assertDoesNotExist()
   }
 
   /** Verifies that a refusal explains the consequence and offers the continue action. */
@@ -76,6 +77,7 @@ class LocationPermissionScreenTest {
         .onNodeWithTag(LocationPermissionTestTags.CONTINUE_BUTTON)
         .assertIsDisplayed()
         .assertTextEquals(continueLabel)
+    composeTestRule.onNodeWithTag(LocationPermissionTestTags.BACK_BUTTON).assertIsDisplayed()
     composeTestRule.onNodeWithTag(LocationPermissionTestTags.ALLOW_BUTTON).assertDoesNotExist()
     composeTestRule.onNodeWithTag(LocationPermissionTestTags.NOT_NOW_BUTTON).assertDoesNotExist()
   }
@@ -116,16 +118,30 @@ class LocationPermissionScreenTest {
     assertEquals(1, continueClicks)
   }
 
+  /** Verifies that the back action returns the user to the initial explanation. */
+  @Test
+  fun content_whenBackClicked_invokesBackCallback() {
+    var backClicks = 0
+    setContent(permissionDenied = true, onBackClick = { backClicks++ })
+
+    composeTestRule.onNodeWithTag(LocationPermissionTestTags.BACK_BUTTON).performClick()
+    composeTestRule.waitForIdle()
+
+    assertEquals(1, backClicks)
+  }
+
   private fun setContent(
       permissionDenied: Boolean,
       onAllowClick: () -> Unit = {},
       onContinueWithoutLocation: () -> Unit = {},
+      onBackClick: () -> Unit = {},
   ) {
     composeTestRule.setContent {
       LocationPermissionScreen(
           permissionDenied = permissionDenied,
           onAllowClick = onAllowClick,
           onContinueWithoutLocation = onContinueWithoutLocation,
+          onBackClick = onBackClick,
       )
     }
   }

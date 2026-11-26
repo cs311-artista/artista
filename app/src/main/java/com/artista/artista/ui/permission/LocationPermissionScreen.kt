@@ -37,6 +37,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import com.artista.artista.R
+import com.artista.artista.ui.navigation.BackButton
 import com.artista.artista.ui.theme.ArtistaTheme
 import com.artista.artista.ui.theme.Dimensions
 
@@ -44,12 +45,14 @@ import com.artista.artista.ui.theme.Dimensions
  * Stateless explanation of the location permission request.
  *
  * Carries no platform interaction so it is directly previewable and testable. [permissionDenied]
- * selects the state shown after the user refuses: the same explanation plus the consequence, and a
- * single continue action instead of asking again.
+ * selects the state shown after the user refuses: the same explanation plus the consequence, a back
+ * action that returns to the initial explanation, and a single continue action instead of asking
+ * again.
  *
  * @param permissionDenied whether the system dialog has already been refused
  * @param onAllowClick invoked when the user asks for location access
  * @param onContinueWithoutLocation invoked when the user continues without location
+ * @param onBackClick invoked when the user returns to the initial explanation to grant access
  * @param modifier modifier applied to the root container
  * @author timo-by
  */
@@ -58,102 +61,121 @@ fun LocationPermissionScreen(
     permissionDenied: Boolean,
     onAllowClick: () -> Unit,
     onContinueWithoutLocation: () -> Unit,
+    onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-  Column(
+  Box(
       modifier =
           modifier
               .fillMaxSize()
               .background(MaterialTheme.colorScheme.background)
               .statusBarsPadding()
               .navigationBarsPadding()
-              .verticalScroll(rememberScrollState())
-              .padding(
-                  horizontal = Dimensions.locationPermissionHorizontalPadding,
-                  vertical = Dimensions.locationPermissionVerticalPadding,
-              )
               .testTag(LocationPermissionTestTags.SCREEN),
-      horizontalAlignment = Alignment.CenterHorizontally,
-      verticalArrangement = Arrangement.Center,
   ) {
-    Box(
+    Column(
         modifier =
-            Modifier.size(Dimensions.locationPermissionIconContainerSize)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primaryContainer),
-        contentAlignment = Alignment.Center,
+            Modifier.fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(
+                    horizontal = Dimensions.locationPermissionHorizontalPadding,
+                    vertical = Dimensions.locationPermissionVerticalPadding,
+                ),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
     ) {
-      Icon(
-          imageVector = Icons.Outlined.LocationOn,
-          contentDescription = null,
-          tint = MaterialTheme.colorScheme.onPrimaryContainer,
-          modifier = Modifier.size(Dimensions.locationPermissionIconSize),
-      )
-    }
+      Box(
+          modifier =
+              Modifier.size(Dimensions.locationPermissionIconContainerSize)
+                  .clip(CircleShape)
+                  .background(MaterialTheme.colorScheme.primaryContainer),
+          contentAlignment = Alignment.Center,
+      ) {
+        Icon(
+            imageVector = Icons.Outlined.LocationOn,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+            modifier = Modifier.size(Dimensions.locationPermissionIconSize),
+        )
+      }
 
-    Spacer(Modifier.height(Dimensions.locationPermissionIconTitleSpacing))
-
-    Text(
-        text = stringResource(R.string.location_permission_title),
-        style = MaterialTheme.typography.headlineSmall,
-        color = MaterialTheme.colorScheme.onBackground,
-        textAlign = TextAlign.Center,
-        modifier = Modifier.testTag(LocationPermissionTestTags.TITLE).semantics { heading() },
-    )
-
-    Spacer(Modifier.height(Dimensions.locationPermissionTitleBodySpacing))
-
-    Text(
-        text = stringResource(R.string.location_permission_rationale),
-        style = MaterialTheme.typography.bodyLarge,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        textAlign = TextAlign.Center,
-        modifier = Modifier.testTag(LocationPermissionTestTags.RATIONALE),
-    )
-
-    if (permissionDenied) {
-      Spacer(Modifier.height(Dimensions.locationPermissionDeniedMessageSpacing))
+      Spacer(Modifier.height(Dimensions.locationPermissionIconTitleSpacing))
 
       Text(
-          text = stringResource(R.string.location_permission_denied),
-          style = MaterialTheme.typography.bodyMedium,
+          text = stringResource(R.string.location_permission_title),
+          style = MaterialTheme.typography.headlineSmall,
+          color = MaterialTheme.colorScheme.onBackground,
+          textAlign = TextAlign.Center,
+          modifier = Modifier.testTag(LocationPermissionTestTags.TITLE).semantics { heading() },
+      )
+
+      Spacer(Modifier.height(Dimensions.locationPermissionTitleBodySpacing))
+
+      Text(
+          text = stringResource(R.string.location_permission_rationale),
+          style = MaterialTheme.typography.bodyLarge,
           color = MaterialTheme.colorScheme.onSurfaceVariant,
           textAlign = TextAlign.Center,
-          modifier = Modifier.testTag(LocationPermissionTestTags.DENIED_MESSAGE),
+          modifier = Modifier.testTag(LocationPermissionTestTags.RATIONALE),
       )
+
+      if (permissionDenied) {
+        Spacer(Modifier.height(Dimensions.locationPermissionDeniedMessageSpacing))
+
+        Text(
+            text = stringResource(R.string.location_permission_denied),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.testTag(LocationPermissionTestTags.DENIED_MESSAGE),
+        )
+      }
+
+      Spacer(Modifier.height(Dimensions.locationPermissionActionTopSpacing))
+
+      if (permissionDenied) {
+        Button(
+            onClick = onContinueWithoutLocation,
+            modifier =
+                Modifier.fillMaxWidth()
+                    .height(Dimensions.standardTouchTargetSize)
+                    .testTag(LocationPermissionTestTags.CONTINUE_BUTTON),
+        ) {
+          Text(text = stringResource(R.string.location_permission_continue))
+        }
+      } else {
+        Button(
+            onClick = onAllowClick,
+            modifier =
+                Modifier.fillMaxWidth()
+                    .height(Dimensions.standardTouchTargetSize)
+                    .testTag(LocationPermissionTestTags.ALLOW_BUTTON),
+        ) {
+          Text(text = stringResource(R.string.location_permission_allow))
+        }
+
+        Spacer(Modifier.height(Dimensions.locationPermissionActionSpacing))
+
+        TextButton(
+            onClick = onContinueWithoutLocation,
+            modifier = Modifier.testTag(LocationPermissionTestTags.NOT_NOW_BUTTON),
+        ) {
+          Text(text = stringResource(R.string.location_permission_not_now))
+        }
+      }
     }
 
-    Spacer(Modifier.height(Dimensions.locationPermissionActionTopSpacing))
-
     if (permissionDenied) {
-      Button(
-          onClick = onContinueWithoutLocation,
+      BackButton(
+          onClick = onBackClick,
           modifier =
-              Modifier.fillMaxWidth()
-                  .height(Dimensions.standardTouchTargetSize)
-                  .testTag(LocationPermissionTestTags.CONTINUE_BUTTON),
-      ) {
-        Text(text = stringResource(R.string.location_permission_continue))
-      }
-    } else {
-      Button(
-          onClick = onAllowClick,
-          modifier =
-              Modifier.fillMaxWidth()
-                  .height(Dimensions.standardTouchTargetSize)
-                  .testTag(LocationPermissionTestTags.ALLOW_BUTTON),
-      ) {
-        Text(text = stringResource(R.string.location_permission_allow))
-      }
-
-      Spacer(Modifier.height(Dimensions.locationPermissionActionSpacing))
-
-      TextButton(
-          onClick = onContinueWithoutLocation,
-          modifier = Modifier.testTag(LocationPermissionTestTags.NOT_NOW_BUTTON),
-      ) {
-        Text(text = stringResource(R.string.location_permission_not_now))
-      }
+              Modifier.align(Alignment.TopStart)
+                  .padding(
+                      start = Dimensions.locationPermissionHorizontalPadding,
+                      top = Dimensions.locationPermissionBackButtonTopPadding,
+                  )
+                  .testTag(LocationPermissionTestTags.BACK_BUTTON),
+      )
     }
   }
 }
@@ -169,6 +191,7 @@ internal fun LocationPermissionScreenPreview(
         permissionDenied = permissionDenied,
         onAllowClick = {},
         onContinueWithoutLocation = {},
+        onBackClick = {},
     )
   }
 }

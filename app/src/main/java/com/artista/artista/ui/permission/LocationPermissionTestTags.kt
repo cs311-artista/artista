@@ -24,6 +24,9 @@ object LocationPermissionTestTags {
   /** Tag identifying the Not now button in the initial state. */
   const val NOT_NOW_BUTTON = "location_permission_not_now_button"
 
+  /** Tag identifying the back action that returns to the initial explanation. */
+  const val BACK_BUTTON = "location_permission_back_button"
+
   /** Tag identifying the Continue without location button in the refused state. */
   const val CONTINUE_BUTTON = "location_permission_continue_button"
 

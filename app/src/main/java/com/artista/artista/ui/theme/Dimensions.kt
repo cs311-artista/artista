@@ -96,6 +96,7 @@ internal object Dimensions {
   val locationPermissionDeniedMessageSpacing = 16.dp
   val locationPermissionActionTopSpacing = 32.dp
   val locationPermissionActionSpacing = 12.dp
+  val locationPermissionBackButtonTopPadding = 8.dp
 
   // Overview screen.
   val overviewListHorizontalPadding = 16.dp
