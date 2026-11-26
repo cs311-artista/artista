@@ -107,6 +107,11 @@
     <string name="search_filter_type_watercolor_painting">Watercolor painting</string>
     <string name="search_filter_type_mosaic">Mosaic</string>
 
+    <!-- Search screen -->
+    <string name="search_tab_artworks">Artworks</string>
+    <string name="search_tab_artists">Artists</string>
+    <string name="search_powered_by_wikidata">Powered by Wikidata</string>
+
     <!-- Default error messages, one per AppException type (RateLimit has 2 variants) -->
     <string name="error_not_found">This item no longer exists.</string>
     <string name="error_already_exists">This item already exists.</string>
@@ -129,4 +134,5 @@
     <string name="navigation_profile">Profile</string>
     <string name="arrow_back_description">Back</string>
     <string name="search_icon_description">Search</string>
+    <string name="clear_icon_description">Close</string>
 </resources>
