@@ -120,8 +120,10 @@
     <string name="overview_clear_filters">Clear filters</string>
     <string name="search_placeholder">Search artworks</string>
     <string name="search_loading">Loading artworks</string>
-    <string name="search_empty_results_title">No artworks found</string>
-    <string name="search_empty_results_message">Try another search or change the artwork type filters.</string>
+    <string name="search_empty_artwork_results_title">No artworks found.</string>
+    <string name="search_empty_artwork_results_message">Try another search or change the artwork type filters.</string>
+    <string name="search_empty_artist_results_title">No artist found.</string>
+    <string name="search_empty_artist_results_message">Try another search.</string>
     <string name="search_filter_title">Artwork types</string>
     <string name="search_filter_scroll_hint">Scroll down to see more artwork types</string>
     <string name="search_filter_type_painting">Painting</string>
@@ -133,6 +135,11 @@
     <string name="search_filter_type_oil_painting">Oil painting</string>
     <string name="search_filter_type_watercolor_painting">Watercolor painting</string>
     <string name="search_filter_type_mosaic">Mosaic</string>
+
+    <!-- Search screen -->
+    <string name="search_tab_artworks">Artworks</string>
+    <string name="search_tab_artists">Artists</string>
+    <string name="search_powered_by_wikidata">Powered by Wikidata</string>
 
     <!-- Notifications -->
     <string name="notification_proximity_title">Nearby: %s</string>
@@ -170,4 +177,5 @@
     <string name="navigation_profile">Profile</string>
     <string name="arrow_back_description">Back</string>
     <string name="search_icon_description">Search</string>
+    <string name="clear_icon_description">Close</string>
 </resources>
