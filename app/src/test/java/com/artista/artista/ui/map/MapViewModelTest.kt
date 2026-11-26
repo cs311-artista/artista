@@ -520,7 +520,8 @@ class MapViewModelTest {
   @Test
   fun clearRoute_whenRouteActive_thenStopsUpdatesAndClearsProgressAndSelection() = runTest {
     val provider = FakeLocationProvider()
-    val viewModel = createRouteViewModel(provider, walkingRouteRepository = primaryRouteRepository())
+    val viewModel =
+        createRouteViewModel(provider, walkingRouteRepository = primaryRouteRepository())
     viewModel.updateUserLocation(UserLocation(46.0, 6.0))
     viewModel.loadRouteTo(primaryRouteDestination)
     viewModel.startLocationUpdates()

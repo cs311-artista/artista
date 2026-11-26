@@ -325,6 +325,9 @@ class MapArtworkCardTest {
             onNavigate = onNavigate,
             onClearRoute = onClear,
             onRetryRoute = onRetry,
+            onRecalculateRoute = {},
+            recalculationUiState = RouteRecalculationUiState(),
+            hasArrived = false,
         )
       }
     }
