@@ -177,7 +177,7 @@ open class JsonResponseParser {
    *   structure
    * @author IJJA3141
    */
-  fun parseFilteredArtists(responseBody: String): List<ArtistId> =
+  open fun parseFilteredArtists(responseBody: String): List<ArtistId> =
       parseFilteredCandidates(responseBody, "artist") { it }
 
   /**
@@ -192,7 +192,7 @@ open class JsonResponseParser {
    *   structure
    * @author IJJA3141
    */
-  fun parseFilteredArtworks(responseBody: String): List<ArtworkId> =
+  open fun parseFilteredArtworks(responseBody: String): List<ArtworkId> =
       parseFilteredCandidates(responseBody, "artwork") { it }
 
   /**
