@@ -514,12 +514,16 @@ class MapViewModel(
 
   private fun isRoutingTo(artwork: Artwork): Boolean =
       when (val state = _routeUiState.value) {
-        is RouteUiState.Success -> state.destination.uid == artwork.uid
+        // After arrival the card is stale: asking for the same artwork again starts a new route.
+        is RouteUiState.Success -> state.destination.uid == artwork.uid && !_hasArrived.value
         RouteUiState.Loading -> lastRouteArtwork?.uid == artwork.uid
         else -> false
       }
 
   private fun requestRoute(artwork: Artwork) {
+    // Tracking stops on arrival, so the stored location is where the user arrived, not where they
+    // are now: wait for a fresh fix instead of requesting a route from it.
+    val wasArrived = _hasArrived.value
     lastRouteArtwork = artwork
     routeRequestJob?.cancel()
     resetRouteProgress()
@@ -527,7 +531,7 @@ class MapViewModel(
     _hasArrived.value = false
     pendingRouteArtwork = null
     _routeUiState.value = RouteUiState.Loading
-    val userLocation = uiState.userLocation
+    val userLocation = uiState.userLocation.takeUnless { wasArrived }
     when {
       userLocation != null -> startRouteRequest(artwork, userLocation)
       locationFailed -> _routeUiState.value = RouteUiState.LocationUnavailable

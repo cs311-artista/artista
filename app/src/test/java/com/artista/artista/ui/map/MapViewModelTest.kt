@@ -904,6 +904,47 @@ class MapViewModelTest {
   }
 
   @Test
+  fun loadRouteTo_sameArtworkAfterArrival_waitsForAFreshLocationThenStartsANewRoute() = runTest {
+    val provider = FakeLocationProvider()
+    val repository = primaryRouteRepository()
+    val viewModel = createRouteViewModel(provider, repository)
+    startPrimaryRoute(viewModel, provider)
+    emit(provider, locationWithinArrivalThreshold)
+    val calls = repository.callCount
+
+    viewModel.loadRouteTo(primaryRouteDestination)
+    runCurrent()
+    // The stored location is where the user arrived: no request until a fresh fix comes in.
+    assertEquals(RouteUiState.Loading, viewModel.routeUiState)
+    assertEquals(calls, repository.callCount)
+
+    viewModel.startLocationUpdates() // what the lifecycle effect does once arrival is reset
+    runCurrent()
+    emit(provider, onRouteLocation) // the user has walked away
+    assertFalse(viewModel.hasArrived.value)
+    assertEquals(calls + 1, repository.callCount)
+    assertEquals(
+        RouteUiState.Success(repository.route, primaryRouteDestination),
+        viewModel.routeUiState,
+    )
+  }
+
+  @Test
+  fun loadRouteTo_sameArtworkAfterArrival_arrivesAgainWhenStillAtDestination() = runTest {
+    val provider = FakeLocationProvider()
+    val viewModel = createRouteViewModel(provider, primaryRouteRepository())
+    startPrimaryRoute(viewModel, provider)
+    emit(provider, locationWithinArrivalThreshold)
+
+    viewModel.loadRouteTo(primaryRouteDestination)
+    viewModel.startLocationUpdates()
+    runCurrent()
+    emit(provider, locationWithinArrivalThreshold) // the user is still there
+
+    assertTrue(viewModel.hasArrived.value)
+  }
+
+  @Test
   fun clearRoute_afterArrival_resetsArrival() = runTest {
     val provider = FakeLocationProvider()
     val viewModel = createRouteViewModel(provider, primaryRouteRepository())
