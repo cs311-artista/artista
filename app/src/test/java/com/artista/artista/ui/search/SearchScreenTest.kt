@@ -2,6 +2,7 @@
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.search
 
+import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.mutableStateOf
@@ -492,6 +493,61 @@ class SearchScreenTest {
 
   // endregion
 
+  // region Artist suggestions
+
+  @Test
+  fun artistSuggestions_showLabelAndDescriptionOnArtistsTab() {
+    val withDescription =
+        artistCandidate(id = "Q5582", label = "Vincent van Gogh", description = "Dutch painter")
+    val withoutDescription = artistCandidate(id = "Q1", label = "Anonymous", description = null)
+
+    showArtistSuggestions(listOf(withDescription, withoutDescription))
+
+    composeTestRule.onNodeWithText("Vincent van Gogh").assertIsDisplayed()
+    composeTestRule.onNodeWithText("Dutch painter").assertIsDisplayed()
+    composeTestRule.onNodeWithText("Anonymous").assertIsDisplayed()
+    composeTestRule
+        .onAllNodesWithTag(SearchScreenTestTags.SEARCH_ARTIST_RECOMMENDATION)
+        .assertCountEquals(2 * 2) // each row carries the tag on its Surface and its ListItem
+  }
+
+  @Test
+  fun artistSuggestions_whenRowIsClicked_notifiesSelectionAndClosesSuggestions() {
+    val candidate =
+        artistCandidate(id = "Q5582", label = "Vincent van Gogh", description = "Dutch painter")
+    var selected: ArtistCandidate? = null
+    var suggestingValue: Boolean? = null
+
+    showArtistSuggestions(
+        candidates = listOf(candidate),
+        onArtistRecommendationSelected = { selected = it },
+        onSuggestingChange = { suggestingValue = it },
+    )
+
+    // Semantic click: performClick() does not reach clickable rows in this Robolectric window.
+    composeTestRule
+        .onNodeWithText("Vincent van Gogh")
+        .performSemanticsAction(SemanticsActions.OnClick)
+
+    composeTestRule.runOnIdle {
+      assertEquals(candidate, selected)
+      assertEquals(false, suggestingValue)
+    }
+  }
+
+  @Test
+  fun artistSuggestions_areNotShownOnArtworksTab() {
+    val candidate = artistCandidate(id = "Q5582", label = "Vincent van Gogh", description = null)
+
+    showArtistSuggestions(listOf(candidate), selectedTab = SearchTab.ARTWORKS)
+
+    composeTestRule
+        .onAllNodesWithTag(SearchScreenTestTags.SEARCH_ARTIST_RECOMMENDATION)
+        .assertCountEquals(0)
+  }
+
+  // endregion
+
   // region Helpers
 
   private fun createViewModel(
@@ -555,6 +611,38 @@ class SearchScreenTest {
     return object : WikiDataRepository by base {
       override suspend fun getArtistsFromQuery(query: String, limit: Int): List<Artist> = artists
     }
+  }
+
+  private fun artistCandidate(id: String, label: String, description: String?) =
+      ArtistCandidate(qid = id, label = label, description = description)
+
+  /**
+   * Renders the stateless screen with the suggestions pane open and the given artist candidates.
+   */
+  private fun showArtistSuggestions(
+      candidates: List<ArtistCandidate>,
+      selectedTab: SearchTab = SearchTab.ARTISTS,
+      onArtistRecommendationSelected: (ArtistCandidate) -> Unit = {},
+      onSuggestingChange: (Boolean) -> Unit = {},
+  ) {
+    val uiState =
+        SearchScreenUiState()
+            .copy(
+                selectedTab = selectedTab,
+                isSuggesting = true,
+                artistRecommendations = candidates,
+            )
+    composeTestRule.setContent {
+      MaterialTheme {
+        SearchScreenContent(
+            uiState = uiState,
+            textFieldState = TextFieldState(),
+            onArtistRecommendationSelected = onArtistRecommendationSelected,
+            onSuggestingChange = onSuggestingChange,
+        )
+      }
+    }
+    composeTestRule.waitForIdle()
   }
 
   // endregion

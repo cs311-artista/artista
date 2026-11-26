@@ -24,7 +24,6 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.clearText
-import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bookmark
@@ -71,7 +70,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.artista.artista.R
 import com.artista.artista.model.artist.Artist
@@ -84,7 +82,6 @@ import com.artista.artista.ui.artwork.ArtworkCard
 import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.search.SearchScreenTestTags.SEARCH_BACK_BUTTON
-import com.artista.artista.ui.theme.ArtistaTheme
 import com.artista.artista.ui.theme.Dimensions
 import com.artista.artista.ui.theme.SearchBarPalette
 
@@ -956,35 +953,5 @@ private fun ArtworkResults(
           onSaveClick = onSaveClick,
       )
     }
-  }
-}
-
-/** Previews the Artworks tab with suggestions open, as in the design. */
-@Preview(showBackground = true)
-@Composable
-internal fun SearchScreenPreview() {
-  ArtistaTheme {
-    SearchScreenContent(
-        uiState =
-            SearchScreenUiState(
-                query = "Mona Li",
-                savedRecommendations =
-                    listOf(ArtworkCandidate("Q12418", "Mona Lisa", "Leonardo da Vinci")),
-                wikiDataRecommendations = listOf(ArtworkCandidate("Q1", "Mona Lisa (copy)", null)),
-            ),
-        textFieldState = rememberTextFieldState(initialText = "Mona Li"),
-    )
-  }
-}
-
-/** Previews the Artists tab with suggestions open, as in the design. */
-@Preview(showBackground = true)
-@Composable
-internal fun SearchScreenArtistsPreview() {
-  ArtistaTheme {
-    SearchScreenContent(
-        uiState = SearchScreenUiState(query = "Carl"),
-        textFieldState = rememberTextFieldState(initialText = "Carl"),
-    )
   }
 }
