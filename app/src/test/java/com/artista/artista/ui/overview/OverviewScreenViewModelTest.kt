@@ -19,6 +19,7 @@ import com.artista.artista.model.location.FakeLocationProvider
 import com.artista.artista.model.map.Location
 import com.artista.artista.model.map.UserLocation
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -159,6 +160,72 @@ class OverviewScreenViewModelTest {
 
     assertEquals(null, viewModel.uiState.value.errorMessageRes)
     assertEquals(expectedArtworks, viewModel.uiState.value.artworks)
+  }
+
+  /**
+   * Checks that refreshes requested while a load is running do not start a second load, so a
+   * failing parallel query cannot replace the loaded artworks with an error.
+   *
+   * @author Timz3rr
+   */
+  @Test
+  fun overviewViewModel_whenRefreshedWhileLoading_loadsOnlyOnce() = runTest {
+    val expectedArtworks =
+        listOf(artwork(name = "The Starry Night", artistName = "Vincent van Gogh"))
+    val loadGate = CompletableDeferred<Unit>()
+    var loadCount = 0
+    val repository =
+        object : WikiDataRepository by ArtworkRepositoryLocal() {
+          override suspend fun getArtworksNearLocation(
+              searchArea: SearchArea,
+              typeValues: List<ArtworkType>,
+              limit: Int,
+          ): List<Artwork> {
+            loadCount++
+            if (loadCount > 1) throw AppException.Network()
+            loadGate.await()
+            return expectedArtworks
+          }
+        }
+    val viewModel = OverviewViewModel(repository, ArtworkRepositoryLocal(), FakeLocationProvider())
+
+    advanceUntilIdle()
+    viewModel.refreshUiState()
+    viewModel.refreshUiState()
+    loadGate.complete(Unit)
+    advanceUntilIdle()
+
+    assertEquals(1, loadCount)
+    assertEquals(null, viewModel.uiState.value.errorMessageRes)
+    assertEquals(expectedArtworks, viewModel.uiState.value.artworks)
+  }
+
+  /**
+   * Checks that a refresh requested after the previous load finished starts a new load.
+   *
+   * @author Timz3rr
+   */
+  @Test
+  fun overviewViewModel_whenRefreshedAfterLoadFinished_loadsAgain() = runTest {
+    var loadCount = 0
+    val repository =
+        object : WikiDataRepository by ArtworkRepositoryLocal() {
+          override suspend fun getArtworksNearLocation(
+              searchArea: SearchArea,
+              typeValues: List<ArtworkType>,
+              limit: Int,
+          ): List<Artwork> {
+            loadCount++
+            return emptyList()
+          }
+        }
+    val viewModel = OverviewViewModel(repository, ArtworkRepositoryLocal(), FakeLocationProvider())
+
+    advanceUntilIdle()
+    viewModel.refreshUiState()
+    advanceUntilIdle()
+
+    assertEquals(2, loadCount)
   }
 
   /** Verifies toggling an artwork saves and removes it while updating bookmark state. */
