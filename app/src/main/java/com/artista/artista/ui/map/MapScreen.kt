@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.Image
+import androidx.compose.material.icons.outlined.MyLocation
 import androidx.compose.material.icons.outlined.NearMe
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -33,6 +34,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -153,6 +155,9 @@ object MapScreenTestTags {
 
   /** Tag identifying the dismiss action on the selected-artwork card. */
   const val ARTWORK_CARD_DISMISS = "map_artwork_card_dismiss"
+
+  /** Tag identifying the map's recenter action. */
+  const val RECENTER_BUTTON = "map_recenter_button"
 }
 
 /**
@@ -322,6 +327,18 @@ fun MapScreen(
           )
         }
       }
+    }
+
+    if (userLocation != null) {
+      MapRecenterButton(
+          onClick = { cameraPositionState.position = cameraPositionFor(userLocation) },
+          modifier =
+              Modifier.align(Alignment.BottomEnd)
+                  .padding(
+                      end = Dimensions.mapRecenterButtonEndPadding,
+                      bottom = Dimensions.mapRecenterButtonBottomPadding,
+                  ),
+      )
     }
 
     RouteOverlay(
@@ -760,6 +777,29 @@ private fun RouteMessageCard(
         }
       }
     }
+  }
+}
+
+/**
+ * Draws the map control that recenters the camera on the user's location.
+ *
+ * The control is only drawn once a location is known; the caller positions it above Google's zoom
+ * controls so the two never overlap.
+ *
+ * @param onClick called when the user taps the control
+ * @param modifier modifier applied to the control, including its placement on the map
+ * @author timo-by
+ */
+@Composable
+internal fun MapRecenterButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+  SmallFloatingActionButton(
+      onClick = onClick,
+      modifier = modifier.testTag(MapScreenTestTags.RECENTER_BUTTON),
+  ) {
+    Icon(
+        imageVector = Icons.Outlined.MyLocation,
+        contentDescription = stringResource(R.string.map_recenter),
+    )
   }
 }
 

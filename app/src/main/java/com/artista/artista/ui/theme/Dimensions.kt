@@ -204,6 +204,13 @@ internal object Dimensions {
   val mapArtworkCardImageSpacing = 6.dp
   val mapArtworkCardCompactVerticalPadding = 4.dp
 
+  /**
+   * Bottom offset that keeps the recenter button above Google's zoom controls: the 110 dp content
+   * padding, the ~96 dp zoom-control strip and a 12 dp gap.
+   */
+  val mapRecenterButtonBottomPadding = 218.dp
+  val mapRecenterButtonEndPadding = 16.dp
+
   // Map route overlays.
   val mapRouteOverlayHorizontalPadding = 16.dp
   val mapRouteOverlayTopPadding = 60.dp

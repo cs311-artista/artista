@@ -78,6 +78,7 @@
     <string name="map_artwork_navigate">Navigate to artwork</string>
     <string name="map_artwork_dismiss">Dismiss artwork</string>
     <string name="map_artwork_no_image">No image available</string>
+    <string name="map_recenter">Recenter on your location</string>
     <string name="map_route_loading">Finding a walking route...</string>
     <string name="map_route_no_route">No route found.</string>
     <string name="map_route_recalculate">Recalculate route</string>
