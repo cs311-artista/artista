@@ -538,16 +538,22 @@ class MapViewModel(
   }
 
   /**
-   * Clears the selected artwork card when no route is requested or shown.
+   * Clears the selected artwork when the map background is tapped.
    *
-   * Tapping the map background is the second way to close the card, after its X. A route keeps its
-   * card, because tapping the map must not end the navigation.
+   * A plain selection is cleared on its own. In the no-route, location-unavailable and error states
+   * the tap behaves like X and clears the selection with the message card, because nothing is being
+   * navigated to. A route that is loading or shown keeps its card: a stray tap must not end the
+   * navigation.
    *
    * @author timo-by
    */
   fun dismissSelectedArtwork() {
-    if (_routeUiState.value != RouteUiState.Idle) return
-    _uiState.update { it.copy(selectedArtwork = null) }
+    when (_routeUiState.value) {
+      RouteUiState.Idle -> _uiState.update { it.copy(selectedArtwork = null) }
+      RouteUiState.Loading,
+      is RouteUiState.Success -> return
+      else -> clearRoute()
+    }
   }
 
   /**

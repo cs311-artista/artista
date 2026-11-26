@@ -459,7 +459,32 @@ class MapViewModelTest {
   }
 
   @Test
-  fun dismissSelectedArtwork_whenRouteErrorShown_thenKeepsSelectionAndError() = runTest {
+  fun dismissSelectedArtwork_whenRouteLoading_thenKeepsSelectionAndRequest() = runTest {
+    val artwork = artworkWithLocation("destination")
+    val repository = FakeWalkingRouteRepository(blockCalls = true)
+    val viewModel =
+        MapViewModel(
+            FakeWikiDataRepository(listOf(artwork)),
+            EmptySavedArtworksRepository(),
+            repository,
+            FakeLocationProvider(),
+        )
+    viewModel.updateUserLocation(UserLocation(46.52, 6.63))
+    viewModel.loadRouteTo(artwork)
+    runCurrent()
+    assertEquals(RouteUiState.Loading, viewModel.routeUiState)
+
+    viewModel.dismissSelectedArtwork()
+    repository.release(0)
+    advanceUntilIdle()
+
+    assertEquals(artwork, viewModel.uiState.selectedArtwork)
+    assertEquals(RouteUiState.Success(repository.route, artwork), viewModel.routeUiState)
+    assertEquals(1, repository.callCount)
+  }
+
+  @Test
+  fun dismissSelectedArtwork_whenRouteErrorShown_thenClearsSelectionAndError() = runTest {
     val artwork = artworkWithLocation("destination")
     val viewModel =
         MapViewModel(
@@ -474,8 +499,22 @@ class MapViewModelTest {
 
     viewModel.dismissSelectedArtwork()
 
-    assertEquals(artwork, viewModel.uiState.selectedArtwork)
-    assertTrue(viewModel.routeUiState is RouteUiState.Error)
+    assertNull(viewModel.uiState.selectedArtwork)
+    assertEquals(RouteUiState.Idle, viewModel.routeUiState)
+  }
+
+  @Test
+  fun dismissSelectedArtwork_whenLocationUnavailable_thenClearsSelectionAndState() = runTest {
+    val artwork = artworkWithLocation("destination")
+    val viewModel = createViewModel(FakeLocationProvider())
+    viewModel.loadRouteTo(artwork)
+    viewModel.setLocationError(AppException.UserLocationError())
+    assertEquals(RouteUiState.LocationUnavailable, viewModel.routeUiState)
+
+    viewModel.dismissSelectedArtwork()
+
+    assertNull(viewModel.uiState.selectedArtwork)
+    assertEquals(RouteUiState.Idle, viewModel.routeUiState)
   }
 
   @Test
