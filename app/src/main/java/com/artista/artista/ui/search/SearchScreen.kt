@@ -391,7 +391,7 @@ private fun ArtistSearchBody(
                   }
           )
         }
-    uiState.resultArtworks.isEmpty() &&
+    uiState.resultArtist.isEmpty() &&
         uiState.hasAlreadySearched &&
         !uiState.hasInvalidSearchInput -> EmptySearchResults(modifier = modifier)
     else ->
