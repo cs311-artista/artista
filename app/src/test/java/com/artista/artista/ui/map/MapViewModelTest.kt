@@ -233,7 +233,7 @@ class MapViewModelTest {
   }
 
   @Test
-  fun selectArtwork_whenSameArtworkSelectedAgain_thenClearsSelectionAndRoute() = runTest {
+  fun selectArtwork_whenSameArtworkIsRouteDestination_thenKeepsSelectionAndRoute() = runTest {
     val artwork = artworkWithLocation("selected")
     val viewModel = createViewModel(FakeLocationProvider())
     viewModel.updateUserLocation(UserLocation(46.52, 6.63))
@@ -242,8 +242,45 @@ class MapViewModelTest {
 
     viewModel.selectArtwork(artwork)
 
+    assertEquals(artwork, viewModel.uiState.selectedArtwork)
+    assertTrue(viewModel.routeUiState is RouteUiState.Success)
+  }
+
+  @Test
+  fun selectArtwork_whenSameArtworkSelectedAgainWhileIdle_thenClearsSelection() = runTest {
+    val artwork = artworkWithLocation("selected")
+    val viewModel = createViewModel(FakeLocationProvider())
+    viewModel.selectArtwork(artwork)
+
+    viewModel.selectArtwork(artwork)
+
     assertNull(viewModel.uiState.selectedArtwork)
     assertEquals(RouteUiState.Idle, viewModel.routeUiState)
+  }
+
+  @Test
+  fun selectArtwork_whenRouteLoadingForSameArtwork_thenKeepsRequest() = runTest {
+    val artwork = artworkWithLocation("destination")
+    val repository = FakeWalkingRouteRepository(blockCalls = true)
+    val viewModel =
+        MapViewModel(
+            FakeWikiDataRepository(listOf(artwork)),
+            EmptySavedArtworksRepository(),
+            repository,
+            FakeLocationProvider(),
+        )
+    viewModel.updateUserLocation(UserLocation(46.52, 6.63))
+    viewModel.loadRouteTo(artwork)
+    runCurrent()
+    assertEquals(RouteUiState.Loading, viewModel.routeUiState)
+
+    viewModel.selectArtwork(artwork)
+    repository.release(0)
+    advanceUntilIdle()
+
+    assertEquals(artwork, viewModel.uiState.selectedArtwork)
+    assertEquals(RouteUiState.Success(repository.route, artwork), viewModel.routeUiState)
+    assertEquals(1, repository.callCount)
   }
 
   @Test

@@ -508,14 +508,16 @@ class MapViewModel(
   /**
    * Selects [artwork] on the map without starting a route.
    *
-   * Selecting the artwork that is already selected clears it. Selecting a different artwork clears
-   * the route that belonged to the previous selection, so the card and the drawn route always
-   * describe the same artwork.
+   * The artwork the user is already routed to is a no-op: tapping a pin must not end the navigation
+   * the route card is describing. A selected artwork that is not being routed to clears on a second
+   * tap. Selecting a different artwork clears the route that belonged to the previous selection, so
+   * the card and the drawn route always describe the same artwork.
    *
    * @param artwork artwork whose card should be shown
    * @author timo-by
    */
   fun selectArtwork(artwork: Artwork) {
+    if (isRoutingTo(artwork)) return
     if (_uiState.value.selectedArtwork?.uid == artwork.uid) {
       clearRoute()
       return
