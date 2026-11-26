@@ -328,6 +328,7 @@ class MapArtworkCardTest {
             onRecalculateRoute = {},
             recalculationUiState = RouteRecalculationUiState(),
             hasArrived = false,
+            onDetailsButtonClicked = {},
         )
       }
     }
