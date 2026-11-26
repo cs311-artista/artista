@@ -158,7 +158,7 @@ fun ArtistCard(
             fallbackTestTag = fallbackTestTag,
             modifier =
                 Modifier.fillMaxWidth()
-                    .aspectRatio(4f / 3f)
+                    .aspectRatio(Dimensions.ARTIST_CARD_IMAGE_ASPECT_RATIO)
                     .clip(RoundedCornerShape(Dimensions.cornerRadiusSmall))
                     .background(colors.imagePlaceholderColor),
         )
@@ -175,9 +175,10 @@ fun ArtistCard(
           modifier = Modifier.padding(top = Dimensions.artistCardNameTopSpacing),
           style = MaterialTheme.typography.bodySmall,
           textAlign = TextAlign.Center,
-          // Two lines for every name keeps all the cards of a row at the same height.
-          minLines = 2,
-          maxLines = 2,
+          // The same number of lines for every name keeps all the cards of a row at the same
+          // height.
+          minLines = Dimensions.ARTIST_CARD_NAME_LINES,
+          maxLines = Dimensions.ARTIST_CARD_NAME_LINES,
           overflow = TextOverflow.Ellipsis,
       )
     }

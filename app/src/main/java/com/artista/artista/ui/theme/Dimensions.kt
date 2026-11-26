@@ -126,6 +126,15 @@ internal object Dimensions {
   val artistCardContentPadding = 8.dp
   val artistCardSelectionIndicatorPadding = 4.dp
   val artistCardNameTopSpacing = 8.dp
+
+  /** Width over height of the picture in an artist card, a landscape frame for portraits. */
+  const val ARTIST_CARD_IMAGE_ASPECT_RATIO = 4f / 3f
+
+  /**
+   * Lines given to an artist's name in an artist card, both as minimum and maximum, so every card
+   * of a grid row has the same height.
+   */
+  const val ARTIST_CARD_NAME_LINES = 2
   val preferencesSaveButtonHeight = standardControlHeight
 
   // Profile screen.
