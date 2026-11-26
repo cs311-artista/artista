@@ -15,6 +15,7 @@ import java.time.Instant
 import java.util.Date
 import kotlinx.coroutines.CompletableDeferred
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -106,6 +107,113 @@ class SavedArtworksViewModelTest {
     runPendingCoroutines()
 
     assertEquals(listOf(newerArtwork), viewModel.uiState.value.artworks)
+  }
+
+  /** Verifies that the artworks stored on the device are shown without waiting for the network. */
+  @Test
+  fun refreshSavedArtworks_withCachedArtworks_showsThemWithoutWaitingForNetwork() {
+    repository.cachedList = listOf(monaLisa)
+    val neverAnswers = CompletableDeferred<List<Artwork>>()
+    repository.pendingLoads += neverAnswers
+
+    viewModel.refreshSavedArtworks()
+    runPendingCoroutines()
+
+    val state = viewModel.uiState.value
+    assertEquals(listOf(monaLisa), state.artworks)
+    assertEquals(listOf("Leonardo da Vinci"), state.artistOptions)
+    assertFalse(state.isLoading)
+    neverAnswers.cancel()
+  }
+
+  /** Verifies that the cached list is replaced by the up-to-date one once it arrives. */
+  @Test
+  fun refreshSavedArtworks_withCachedArtworks_replacesThemWithUpToDateList() {
+    repository.cachedList = listOf(monaLisa)
+    val freshLoad = CompletableDeferred<List<Artwork>>()
+    repository.pendingLoads += freshLoad
+    viewModel.refreshSavedArtworks()
+    runPendingCoroutines()
+
+    freshLoad.complete(listOf(monaLisa, guernica))
+    runPendingCoroutines()
+
+    assertEquals(listOf(monaLisa, guernica), viewModel.uiState.value.artworks)
+  }
+
+  /** Verifies that a failed refresh, e.g. offline, keeps the cached list without an error. */
+  @Test
+  fun refreshSavedArtworks_whenRefreshFailsAfterCache_keepsCachedListWithoutError() {
+    repository.cachedList = listOf(monaLisa)
+    repository.loadFailure = AppException.Network()
+
+    viewModel.refreshSavedArtworks()
+    runPendingCoroutines()
+
+    val state = viewModel.uiState.value
+    assertEquals(listOf(monaLisa), state.artworks)
+    assertFalse(state.hasLoadFailed)
+    assertNull(state.loadErrorMessageResId)
+  }
+
+  /**
+   * Verifies that a refresh failing with an unexpected exception, not an AppException, also keeps
+   * the cached list without an error.
+   */
+  @Test
+  fun refreshSavedArtworks_whenRefreshFailsUnexpectedlyAfterCache_keepsCachedListWithoutError() {
+    repository.cachedList = listOf(monaLisa)
+    repository.loadFailure = IllegalStateException("Simulated unexpected failure")
+
+    viewModel.refreshSavedArtworks()
+    runPendingCoroutines()
+
+    val state = viewModel.uiState.value
+    assertEquals(listOf(monaLisa), state.artworks)
+    assertFalse(state.hasLoadFailed)
+    assertNull(state.loadErrorMessageResId)
+  }
+
+  /** Verifies that an empty cache keeps the loading state until the network answers. */
+  @Test
+  fun refreshSavedArtworks_withEmptyCache_staysLoadingUntilNetworkAnswers() {
+    val freshLoad = CompletableDeferred<List<Artwork>>()
+    repository.pendingLoads += freshLoad
+
+    viewModel.refreshSavedArtworks()
+    runPendingCoroutines()
+    assertTrue(viewModel.uiState.value.isLoading)
+
+    freshLoad.complete(listOf(guernica))
+    runPendingCoroutines()
+
+    assertFalse(viewModel.uiState.value.isLoading)
+    assertEquals(listOf(guernica), viewModel.uiState.value.artworks)
+  }
+
+  /** Verifies that cached artworks are filtered by the filter already applied. */
+  @Test
+  fun refreshSavedArtworks_withCachedArtworks_appliesActiveFilter() {
+    viewModel.applyFilter(ArtworkFilter(artists = setOf("Pablo Picasso")))
+    repository.cachedList = listOf(monaLisa, guernica)
+    repository.pendingLoads += CompletableDeferred<List<Artwork>>()
+
+    viewModel.refreshSavedArtworks()
+    runPendingCoroutines()
+
+    assertEquals(listOf(guernica), viewModel.uiState.value.artworks)
+  }
+
+  /** Verifies that a failing cache read is reported like a failing load. */
+  @Test
+  fun refreshSavedArtworks_whenCacheReadFails_showsLoadError() {
+    repository.cacheFailure = AppException.Unauthorized()
+
+    viewModel.refreshSavedArtworks()
+    runPendingCoroutines()
+
+    assertTrue(viewModel.uiState.value.hasLoadFailed)
+    assertEquals(R.string.error_unauthorized, viewModel.uiState.value.loadErrorMessageResId)
   }
 
   /** Verifies that applying a filter updates the active filter and filters the artwork list. */
@@ -288,6 +396,12 @@ class SavedArtworksViewModelTest {
     /** When set, [removeArtworkFromSaved] throws it. */
     var removeFailure: Exception? = null
 
+    /** Saved artworks stored on the device, returned by [getCachedSavedArtworks]. */
+    var cachedList: List<Artwork> = emptyList()
+
+    /** When set, [getCachedSavedArtworks] throws it. */
+    var cacheFailure: Exception? = null
+
     /** Saved artworks list returned when [pendingLoads] is empty. */
     var savedList: List<Artwork> = emptyList()
 
@@ -305,6 +419,17 @@ class SavedArtworksViewModelTest {
     override suspend fun getSavedArtworks(): List<Artwork> {
       loadFailure?.let { throw it }
       return pendingLoads.removeFirstOrNull()?.await() ?: savedList
+    }
+
+    override suspend fun getSavedArtwork(uid: ArtworkId): Artwork? = savedList.firstOrNull {
+      it.uid == uid
+    }
+
+    override suspend fun getCachedSavedArtwork(uid: ArtworkId): Artwork? = getSavedArtwork(uid)
+
+    override suspend fun getCachedSavedArtworks(): List<Artwork> {
+      cacheFailure?.let { throw it }
+      return cachedList
     }
   }
 }

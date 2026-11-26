@@ -105,6 +105,16 @@ class ArtworkRepositoryLocal : SavedArtworksRepository, WikiDataRepository {
     return artworksSaved.values.toList()
   }
 
+  override suspend fun getSavedArtwork(uid: ArtworkId): Artwork? {
+    if (uid.isBlank()) throw AppException.InvalidInput("uid is empty")
+    return artworksSaved[uid]
+  }
+
+  // Everything lives in memory, so the local copy is always the complete, up-to-date one.
+  override suspend fun getCachedSavedArtwork(uid: ArtworkId): Artwork? = getSavedArtwork(uid)
+
+  override suspend fun getCachedSavedArtworks(): List<Artwork> = getSavedArtworks()
+
   /**
    * This function is a helper to instantiate a test/demo environment. It accesses parts of the
    * Repository which would not be accessible like it in production code. Its purpose is to set up

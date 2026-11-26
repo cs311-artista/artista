@@ -14,6 +14,8 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.auth
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreException
+import com.google.firebase.firestore.Source
 import com.google.firebase.firestore.firestore
 import java.util.Date
 import kotlinx.coroutines.tasks.await
@@ -88,6 +90,75 @@ class SavedArtworksRepositoryFirestore(
    */
   override suspend fun getSavedArtworks(): List<Artwork> = translateFirestoreErrors {
     savedArtworksCollection(currentUserId()).get().await().documents.map(::documentToArtwork)
+  }
+
+  /**
+   * Loads the current user's saved artworks from Firestore's local cache only, never waiting for
+   * the network.
+   *
+   * A default `get()` tries the server first, which can take minutes while the device is offline,
+   * so this read lets the saved list appear right away from the copy already on the device.
+   *
+   * @return the cached saved artworks, empty if none are in the local cache
+   * @throws AppException.Unauthorized if no user is authenticated
+   * @throws AppException.InvalidData if a cached document is malformed
+   * @throws AppException if Firestore cannot read its local cache
+   */
+  override suspend fun getCachedSavedArtworks(): List<Artwork> = translateFirestoreErrors {
+    // Unlike a single document, a query on the cache never fails on a miss: it returns the
+    // documents it has, possibly none.
+    savedArtworksCollection(currentUserId())
+        .get(Source.CACHE)
+        .await()
+        .documents
+        .map(::documentToArtwork)
+  }
+
+  /**
+   * Loads one saved artwork from Firestore, falling back to the local cache when offline.
+   *
+   * @param uid identifier of the artwork to load
+   * @return the saved artwork, or null if the current user has not saved it
+   * @throws AppException.InvalidInput if [uid] is blank
+   * @throws AppException.Unauthorized if no user is authenticated
+   * @throws AppException.InvalidData if the saved artwork document is malformed
+   * @throws AppException if Firestore cannot complete the read
+   */
+  override suspend fun getSavedArtwork(uid: ArtworkId): Artwork? = translateFirestoreErrors {
+    requireArtworkId(uid)
+    savedArtworkDocument(currentUserId(), uid)
+        .get()
+        .await()
+        .takeIf(DocumentSnapshot::exists)
+        ?.let(::documentToArtwork)
+  }
+
+  /**
+   * Loads one saved artwork from Firestore's local cache only, never waiting for the network.
+   *
+   * A default `get()` tries the server first, which can take minutes while the device is offline,
+   * so this read lets the artwork open right away from the copy already on the device.
+   *
+   * @param uid identifier of the artwork to load
+   * @return the cached saved artwork, or null if it is not saved or not in the local cache
+   * @throws AppException.InvalidInput if [uid] is blank
+   * @throws AppException.Unauthorized if no user is authenticated
+   * @throws AppException.InvalidData if the cached document is malformed
+   * @throws AppException if Firestore cannot read its local cache
+   */
+  override suspend fun getCachedSavedArtwork(uid: ArtworkId): Artwork? = translateFirestoreErrors {
+    requireArtworkId(uid)
+    val snapshot =
+        try {
+          savedArtworkDocument(currentUserId(), uid).get(Source.CACHE).await()
+        } catch (exception: FirebaseFirestoreException) {
+          // A cache-only read reports a document missing from the cache as UNAVAILABLE: that is a
+          // cache miss, not a failure, so the caller can fall back to a regular read.
+          if (exception.code == FirebaseFirestoreException.Code.UNAVAILABLE)
+              return@translateFirestoreErrors null
+          throw exception
+        }
+    snapshot.takeIf(DocumentSnapshot::exists)?.let(::documentToArtwork)
   }
 
   /** Returns the authenticated user's UID or rejects access when signed out. */

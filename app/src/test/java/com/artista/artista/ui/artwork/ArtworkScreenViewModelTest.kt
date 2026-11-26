@@ -7,6 +7,7 @@ import com.artista.artista.R
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkId
+import com.artista.artista.model.artwork.ArtworkRepositoryLocal
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.artwork.SavedArtworksRepository
 import com.artista.artista.model.artwork.WikiDataRepository
@@ -282,6 +283,12 @@ class ArtworkScreenViewModelTest {
               override suspend fun removeArtworkFromSaved(uid: ArtworkId) = Unit
 
               override suspend fun getSavedArtworks(): List<Artwork> = emptyList()
+
+              override suspend fun getSavedArtwork(uid: ArtworkId): Artwork? = null
+
+              override suspend fun getCachedSavedArtwork(uid: ArtworkId): Artwork? = null
+
+              override suspend fun getCachedSavedArtworks(): List<Artwork> = emptyList()
             }
         viewModel =
             ArtworkScreenViewModel(
@@ -395,6 +402,250 @@ class ArtworkScreenViewModelTest {
         ArtworkAddressState.Found("New address"),
         viewModel.uiState.value.addressState,
     )
+  }
+
+  /** Checks that a cached saved artwork is displayed without waiting for the network. */
+  @Test
+  fun setArtwork_whenSavedArtworkIsCached_showsItWithoutWaitingForNetwork() = runTest {
+    val neverAnswers = CompletableDeferred<Artwork?>()
+    viewModel = cacheFirst(cached = sampleArtwork, fresh = neverAnswers)
+    advanceUntilIdle()
+
+    val state = viewModel.uiState.value
+    assertEquals(sampleArtwork, state.artwork)
+    assertFalse(state.isLoading)
+    assertTrue(state.isSaved)
+    assertFalse(state.hasLoadFailed)
+    neverAnswers.cancel()
+  }
+
+  /** Checks that a cached saved artwork is replaced by its up-to-date data once it arrives. */
+  @Test
+  fun setArtwork_whenCachedArtworkIsRefreshed_showsUpToDateData() = runTest {
+    val fresh = CompletableDeferred<Artwork?>()
+    val updatedArtwork = sampleArtwork.copy(description = "Updated description")
+    viewModel = cacheFirst(cached = sampleArtwork, fresh = fresh)
+    advanceUntilIdle()
+
+    fresh.complete(updatedArtwork)
+    advanceUntilIdle()
+
+    assertEquals(updatedArtwork, viewModel.uiState.value.artwork)
+    assertTrue(viewModel.uiState.value.isSaved)
+  }
+
+  /** Checks that a refresh moving the artwork looks up the address of its new coordinates. */
+  @Test
+  fun setArtwork_whenRefreshChangesLocation_looksUpNewAddress() = runTest {
+    val fresh = CompletableDeferred<Artwork?>()
+    viewModel = cacheFirst(cached = sampleArtwork, fresh = fresh)
+    advanceUntilIdle()
+    assertEquals(ArtworkAddressState.NoLocation, viewModel.uiState.value.addressState)
+
+    fresh.complete(sampleArtwork.copy(location = locatedArtwork.location))
+    advanceUntilIdle()
+
+    assertEquals(
+        ArtworkAddressState.Found(FakeAddressRepository.DEFAULT_ADDRESS),
+        viewModel.uiState.value.addressState,
+    )
+  }
+
+  /** Checks that a failed refresh, e.g. offline, keeps the cached artwork on screen. */
+  @Test
+  fun setArtwork_whenRefreshFails_keepsCachedArtwork() = runTest {
+    val fresh = CompletableDeferred<Artwork?>()
+    viewModel = cacheFirst(cached = sampleArtwork, fresh = fresh)
+    advanceUntilIdle()
+
+    fresh.completeExceptionally(AppException.Network())
+    advanceUntilIdle()
+
+    val state = viewModel.uiState.value
+    assertEquals(sampleArtwork, state.artwork)
+    assertTrue(state.isSaved)
+    assertFalse(state.hasLoadFailed)
+    assertEquals(null, state.errorMessageResId)
+  }
+
+  /**
+   * Checks that a refresh failing with an unexpected exception, not an AppException, also keeps the
+   * cached artwork on screen.
+   */
+  @Test
+  fun setArtwork_whenRefreshFailsUnexpectedly_keepsCachedArtwork() = runTest {
+    val fresh = CompletableDeferred<Artwork?>()
+    viewModel = cacheFirst(cached = sampleArtwork, fresh = fresh)
+    advanceUntilIdle()
+
+    fresh.completeExceptionally(IllegalStateException("Simulated unexpected failure"))
+    advanceUntilIdle()
+
+    val state = viewModel.uiState.value
+    assertEquals(sampleArtwork, state.artwork)
+    assertTrue(state.isSaved)
+    assertFalse(state.hasLoadFailed)
+    assertEquals(null, state.errorMessageResId)
+  }
+
+  /**
+   * Checks that a refresh finding the cached artwork no longer saved (e.g. unsaved on another
+   * device) turns the bookmark off and keeps the artwork on screen.
+   */
+  @Test
+  fun setArtwork_whenRefreshFindsArtworkUnsaved_turnsBookmarkOff() = runTest {
+    val fresh = CompletableDeferred<Artwork?>()
+    viewModel = cacheFirst(cached = sampleArtwork, fresh = fresh)
+    advanceUntilIdle()
+
+    fresh.complete(null)
+    advanceUntilIdle()
+
+    val state = viewModel.uiState.value
+    assertEquals(sampleArtwork, state.artwork)
+    assertFalse(state.isSaved)
+    assertFalse(state.hasLoadFailed)
+  }
+
+  /**
+   * Checks that a refresh finding the artwork unsaved leaves the bookmark alone while the user is
+   * saving it again, since the user's own change wins.
+   */
+  @Test
+  fun setArtwork_whenRefreshFindsArtworkUnsavedDuringSave_leavesBookmarkOn() = runTest {
+    val fresh = CompletableDeferred<Artwork?>()
+    val save = CompletableDeferred<Unit>()
+    viewModel = cacheFirst(cached = sampleArtwork, fresh = fresh, pendingSave = save)
+    advanceUntilIdle()
+    viewModel.toggleSaveArtwork() // Unsave, answers right away
+    advanceUntilIdle()
+    viewModel.toggleSaveArtwork() // Save again, still in progress
+    advanceUntilIdle()
+    assertTrue(viewModel.uiState.value.isSaveInProgress)
+
+    fresh.complete(null)
+    advanceUntilIdle()
+
+    assertTrue(viewModel.uiState.value.isSaved)
+    save.complete(Unit)
+    advanceUntilIdle()
+    assertFalse(viewModel.uiState.value.isSaveInProgress)
+    assertTrue(viewModel.uiState.value.isSaved)
+  }
+
+  /** Checks that a saved artwork missing from the cache is loaded with a regular read. */
+  @Test
+  fun setArtwork_whenSavedArtworkIsNotCached_loadsItFromRepository() = runTest {
+    viewModel = cacheFirst(cached = null, fresh = CompletableDeferred(sampleArtwork))
+    advanceUntilIdle()
+
+    assertEquals(sampleArtwork, viewModel.uiState.value.artwork)
+    assertTrue(viewModel.uiState.value.isSaved)
+  }
+
+  /** Checks that a saved artwork neither cached nor reachable offline shows the load error. */
+  @Test
+  fun setArtwork_whenNotCachedAndOffline_showsLoadError() = runTest {
+    val fresh = CompletableDeferred<Artwork?>()
+    fresh.completeExceptionally(AppException.Network())
+    viewModel = cacheFirst(cached = null, fresh = fresh)
+    advanceUntilIdle()
+
+    val state = viewModel.uiState.value
+    assertEquals(null, state.artwork)
+    assertTrue(state.hasLoadFailed)
+    assertEquals(R.string.error_network, state.loadErrorMessageResId)
+  }
+
+  /** Checks that an artwork that is not saved is still loaded from Wikidata. */
+  @Test
+  fun setArtwork_whenArtworkIsNotSaved_loadsItFromWikiData() = runTest {
+    val wikiDataArtwork = sampleArtwork.copy(description = "From Wikidata")
+    val countingWikiData =
+        object : WikiDataRepository by wikiDataRepository {
+          var requests = 0
+
+          override suspend fun getArtwork(uid: ArtworkId): Artwork {
+            requests++
+            return wikiDataArtwork
+          }
+        }
+    viewModel =
+        ArtworkScreenViewModel(
+            sampleArtwork.uid,
+            countingWikiData,
+            // A bare CompletableDeferred(null) would pick the parent-job overload and never
+            // complete, so the null answer is completed explicitly.
+            CacheFirstSavedRepository(
+                cached = null,
+                fresh = CompletableDeferred<Artwork?>().apply { complete(null) },
+            ),
+            addressRepository,
+        )
+    advanceUntilIdle()
+
+    assertEquals(1, countingWikiData.requests)
+    assertEquals(wikiDataArtwork, viewModel.uiState.value.artwork)
+    assertFalse(viewModel.uiState.value.isSaved)
+  }
+
+  /** Checks that an artwork neither saved nor found on Wikidata shows the not-found load error. */
+  @Test
+  fun setArtwork_whenWikiDataReturnsNull_showsNotFoundError() = runTest {
+    val emptyWikiData =
+        object : WikiDataRepository by wikiDataRepository {
+          override suspend fun getArtwork(qid: ArtworkId): Artwork? = null
+        }
+    viewModel =
+        ArtworkScreenViewModel(
+            sampleArtwork.uid,
+            emptyWikiData,
+            CacheFirstSavedRepository(
+                cached = null,
+                fresh = CompletableDeferred<Artwork?>().apply { complete(null) },
+            ),
+            addressRepository,
+        )
+    advanceUntilIdle()
+
+    val state = viewModel.uiState.value
+    assertEquals(null, state.artwork)
+    assertFalse(state.isLoading)
+    assertTrue(state.hasLoadFailed)
+    assertEquals(R.string.error_not_found, state.loadErrorMessageResId)
+  }
+
+  private fun cacheFirst(
+      cached: Artwork?,
+      fresh: CompletableDeferred<Artwork?>,
+      pendingSave: CompletableDeferred<Unit>? = null,
+  ): ArtworkScreenViewModel =
+      ArtworkScreenViewModel(
+          sampleArtwork.uid,
+          wikiDataRepository,
+          CacheFirstSavedRepository(cached, fresh, pendingSave),
+          addressRepository,
+      )
+
+  /**
+   * Saved-artworks repository whose cached copy is fixed and whose up-to-date read answers only
+   * when the test completes [fresh], to simulate a slow or offline network. When [pendingSave] is
+   * set, saving suspends until the test completes it; unsaving always succeeds right away.
+   */
+  private class CacheFirstSavedRepository(
+      private val cached: Artwork?,
+      private val fresh: CompletableDeferred<Artwork?>,
+      private val pendingSave: CompletableDeferred<Unit>? = null,
+  ) : SavedArtworksRepository by ArtworkRepositoryLocal() {
+    override suspend fun getCachedSavedArtwork(uid: ArtworkId): Artwork? = cached
+
+    override suspend fun getSavedArtwork(uid: ArtworkId): Artwork? = fresh.await()
+
+    override suspend fun saveArtwork(artwork: Artwork) {
+      pendingSave?.await()
+    }
+
+    override suspend fun removeArtworkFromSaved(uid: ArtworkId) = Unit
   }
 
   private fun located(addressRepository: AddressRepository): ArtworkScreenViewModel {

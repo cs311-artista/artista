@@ -100,6 +100,14 @@ internal class FakeSavedArtworksRepository(
   }
 
   override suspend fun getSavedArtworks(): List<Artwork> = savedArtworks.toList()
+
+  override suspend fun getSavedArtwork(uid: ArtworkId): Artwork? = savedArtworks.firstOrNull {
+    it.uid == uid
+  }
+
+  override suspend fun getCachedSavedArtwork(uid: ArtworkId): Artwork? = getSavedArtwork(uid)
+
+  override suspend fun getCachedSavedArtworks(): List<Artwork> = getSavedArtworks()
 }
 
 /** In-memory Wikidata repository that searches the shared artwork samples. */

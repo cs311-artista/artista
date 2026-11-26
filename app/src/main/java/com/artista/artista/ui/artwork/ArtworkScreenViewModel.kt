@@ -3,6 +3,7 @@
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 package com.artista.artista.ui.artwork
 
+import android.util.Log
 import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -17,6 +18,7 @@ import com.artista.artista.model.map.Coordinate
 import com.artista.artista.model.map.Location
 import com.artista.artista.ui.error.launchCatching
 import com.artista.artista.ui.error.toMessageRes
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -136,33 +138,98 @@ class ArtworkScreenViewModel(
           }
         },
     ) {
-      // isArtworkSaved may throw an exception if the user is not authenticated, so we catch it and
-      // treat it as "not saved". Displaying an artwork should not depend on whether the current
-      // user is logged in.
-      val saved =
-          try {
-            savedArtworksRepository.isArtworkSaved(artworkId)
-          } catch (appException: AppException.Unauthorized) {
-            false
-          }
-      val artwork =
-          if (saved) {
-            savedArtworksRepository.getSavedArtworks().filter { it.uid == artworkId }[0]
-          } else {
-            wikiDataRepository.getArtwork(artworkId)
-          }
-      _uiState.update {
-        it.copy(
-            artwork = artwork,
-            isLoading = false,
-            isSaved = saved,
-            hasLoadFailed = false,
-            loadErrorMessageResId = null,
-            errorMessageResId = null,
-        )
+      // The saved-artwork reads throw Unauthorized when nobody is signed in, which only means the
+      // artwork cannot be saved: displaying an artwork should not depend on being logged in.
+      val cached = readSavedArtworkOrNull { getCachedSavedArtwork(artworkId) }
+      if (cached != null) {
+        // Shown right away so a saved artwork opens instantly, even offline.
+        showArtwork(cached, isSaved = true)
+        refreshSavedArtwork(artworkId, cached)
+        return@launchCatching
       }
-      loadAddress(artwork?.location)
+
+      val saved = readSavedArtworkOrNull { getSavedArtwork(artworkId) }
+      // getArtwork documents NotFound for a missing artwork but its signature is nullable, so a
+      // null answer is reported the same way instead of showing an empty screen.
+      val artwork =
+          saved
+              ?: wikiDataRepository.getArtwork(artworkId)
+              ?: throw AppException.NotFound("No artwork found for uid $artworkId")
+      showArtwork(artwork, isSaved = saved != null)
     }
+  }
+
+  /**
+   * Runs a saved-artwork read, treating a signed-out user as "not saved".
+   *
+   * @param read the read to run on [savedArtworksRepository]
+   * @return the artwork read, or null if it is not saved or no user is signed in
+   */
+  private suspend fun readSavedArtworkOrNull(
+      read: suspend SavedArtworksRepository.() -> Artwork?
+  ): Artwork? =
+      try {
+        savedArtworksRepository.read()
+      } catch (appException: AppException.Unauthorized) {
+        null
+      }
+
+  /**
+   * Replaces a cached saved artwork with its up-to-date data, once the network answers.
+   *
+   * The cached artwork is already on screen, so a failed refresh (e.g. offline) only keeps it there
+   * instead of failing the screen. If the refresh shows the artwork is no longer saved (e.g. the
+   * user unsaved it on another device), the bookmark is turned off, unless the user is toggling it
+   * right now.
+   *
+   * @param artworkId identifier of the displayed artwork
+   * @param cached the artwork currently displayed, read from the local cache
+   */
+  private suspend fun refreshSavedArtwork(artworkId: ArtworkId, cached: Artwork) {
+    val fresh =
+        try {
+          savedArtworksRepository.getSavedArtwork(artworkId)
+        } catch (cancellation: CancellationException) {
+          throw cancellation
+        } catch (exception: Exception) {
+          // Any failure, not only an AppException: an exception reaching launchCatching would run
+          // its onError and wipe the cached copy that is already on screen.
+          Log.w(
+              TAG,
+              "Could not refresh saved artwork '$artworkId', keeping the cached copy",
+              exception,
+          )
+          return
+        }
+    if (fresh == null) {
+      // A successful read returning null means the artwork is no longer saved. Keeping the
+      // bookmark on would make the next tap fail with NotFound.
+      _uiState.update { if (it.isSaveInProgress) it else it.copy(isSaved = false) }
+      return
+    }
+    if (fresh == cached) return
+    _uiState.update { it.copy(artwork = fresh) }
+    if (fresh.location != cached.location) loadAddress(fresh.location)
+  }
+
+  /**
+   * Displays a loaded artwork and starts looking up its address.
+   *
+   * @param artwork the artwork to display
+   * @param isSaved whether the current user has saved it
+   */
+  private fun showArtwork(artwork: Artwork, isSaved: Boolean) {
+    _uiState.update {
+      it.copy(
+          artwork = artwork,
+          isLoading = false,
+          isSaved = isSaved,
+          hasLoadFailed = false,
+          loadErrorMessageResId = null,
+          errorMessageResId = null,
+      )
+    }
+    loadAddress(artwork.location)
   }
 
   /**

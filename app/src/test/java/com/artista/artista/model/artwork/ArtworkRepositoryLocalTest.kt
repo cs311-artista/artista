@@ -192,6 +192,43 @@ class ArtworkRepositoryLocalTest {
   }
 
   @Test
+  fun getSavedArtwork_returnsSavedArtworkOrNull() = runTest {
+    val repository = ArtworkRepositoryLocal()
+    val artwork = artwork("saved", "Saved Artwork")
+    repository.saveArtwork(artwork)
+
+    assertEquals(artwork, repository.getSavedArtwork("saved"))
+    assertNull(repository.getSavedArtwork("unknown"))
+  }
+
+  @Test
+  fun getCachedSavedArtwork_returnsSavedArtworkOrNull() = runTest {
+    val repository = ArtworkRepositoryLocal()
+    val artwork = artwork("saved", "Saved Artwork")
+    repository.saveArtwork(artwork)
+
+    assertEquals(artwork, repository.getCachedSavedArtwork("saved"))
+    assertNull(repository.getCachedSavedArtwork("unknown"))
+  }
+
+  @Test
+  fun getCachedSavedArtworks_returnsAllSavedArtworks() = runTest {
+    val repository = ArtworkRepositoryLocal()
+    val artwork = artwork("saved", "Saved Artwork")
+    repository.saveArtwork(artwork)
+
+    assertEquals(listOf(artwork), repository.getCachedSavedArtworks())
+  }
+
+  @Test
+  fun getSavedArtwork_whenUidIsBlank_throwsInvalidInput() = runTest {
+    val repository = ArtworkRepositoryLocal()
+
+    assertThrowsSuspend<AppException.InvalidInput> { repository.getSavedArtwork(" ") }
+    assertThrowsSuspend<AppException.InvalidInput> { repository.getCachedSavedArtwork(" ") }
+  }
+
+  @Test
   fun removeArtworkFromSaved_removesExistingArtwork() = runTest {
     val repository = ArtworkRepositoryLocal()
     val artwork = artwork("saved", "Saved Artwork")
