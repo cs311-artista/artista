@@ -468,6 +468,71 @@ class ArtworkScreenViewModelTest {
     assertEquals(null, state.errorMessageResId)
   }
 
+  /**
+   * Checks that a refresh failing with an unexpected exception, not an AppException, also keeps the
+   * cached artwork on screen.
+   */
+  @Test
+  fun setArtwork_whenRefreshFailsUnexpectedly_keepsCachedArtwork() = runTest {
+    val fresh = CompletableDeferred<Artwork?>()
+    viewModel = cacheFirst(cached = sampleArtwork, fresh = fresh)
+    advanceUntilIdle()
+
+    fresh.completeExceptionally(IllegalStateException("Simulated unexpected failure"))
+    advanceUntilIdle()
+
+    val state = viewModel.uiState.value
+    assertEquals(sampleArtwork, state.artwork)
+    assertTrue(state.isSaved)
+    assertFalse(state.hasLoadFailed)
+    assertEquals(null, state.errorMessageResId)
+  }
+
+  /**
+   * Checks that a refresh finding the cached artwork no longer saved (e.g. unsaved on another
+   * device) turns the bookmark off and keeps the artwork on screen.
+   */
+  @Test
+  fun setArtwork_whenRefreshFindsArtworkUnsaved_turnsBookmarkOff() = runTest {
+    val fresh = CompletableDeferred<Artwork?>()
+    viewModel = cacheFirst(cached = sampleArtwork, fresh = fresh)
+    advanceUntilIdle()
+
+    fresh.complete(null)
+    advanceUntilIdle()
+
+    val state = viewModel.uiState.value
+    assertEquals(sampleArtwork, state.artwork)
+    assertFalse(state.isSaved)
+    assertFalse(state.hasLoadFailed)
+  }
+
+  /**
+   * Checks that a refresh finding the artwork unsaved leaves the bookmark alone while the user is
+   * saving it again, since the user's own change wins.
+   */
+  @Test
+  fun setArtwork_whenRefreshFindsArtworkUnsavedDuringSave_leavesBookmarkOn() = runTest {
+    val fresh = CompletableDeferred<Artwork?>()
+    val save = CompletableDeferred<Unit>()
+    viewModel = cacheFirst(cached = sampleArtwork, fresh = fresh, pendingSave = save)
+    advanceUntilIdle()
+    viewModel.toggleSaveArtwork() // Unsave, answers right away
+    advanceUntilIdle()
+    viewModel.toggleSaveArtwork() // Save again, still in progress
+    advanceUntilIdle()
+    assertTrue(viewModel.uiState.value.isSaveInProgress)
+
+    fresh.complete(null)
+    advanceUntilIdle()
+
+    assertTrue(viewModel.uiState.value.isSaved)
+    save.complete(Unit)
+    advanceUntilIdle()
+    assertFalse(viewModel.uiState.value.isSaveInProgress)
+    assertTrue(viewModel.uiState.value.isSaved)
+  }
+
   /** Checks that a saved artwork missing from the cache is loaded with a regular read. */
   @Test
   fun setArtwork_whenSavedArtworkIsNotCached_loadsItFromRepository() = runTest {
@@ -527,25 +592,34 @@ class ArtworkScreenViewModelTest {
   private fun cacheFirst(
       cached: Artwork?,
       fresh: CompletableDeferred<Artwork?>,
+      pendingSave: CompletableDeferred<Unit>? = null,
   ): ArtworkScreenViewModel =
       ArtworkScreenViewModel(
           sampleArtwork.uid,
           wikiDataRepository,
-          CacheFirstSavedRepository(cached, fresh),
+          CacheFirstSavedRepository(cached, fresh, pendingSave),
           addressRepository,
       )
 
   /**
    * Saved-artworks repository whose cached copy is fixed and whose up-to-date read answers only
-   * when the test completes [fresh], to simulate a slow or offline network.
+   * when the test completes [fresh], to simulate a slow or offline network. When [pendingSave] is
+   * set, saving suspends until the test completes it; unsaving always succeeds right away.
    */
   private class CacheFirstSavedRepository(
       private val cached: Artwork?,
       private val fresh: CompletableDeferred<Artwork?>,
+      private val pendingSave: CompletableDeferred<Unit>? = null,
   ) : SavedArtworksRepository by ArtworkRepositoryLocal() {
     override suspend fun getCachedSavedArtwork(uid: ArtworkId): Artwork? = cached
 
     override suspend fun getSavedArtwork(uid: ArtworkId): Artwork? = fresh.await()
+
+    override suspend fun saveArtwork(artwork: Artwork) {
+      pendingSave?.await()
+    }
+
+    override suspend fun removeArtworkFromSaved(uid: ArtworkId) = Unit
   }
 
   private fun located(addressRepository: AddressRepository): ArtworkScreenViewModel {

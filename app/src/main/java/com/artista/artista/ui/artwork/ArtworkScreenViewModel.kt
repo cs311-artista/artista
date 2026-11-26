@@ -18,6 +18,7 @@ import com.artista.artista.model.map.Coordinate
 import com.artista.artista.model.map.Location
 import com.artista.artista.ui.error.launchCatching
 import com.artista.artista.ui.error.toMessageRes
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -171,8 +172,9 @@ class ArtworkScreenViewModel(
    * Replaces a cached saved artwork with its up-to-date data, once the network answers.
    *
    * The cached artwork is already on screen, so a failed refresh (e.g. offline) only keeps it there
-   * instead of failing the screen. The saved flag is left alone because the user may toggle it
-   * while the refresh is in flight.
+   * instead of failing the screen. If the refresh shows the artwork is no longer saved (e.g. the
+   * user unsaved it on another device), the bookmark is turned off, unless the user is toggling it
+   * right now.
    *
    * @param artworkId identifier of the displayed artwork
    * @param cached the artwork currently displayed, read from the local cache
@@ -181,15 +183,25 @@ class ArtworkScreenViewModel(
     val fresh =
         try {
           savedArtworksRepository.getSavedArtwork(artworkId)
-        } catch (appException: AppException) {
+        } catch (cancellation: CancellationException) {
+          throw cancellation
+        } catch (exception: Exception) {
+          // Any failure, not only an AppException: an exception reaching launchCatching would run
+          // its onError and wipe the cached copy that is already on screen.
           Log.w(
               TAG,
               "Could not refresh saved artwork '$artworkId', keeping the cached copy",
-              appException,
+              exception,
           )
-          null
+          return
         }
-    if (fresh == null || fresh == cached) return
+    if (fresh == null) {
+      // A successful read returning null means the artwork is no longer saved. Keeping the
+      // bookmark on would make the next tap fail with NotFound.
+      _uiState.update { if (it.isSaveInProgress) it else it.copy(isSaved = false) }
+      return
+    }
+    if (fresh == cached) return
     _uiState.update { it.copy(artwork = fresh) }
     if (fresh.location != cached.location) loadAddress(fresh.location)
   }

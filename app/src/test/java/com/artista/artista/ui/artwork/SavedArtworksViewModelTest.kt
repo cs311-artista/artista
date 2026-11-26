@@ -156,6 +156,24 @@ class SavedArtworksViewModelTest {
     assertNull(state.loadErrorMessageResId)
   }
 
+  /**
+   * Verifies that a refresh failing with an unexpected exception, not an AppException, also keeps
+   * the cached list without an error.
+   */
+  @Test
+  fun refreshSavedArtworks_whenRefreshFailsUnexpectedlyAfterCache_keepsCachedListWithoutError() {
+    repository.cachedList = listOf(monaLisa)
+    repository.loadFailure = IllegalStateException("Simulated unexpected failure")
+
+    viewModel.refreshSavedArtworks()
+    runPendingCoroutines()
+
+    val state = viewModel.uiState.value
+    assertEquals(listOf(monaLisa), state.artworks)
+    assertFalse(state.hasLoadFailed)
+    assertNull(state.loadErrorMessageResId)
+  }
+
   /** Verifies that an empty cache keeps the loading state until the network answers. */
   @Test
   fun refreshSavedArtworks_withEmptyCache_staysLoadingUntilNetworkAnswers() {

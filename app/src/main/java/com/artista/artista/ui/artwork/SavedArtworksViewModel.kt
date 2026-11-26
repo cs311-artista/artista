@@ -18,6 +18,7 @@ import com.artista.artista.model.artwork.museumOptions
 import com.artista.artista.model.error.AppException
 import com.artista.artista.ui.error.launchCatching
 import com.artista.artista.ui.error.toMessageRes
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -114,13 +115,13 @@ class SavedArtworksViewModel(
           val loadedArtworks =
               try {
                 savedArtworksRepository.getSavedArtworks()
-              } catch (appException: AppException) {
-                if (cachedArtworks.isEmpty()) throw appException
-                Log.w(
-                    TAG,
-                    "Could not refresh saved artworks, keeping the cached list",
-                    appException,
-                )
+              } catch (cancellation: CancellationException) {
+                throw cancellation
+              } catch (exception: Exception) {
+                // Any failure, not only an AppException: one reaching launchCatching would show
+                // the load error over the cached list that is already on screen.
+                if (cachedArtworks.isEmpty()) throw exception
+                Log.w(TAG, "Could not refresh saved artworks, keeping the cached list", exception)
                 return@launchCatching
               }
           showSavedArtworks(loadedArtworks)
