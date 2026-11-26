@@ -10,12 +10,12 @@ import com.artista.artista.model.artist.ArtistCandidate
 import com.artista.artista.model.artist.ArtistId
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkCandidate
-import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.ArtworkType
 import com.artista.artista.model.artwork.SavedArtworksRepository
 import com.artista.artista.model.artwork.SearchArea
 import com.artista.artista.model.artwork.WikiDataRepository
 import com.artista.artista.model.error.AppException
+import com.artista.artista.model.location.LocationProvider
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -45,13 +45,11 @@ class SearchScreenViewModelTest {
     Dispatchers.resetMain()
   }
 
+  // region Recommendations
+
   @Test
   fun onSearchInputChanged_updatesQuerySelectionAndRecommendations() = runTest {
-    val viewModel =
-        SearchScreenViewModel(
-            SearchTestData.savedArtworksRepository(),
-            SearchTestData.wikiDataRepository(),
-        )
+    val viewModel = createViewModel()
 
     advanceUntilIdle()
     viewModel.onSearchInputChanged("star", TextRange(2))
@@ -59,10 +57,9 @@ class SearchScreenViewModelTest {
 
     assertEquals("star", viewModel.uiState.value.query)
     assertEquals(TextRange(2), viewModel.uiState.value.selection)
-    assertEquals(listOf("starryId"), viewModel.uiState.value.savedRecommendations.map { it.uid })
     assertEquals(
         listOf("The Starry Night"),
-        viewModel.uiState.value.savedRecommendations.map { it.name },
+        viewModel.uiState.value.savedRecommendations.map { it.label },
     )
     assertTrue(viewModel.uiState.value.resultArtworks.isEmpty())
   }
@@ -71,20 +68,86 @@ class SearchScreenViewModelTest {
   fun onSearchInputChanged_ignoresSavedArtworksWithoutAName() = runTest {
     val starryNight = SearchTestData.savedArtworks.first { it.uid == "starryId" }
     val viewModel =
-        SearchScreenViewModel(
-            SearchTestData.savedArtworksRepository(
-                initialSavedArtworks =
-                    listOf(starryNight, starryNight.copy(uid = "noNameId", name = null))
-            ),
-            SearchTestData.wikiDataRepository(),
+        createViewModel(
+            savedArtworksRepository =
+                SearchTestData.savedArtworksRepository(
+                    initialSavedArtworks =
+                        listOf(starryNight, starryNight.copy(uid = "noNameId", name = null))
+                )
         )
 
     advanceUntilIdle()
     viewModel.onSearchInputChanged("star", TextRange(4))
     advanceUntilIdle()
 
-    assertEquals(listOf("starryId"), viewModel.uiState.value.savedRecommendations.map { it.uid })
+    assertEquals(
+        listOf("The Starry Night"),
+        viewModel.uiState.value.savedRecommendations.map { it.label },
+    )
   }
+
+  @Test
+  fun blankQueries_doNotProduceRecommendations() = runTest {
+    val viewModel = createViewModel()
+
+    advanceUntilIdle()
+    viewModel.onSearchInputChanged(" ", TextRange(1))
+    advanceUntilIdle()
+
+    assertEquals(" ", viewModel.uiState.value.query)
+    assertTrue(viewModel.uiState.value.savedRecommendations.isEmpty())
+  }
+
+  // endregion
+
+  // region Suggestions
+
+  @Test
+  fun onSearchInputChanged_fetchesWikiDataSuggestionsForSelectedTab() = runTest {
+    val viewModel = createViewModel(wikiDataRepository = wikiRepositoryWithArtworkCandidates())
+
+    advanceUntilIdle()
+    viewModel.onSearchInputChanged("mo", TextRange(2))
+    advanceUntilIdle()
+
+    assertEquals(
+        listOf("Mona Lisa (copy)"),
+        viewModel.uiState.value.wikiDataRecommendations.map { it.label },
+    )
+  }
+
+  @Test
+  fun onSearchInputChanged_withTooShortQuery_clearsRemoteSuggestions() = runTest {
+    val viewModel = createViewModel(wikiDataRepository = wikiRepositoryWithArtworkCandidates())
+
+    advanceUntilIdle()
+    viewModel.onSearchInputChanged("mo", TextRange(2))
+    advanceUntilIdle()
+    viewModel.onSearchInputChanged("m", TextRange(1))
+    advanceUntilIdle()
+
+    assertTrue(viewModel.uiState.value.wikiDataRecommendations.isEmpty())
+  }
+
+  @Test
+  fun onSearchInputChanged_dropsSuggestionsOfTheTabThatIsNotSelected() = runTest {
+    val viewModel = createViewModel(wikiDataRepository = wikiRepositoryWithArtworkCandidates())
+
+    advanceUntilIdle()
+    viewModel.onSearchInputChanged("mo", TextRange(2))
+    advanceUntilIdle()
+    assertTrue(viewModel.uiState.value.wikiDataRecommendations.isNotEmpty())
+
+    viewModel.onSearchTabSelected(SearchTab.ARTISTS)
+    viewModel.onSearchInputChanged("monet", TextRange(5))
+
+    // The artwork suggestions were fetched for "mo" and must not reappear when switching back.
+    assertTrue(viewModel.uiState.value.wikiDataRecommendations.isEmpty())
+  }
+
+  // endregion
+
+  // region Loading failures
 
   @Test
   fun unauthorizedSavedArtworkLoad_doesNotPreventSearching() = runTest {
@@ -94,8 +157,7 @@ class SearchScreenViewModelTest {
             throw AppException.Unauthorized("No user is signed in")
           }
         }
-    val viewModel =
-        SearchScreenViewModel(savedArtworksRepository, SearchTestData.wikiDataRepository())
+    val viewModel = createViewModel(savedArtworksRepository = savedArtworksRepository)
 
     advanceUntilIdle()
     viewModel.onSearchSubmitted("star")
@@ -114,8 +176,7 @@ class SearchScreenViewModelTest {
             throw AppException.Network("Could not load saved artworks")
           }
         }
-    val viewModel =
-        SearchScreenViewModel(savedArtworksRepository, SearchTestData.wikiDataRepository())
+    val viewModel = createViewModel(savedArtworksRepository = savedArtworksRepository)
 
     advanceUntilIdle()
 
@@ -123,50 +184,26 @@ class SearchScreenViewModelTest {
   }
 
   @Test
+  fun unavailableLocation_doesNotSetAnErrorMessage() = runTest {
+    val viewModel = createViewModel()
+
+    advanceUntilIdle()
+
+    assertTrue(viewModel.uiState.value.nearArtworks.isEmpty())
+    assertEquals(null, viewModel.uiState.value.fetchErrorMessageResId)
+  }
+
+  // endregion
+
+  // region Submitted searches
+
+  @Test
   fun onSearchSubmitted_whenWikiDataRequestFails_setsSearchErrorMessage() = runTest {
-    val wikiRepository =
-        object : WikiDataRepository {
-          override suspend fun getArtworksNearLocation(
-              searchArea: SearchArea,
-              typeValues: List<ArtworkType>,
-              limit: Int,
-          ): List<Artwork> {
-            throw NotImplementedError("Should not be used in this test")
-          }
-
-          override suspend fun getArtworkCandidates(
-              query: String,
-              typeValues: List<ArtworkType>,
-              limit: Int,
-          ): List<ArtworkCandidate> {
-            throw NotImplementedError("Should not be used in this test")
-          }
-
-          override suspend fun getArtist(uid: ArtistId): Artist? {
-            throw NotImplementedError("Should not be used in this test")
-          }
-
-          override suspend fun getArtistCandidates(
-              query: String,
-              limit: Int,
-          ): List<ArtistCandidate> {
-            throw NotImplementedError("Should not be used in this test")
-          }
-
-          override suspend fun getArtistsFromQuery(query: String, limit: Int): List<Artist> {
-            throw NotImplementedError("Should not be used in this test")
-          }
-
-          override suspend fun getArtwork(uid: ArtworkId): Artwork =
-              throw NoSuchElementException("No artwork matching uid $uid was found")
-
-          override suspend fun getArtworksFromQuery(
-              artworkTitle: String,
-              typeValues: List<ArtworkType>,
-              limit: Int,
-          ): List<Artwork> = throw AppException.Network("Search failed")
-        }
-    val viewModel = SearchScreenViewModel(SearchTestData.savedArtworksRepository(), wikiRepository)
+    val viewModel =
+        createViewModel(
+            wikiDataRepository =
+                wikiRepositoryWithArtworkSearch { throw AppException.Network("Search failed") }
+        )
 
     advanceUntilIdle()
     viewModel.onSearchSubmitted("van gogh")
@@ -176,6 +213,8 @@ class SearchScreenViewModelTest {
     assertFalse(viewModel.uiState.value.hasInvalidSearchInput)
     assertFalse(viewModel.uiState.value.isLoading)
     assertTrue(viewModel.uiState.value.resultArtworks.isEmpty())
+    // A failed search still counts as searched, so the screen can tell "failed" from "never ran".
+    assertTrue(viewModel.uiState.value.hasAlreadySearched)
 
     viewModel.clearSearchError()
 
@@ -184,17 +223,11 @@ class SearchScreenViewModelTest {
 
   @Test
   fun onSearchSubmitted_withInvalidInputMarksSearchFieldUntilEdited() = runTest {
-    val wikiRepository =
-        object : WikiDataRepository by SearchTestData.wikiDataRepository() {
-          override suspend fun getArtworksFromQuery(
-              artworkTitle: String,
-              typeValues: List<ArtworkType>,
-              limit: Int,
-          ): List<Artwork> {
-            throw AppException.InvalidInput("Invalid search query")
-          }
-        }
-    val viewModel = SearchScreenViewModel(SearchTestData.savedArtworksRepository(), wikiRepository)
+    val viewModel =
+        createViewModel(
+            wikiDataRepository =
+                wikiRepositoryWithArtworkSearch { throw AppException.InvalidInput("Invalid query") }
+        )
 
     advanceUntilIdle()
     viewModel.onSearchSubmitted("bad query")
@@ -209,11 +242,7 @@ class SearchScreenViewModelTest {
 
   @Test
   fun onSearchSubmitted_fetchesMatchingArtworksFromWikiData() = runTest {
-    val viewModel =
-        SearchScreenViewModel(
-            SearchTestData.savedArtworksRepository(),
-            SearchTestData.wikiDataRepository(),
-        )
+    val viewModel = createViewModel()
 
     advanceUntilIdle()
     viewModel.onSearchSubmitted("van gogh")
@@ -229,7 +258,7 @@ class SearchScreenViewModelTest {
   @Test
   fun onSearchSubmitted_passesSelectedArtworkTypesToRepository() = runTest {
     val wikiRepository = SearchTestData.wikiDataRepository()
-    val viewModel = SearchScreenViewModel(SearchTestData.savedArtworksRepository(), wikiRepository)
+    val viewModel = createViewModel(wikiDataRepository = wikiRepository)
     val selectedTypes = listOf(ArtworkType.PAINTING, ArtworkType.MURAL)
 
     advanceUntilIdle()
@@ -241,12 +270,8 @@ class SearchScreenViewModelTest {
   }
 
   @Test
-  fun toggleArtworkTypedoesNotAllowRemovingLastSelectedType() = runTest {
-    val viewModel =
-        SearchScreenViewModel(
-            SearchTestData.savedArtworksRepository(),
-            SearchTestData.wikiDataRepository(),
-        )
+  fun toggleArtworkType_doesNotAllowRemovingLastSelectedType() = runTest {
+    val viewModel = createViewModel()
 
     advanceUntilIdle()
     ArtworkType.entries.drop(1).forEach(viewModel::toggleArtworkType)
@@ -260,53 +285,8 @@ class SearchScreenViewModelTest {
   @Test
   fun onSearchSubmitted_exposesLoadingUntilResultsArrive() = runTest {
     val results = CompletableDeferred<List<Artwork>>()
-    val wikiRepository =
-        object : WikiDataRepository {
-
-          override suspend fun getArtworksFromQuery(
-              searchQuery: String,
-              typeValues: List<ArtworkType>,
-              limit: Int,
-          ): List<Artwork> = results.await()
-
-          override suspend fun getArtistCandidates(
-              query: String,
-              limit: Int,
-          ): List<ArtistCandidate> {
-            throw NotImplementedError("Should not be used in this test")
-          }
-
-          override suspend fun getArtistsFromQuery(
-              query: String,
-              limit: Int,
-          ): List<Artist> {
-            throw NotImplementedError("Should not be used in this test")
-          }
-
-          override suspend fun getArtist(uid: ArtistId): Artist? {
-            throw NotImplementedError("Should not be used in this test")
-          }
-
-          override suspend fun getArtworksNearLocation(
-              searchArea: SearchArea,
-              typeValues: List<ArtworkType>,
-              limit: Int,
-          ): List<Artwork> {
-            throw NotImplementedError("Should not be used in this test")
-          }
-
-          override suspend fun getArtworkCandidates(
-              query: String,
-              typeValues: List<ArtworkType>,
-              limit: Int,
-          ): List<ArtworkCandidate> {
-            throw NotImplementedError("Should not be used in this test")
-          }
-
-          override suspend fun getArtwork(uid: ArtworkId): Artwork =
-              throw NoSuchElementException("No artwork matching uid $uid was found")
-        }
-    val viewModel = SearchScreenViewModel(SearchTestData.savedArtworksRepository(), wikiRepository)
+    val viewModel =
+        createViewModel(wikiDataRepository = wikiRepositoryWithArtworkSearch { results.await() })
 
     advanceUntilIdle()
     viewModel.onSearchSubmitted("star")
@@ -323,58 +303,17 @@ class SearchScreenViewModelTest {
   fun onSearchSubmitted_onlyShowsResultsFromLatestQuery() = runTest {
     val monetResults = CompletableDeferred<List<Artwork>>()
     val vanGoghResults = CompletableDeferred<List<Artwork>>()
-    val wikiRepository =
-        object : WikiDataRepository {
-
-          override suspend fun getArtistCandidates(
-              query: String,
-              limit: Int,
-          ): List<ArtistCandidate> {
-            throw NotImplementedError("Should not be used in this test")
-          }
-
-          override suspend fun getArtistsFromQuery(
-              query: String,
-              limit: Int,
-          ): List<Artist> {
-            throw NotImplementedError("Should not be used in this test")
-          }
-
-          override suspend fun getArtist(uid: ArtistId): Artist? {
-            throw NotImplementedError("Should not be used in this test")
-          }
-
-          override suspend fun getArtworksNearLocation(
-              searchArea: SearchArea,
-              typeValues: List<ArtworkType>,
-              limit: Int,
-          ): List<Artwork> {
-            throw NotImplementedError("Should not be used in this test")
-          }
-
-          override suspend fun getArtworkCandidates(
-              query: String,
-              typeValues: List<ArtworkType>,
-              limit: Int,
-          ): List<ArtworkCandidate> {
-            throw NotImplementedError("Should not be used in this test")
-          }
-
-          override suspend fun getArtwork(uid: ArtworkId): Artwork =
-              throw NoSuchElementException("No artwork matching uid $uid was found")
-
-          override suspend fun getArtworksFromQuery(
-              artworkTitle: String,
-              typeValues: List<ArtworkType>,
-              limit: Int,
-          ): List<Artwork> =
-              when (artworkTitle) {
-                "monet" -> monetResults.await()
-                "van Gogh" -> vanGoghResults.await()
-                else -> emptyList()
-              }
-        }
-    val viewModel = SearchScreenViewModel(SearchTestData.savedArtworksRepository(), wikiRepository)
+    val viewModel =
+        createViewModel(
+            wikiDataRepository =
+                wikiRepositoryWithArtworkSearch { title ->
+                  when (title) {
+                    "monet" -> monetResults.await()
+                    "van Gogh" -> vanGoghResults.await()
+                    else -> emptyList()
+                  }
+                }
+        )
 
     advanceUntilIdle()
     viewModel.onSearchSubmitted("monet")
@@ -393,20 +332,137 @@ class SearchScreenViewModelTest {
   }
 
   @Test
-  fun blankQueries_doNotProduceRecommendations() = runTest {
+  fun onSearchInputChanged_whenOnlySelectionChanges_keepsRunningSearch() = runTest {
+    val results = CompletableDeferred<List<Artwork>>()
     val viewModel =
-        SearchScreenViewModel(
-            SearchTestData.savedArtworksRepository(),
-            SearchTestData.wikiDataRepository(),
+        createViewModel(wikiDataRepository = wikiRepositoryWithArtworkSearch { results.await() })
+
+    advanceUntilIdle()
+    viewModel.onSearchSubmitted("star")
+    viewModel.onSearchInputChanged("star", TextRange(1))
+
+    assertTrue(viewModel.uiState.value.isLoading)
+
+    results.complete(listOf(SearchTestData.starryNight))
+    advanceUntilIdle()
+
+    assertEquals(listOf(SearchTestData.starryNight), viewModel.uiState.value.resultArtworks)
+  }
+
+  @Test
+  fun onSearchInputChanged_whenTextChanges_cancelsRunningSearch() = runTest {
+    val results = CompletableDeferred<List<Artwork>>()
+    val viewModel =
+        createViewModel(wikiDataRepository = wikiRepositoryWithArtworkSearch { results.await() })
+
+    advanceUntilIdle()
+    viewModel.onSearchSubmitted("star")
+    viewModel.onSearchInputChanged("moon", TextRange(4))
+
+    assertFalse(viewModel.uiState.value.isLoading)
+
+    results.complete(listOf(SearchTestData.starryNight))
+    advanceUntilIdle()
+
+    assertTrue(viewModel.uiState.value.resultArtworks.isEmpty())
+    assertFalse(viewModel.uiState.value.hasAlreadySearched)
+  }
+
+  // endregion
+
+  // region Tabs
+
+  @Test
+  fun onSearchTabSelected_keepsRunningSearchOfTheOtherTab() = runTest {
+    val results = CompletableDeferred<List<Artwork>>()
+    val viewModel =
+        createViewModel(wikiDataRepository = wikiRepositoryWithArtworkSearch { results.await() })
+
+    advanceUntilIdle()
+    viewModel.onSearchSubmitted("star")
+    advanceUntilIdle()
+    viewModel.onSearchTabSelected(SearchTab.ARTISTS)
+
+    // The artists tab has nothing running, but the artwork search must survive the switch.
+    assertFalse(viewModel.uiState.value.isLoading)
+    assertEquals(setOf(SearchTab.ARTWORKS), viewModel.uiState.value.loadingTabs)
+
+    results.complete(listOf(SearchTestData.starryNight))
+    advanceUntilIdle()
+
+    assertEquals(listOf(SearchTestData.starryNight), viewModel.uiState.value.resultArtworks)
+    assertFalse(viewModel.uiState.value.hasAlreadySearched)
+
+    viewModel.onSearchTabSelected(SearchTab.ARTWORKS)
+
+    assertFalse(viewModel.uiState.value.isLoading)
+    assertTrue(viewModel.uiState.value.hasAlreadySearched)
+  }
+
+  @Test
+  fun onSearchTabSelected_showsLoadingOfThatTab() = runTest {
+    val results = CompletableDeferred<List<Artwork>>()
+    val viewModel =
+        createViewModel(wikiDataRepository = wikiRepositoryWithArtworkSearch { results.await() })
+
+    advanceUntilIdle()
+    viewModel.onSearchTabSelected(SearchTab.ARTISTS)
+    viewModel.onSearchTabSelected(SearchTab.ARTWORKS)
+    viewModel.onSearchSubmitted("star")
+    viewModel.onSearchTabSelected(SearchTab.ARTISTS)
+    assertFalse(viewModel.uiState.value.isLoading)
+
+    viewModel.onSearchTabSelected(SearchTab.ARTWORKS)
+
+    assertTrue(viewModel.uiState.value.isLoading)
+  }
+
+  @Test
+  fun onSearchSubmitted_onArtistsTab_onlyMarksThatTabAsSearched() = runTest {
+    val viewModel =
+        createViewModel(wikiDataRepository = wikiRepositoryWithArtistSearch { emptyList() })
+
+    advanceUntilIdle()
+    viewModel.onSearchTabSelected(SearchTab.ARTISTS)
+    viewModel.onSearchSubmitted("van gogh")
+    advanceUntilIdle()
+
+    assertEquals(setOf(SearchTab.ARTISTS), viewModel.uiState.value.searchedTabs)
+    assertTrue(viewModel.uiState.value.hasAlreadySearched)
+    assertTrue(viewModel.uiState.value.resultArtworks.isEmpty())
+
+    viewModel.onSearchTabSelected(SearchTab.ARTWORKS)
+
+    assertFalse(viewModel.uiState.value.hasAlreadySearched)
+  }
+
+  @Test
+  fun invalidInput_isTrackedPerTab() = runTest {
+    val viewModel =
+        createViewModel(
+            wikiDataRepository =
+                wikiRepositoryWithArtistSearch { throw AppException.InvalidInput("Invalid query") }
         )
 
     advanceUntilIdle()
-    viewModel.onSearchInputChanged(" ", TextRange(1))
+    viewModel.onSearchTabSelected(SearchTab.ARTISTS)
+    viewModel.onSearchSubmitted("bad query")
     advanceUntilIdle()
 
-    assertEquals(" ", viewModel.uiState.value.query)
-    assertTrue(viewModel.uiState.value.savedRecommendations.isEmpty())
+    assertTrue(viewModel.uiState.value.hasInvalidSearchInput)
+
+    viewModel.onSearchTabSelected(SearchTab.ARTWORKS)
+
+    assertFalse(viewModel.uiState.value.hasInvalidSearchInput)
+
+    viewModel.onSearchTabSelected(SearchTab.ARTISTS)
+
+    assertTrue(viewModel.uiState.value.hasInvalidSearchInput)
   }
+
+  // endregion
+
+  // region Saved artworks
 
   @Test
   fun toggleSavedArtwork_whenSaveFails_setsSaveErrorMessage() = runTest {
@@ -416,7 +472,7 @@ class SearchScreenViewModelTest {
             throw AppException.Network("Could not save artwork")
           }
         }
-    val viewModel = SearchScreenViewModel(repository, SearchTestData.wikiDataRepository())
+    val viewModel = createViewModel(savedArtworksRepository = repository)
     val artwork = SearchTestData.untitledStudy.copy(uid = "newArtworkId", name = "New Artwork")
 
     advanceUntilIdle()
@@ -433,7 +489,7 @@ class SearchScreenViewModelTest {
   @Test
   fun toggleSavedArtwork_addsArtworkToSavedCollection() = runTest {
     val repository = SearchTestData.savedArtworksRepository()
-    val viewModel = SearchScreenViewModel(repository, SearchTestData.wikiDataRepository())
+    val viewModel = createViewModel(savedArtworksRepository = repository)
     val artwork = SearchTestData.untitledStudy.copy(uid = "newArtworkId", name = "New Artwork")
 
     advanceUntilIdle()
@@ -448,7 +504,7 @@ class SearchScreenViewModelTest {
   fun toggleSavedArtwork_removesArtworkFromSavedCollectionWhenAlreadySaved() = runTest {
     val artwork = SearchTestData.starryNight
     val repository = SearchTestData.savedArtworksRepository(listOf(artwork))
-    val viewModel = SearchScreenViewModel(repository, SearchTestData.wikiDataRepository())
+    val viewModel = createViewModel(savedArtworksRepository = repository)
 
     advanceUntilIdle()
     viewModel.toggleSavedArtwork(artwork)
@@ -458,12 +514,15 @@ class SearchScreenViewModelTest {
     assertTrue(repository.savedArtworks.none { it.uid == artwork.uid })
   }
 
+  // endregion
+
   @Test
   fun provideFactory_forUnknownViewModelClass_throws() {
     val factory =
         SearchScreenViewModel.provideFactory(
             SearchTestData.savedArtworksRepository(),
             SearchTestData.wikiDataRepository(),
+            UnavailableLocationProvider,
         )
 
     assertThrows(IllegalArgumentException::class.java) {
@@ -471,5 +530,86 @@ class SearchScreenViewModelTest {
     }
   }
 
+  // region Helpers
+
+  private fun createViewModel(
+      savedArtworksRepository: SavedArtworksRepository = SearchTestData.savedArtworksRepository(),
+      wikiDataRepository: WikiDataRepository = FakeWikiDataRepository(),
+  ) =
+      SearchScreenViewModel(
+          savedArtworksRepository,
+          wikiDataRepository,
+          UnavailableLocationProvider,
+      )
+
+  /** Wiki repository whose artwork search is replaced by [search]. */
+  private fun wikiRepositoryWithArtworkSearch(
+      search: suspend (title: String) -> List<Artwork>
+  ): WikiDataRepository = FakeWikiDataRepository(onArtworksFromQuery = search)
+
+  /** Wiki repository whose artist search is replaced by [search]. */
+  private fun wikiRepositoryWithArtistSearch(
+      search: suspend (query: String) -> List<Artist>
+  ): WikiDataRepository = FakeWikiDataRepository(onArtistsFromQuery = search)
+
+  /** Wiki repository that suggests a single artwork for every query. */
+  private fun wikiRepositoryWithArtworkCandidates(): WikiDataRepository =
+      FakeWikiDataRepository(
+          onArtworkCandidates = { listOf(ArtworkCandidate("Q1", "Mona Lisa (copy)", null)) }
+      )
+
+  /**
+   * Wiki repository that implements every method the ViewModel can call.
+   *
+   * Everything the shared [SearchTestData] repository leaves unimplemented (and which would throw
+   * `NotImplementedError`, an `Error` that the ViewModel's error handling does not catch) returns
+   * an empty value here. Artwork search and single-artwork lookup still fall back to the shared
+   * test data, so default results stay the same as before.
+   */
+  private class FakeWikiDataRepository(
+      private val base: WikiDataRepository = SearchTestData.wikiDataRepository(),
+      private val onArtworksFromQuery: (suspend (String) -> List<Artwork>)? = null,
+      private val onArtistsFromQuery: suspend (String) -> List<Artist> = { emptyList() },
+      private val onArtworkCandidates: suspend (String) -> List<ArtworkCandidate> = { emptyList() },
+  ) : WikiDataRepository by base {
+
+    override suspend fun getArtworksNearLocation(
+        searchArea: SearchArea,
+        typeValues: List<ArtworkType>,
+        limit: Int,
+    ): List<Artwork> = emptyList()
+
+    override suspend fun getArtworkCandidates(
+        query: String,
+        typeValues: List<ArtworkType>,
+        limit: Int,
+    ): List<ArtworkCandidate> = onArtworkCandidates(query)
+
+    override suspend fun getArtistCandidates(query: String, limit: Int): List<ArtistCandidate> =
+        emptyList()
+
+    override suspend fun getArtistsFromQuery(query: String, limit: Int): List<Artist> =
+        onArtistsFromQuery(query)
+
+    override suspend fun getArtist(uid: ArtistId): Artist? = null
+
+    override suspend fun getArtworksFromQuery(
+        artworkTitle: String,
+        typeValues: List<ArtworkType>,
+        limit: Int,
+    ): List<Artwork> =
+        onArtworksFromQuery?.invoke(artworkTitle)
+            ?: base.getArtworksFromQuery(artworkTitle, typeValues, limit)
+  }
+
+  /** Location provider of a user whose location cannot be determined. */
+  private object UnavailableLocationProvider : LocationProvider {
+    override suspend fun getUserLocation() = throw AppException.NotFound("Location unavailable")
+
+    override fun locationUpdates() = throw AppException.NotFound("Location unavailable")
+  }
+
   private class OtherViewModel : ViewModel()
+
+  // endregion
 }
