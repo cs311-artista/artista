@@ -89,62 +89,62 @@ import com.artista.artista.ui.theme.SearchBarPalette
 
 /** Stable semantics tags used by SearchScreen UI tests. */
 object SearchScreenTestTags {
-    /** Tag of the search text input. */
-    const val SEARCH_INPUT = "search_input"
+  /** Tag of the search text input. */
+  const val SEARCH_INPUT = "search_input"
 
-    /** Tag of each artwork recommendation in the suggestions list. */
-    const val SEARCH_RECOMMENDATION = "search_recommendation"
+  /** Tag of each artwork recommendation in the suggestions list. */
+  const val SEARCH_RECOMMENDATION = "search_recommendation"
 
-    /** Tag of each artist recommendation in the suggestions list. */
-    const val ARTIST_RECOMMENDATION = "search_artist_recommendation"
+  /** Tag of each artist recommendation in the suggestions list. */
+  const val ARTIST_RECOMMENDATION = "search_artist_recommendation"
 
-    /** Tag of the suggestions list shown while the user is typing. */
-    const val SUGGESTION_LIST = "search_suggestion_list"
+  /** Tag of the suggestions list shown while the user is typing. */
+  const val SUGGESTION_LIST = "search_suggestion_list"
 
-    /** Tag of the "Powered by Wikidata" attribution. */
-    const val WIKIDATA_ATTRIBUTION = "search_wikidata_attribution"
+  /** Tag of the "Powered by Wikidata" attribution. */
+  const val WIKIDATA_ATTRIBUTION = "search_wikidata_attribution"
 
-    /** Tag of the artwork results list. */
-    const val ARTWORK_RESULTS = "search_artwork_results"
+  /** Tag of the artwork results list. */
+  const val ARTWORK_RESULTS = "search_artwork_results"
 
-    /** Tag of the search loading indicator. */
-    const val SEARCH_LOADING_INDICATOR = "search_loading_indicator"
+  /** Tag of the search loading indicator. */
+  const val SEARCH_LOADING_INDICATOR = "search_loading_indicator"
 
-    /** Tag of the empty search results state. */
-    const val EMPTY_RESULTS = "search_empty_results"
+  /** Tag of the empty search results state. */
+  const val EMPTY_RESULTS = "search_empty_results"
 
-    /** Tag of the hint indicating that artwork types can be scrolled. */
-    const val FILTER_SCROLL_HINT = "search_filter_scroll_hint"
+  /** Tag of the hint indicating that artwork types can be scrolled. */
+  const val FILTER_SCROLL_HINT = "search_filter_scroll_hint"
 
-    /**
-     * Returns the stable tag of an artwork-type filter.
-     *
-     * @param type artwork type represented by the filter
-     * @return test tag for the filter
-     * @author IJJA3141
-     */
-    fun filterType(type: ArtworkType): String = "search_filter_type_${type.name.lowercase()}"
+  /**
+   * Returns the stable tag of an artwork-type filter.
+   *
+   * @param type artwork type represented by the filter
+   * @return test tag for the filter
+   * @author IJJA3141
+   */
+  fun filterType(type: ArtworkType): String = "search_filter_type_${type.name.lowercase()}"
 
-    /**
-     * Returns the stable tag of an Artworks/Artists switch segment.
-     *
-     * @param tab search tab represented by the segment
-     * @return test tag for the segment
-     */
-    fun tab(tab: SearchTab): String = "search_tab_${tab.name.lowercase()}"
+  /**
+   * Returns the stable tag of an Artworks/Artists switch segment.
+   *
+   * @param tab search tab represented by the segment
+   * @return test tag for the segment
+   */
+  fun tab(tab: SearchTab): String = "search_tab_${tab.name.lowercase()}"
 }
 
 /** Kind of entity searched by the screen, selected with the switch under the search field. */
 enum class SearchTab {
-    ARTWORKS,
-    ARTISTS,
+  ARTWORKS,
+  ARTISTS,
 }
 
 /** Where an artwork suggestion comes from, so the suggestion bubble can pick its icon. */
 enum class SuggestionSource {
-    SAVED,
-    NEARBY,
-    WIKIDATA,
+  SAVED,
+  NEARBY,
+  WIKIDATA,
 }
 
 /**
@@ -157,9 +157,9 @@ data class ArtworkSuggestion(val candidate: ArtworkCandidate, val source: Sugges
 
 /** Layout values for the new search UI. Move into [Dimensions] once the design is final. */
 private object SearchLayout {
-    val TabSwitchHeight = 40.dp
-    val TabSwitchBottomSpacing = 12.dp
-    val AttributionVerticalPadding = 16.dp
+  val TabSwitchHeight = 40.dp
+  val TabSwitchBottomSpacing = 12.dp
+  val AttributionVerticalPadding = 16.dp
 }
 
 /**
@@ -179,8 +179,8 @@ internal fun buildArtworkSuggestions(
     wikiData: List<ArtworkCandidate>,
 ): List<ArtworkSuggestion> =
     (saved.map { ArtworkSuggestion(it, SuggestionSource.SAVED) } +
-            nearby.map { ArtworkSuggestion(it, SuggestionSource.NEARBY) } +
-            wikiData.map { ArtworkSuggestion(it, SuggestionSource.WIKIDATA) })
+        nearby.map { ArtworkSuggestion(it, SuggestionSource.NEARBY) } +
+        wikiData.map { ArtworkSuggestion(it, SuggestionSource.WIKIDATA) })
 
 /** Layout values for the new search UI. Move into [Dimensions] once the design is final. */
 
@@ -193,7 +193,8 @@ internal fun buildArtworkSuggestions(
  * @param onArtworkClick callback invoked when the user selects an artwork in the results list
  * @param onArtistClick callback invoked when the user selects an artist in the results list
  * @param onMapClick callback invoked when the user selects the map action for a result
- * @param onArtworkRecommendationSelected callback invoked when the user selects an artwork suggestion
+ * @param onArtworkRecommendationSelected callback invoked when the user selects an artwork
+ *   suggestion
  * @param onArtistRecommendationSelected callback invoked when the user selects an artist suggestion
  * @author IJJA3141
  */
@@ -207,53 +208,53 @@ fun SearchScreen(
     onArtworkRecommendationSelected: (ArtworkCandidate) -> Unit = {},
     onArtistRecommendationSelected: (ArtistCandidate) -> Unit = {},
 ) {
-    val uiState by viewModel.uiState.collectAsState()
-    val context = LocalContext.current
-    val searchErrorMessage = uiState.fetchErrorMessageResId?.let { stringResource(it) }
-    val saveErrorMessage = uiState.saveErrorMessageResId?.let { stringResource(it) }
-    val textFieldState =
-        remember(viewModel) {
-            TextFieldState(initialText = uiState.query, initialSelection = uiState.selection)
-        }
+  val uiState by viewModel.uiState.collectAsState()
+  val context = LocalContext.current
+  val searchErrorMessage = uiState.fetchErrorMessageResId?.let { stringResource(it) }
+  val saveErrorMessage = uiState.saveErrorMessageResId?.let { stringResource(it) }
+  val textFieldState =
+      remember(viewModel) {
+        TextFieldState(initialText = uiState.query, initialSelection = uiState.selection)
+      }
 
-    LaunchedEffect(searchErrorMessage) {
-        searchErrorMessage?.let {
-            Toast.makeText(context, it, Toast.LENGTH_LONG).show()
-            viewModel.clearSearchError()
-        }
+  LaunchedEffect(searchErrorMessage) {
+    searchErrorMessage?.let {
+      Toast.makeText(context, it, Toast.LENGTH_LONG).show()
+      viewModel.clearSearchError()
     }
+  }
 
-    LaunchedEffect(saveErrorMessage) {
-        saveErrorMessage?.let {
-            Toast.makeText(context, it, Toast.LENGTH_LONG).show()
-            viewModel.clearSaveError()
-        }
+  LaunchedEffect(saveErrorMessage) {
+    saveErrorMessage?.let {
+      Toast.makeText(context, it, Toast.LENGTH_LONG).show()
+      viewModel.clearSaveError()
     }
+  }
 
-    SearchScreenContent(
-        uiState = uiState,
-        textFieldState = textFieldState,
-        onQueryChanged = viewModel::onSearchInputChanged,
-        onSearchSubmitted = viewModel::onSearchSubmitted,
-        onSuggestingChange = viewModel::onSuggestingChange,
-        onSearchTabSelected = viewModel::onSearchTabSelected,
-        onArtworkTypeToggle = viewModel::toggleArtworkType,
-        onBottomTabSelected = onTabSelected,
-        onArtworkClick = onArtworkClick,
-        onArtistClick = onArtistClick,
-        onMapClick = onMapClick,
-        onSaveClick = viewModel::toggleSavedArtwork,
-        onRecommendationSelected = onArtworkRecommendationSelected,
-        onArtistRecommendationSelected = onArtistRecommendationSelected,
-    )
+  SearchScreenContent(
+      uiState = uiState,
+      textFieldState = textFieldState,
+      onQueryChanged = viewModel::onSearchInputChanged,
+      onSearchSubmitted = viewModel::onSearchSubmitted,
+      onSuggestingChange = viewModel::onSuggestingChange,
+      onSearchTabSelected = viewModel::onSearchTabSelected,
+      onArtworkTypeToggle = viewModel::toggleArtworkType,
+      onBottomTabSelected = onTabSelected,
+      onArtworkClick = onArtworkClick,
+      onArtistClick = onArtistClick,
+      onMapClick = onMapClick,
+      onSaveClick = viewModel::toggleSavedArtwork,
+      onRecommendationSelected = onArtworkRecommendationSelected,
+      onArtistRecommendationSelected = onArtistRecommendationSelected,
+  )
 }
 
 /**
  * Stateless layout of the search screen, driven entirely by its parameters so it can be previewed
  * and tested without a ViewModel.
  *
- * While [uiState.isSuggesting] is true the body shows the suggestions for the selected tab. Otherwise, it
- * shows the results of the last submitted search.
+ * While [uiState.isSuggesting] is true the body shows the suggestions for the selected tab.
+ * Otherwise, it shows the results of the last submitted search.
  *
  * @param uiState state supplied by the ViewModel
  * @param textFieldState text and cursor state shown in the search field
@@ -282,83 +283,140 @@ internal fun SearchScreenContent(
     onArtworkTypeToggle: (ArtworkType) -> Unit = {},
     onBottomTabSelected: (Tab) -> Unit = {},
     onArtworkClick: (Artwork) -> Unit = {},
-    onArtistClick:(Artist)-> Unit ={},
+    onArtistClick: (Artist) -> Unit = {},
     onMapClick: (Artwork) -> Unit = {},
     onSaveClick: (Artwork) -> Unit = {},
     onRecommendationSelected: (ArtworkCandidate) -> Unit = {},
     onArtistRecommendationSelected: (ArtistCandidate) -> Unit = {},
-    artistResults: @Composable (Modifier) -> Unit = {},
 ) {
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
-        topBar = {
-            Column(modifier = Modifier.fillMaxWidth().statusBarsPadding()) {
-                SearchInput(
-                    textFieldState = textFieldState,
-                    expanded = uiState.isSuggesting,
-                    selectedTypeValues = uiState.typeValues,
-                    hasInvalidSearchInput = uiState.hasInvalidSearchInput,
-                    onExpandedChange = onSuggestingChange,
-                    onQueryChanged = onQueryChanged,
-                    onSearchSubmitted = onSearchSubmitted,
-                    onArtworkTypeToggle = onArtworkTypeToggle,
-                )
-                SearchTabSwitch(
-                    selectedTab = uiState.selectedTab,
-                    onTabSelected = onSearchTabSelected,
-                    modifier = Modifier.padding(horizontal = Dimensions.overviewSearchBarHorizontalPadding),
-                )
-                HorizontalDivider(modifier = Modifier.padding(top = SearchLayout.TabSwitchBottomSpacing))
-            }
-        },
-        bottomBar = {
-            BottomNavigationMenu(
-                selectedTab = null,
-                onTabSelected = onBottomTabSelected,
-            )
-        },
-    ) { contentPadding ->
-        val bodyModifier = Modifier.fillMaxSize().padding(contentPadding)
-        val artworkSuggestions =
-            remember(
-                uiState.savedRecommendations,
-                uiState.nearRecommendations,
-                uiState.wikiDataRecommendations,
-            ) {
-                buildArtworkSuggestions(
-                    saved = uiState.savedRecommendations,
-                    nearby = uiState.nearRecommendations,
-                    wikiData = uiState.wikiDataRecommendations,
-                )
-            }
-
-        when {
-            uiState.isSuggesting ->
-                SuggestionsPane(
-                    selectedTab = uiState.selectedTab,
-                    artworkSuggestions = artworkSuggestions,
-                    artistSuggestions = uiState.artistRecommendations,
-                    onArtworkSuggestionClick = { candidate ->
-                        onRecommendationSelected(candidate)
-                        onSuggestingChange(false)
-                    },
-                    onArtistSuggestionClick = { candidate ->
-                        onArtistRecommendationSelected(candidate)
-                        onSuggestingChange(false)
-                    },
-                    modifier = bodyModifier,
-                )
-            uiState.selectedTab == SearchTab.ARTISTS -> artistResults(bodyModifier)
-            else ->
-                ArtworkSearchBody(
-                    uiState = uiState,
-                    onArtworkClick = onArtworkClick,
-                    onMapClick = onMapClick,
-                    onSaveClick = onSaveClick,
-                    modifier = bodyModifier,
-                )
+  Scaffold(
+      containerColor = MaterialTheme.colorScheme.background,
+      topBar = {
+        Column(modifier = Modifier.fillMaxWidth().statusBarsPadding()) {
+          SearchInput(
+              textFieldState = textFieldState,
+              expanded = uiState.isSuggesting,
+              selectedTypeValues = uiState.typeValues,
+              hasInvalidSearchInput = uiState.hasInvalidSearchInput,
+              onExpandedChange = onSuggestingChange,
+              onQueryChanged = onQueryChanged,
+              onSearchSubmitted = onSearchSubmitted,
+              onArtworkTypeToggle = onArtworkTypeToggle,
+          )
+          SearchTabSwitch(
+              selectedTab = uiState.selectedTab,
+              onTabSelected = onSearchTabSelected,
+              modifier =
+                  Modifier.padding(horizontal = Dimensions.overviewSearchBarHorizontalPadding),
+          )
+          HorizontalDivider(modifier = Modifier.padding(top = SearchLayout.TabSwitchBottomSpacing))
         }
+      },
+      bottomBar = {
+        BottomNavigationMenu(
+            selectedTab = null,
+            onTabSelected = onBottomTabSelected,
+        )
+      },
+  ) { contentPadding ->
+    val bodyModifier = Modifier.fillMaxSize().padding(contentPadding)
+    val artworkSuggestions =
+        remember(
+            uiState.savedRecommendations,
+            uiState.nearRecommendations,
+            uiState.wikiDataRecommendations,
+        ) {
+          buildArtworkSuggestions(
+              saved = uiState.savedRecommendations,
+              nearby = uiState.nearRecommendations,
+              wikiData = uiState.wikiDataRecommendations,
+          )
+        }
+
+    when {
+      uiState.isSuggesting ->
+          SuggestionsPane(
+              selectedTab = uiState.selectedTab,
+              artworkSuggestions = artworkSuggestions,
+              artistSuggestions = uiState.artistRecommendations,
+              onArtworkSuggestionClick = { candidate ->
+                onRecommendationSelected(candidate)
+                onSuggestingChange(false)
+              },
+              onArtistSuggestionClick = { candidate ->
+                onArtistRecommendationSelected(candidate)
+                onSuggestingChange(false)
+              },
+              modifier = bodyModifier,
+          )
+      uiState.selectedTab == SearchTab.ARTISTS ->
+          ArtistSearchBody(
+              uiState = uiState,
+              onArtistClick = onArtistClick,
+              modifier = bodyModifier,
+          )
+      else ->
+          ArtworkSearchBody(
+              uiState = uiState,
+              onArtworkClick = onArtworkClick,
+              onMapClick = onMapClick,
+              onSaveClick = onSaveClick,
+              modifier = bodyModifier,
+          )
     }
+  }
+}
+
+@Composable
+private fun ArtistSearchBody(
+    uiState: SearchScreenUiState,
+    onArtistClick: (Artist) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+  val loadingDescription = stringResource(R.string.search_loading)
+
+  when {
+    uiState.isLoading ->
+        Box(modifier = modifier, contentAlignment = Alignment.Center) {
+          CircularProgressIndicator(
+              modifier =
+                  Modifier.testTag(SearchScreenTestTags.SEARCH_LOADING_INDICATOR).semantics {
+                    contentDescription = loadingDescription
+                  }
+          )
+        }
+    uiState.resultArtworks.isEmpty() &&
+        uiState.hasAlreadySearched &&
+        !uiState.hasInvalidSearchInput -> EmptySearchResults(modifier = modifier)
+    else ->
+        ArtistResults(
+            artists = uiState.resultArtist,
+            onArtistClick = onArtistClick,
+            modifier = modifier,
+        )
+  }
+}
+
+@Composable
+private fun ArtistResults(
+    artists: List<Artist>,
+    onArtistClick: (Artist) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+  LazyColumn(
+      modifier = modifier.testTag(SearchScreenTestTags.ARTWORK_RESULTS),
+      contentPadding =
+          PaddingValues(
+              horizontal = Dimensions.searchResultsHorizontalPadding,
+              vertical = Dimensions.searchResultsVerticalPadding,
+          ),
+      verticalArrangement = Arrangement.spacedBy(Dimensions.searchResultItemSpacing),
+  ) {
+    items(artists) { artist ->
+      // TODO(use same artist card as in user pref.) need Kaio's PR
+      Text(artist.name)
+    }
+  }
 }
 
 /**
@@ -378,66 +436,67 @@ private fun ArtworkSearchBody(
     onSaveClick: (Artwork) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val loadingDescription = stringResource(R.string.search_loading)
+  val loadingDescription = stringResource(R.string.search_loading)
 
-    when {
-        uiState.isLoading ->
-            Box(modifier = modifier, contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(
-                    modifier =
-                        Modifier.testTag(SearchScreenTestTags.SEARCH_LOADING_INDICATOR).semantics {
-                            contentDescription = loadingDescription
-                        }
-                )
-            }
-        uiState.resultArtworks.isEmpty() &&
-                uiState.hasAlreadySearched &&
-                !uiState.hasInvalidSearchInput -> EmptySearchResults(modifier = modifier)
-        else ->
-            ArtworkResults(
-                artworks = uiState.resultArtworks,
-                savedArtworkIds = uiState.savedArtworks.map { it.uid }.toSet(),
-                onArtworkClick = onArtworkClick,
-                onMapClick = onMapClick,
-                onSaveClick = onSaveClick,
-                modifier = modifier,
-            )
-    }
+  when {
+    uiState.isLoading ->
+        Box(modifier = modifier, contentAlignment = Alignment.Center) {
+          CircularProgressIndicator(
+              modifier =
+                  Modifier.testTag(SearchScreenTestTags.SEARCH_LOADING_INDICATOR).semantics {
+                    contentDescription = loadingDescription
+                  }
+          )
+        }
+    uiState.resultArtworks.isEmpty() &&
+        uiState.hasAlreadySearched &&
+        !uiState.hasInvalidSearchInput -> EmptySearchResults(modifier = modifier)
+    else ->
+        ArtworkResults(
+            artworks = uiState.resultArtworks,
+            savedArtworkIds = uiState.savedArtworks.map { it.uid }.toSet(),
+            onArtworkClick = onArtworkClick,
+            onMapClick = onMapClick,
+            onSaveClick = onSaveClick,
+            modifier = modifier,
+        )
+  }
 }
 
 @Composable
 private fun EmptySearchResults(modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier.testTag(SearchScreenTestTags.EMPTY_RESULTS),
-        contentAlignment = Alignment.Center,
+  Box(
+      modifier = modifier.testTag(SearchScreenTestTags.EMPTY_RESULTS),
+      contentAlignment = Alignment.Center,
+  ) {
+    Column(
+        modifier =
+            Modifier.fillMaxWidth()
+                .padding(horizontal = Dimensions.searchEmptyStateHorizontalPadding),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(Dimensions.searchEmptyStateSpacing),
     ) {
-        Column(
-            modifier =
-                Modifier.fillMaxWidth()
-                    .padding(horizontal = Dimensions.searchEmptyStateHorizontalPadding),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(Dimensions.searchEmptyStateSpacing),
-        ) {
-            Text(
-                text = stringResource(R.string.search_empty_results_title),
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Text(
-                text = stringResource(R.string.search_empty_results_message),
-                modifier = Modifier.widthIn(max = Dimensions.searchEmptyStateMessageMaxWidth),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
+      Text(
+          text = stringResource(R.string.search_empty_results_title),
+          style = MaterialTheme.typography.titleMedium,
+          color = MaterialTheme.colorScheme.onSurface,
+      )
+      Text(
+          text = stringResource(R.string.search_empty_results_message),
+          modifier = Modifier.widthIn(max = Dimensions.searchEmptyStateMessageMaxWidth),
+          style = MaterialTheme.typography.bodyMedium,
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+      )
     }
+  }
 }
 
 /**
  * Displays the query field and the artwork-type filter.
  *
  * @param textFieldState text and cursor state currently shown in the search field
- * @param expanded whether the suggestions pane is open, which swaps the search icon for a back arrow
+ * @param expanded whether the suggestions pane is open, which swaps the search icon for a back
+ *   arrow
  * @param selectedTypeValues artwork types included in submitted searches
  * @param hasInvalidSearchInput whether the last search failed because its input was invalid
  * @param onExpandedChange called when the field asks to open or close the suggestions pane
@@ -457,53 +516,53 @@ private fun SearchInput(
     onSearchSubmitted: (String) -> Unit,
     onArtworkTypeToggle: (ArtworkType) -> Unit,
 ) {
-    val focusRequester = remember { FocusRequester() }
-    val focusManager = LocalFocusManager.current
-    val keyboardController = LocalSoftwareKeyboardController.current
+  val focusRequester = remember { FocusRequester() }
+  val focusManager = LocalFocusManager.current
+  val keyboardController = LocalSoftwareKeyboardController.current
 
-    LaunchedEffect(Unit) {
-        focusRequester.requestFocus()
-        keyboardController?.show()
-    }
+  LaunchedEffect(Unit) {
+    focusRequester.requestFocus()
+    keyboardController?.show()
+  }
 
-    LaunchedEffect(textFieldState) {
-        snapshotFlow { textFieldState.text.toString() to textFieldState.selection }
-            .collect { (query, selection) -> onQueryChanged(query, selection) }
-    }
+  LaunchedEffect(textFieldState) {
+    snapshotFlow { textFieldState.text.toString() to textFieldState.selection }
+        .collect { (query, selection) -> onQueryChanged(query, selection) }
+  }
 
-    Row(
+  Row(
+      modifier =
+          Modifier.fillMaxWidth()
+              .padding(
+                  horizontal = Dimensions.overviewSearchBarHorizontalPadding,
+                  vertical = Dimensions.overviewSearchBarVerticalPadding,
+              ),
+      verticalAlignment = Alignment.CenterVertically,
+  ) {
+    SearchTextField(
+        textFieldState = textFieldState,
+        hasInvalidSearchInput = hasInvalidSearchInput,
+        expanded = expanded,
+        onSearch = { query ->
+          onSearchSubmitted(query)
+          onExpandedChange(false)
+          focusManager.clearFocus()
+        },
+        onExpandedChange = {
+          onExpandedChange(it)
+          if (!it) focusManager.clearFocus()
+        },
         modifier =
-            Modifier.fillMaxWidth()
-                .padding(
-                    horizontal = Dimensions.overviewSearchBarHorizontalPadding,
-                    vertical = Dimensions.overviewSearchBarVerticalPadding,
-                ),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        SearchTextField(
-            textFieldState = textFieldState,
-            hasInvalidSearchInput = hasInvalidSearchInput,
-            expanded = expanded,
-            onSearch = { query ->
-                onSearchSubmitted(query)
-                onExpandedChange(false)
-                focusManager.clearFocus()
-            },
-            onExpandedChange = {
-                onExpandedChange(it)
-                if (!it) focusManager.clearFocus()
-            },
-            modifier =
-                Modifier.weight(1f)
-                    .height(Dimensions.overviewSearchBarHeight)
-                    .focusRequester(focusRequester)
-                    .testTag(SearchScreenTestTags.SEARCH_INPUT),
-        )
-        ArtworkTypeFilter(
-            selectedTypeValues = selectedTypeValues,
-            onArtworkTypeToggle = onArtworkTypeToggle,
-        )
-    }
+            Modifier.weight(1f)
+                .height(Dimensions.overviewSearchBarHeight)
+                .focusRequester(focusRequester)
+                .testTag(SearchScreenTestTags.SEARCH_INPUT),
+    )
+    ArtworkTypeFilter(
+        selectedTypeValues = selectedTypeValues,
+        onArtworkTypeToggle = onArtworkTypeToggle,
+    )
+  }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -516,62 +575,60 @@ private fun SearchTextField(
     onExpandedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    SearchBarDefaults.InputField(
-        state = textFieldState,
-        onSearch = onSearch,
-        expanded = false,
-        onExpandedChange = onExpandedChange,
-        colors =
-            SearchBarDefaults.inputFieldColors(
-                focusedContainerColor =
-                    if (hasInvalidSearchInput) {
-                        SearchBarPalette.invalidContainer
-                    } else {
-                        SearchBarPalette.container
-                    },
-                unfocusedContainerColor =
-                    if (hasInvalidSearchInput) {
-                        SearchBarPalette.invalidContainer
-                    } else {
-                        SearchBarPalette.container
-                    },
-                cursorColor =
-                    if (hasInvalidSearchInput) SearchBarPalette.error else SearchBarPalette.cursor,
-                focusedLeadingIconColor =
-                    if (hasInvalidSearchInput) SearchBarPalette.error else SearchBarPalette.content,
-                unfocusedLeadingIconColor =
-                    if (hasInvalidSearchInput) SearchBarPalette.error else SearchBarPalette.content,
-            ),
-        modifier = modifier,
-        placeholder = { Text(stringResource(R.string.search_placeholder)) },
-        leadingIcon = {
-            if (expanded) {
-                IconButton(onClick = { onExpandedChange(false) }) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = stringResource(R.string.arrow_back_description),
-                    )
-                }
-            } else {
-                Icon(
-                    Icons.Outlined.Search,
-                    contentDescription = stringResource(R.string.search_icon_description),
-                )
-            }
-        },
-        trailingIcon = {
-            if (expanded && textFieldState.text.isNotEmpty()) {
-                IconButton(onClick = { textFieldState.clearText()
-
-                }) {
-                    Icon(
-                        Icons.Filled.Close,
-                        contentDescription = stringResource(R.string.clear_icon_description),
-                    )
-                }
-            }
-        },
-    )
+  SearchBarDefaults.InputField(
+      state = textFieldState,
+      onSearch = onSearch,
+      expanded = false,
+      onExpandedChange = onExpandedChange,
+      colors =
+          SearchBarDefaults.inputFieldColors(
+              focusedContainerColor =
+                  if (hasInvalidSearchInput) {
+                    SearchBarPalette.invalidContainer
+                  } else {
+                    SearchBarPalette.container
+                  },
+              unfocusedContainerColor =
+                  if (hasInvalidSearchInput) {
+                    SearchBarPalette.invalidContainer
+                  } else {
+                    SearchBarPalette.container
+                  },
+              cursorColor =
+                  if (hasInvalidSearchInput) SearchBarPalette.error else SearchBarPalette.cursor,
+              focusedLeadingIconColor =
+                  if (hasInvalidSearchInput) SearchBarPalette.error else SearchBarPalette.content,
+              unfocusedLeadingIconColor =
+                  if (hasInvalidSearchInput) SearchBarPalette.error else SearchBarPalette.content,
+          ),
+      modifier = modifier,
+      placeholder = { Text(stringResource(R.string.search_placeholder)) },
+      leadingIcon = {
+        if (expanded) {
+          IconButton(onClick = { onExpandedChange(false) }) {
+            Icon(
+                Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = stringResource(R.string.arrow_back_description),
+            )
+          }
+        } else {
+          Icon(
+              Icons.Outlined.Search,
+              contentDescription = stringResource(R.string.search_icon_description),
+          )
+        }
+      },
+      trailingIcon = {
+        if (expanded && textFieldState.text.isNotEmpty()) {
+          IconButton(onClick = { textFieldState.clearText() }) {
+            Icon(
+                Icons.Filled.Close,
+                contentDescription = stringResource(R.string.clear_icon_description),
+            )
+          }
+        }
+      },
+  )
 }
 
 /**
@@ -587,41 +644,41 @@ private fun SearchTabSwitch(
     onTabSelected: (SearchTab) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Surface(
-        modifier = modifier.fillMaxWidth().height(SearchLayout.TabSwitchHeight),
-        shape = MaterialTheme.shapes.extraLarge,
-        color = MaterialTheme.colorScheme.background,
-    ) {
-        Row(modifier = Modifier.fillMaxSize().selectableGroup()) {
-            SearchTab.entries.forEach { tab ->
-                val selected = tab == selectedTab
-                Surface(
-                    modifier =
-                        Modifier.weight(1f)
-                            .fillMaxHeight()
-                            .selectable(selected = selected, role = Role.Tab) { onTabSelected(tab) }
-                            .testTag(SearchScreenTestTags.tab(tab)),
-                    shape = MaterialTheme.shapes.extraLarge,
-                    color = if (selected) MaterialTheme.colorScheme.surface else Color.Transparent,
-                ) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text(
-                            text = stringResource(tab.toDisplayNameRes()),
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.onSurface,
-                        )
-                    }
-                }
-            }
+  Surface(
+      modifier = modifier.fillMaxWidth().height(SearchLayout.TabSwitchHeight),
+      shape = MaterialTheme.shapes.extraLarge,
+      color = MaterialTheme.colorScheme.background,
+  ) {
+    Row(modifier = Modifier.fillMaxSize().selectableGroup()) {
+      SearchTab.entries.forEach { tab ->
+        val selected = tab == selectedTab
+        Surface(
+            modifier =
+                Modifier.weight(1f)
+                    .fillMaxHeight()
+                    .selectable(selected = selected, role = Role.Tab) { onTabSelected(tab) }
+                    .testTag(SearchScreenTestTags.tab(tab)),
+            shape = MaterialTheme.shapes.extraLarge,
+            color = if (selected) MaterialTheme.colorScheme.surface else Color.Transparent,
+        ) {
+          Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text(
+                text = stringResource(tab.toDisplayNameRes()),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+          }
         }
+      }
     }
+  }
 }
 
 @StringRes
 private fun SearchTab.toDisplayNameRes(): Int =
     when (this) {
-        SearchTab.ARTWORKS -> R.string.search_tab_artworks
-        SearchTab.ARTISTS -> R.string.search_tab_artists
+      SearchTab.ARTWORKS -> R.string.search_tab_artworks
+      SearchTab.ARTISTS -> R.string.search_tab_artists
     }
 
 @Composable
@@ -629,56 +686,56 @@ private fun ArtworkTypeFilter(
     selectedTypeValues: List<ArtworkType>,
     onArtworkTypeToggle: (ArtworkType) -> Unit,
 ) {
-    var isFilterMenuExpanded by remember { mutableStateOf(false) }
+  var isFilterMenuExpanded by remember { mutableStateOf(false) }
 
-    Box {
-        IconButton(onClick = { isFilterMenuExpanded = true }) {
-            Icon(
-                imageVector = Icons.Outlined.FilterList,
-                contentDescription = stringResource(R.string.artwork_filter_open),
-                tint = MaterialTheme.colorScheme.onSurface,
-            )
-        }
-        DropdownMenu(
-            expanded = isFilterMenuExpanded,
-            onDismissRequest = { isFilterMenuExpanded = false },
-            modifier = Modifier.heightIn(max = Dimensions.searchTypeFilterMaxHeight),
-        ) {
-            Text(
-                text = stringResource(R.string.search_filter_title),
-                style = MaterialTheme.typography.titleSmall,
-                modifier =
-                    Modifier.padding(
-                        horizontal = Dimensions.searchTypeFilterHorizontalPadding,
-                        vertical = Dimensions.searchTypeFilterTitleVerticalPadding,
-                    ),
-            )
-            Text(
-                text = stringResource(R.string.search_filter_scroll_hint),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier =
-                    Modifier.padding(
-                        horizontal = Dimensions.searchTypeFilterHorizontalPadding,
-                        vertical = Dimensions.searchTypeFilterTitleVerticalPadding,
-                    )
-                        .testTag(SearchScreenTestTags.FILTER_SCROLL_HINT),
-            )
-            ArtworkType.entries.forEach { type ->
-                DropdownMenuItem(
-                    text = { Text(stringResource(type.toDisplayNameRes())) },
-                    leadingIcon = {
-                        Checkbox(
-                            checked = type in selectedTypeValues,
-                            onCheckedChange = null,
-                        )
-                    },
-                    onClick = { onArtworkTypeToggle(type) },
-                    modifier = Modifier.testTag(SearchScreenTestTags.filterType(type)),
-                )
-            }
-        }
+  Box {
+    IconButton(onClick = { isFilterMenuExpanded = true }) {
+      Icon(
+          imageVector = Icons.Outlined.FilterList,
+          contentDescription = stringResource(R.string.artwork_filter_open),
+          tint = MaterialTheme.colorScheme.onSurface,
+      )
     }
+    DropdownMenu(
+        expanded = isFilterMenuExpanded,
+        onDismissRequest = { isFilterMenuExpanded = false },
+        modifier = Modifier.heightIn(max = Dimensions.searchTypeFilterMaxHeight),
+    ) {
+      Text(
+          text = stringResource(R.string.search_filter_title),
+          style = MaterialTheme.typography.titleSmall,
+          modifier =
+              Modifier.padding(
+                  horizontal = Dimensions.searchTypeFilterHorizontalPadding,
+                  vertical = Dimensions.searchTypeFilterTitleVerticalPadding,
+              ),
+      )
+      Text(
+          text = stringResource(R.string.search_filter_scroll_hint),
+          style = MaterialTheme.typography.bodySmall,
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+          modifier =
+              Modifier.padding(
+                      horizontal = Dimensions.searchTypeFilterHorizontalPadding,
+                      vertical = Dimensions.searchTypeFilterTitleVerticalPadding,
+                  )
+                  .testTag(SearchScreenTestTags.FILTER_SCROLL_HINT),
+      )
+      ArtworkType.entries.forEach { type ->
+        DropdownMenuItem(
+            text = { Text(stringResource(type.toDisplayNameRes())) },
+            leadingIcon = {
+              Checkbox(
+                  checked = type in selectedTypeValues,
+                  onCheckedChange = null,
+              )
+            },
+            onClick = { onArtworkTypeToggle(type) },
+            modifier = Modifier.testTag(SearchScreenTestTags.filterType(type)),
+        )
+      }
+    }
+  }
 }
 
 /**
@@ -702,45 +759,45 @@ private fun SuggestionsPane(
     onArtistSuggestionClick: (ArtistCandidate) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier = modifier) {
-        LazyColumn(
-            modifier = Modifier.weight(1f).fillMaxWidth().testTag(SearchScreenTestTags.SUGGESTION_LIST),
-            contentPadding =
-                PaddingValues(
-                    horizontal = Dimensions.searchResultsHorizontalPadding,
-                    vertical = Dimensions.searchResultsVerticalPadding,
-                ),
-            verticalArrangement = Arrangement.spacedBy(Dimensions.searchResultItemSpacing),
-        ) {
-            when (selectedTab) {
-                SearchTab.ARTWORKS ->
-                    items(artworkSuggestions) { suggestion ->
-                        ArtworkSuggestionRow(
-                            suggestion = suggestion,
-                            onClick = { onArtworkSuggestionClick(suggestion.candidate) },
-                        )
-                    }
-                SearchTab.ARTISTS ->
-                    items(artistSuggestions) { candidate ->
-                        ArtistSuggestionRow(
-                            suggestion = candidate,
-                            onClick = { onArtistSuggestionClick(candidate) },
-                        )
-                    }
+  Column(modifier = modifier) {
+    LazyColumn(
+        modifier = Modifier.weight(1f).fillMaxWidth().testTag(SearchScreenTestTags.SUGGESTION_LIST),
+        contentPadding =
+            PaddingValues(
+                horizontal = Dimensions.searchResultsHorizontalPadding,
+                vertical = Dimensions.searchResultsVerticalPadding,
+            ),
+        verticalArrangement = Arrangement.spacedBy(Dimensions.searchResultItemSpacing),
+    ) {
+      when (selectedTab) {
+        SearchTab.ARTWORKS ->
+            items(artworkSuggestions) { suggestion ->
+              ArtworkSuggestionRow(
+                  suggestion = suggestion,
+                  onClick = { onArtworkSuggestionClick(suggestion.candidate) },
+              )
             }
-        }
-
-        Text(
-            text = stringResource(R.string.search_powered_by_wikidata),
-            modifier =
-                Modifier.fillMaxWidth()
-                    .padding(vertical = SearchLayout.AttributionVerticalPadding)
-                    .testTag(SearchScreenTestTags.WIKIDATA_ATTRIBUTION),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-            textAlign = TextAlign.Center,
-        )
+        SearchTab.ARTISTS ->
+            items(artistSuggestions) { candidate ->
+              ArtistSuggestionRow(
+                  suggestion = candidate,
+                  onClick = { onArtistSuggestionClick(candidate) },
+              )
+            }
+      }
     }
+
+    Text(
+        text = stringResource(R.string.search_powered_by_wikidata),
+        modifier =
+            Modifier.fillMaxWidth()
+                .padding(vertical = SearchLayout.AttributionVerticalPadding)
+                .testTag(SearchScreenTestTags.WIKIDATA_ATTRIBUTION),
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurface,
+        textAlign = TextAlign.Center,
+    )
+  }
 }
 
 @Composable
@@ -749,44 +806,47 @@ private fun ArtworkSuggestionRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Surface(
-        modifier.fillMaxWidth()
-            .clickable { onClick() }
-            .padding(horizontal = Dimensions.searchRecommendationHorizontalPadding)
-            .testTag(SearchScreenTestTags.SEARCH_RECOMMENDATION),
-        shape = MaterialTheme.shapes.extraLarge,
-    ){
-        ListItem(
-            headlineContent = {
-                Column{
-                    Text(
-                        suggestion.candidate.label,
-                        style = MaterialTheme.typography.bodyLarge,
-                    )
-                    if(suggestion.candidate.description != null)
-                        Text(
-                            suggestion.candidate.description,
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                }
-            },
-            leadingContent = {
-                Icon(
-                    imageVector = when(suggestion.source){
-                        SuggestionSource.SAVED -> Icons.Filled.Bookmark
-                        SuggestionSource.NEARBY -> Icons.Filled.NearMe
-                        SuggestionSource.WIKIDATA -> Icons.Filled.Lightbulb
-                    },
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
+  Surface(
+      modifier
+          .fillMaxWidth()
+          .clickable { onClick() }
+          .padding(horizontal = Dimensions.searchRecommendationHorizontalPadding)
+          .testTag(SearchScreenTestTags.SEARCH_RECOMMENDATION),
+      shape = MaterialTheme.shapes.extraLarge,
+  ) {
+    ListItem(
+        headlineContent = {
+          Column {
+            Text(
+                suggestion.candidate.label,
+                style = MaterialTheme.typography.bodyLarge,
+            )
+            if (suggestion.candidate.description != null)
+                Text(
+                    suggestion.candidate.description,
+                    style = MaterialTheme.typography.bodySmall,
                 )
-            },
-            modifier =
-                Modifier.fillMaxWidth()
-                    .clickable { onClick() }
-                    .padding(horizontal = Dimensions.searchRecommendationHorizontalPadding)
-                    .testTag(SearchScreenTestTags.SEARCH_RECOMMENDATION),
-        )}
+          }
+        },
+        leadingContent = {
+          Icon(
+              imageVector =
+                  when (suggestion.source) {
+                    SuggestionSource.SAVED -> Icons.Filled.Bookmark
+                    SuggestionSource.NEARBY -> Icons.Filled.NearMe
+                    SuggestionSource.WIKIDATA -> Icons.Filled.Lightbulb
+                  },
+              contentDescription = null,
+              tint = MaterialTheme.colorScheme.primary,
+          )
+        },
+        modifier =
+            Modifier.fillMaxWidth()
+                .clickable { onClick() }
+                .padding(horizontal = Dimensions.searchRecommendationHorizontalPadding)
+                .testTag(SearchScreenTestTags.SEARCH_RECOMMENDATION),
+    )
+  }
 }
 
 @Composable
@@ -795,55 +855,56 @@ private fun ArtistSuggestionRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Surface(
-        modifier.fillMaxWidth()
-            .clickable { onClick() }
-            .padding(horizontal = Dimensions.searchRecommendationHorizontalPadding)
-            .testTag(SearchScreenTestTags.SEARCH_RECOMMENDATION),
-        shape = MaterialTheme.shapes.extraLarge,
-    ){
-        ListItem(
-            headlineContent = {
-                Column{
-                    Text(
-                        suggestion.label,
-                        style = MaterialTheme.typography.bodyLarge,
-                    )
-                    if(suggestion.description != null)
-                        Text(
-                            suggestion.description,
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                }
-            },
-            leadingContent = {
-                Icon(
-                    imageVector =
-                       Icons.Filled.Person,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
+  Surface(
+      modifier
+          .fillMaxWidth()
+          .clickable { onClick() }
+          .padding(horizontal = Dimensions.searchRecommendationHorizontalPadding)
+          .testTag(SearchScreenTestTags.SEARCH_RECOMMENDATION),
+      shape = MaterialTheme.shapes.extraLarge,
+  ) {
+    ListItem(
+        headlineContent = {
+          Column {
+            Text(
+                suggestion.label,
+                style = MaterialTheme.typography.bodyLarge,
+            )
+            if (suggestion.description != null)
+                Text(
+                    suggestion.description,
+                    style = MaterialTheme.typography.bodySmall,
                 )
-            },
-            modifier =
-                Modifier.fillMaxWidth()
-                    .clickable { onClick() }
-                    .padding(horizontal = Dimensions.searchRecommendationHorizontalPadding)
-                    .testTag(SearchScreenTestTags.SEARCH_RECOMMENDATION),
-        )}
+          }
+        },
+        leadingContent = {
+          Icon(
+              imageVector = Icons.Filled.Person,
+              contentDescription = null,
+              tint = MaterialTheme.colorScheme.primary,
+          )
+        },
+        modifier =
+            Modifier.fillMaxWidth()
+                .clickable { onClick() }
+                .padding(horizontal = Dimensions.searchRecommendationHorizontalPadding)
+                .testTag(SearchScreenTestTags.SEARCH_RECOMMENDATION),
+    )
+  }
 }
 
 @StringRes
 private fun ArtworkType.toDisplayNameRes(): Int =
     when (this) {
-        ArtworkType.PAINTING -> R.string.search_filter_type_painting
-        ArtworkType.DRAWING -> R.string.search_filter_type_drawing
-        ArtworkType.SCULPTURE -> R.string.search_filter_type_sculpture
-        ArtworkType.PRINT -> R.string.search_filter_type_print
-        ArtworkType.PHOTOGRAPH -> R.string.search_filter_type_photograph
-        ArtworkType.MURAL -> R.string.search_filter_type_mural
-        ArtworkType.OIL_PAINTING -> R.string.search_filter_type_oil_painting
-        ArtworkType.WATERCOLOR_PAINTING -> R.string.search_filter_type_watercolor_painting
-        ArtworkType.MOSAIC -> R.string.search_filter_type_mosaic
+      ArtworkType.PAINTING -> R.string.search_filter_type_painting
+      ArtworkType.DRAWING -> R.string.search_filter_type_drawing
+      ArtworkType.SCULPTURE -> R.string.search_filter_type_sculpture
+      ArtworkType.PRINT -> R.string.search_filter_type_print
+      ArtworkType.PHOTOGRAPH -> R.string.search_filter_type_photograph
+      ArtworkType.MURAL -> R.string.search_filter_type_mural
+      ArtworkType.OIL_PAINTING -> R.string.search_filter_type_oil_painting
+      ArtworkType.WATERCOLOR_PAINTING -> R.string.search_filter_type_watercolor_painting
+      ArtworkType.MOSAIC -> R.string.search_filter_type_mosaic
     }
 
 /**
@@ -862,53 +923,53 @@ private fun ArtworkResults(
     onSaveClick: (Artwork) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    LazyColumn(
-        modifier = modifier.testTag(SearchScreenTestTags.ARTWORK_RESULTS),
-        contentPadding =
-            PaddingValues(
-                horizontal = Dimensions.searchResultsHorizontalPadding,
-                vertical = Dimensions.searchResultsVerticalPadding,
-            ),
-        verticalArrangement = Arrangement.spacedBy(Dimensions.searchResultItemSpacing),
-    ) {
-        items(artworks) { artwork ->
-            ArtworkCard(
-                artwork = artwork,
-                isSaved = artwork.uid in savedArtworkIds,
-                onArtworkClick = onArtworkClick,
-                onMapClick = onMapClick,
-                onSaveClick = onSaveClick,
-            )
-        }
+  LazyColumn(
+      modifier = modifier.testTag(SearchScreenTestTags.ARTWORK_RESULTS),
+      contentPadding =
+          PaddingValues(
+              horizontal = Dimensions.searchResultsHorizontalPadding,
+              vertical = Dimensions.searchResultsVerticalPadding,
+          ),
+      verticalArrangement = Arrangement.spacedBy(Dimensions.searchResultItemSpacing),
+  ) {
+    items(artworks) { artwork ->
+      ArtworkCard(
+          artwork = artwork,
+          isSaved = artwork.uid in savedArtworkIds,
+          onArtworkClick = onArtworkClick,
+          onMapClick = onMapClick,
+          onSaveClick = onSaveClick,
+      )
     }
+  }
 }
 
 /** Previews the Artworks tab with suggestions open, as in the design. */
 @Preview(showBackground = true)
 @Composable
 internal fun SearchScreenPreview() {
-    ArtistaTheme {
-        SearchScreenContent(
-            uiState =
-                SearchScreenUiState(
-                    query = "Mona Li",
-                    savedRecommendations = listOf(ArtworkCandidate("Q12418", "Mona Lisa", "Leonardo da Vinci")),
-                    wikiDataRecommendations =
-                        listOf(ArtworkCandidate("Q1", "Mona Lisa (copy)", null)),
-                ),
-            textFieldState = rememberTextFieldState(initialText = "Mona Li"),
-        )
-    }
+  ArtistaTheme {
+    SearchScreenContent(
+        uiState =
+            SearchScreenUiState(
+                query = "Mona Li",
+                savedRecommendations =
+                    listOf(ArtworkCandidate("Q12418", "Mona Lisa", "Leonardo da Vinci")),
+                wikiDataRecommendations = listOf(ArtworkCandidate("Q1", "Mona Lisa (copy)", null)),
+            ),
+        textFieldState = rememberTextFieldState(initialText = "Mona Li"),
+    )
+  }
 }
 
 /** Previews the Artists tab with suggestions open, as in the design. */
 @Preview(showBackground = true)
 @Composable
 internal fun SearchScreenArtistsPreview() {
-    ArtistaTheme {
-        SearchScreenContent(
-            uiState = SearchScreenUiState(query = "Carl"),
-            textFieldState = rememberTextFieldState(initialText = "Carl"),
-        )
-    }
+  ArtistaTheme {
+    SearchScreenContent(
+        uiState = SearchScreenUiState(query = "Carl"),
+        textFieldState = rememberTextFieldState(initialText = "Carl"),
+    )
+  }
 }

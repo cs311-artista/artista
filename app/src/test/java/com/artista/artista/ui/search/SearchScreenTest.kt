@@ -33,6 +33,7 @@ import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.ArtworkType
 import com.artista.artista.model.artwork.SearchArea
 import com.artista.artista.model.artwork.WikiDataRepository
+import com.artista.artista.model.location.FakeLocationProvider
 import com.artista.artista.model.map.Location
 import com.artista.artista.ui.artwork.ArtworkCardTestTag
 import kotlin.NotImplementedError
@@ -193,7 +194,12 @@ class SearchScreenTest {
   @Test
   fun searchBar_hidesDropdownAndSubmitsOnlyWhenQueryIsSubmitted() = runTest {
     val wikiRepository = SearchTestData.wikiDataRepository()
-    val viewModel = SearchScreenViewModel(SearchTestData.savedArtworksRepository(), wikiRepository)
+    val viewModel =
+        SearchScreenViewModel(
+            SearchTestData.savedArtworksRepository(),
+            wikiRepository,
+            FakeLocationProvider(),
+        )
 
     composeTestRule.setContent {
       MaterialTheme { SearchScreen(onTabSelected = {}, viewModel = viewModel) }
@@ -265,7 +271,11 @@ class SearchScreenTest {
           }
         }
     val viewModel =
-        SearchScreenViewModel(SearchTestData.savedArtworksRepository(), delayedWikiRepository)
+        SearchScreenViewModel(
+            SearchTestData.savedArtworksRepository(),
+            delayedWikiRepository,
+            FakeLocationProvider(),
+        )
 
     composeTestRule.setContent {
       MaterialTheme { SearchScreen(onTabSelected = {}, viewModel = viewModel) }
@@ -330,7 +340,12 @@ class SearchScreenTest {
   fun toggleSavedArtwork_updatesRepositoryAndUiState() = runTest {
     val artwork = SearchTestData.girlWithPearlEarring
     val repository = SearchTestData.savedArtworksRepository(listOf(artwork))
-    val viewModel = SearchScreenViewModel(repository, SearchTestData.wikiDataRepository())
+    val viewModel =
+        SearchScreenViewModel(
+            repository,
+            SearchTestData.wikiDataRepository(),
+            FakeLocationProvider(),
+        )
     advanceUntilIdle()
     assertEquals(listOf(artwork), viewModel.uiState.value.savedArtworks)
 
@@ -354,6 +369,7 @@ class SearchScreenTest {
         SearchScreenViewModel(
             SearchTestData.savedArtworksRepository(emptyList()),
             FakeWikiDataRepository(listOf(artwork)),
+            FakeLocationProvider(),
         )
     viewModel.onSearchSubmitted("star")
     advanceUntilIdle()
@@ -366,7 +382,6 @@ class SearchScreenTest {
             viewModel = viewModel,
             onTabSelected = {},
             onArtworkClick = {},
-            onRecommendationSelected = {},
         )
       }
     }
@@ -383,5 +398,6 @@ class SearchScreenTest {
       SearchScreenViewModel(
           SearchTestData.savedArtworksRepository(),
           SearchTestData.wikiDataRepository(),
+          FakeLocationProvider(),
       )
 }
