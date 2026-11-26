@@ -130,7 +130,7 @@ class WikiDataRepositoryRemote(
       val url = buildMediaWikiQuery(text, max(limit * 5, 50))
       val body = executeRequest(url, accept = "application/json")
       val unfilteredCandidates = jsonResponseParser.parseArtworkCandidates(body)
-      filterArtworkCandidate(unfilteredCandidates, typeValues)
+      filterArtworkCandidate(unfilteredCandidates, typeValues).take(limit)
     }
   }
 
@@ -183,9 +183,11 @@ class WikiDataRepositoryRemote(
 
     val request = buildSparqlRequest(query)
     val body = executeRequest(request)
-    val artwork = jsonResponseParser.parseArtworkResults(body).firstOrNull()
-    artwork?.let { caches.artworksById.put(qid, it) } // "not found" is deliberately not cached
-    return artwork
+      val artwork =
+          jsonResponseParser.parseArtworkResults(body).firstOrNull()
+              ?: throw AppException.NotFound("No artwork found for uid $qid") // not cached
+      caches.artworksById.put(qid, artwork)
+      return artwork
   }
 
   // RemoteArtistRepository
@@ -201,7 +203,7 @@ class WikiDataRepositoryRemote(
       val url = buildMediaWikiQuery(text, max(limit * 5, 50))
       val body = executeRequest(url, accept = "application/json")
       val unfilteredCandidates = jsonResponseParser.parseArtistCandidates(body)
-      filterArtistCandidate(unfilteredCandidates)
+      filterArtistCandidate(unfilteredCandidates).take(limit)
     }
   }
 
