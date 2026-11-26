@@ -4,6 +4,7 @@ package com.artista.artista.ui.map
 
 import android.content.Context
 import android.widget.Toast
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -25,6 +26,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -108,6 +110,10 @@ object MapScreenTestTags {
 
   /** Tag identifying the no-route informational state. */
   const val ROUTE_NO_ROUTE = "map_route_no_route"
+  /** Tag identifying the recalculate route button. */
+  const val ROUTE_RECALCULATE_BUTTON = "map_route_recalculate_button"
+  /** Tag identifying the recalculate route error state. */
+  const val ROUTE_RECALCULATE_ERROR = "map_route_recalculate_error"
 
   /** Tag identifying the unavailable-location state. */
   const val ROUTE_LOCATION_UNAVAILABLE = "map_route_location_unavailable"
@@ -164,6 +170,7 @@ fun MapScreen(
   val uiState by mapViewModel.uiStateFlow.collectAsStateWithLifecycle()
   val routeUiState by mapViewModel.routeUiStateFlow.collectAsStateWithLifecycle()
   val routeProgressUiState by mapViewModel.routeProgressUiStateFlow.collectAsStateWithLifecycle()
+  val recalculationUiState by mapViewModel.recalculationUiStateFlow.collectAsStateWithLifecycle()
   val isRouteActive = routeUiState is RouteUiState.Success
   val context = LocalContext.current
   val userLocation = uiState.userLocation
@@ -284,8 +291,10 @@ fun MapScreen(
     RouteOverlay(
         routeUiState = routeUiState,
         routeProgressUiState = routeProgressUiState,
+        recalculationUiState = recalculationUiState,
         onClearRoute = mapViewModel::clearRoute,
         onRetryRoute = mapViewModel::retryRoute,
+        onRecalculateRoute = mapViewModel::recalculateRoute,
         modifier =
             Modifier.align(Alignment.TopCenter)
                 .padding(
@@ -333,6 +342,10 @@ internal fun routeBounds(
  *   shown
  * @param onClearRoute called when the route is dismissed
  * @param onRetryRoute called when a retry is requested
+ * @param onRecalculateRoute called when a new route from the user's location is requested, from the
+ *   "Recalculate route" button or the retry action of a failed recalculation
+ * @param recalculationUiState state of the route recalculation: whether the button is offered, its
+ *   loading and cooldown states, and the error of a failed request
  * @param modifier modifier applied to the overlay
  * @author patrickmcdan
  */
@@ -342,6 +355,8 @@ internal fun RouteOverlay(
     routeProgressUiState: RouteProgressUiState? = null,
     onClearRoute: () -> Unit,
     onRetryRoute: () -> Unit,
+    onRecalculateRoute: () -> Unit,
+    recalculationUiState: RouteRecalculationUiState,
     modifier: Modifier = Modifier,
 ) {
   when (routeUiState) {
@@ -355,47 +370,78 @@ internal fun RouteOverlay(
       )
     }
     is RouteUiState.Success -> {
-      Card(
-          modifier = modifier.fillMaxWidth().testTag(MapScreenTestTags.ROUTE_SUMMARY_CARD),
-          colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+      Column(
+          modifier = modifier,
+          verticalArrangement = Arrangement.spacedBy(Dimensions.mapRouteOverlaySpacing),
       ) {
-        Row(
-            modifier = Modifier.padding(Dimensions.mapRouteOverlayContentPadding),
-            verticalAlignment = Alignment.CenterVertically,
+        Card(
+            modifier = Modifier.fillMaxWidth().testTag(MapScreenTestTags.ROUTE_SUMMARY_CARD),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         ) {
-          Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text =
-                    routeUiState.destination.name ?: stringResource(R.string.artwork_unknown_title),
-                style = MaterialTheme.typography.titleMedium,
-            )
-            Spacer(modifier = Modifier.height(Dimensions.mapRouteOverlaySpacing))
-            Text(
-                modifier = Modifier.testTag(MapScreenTestTags.ROUTE_SUMMARY),
-                text =
-                    if (routeProgressUiState != null) {
-                      formatWalkingRouteSummary(
-                          routeProgressUiState.remainingDurationSeconds.seconds,
-                          routeProgressUiState.remainingDistanceMeters.roundToInt(),
-                      )
-                    } else {
-                      formatWalkingRouteSummary(
-                          routeUiState.route.duration,
-                          routeUiState.route.distanceMeters,
-                      )
-                    },
-                style = MaterialTheme.typography.bodyMedium,
-            )
-          }
-          IconButton(
-              modifier = Modifier.testTag(MapScreenTestTags.ROUTE_CLOSE_BUTTON),
-              onClick = onClearRoute,
+          Row(
+              modifier = Modifier.padding(Dimensions.mapRouteOverlayContentPadding),
+              verticalAlignment = Alignment.CenterVertically,
           ) {
-            Icon(
-                imageVector = Icons.Default.Close,
-                contentDescription = stringResource(R.string.map_route_close),
-            )
+            Column(modifier = Modifier.weight(1f)) {
+              Text(
+                  text =
+                      routeUiState.destination.name
+                          ?: stringResource(R.string.artwork_unknown_title),
+                  style = MaterialTheme.typography.titleMedium,
+              )
+              Spacer(modifier = Modifier.height(Dimensions.mapRouteOverlaySpacing))
+              Text(
+                  modifier = Modifier.testTag(MapScreenTestTags.ROUTE_SUMMARY),
+                  text =
+                      if (routeProgressUiState != null) {
+                        formatWalkingRouteSummary(
+                            routeProgressUiState.remainingDurationSeconds.seconds,
+                            routeProgressUiState.remainingDistanceMeters.roundToInt(),
+                        )
+                      } else {
+                        formatWalkingRouteSummary(
+                            routeUiState.route.duration,
+                            routeUiState.route.distanceMeters,
+                        )
+                      },
+                  style = MaterialTheme.typography.bodyMedium,
+              )
+              if (recalculationUiState.isAvailable && recalculationUiState.error == null) {
+                Spacer(modifier = Modifier.height(Dimensions.mapRouteOverlaySpacing))
+                Button(
+                    modifier = Modifier.testTag(MapScreenTestTags.ROUTE_RECALCULATE_BUTTON),
+                    enabled = recalculationUiState.canRequest,
+                    onClick = onRecalculateRoute,
+                ) {
+                  if (recalculationUiState.isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(Dimensions.iconSizeMedium),
+                        color = LocalContentColor.current,
+                    )
+                    Spacer(modifier = Modifier.size(Dimensions.mapRouteOverlaySpacing))
+                  }
+                  Text(text = stringResource(R.string.map_route_recalculate))
+                }
+              }
+            }
+            IconButton(
+                modifier = Modifier.testTag(MapScreenTestTags.ROUTE_CLOSE_BUTTON),
+                onClick = onClearRoute,
+            ) {
+              Icon(
+                  imageVector = Icons.Default.Close,
+                  contentDescription = stringResource(R.string.map_route_close),
+              )
+            }
           }
+        }
+        recalculationUiState.error?.let { error ->
+          RouteMessageCard(
+              modifier = Modifier.testTag(MapScreenTestTags.ROUTE_RECALCULATE_ERROR),
+              message = stringResource(error.messageRes),
+              onRetry = if (error.kind.canRetry) onRecalculateRoute else null,
+              retryEnabled = recalculationUiState.canRequest,
+          )
         }
       }
     }
@@ -433,6 +479,7 @@ private fun RouteMessageCard(
     onDismiss: (() -> Unit)? = null,
     onRetry: (() -> Unit)? = null,
     informational: Boolean = false,
+    retryEnabled: Boolean = true,
 ) {
   Card(
       modifier = modifier.fillMaxWidth(),
@@ -463,6 +510,7 @@ private fun RouteMessageCard(
         Button(
             modifier = Modifier.testTag(MapScreenTestTags.ROUTE_RETRY_BUTTON),
             onClick = it,
+            enabled = retryEnabled,
         ) {
           Text(text = stringResource(R.string.try_again))
         }
