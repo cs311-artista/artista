@@ -19,10 +19,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
-import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -280,7 +278,7 @@ fun OverviewScreen(
  * horizontal row, followed by the nearby artworks as a grid or as a list.
  *
  * Both sections live in one lazy grid so that the whole screen scrolls together, the full-width
- * items spanning every column.
+ * header spanning every column.
  *
  * @param uiState state providing the artworks, their saved status and the display mode
  * @param onArtworkClick called when an artwork is selected to open its details
@@ -300,15 +298,9 @@ private fun OverviewArtworks(
     modifier: Modifier = Modifier,
 ) {
   val isGrid = uiState.displayMode == OverviewDisplayMode.GRID
-  val gridState = rememberLazyGridState()
-  KeepCloseSavedArtworksInView(
-      hasCloseSavedArtworks = uiState.closeSavedArtworks.isNotEmpty(),
-      gridState = gridState,
-  )
   LazyVerticalGrid(
       columns = GridCells.Fixed(if (isGrid) GRID_COLUMNS else LIST_COLUMNS),
       modifier = modifier.testTag(OverviewTestTags.ARTWORK_LIST),
-      state = gridState,
       contentPadding =
           PaddingValues(
               horizontal = Dimensions.overviewListHorizontalPadding,
@@ -317,29 +309,17 @@ private fun OverviewArtworks(
       horizontalArrangement = Arrangement.spacedBy(Dimensions.overviewGridItemSpacing),
       verticalArrangement = Arrangement.spacedBy(Dimensions.overviewGridItemSpacing),
   ) {
-    if (uiState.closeSavedArtworks.isNotEmpty()) {
-      item(key = CLOSE_SAVED_TITLE_KEY, span = { GridItemSpan(maxLineSpan) }) {
-        OverviewSectionTitle(text = stringResource(R.string.overview_close_saved_artworks_title))
-      }
-      item(key = CLOSE_SAVED_ROW_KEY, span = { GridItemSpan(maxLineSpan) }) {
-        CloseSavedArtworksRow(
-            artworks = uiState.closeSavedArtworks,
-            savedArtworkIds = uiState.savedArtworkIds,
-            onArtworkClick = onArtworkClick,
-            onSaveClick = onSaveClick,
-            onMapClick = onMapClick,
-        )
-      }
-    }
-    item(key = NEARBY_TITLE_KEY, span = { GridItemSpan(maxLineSpan) }) {
-      NearbyArtworksHeader(
-          displayMode = uiState.displayMode,
+    // Always the first item, even without close saved artworks: saved artworks usually load after
+    // the nearby ones, and a lazy grid keeps its first visible item anchored. Growing this item
+    // instead of inserting new ones above it keeps a user at the top on the close row, and leaves
+    // a user who scrolled down where they are.
+    item(key = HEADER_KEY, span = { GridItemSpan(maxLineSpan) }) {
+      OverviewArtworksHeader(
+          uiState = uiState,
+          onArtworkClick = onArtworkClick,
+          onSaveClick = onSaveClick,
+          onMapClick = onMapClick,
           onDisplayModeClick = onDisplayModeClick,
-          // Separates the two sections more than two rows of the same section.
-          modifier =
-              if (uiState.closeSavedArtworks.isNotEmpty())
-                  Modifier.padding(top = Dimensions.overviewSectionSpacing)
-              else Modifier,
       )
     }
     items(uiState.artworks, key = { it.uid }) { artwork ->
@@ -369,33 +349,46 @@ private fun OverviewArtworks(
 }
 
 /**
- * Keeps the screen starting at the close saved artworks when they appear above the nearby ones.
+ * Displays the top of the overview list: the saved artworks close to the user with their title,
+ * when there are any, followed by the title of the nearby artworks and the layout button.
  *
- * Saved artworks usually load after the nearby artworks. A lazy grid keeps its first visible item
- * in place when items are inserted before it, so without this the close row would be added above
- * the viewport and the screen would open on the nearby artworks. Users who already scrolled down
- * keep their position.
- *
- * @param hasCloseSavedArtworks whether the close saved artworks row is displayed
- * @param gridState state of the lazy grid holding the row
+ * @param uiState state providing the close saved artworks, their saved status and the display mode
+ * @param onArtworkClick called when a close saved artwork is selected to open its details
+ * @param onSaveClick called when a close saved artwork's bookmark is selected
+ * @param onMapClick called when a close saved artwork's map action is selected
+ * @param onDisplayModeClick called when the user switches between the grid and the list
  * @author hixeum
  */
 @Composable
-private fun KeepCloseSavedArtworksInView(
-    hasCloseSavedArtworks: Boolean,
-    gridState: LazyGridState,
+private fun OverviewArtworksHeader(
+    uiState: OverviewUiState,
+    onArtworkClick: (Artwork) -> Unit,
+    onSaveClick: (Artwork) -> Unit,
+    onMapClick: (Artwork) -> Unit,
+    onDisplayModeClick: () -> Unit,
 ) {
-  // A plain holder rather than a snapshot state: it is read and written during composition and
-  // must not trigger another recomposition.
-  val wasShown = remember { BooleanArray(1) }
-  if (hasCloseSavedArtworks && !wasShown[0]) {
-    // Read before the next measure, so these still describe the grid without the new row.
-    val isAtTop =
-        gridState.firstVisibleItemIndex == 0 && gridState.firstVisibleItemScrollOffset == 0
-    // Requested during composition so that it overrides the anchoring of the coming measure.
-    if (isAtTop) gridState.requestScrollToItem(0)
+  val hasCloseSavedArtworks = uiState.closeSavedArtworks.isNotEmpty()
+  // Same spacing as between grid rows, so the header looks like the rest of the list.
+  Column(verticalArrangement = Arrangement.spacedBy(Dimensions.overviewGridItemSpacing)) {
+    if (hasCloseSavedArtworks) {
+      OverviewSectionTitle(text = stringResource(R.string.overview_close_saved_artworks_title))
+      CloseSavedArtworksRow(
+          artworks = uiState.closeSavedArtworks,
+          savedArtworkIds = uiState.savedArtworkIds,
+          onArtworkClick = onArtworkClick,
+          onSaveClick = onSaveClick,
+          onMapClick = onMapClick,
+      )
+    }
+    NearbyArtworksHeader(
+        displayMode = uiState.displayMode,
+        onDisplayModeClick = onDisplayModeClick,
+        // Separates the two sections more than two rows of the same section.
+        modifier =
+            if (hasCloseSavedArtworks) Modifier.padding(top = Dimensions.overviewSectionSpacing)
+            else Modifier,
+    )
   }
-  wasShown[0] = hasCloseSavedArtworks
 }
 
 /**
@@ -589,9 +582,7 @@ private fun OverviewMessageWithAction(
 
 private const val GRID_COLUMNS = 2
 private const val LIST_COLUMNS = 1
-private const val CLOSE_SAVED_TITLE_KEY = "overview_close_saved_title"
-private const val CLOSE_SAVED_ROW_KEY = "overview_close_saved_row"
-private const val NEARBY_TITLE_KEY = "overview_nearby_title"
+private const val HEADER_KEY = "overview_header"
 
 /** Previews the overview screen with a sample set of artworks in Android Studio. */
 @Preview(showBackground = true)
