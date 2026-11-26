@@ -3,18 +3,32 @@
 package com.artista.artista.model.artwork
 
 import com.artista.artista.model.artist.Artist
+import com.artista.artista.model.artist.ArtistCandidate
 import com.artista.artista.model.artist.ArtistId
+import com.artista.artista.model.artist.ArtistOccupation
+import com.artista.artista.model.artist.RemoteArtistRepository
 import com.artista.artista.model.error.AppException
 import java.text.Normalizer
-import java.util.LinkedHashMap
 import java.util.Locale
+import kotlin.collections.forEach
+import kotlin.collections.ifEmpty
+import kotlin.collections.map
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+import kotlin.math.max
+import kotlin.text.startsWith
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import okhttp3.Call
+import okhttp3.Callback
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.Response
+import okio.IOException
 
 /**
  * User agent sent with every request to Wikimedia services (Wikidata and Commons). Wikimedia's
@@ -23,83 +37,14 @@ import okhttp3.Request
 const val WIKIMEDIA_USER_AGENT = "Artista/1.0 (https://github.com/cs311-artista/artista)"
 
 /**
- * Thread-safe, bounded cache for parsed Wikidata query results.
- *
- * @param maxEntries maximum number of query results to retain
- * @param ttlNanos duration for which a result remains valid
- * @param clock monotonic time source used to determine result age
- * @author IJJA3141
- */
-internal class ArtworkQueryCache(
-    private val maxEntries: Int = DEFAULT_MAX_ENTRIES,
-    private val ttlNanos: Long = DEFAULT_TTL_NANOS,
-    private val clock: () -> Long = System::nanoTime,
-) {
-  private data class Entry(val artworks: List<Artwork>, val cachedAtNanos: Long)
-
-  private val entries = LinkedHashMap<String, Entry>(16, 0.75f, true)
-
-  init {
-    require(maxEntries > 0) { "maxEntries must be positive" }
-    require(ttlNanos > 0) { "ttlNanos must be positive" }
-  }
-
-  @Synchronized
-  fun get(query: String): List<Artwork>? {
-    val entry = entries[query] ?: return null
-    if (clock() - entry.cachedAtNanos >= ttlNanos) {
-      entries.remove(query)
-      return null
-    }
-    return entry.artworks.toList()
-  }
-
-  @Synchronized
-  fun findArtwork(uid: ArtworkId): Artwork? {
-    val now = clock()
-    val iterator = entries.entries.iterator()
-    var matchedQuery: String? = null
-    var matchedArtwork: Artwork? = null
-    while (iterator.hasNext()) {
-      val (query, entry) = iterator.next()
-      if (now - entry.cachedAtNanos >= ttlNanos) {
-        iterator.remove()
-      } else {
-        entry.artworks
-            .firstOrNull { it.uid == uid }
-            ?.let {
-              matchedQuery = query
-              matchedArtwork = it
-            }
-      }
-    }
-    matchedQuery?.let { entries[it] }
-    return matchedArtwork
-  }
-
-  @Synchronized
-  fun put(query: String, artworks: List<Artwork>) {
-    entries[query] = Entry(artworks.toList(), clock())
-    while (entries.size > maxEntries) {
-      entries.remove(entries.keys.first())
-    }
-  }
-
-  private companion object {
-    const val DEFAULT_MAX_ENTRIES = 100
-    const val DEFAULT_TTL_NANOS = 5 * 60 * 1_000_000_000L
-  }
-}
-
-/**
  * Constants for Wikidata item identifiers.
  *
  * Each value maps to a WikiData P-number used in SPARQL filters and OPTIONAL clauses.
  *
- * @property id unique Wikidata property identifier
+ * @property qid unique Wikidata property identifier
  * @author IJJA3141
  */
-enum class WikiDataProperty(val id: String) {
+enum class WikiDataProperty(val qid: String) {
   INSTANCE_OF("P31"),
   SUBCLASS_OF("P279"),
   TITLE("P1476"),
@@ -110,104 +55,45 @@ enum class WikiDataProperty(val id: String) {
   LOCATION("P276"),
   COORDINATES("P625"),
   WIDTH("P2049"),
-  HEIGHT("P2048");
+  HEIGHT("P2048"),
+  OCCUPATION("P106"),
+  DATE_OF_BIRTH("P569"),
+  DATE_OF_DEATH("P570"),
+  PLACE_OF_BIRTH("P19"),
+  PLACE_OF_DEATH("P20"),
+  CITIZENSHIP("P27"),
+  MOVEMENT("P135");
 
-  override fun toString(): String = id
+  override fun toString(): String = qid
+}
+
+enum class WikiDataItems(val qid: String) {
+  HUMAN("Q5");
+
+  override fun toString(): String = qid
 }
 
 /**
- * A matching artist returned by the Wikidata entity-search API.
- *
- * @property id Wikidata item identifier, such as `Q5593`
- * @property label artist's display name
- * @property description optional Wikidata description of the matching item
- * @author IJJA3141
- */
-data class ArtistCandidate(val id: ArtistId, val label: String, val description: String?)
-
-/**
- * Remote implementation of [WikiDataRepository] backed by the Wikidata SPARQL API.
+ * Implementation of [RemoteArtistRepository] and [RemoteArtworkRepository] backed by the Wikidata
+ * SPARQL API.
  *
  * Search requests first find a limited set of matching paintings in a subquery, then fetch their
  * optional details. The class hierarchy path starts from the fixed painting class to avoid scanning
  * all items for their instance-of statements.
  *
  * @param client HTTP client used to execute requests; inject a test client to intercept requests
- * @param endpoint Wikidata SPARQL endpoint URL
  * @param jsonResponseParser JSON to artista.Artwork parser
  * @author IJJA3141
  */
 class WikiDataRepositoryRemote(
-    private val client: OkHttpClient = OkHttpClient(),
-    private val endpoint: HttpUrl = "https://query.wikidata.org/sparql".toHttpUrl(),
+    private val client: OkHttpClient =
+        OkHttpClient().newBuilder().callTimeout(30, java.util.concurrent.TimeUnit.SECONDS).build(),
     private val jsonResponseParser: JsonResponseParser = JsonResponseParser(),
+    private val caches: WikiDataCaches = WikiDataCaches(),
 ) : WikiDataRepository {
-  private val artworkQueryCache = ArtworkQueryCache()
+  private val guard: ThrottleGuard = ThrottleGuard()
 
-  @Deprecated(
-      "This function will be moved outside of WikiDataRepository since the popularity isn't a Wikidata metric."
-  )
-  override suspend fun getPopularArtists(): List<Artist> {
-    throw NotImplementedError("This function shouldn't be used")
-  }
-
-  override suspend fun getArtistFromName(query: String): Artist? {
-    val candidates = searchArtistCandidates(query)
-    val qid = pickArtist(candidates.map { it.id }) ?: return null
-    return getArtistProfile(qid) // query info of qid received from previous call to wikidata
-  }
-
-  override suspend fun getArtist(qid: ArtistId): Artist? {
-    if (!qid.matches(ITEM_ID_REGEX)) throw AppException.InvalidInput("uid is invalid")
-    return getArtistProfile(qid)
-  }
-
-  /**
-   * Retrieves a single artwork by its Wikidata identifier.
-   *
-   * WikiData can return duplicate rows for the same artwork when multiple labels or measurements
-   * are present. The first parsed row is used because the repository contract expects a single
-   * artwork instance for a given identifier.
-   *
-   * /!\ Current implementation of the parser needs to be updates not all information retrieved from
-   * Wikidata will be present in the artwork.
-   *
-   * @param uid Wikidata item identifier for the artwork, such as Q12345
-   * @return the artwork matching the identifier
-   * @throws AppException.InvalidInput if the identifier is blank
-   * @throws AppException.NotFound if no artwork matches the identifier
-   * @author IJJA3141
-   */
-  override suspend fun getArtwork(uid: ArtworkId): Artwork {
-    if (uid.isBlank()) throw AppException.InvalidInput("uid is blank")
-    if (!uid.matches(ITEM_ID_REGEX)) {
-      throw AppException.InvalidInput("uid is not a valid Wikidata item ID: $uid")
-    }
-
-    // if artwork is cached return cached artwork (even if it was from another query)
-    artworkQueryCache.findArtwork(uid)?.let {
-      return it
-    }
-
-    val query = buildArtworkByIdQuery(uid)
-
-    // Reuse the shared request, parsing, and caching path so later lookups can use this result.
-    val artworks = fetchArtworks(query, cacheEmptyResults = false)
-    return artworks.firstOrNull() ?: throw AppException.NotFound("No artwork found for uid $uid")
-  }
-
-  /**
-   * Returns artworks around a geographic search area filtered by artwork type.
-   *
-   * /!\ Current implementation of the parser needs to be updates not all information retrieved from
-   * Wikidata will be present in the artwork.
-   *
-   * @param searchArea geographic bounds used to locate matching artworks
-   * @param typeValues artwork classes to include in the query
-   * @param limit maximum number of results returned by the query
-   * @return matching artworks mapped from valid Wikidata results, at most [limit] and unique by uid
-   * @author IJJA3141
-   */
+  // RemoteArtworkRepository
   override suspend fun getArtworksNearLocation(
       searchArea: SearchArea,
       typeValues: List<ArtworkType>,
@@ -216,55 +102,159 @@ class WikiDataRepositoryRemote(
     validateTypeValues(typeValues)
     validateLimit(limit)
 
-    val query = buildArtworkNearLocationQuery(searchArea, typeValues, limit)
-    return fetchArtworks(query, limit = limit)
+    val key = SearchAreaKey(searchArea, typeValues.toSet(), limit)
+
+    return caches.nearLocationArtworks.getOrLoad(key) {
+      val query = buildArtworkNearLocationQuery(searchArea, typeValues, limit)
+      val body = executeRequest(buildSparqlRequest(query))
+      val artworks = jsonResponseParser.parseArtworkResults(body).toList()
+      caches.rememberArtworks(artworks)
+      artworks
+    }
   }
 
-  /**
-   * Searches for artworks by label using the English-language Wikidata data set.
-   *
-   * /!\ Current implementation of the parser needs to be updates not all information retrieved from
-   * Wikidata will be present in the artwork.
-   *
-   * The search is intentionally limited to English strings to keep the user-facing result set
-   * stable and avoid mixing localized labels from other languages.
-   *
-   * Results are ordered by relevance: artworks with an image first, then by how well the title and
-   * artist match the search terms (accent/case-insensitive, word-prefix matching). Ordering is
-   * applied only to the (at most [limit]) items selected by the Wikidata search; it cannot surface
-   * a better match that the remote search did not return.
-   *
-   * @param artworkTitle text to search for in the artwork title
-   * @return the artworks whose English title contains the search term, ordered by relevance, unique
-   *   by uid and at most [limit]
-   * @throws AppException.InvalidInput if the title is blank or contains no supported characters
-   * @author IJJA3141
-   */
-  override suspend fun searchArtworks(
-      artworkTitle: String,
+  override suspend fun getArtworkCandidates(
+      query: String,
       typeValues: List<ArtworkType>,
       limit: Int,
-  ): List<Artwork> {
-    val normalizedTitle = normalizeSearchText(artworkTitle)
+  ): List<ArtworkCandidate> {
+    val text = query.trim()
+    if (text.isEmpty()) return emptyList()
 
     validateTypeValues(typeValues)
     validateLimit(limit)
 
-    val query = buildArtworkSearchQuery(prefixTerm(normalizedTitle), typeValues, limit)
-    return fetchArtworks(query, searchTermForOrdering = normalizedTitle, limit = limit)
+    val key = ArtworkQueryKey(cacheText(text), typeValues.toSet(), limit)
+
+    return caches.artworkCandidates.getOrLoad(key) {
+      val url = buildMediaWikiQuery(text, max(limit * 5, 50))
+      val body = executeRequest(url, accept = "application/json")
+      val unfilteredCandidates = jsonResponseParser.parseArtworkCandidates(body)
+      filterArtworkCandidate(unfilteredCandidates, typeValues).take(limit)
+    }
   }
 
+  override suspend fun getArtworksFromQuery(
+      searchQuery: String,
+      typeValues: List<ArtworkType>,
+      limit: Int,
+  ): List<Artwork> {
+    val normalizedQuery = normalizeSearchText(searchQuery)
+    validateTypeValues(typeValues)
+    validateLimit(limit)
+
+    val key = ArtworkQueryKey(cacheText(normalizedQuery), typeValues.toSet(), limit)
+
+    return caches.searchedArtworks.getOrLoad(key) {
+      val prefixedTerm = prefixTerm(normalizedQuery)
+      val query = buildArtworkSearchQuery(prefixedTerm, typeValues, limit)
+      val request = buildSparqlRequest(query)
+      val body = executeRequest(request)
+      val ordered =
+          jsonResponseParser
+              .parseArtworkResults(body)
+              .distinctBy { it.uid }
+              .orderBySearchRelevance(normalizedQuery)
+              .take(limit)
+              .toList()
+      caches.rememberArtworks(ordered)
+      ordered
+    }
+  }
+
+  override suspend fun getArtwork(qid: ArtworkId): Artwork? {
+    if (qid.isBlank()) throw AppException.InvalidInput("uid is blank")
+    if (!qid.matches(ITEM_ID_REGEX)) {
+      throw AppException.InvalidInput("uid is not a valid Wikidata item ID: $qid")
+    }
+
+    caches.artworksById.get(qid)?.let {
+      return it
+    }
+
+    val query =
+        """$ARTWORK_SELECT_LINE
+                     WHERE {
+                        VALUES ?item { wd:$qid }
+                        $ARTWORK_DETAILS
+                     }
+                     LIMIT 1"""
+            .trimIndent()
+
+    val request = buildSparqlRequest(query)
+    val body = executeRequest(request)
+    val artwork =
+        jsonResponseParser.parseArtworkResults(body).firstOrNull()
+            ?: throw AppException.NotFound("No artwork found for uid $qid") // not cached
+    caches.artworksById.put(qid, artwork)
+    return artwork
+  }
+
+  // RemoteArtistRepository
+  override suspend fun getArtistCandidates(query: String, limit: Int): List<ArtistCandidate> {
+    val text = query.trim()
+    if (text.isEmpty()) return emptyList()
+
+    validateLimit(limit)
+
+    val key = ArtistQueryKey(cacheText(text), limit)
+
+    return caches.artistCandidates.getOrLoad(key) {
+      val url = buildMediaWikiQuery(text, max(limit * 5, 50))
+      val body = executeRequest(url, accept = "application/json")
+      val unfilteredCandidates = jsonResponseParser.parseArtistCandidates(body)
+      filterArtistCandidate(unfilteredCandidates).take(limit)
+    }
+  }
+
+  override suspend fun getArtistsFromQuery(
+      query: String,
+      limit: Int,
+  ): List<Artist> {
+    val normalizedQuery = normalizeSearchText(query)
+    validateLimit(limit)
+
+    val key = ArtistQueryKey(cacheText(query), limit)
+
+    return caches.searchedArtists.getOrLoad(key) {
+      val query = buildArtistQuery(normalizedQuery, limit)
+      println(query)
+      val request = buildSparqlRequest(query)
+      val body = executeRequest(request)
+      val artists = jsonResponseParser.parseArtistsResults(body).orderByNameMatch(normalizedQuery)
+      caches.rememberArtist(artists)
+      artists
+    }
+  }
+
+  override suspend fun getArtist(qid: ArtistId): Artist? {
+    if (!qid.matches(ITEM_ID_REGEX)) throw AppException.InvalidInput("uid is invalid")
+
+    caches.artistsById.get(qid)?.let {
+      return it
+    }
+
+    val query =
+        """
+        $ARTIST_SELECT_LINE
+        WHERE {
+            VALUES ?artist { wd:$qid }
+            $ARTIST_DETAILS
+        }
+        GROUP BY ?artist
+        """
+            .trimIndent()
+
+    val request = buildSparqlRequest(query)
+    val body = executeRequest(request)
+    val artist = jsonResponseParser.parseArtistResults(body)
+    artist?.let { caches.artistsById.put(qid, it) }
+
+    return artist
+  }
+
+  // private members
   companion object {
-    val ITEM_ID_REGEX = Regex("Q\\d+")
-    val COMBINING_MARKS = Regex("\\p{M}+")
-    private val WHITESPACE = Regex("\\s+")
-    private val UNSUPPORTED_SEARCH_CHARACTERS = Regex("[^\\p{L}\\p{M}\\p{N}\\s]+")
-
-    const val MAX_LIMIT = 200
-    const val ROW_FAN_OUT = 10 // generous: observed fan-out is ~1-2 rows per artwork
-    const val MAX_ROWS = 2_000 // absolute ceiling against runaway queries
-
-    internal fun rowGuard(limit: Int): Int = minOf(limit * ROW_FAN_OUT, MAX_ROWS)
 
     private const val MIN_TOKEN_LENGTH = 2
 
@@ -279,13 +269,52 @@ class WikiDataRepositoryRemote(
     private const val NO_TITLE_PENALTY = 150
     private const val NO_ARTIST_PENALTY = 100
     private const val NO_LOCATION_PENALTY = 5
-
     private const val MEDIAWIKI_API_URL = "https://www.wikidata.org/w/api.php"
+    private const val WIKIDATA_SPARQL_URL = "https://query.wikidata.org/sparql"
 
-    const val SELECT_LINE =
+    const val MAX_LIMIT = 200
+    val ITEM_ID_REGEX = Regex("Q\\d+")
+    val COMBINING_MARKS = Regex("\\p{M}+")
+    private val WHITESPACE = Regex("\\s+")
+
+    private val UNSUPPORTED_SEARCH_CHARACTERS = Regex("[^\\p{L}\\p{M}\\p{N}\\s]+")
+
+    // artist
+    private val ARTIST_SELECT_LINE =
+        """
+        SELECT ?artist
+                  (SAMPLE(?labelEn) AS ?artistLabel)
+                  (SAMPLE(?descEn) AS ?description)
+                  (SAMPLE(?img) AS ?image)
+                  (SAMPLE(?born) AS ?birthDate)
+                  (SAMPLE(?died) AS ?deathDate)
+                  (SAMPLE(?birthPlaceEn) AS ?birthPlaceLabel)
+                  (SAMPLE(?deathPlaceEn) AS ?deathPlaceLabel)
+                  (GROUP_CONCAT(DISTINCT ?occupationEn; separator=" | ") AS ?occupations)
+                  (GROUP_CONCAT(DISTINCT ?citizenshipEn; separator=" | ") AS ?citizenships)
+                  (GROUP_CONCAT(DISTINCT ?movementEn; separator=" | ") AS ?movements)
+        """
+            .trimIndent()
+
+    private val ARTIST_DETAILS =
+        """
+          OPTIONAL { ?artist rdfs:label ?labelEn . FILTER(LANG(?labelEn) = "en") }
+          OPTIONAL { ?artist schema:description ?descEn . FILTER(LANG(?descEn) = "en") }
+          OPTIONAL { ?artist wdt:${WikiDataProperty.IMAGE} ?img . }
+          OPTIONAL { ?artist wdt:${WikiDataProperty.DATE_OF_BIRTH} ?born . }
+          OPTIONAL { ?artist wdt:${WikiDataProperty.DATE_OF_DEATH} ?died . }
+          OPTIONAL { ?artist wdt:${WikiDataProperty.PLACE_OF_BIRTH} ?birthPlace . ?birthPlace rdfs:label ?birthPlaceEn . FILTER(LANG(?birthPlaceEn) = "en") }
+          OPTIONAL { ?artist wdt:${WikiDataProperty.PLACE_OF_DEATH} ?deathPlace . ?deathPlace rdfs:label ?deathPlaceEn . FILTER(LANG(?deathPlaceEn) = "en") }
+          OPTIONAL { ?artist wdt:${WikiDataProperty.OCCUPATION} ?o . ?o rdfs:label ?occupationEn . FILTER(LANG(?occupationEn) = "en") }
+          OPTIONAL { ?artist wdt:${WikiDataProperty.CITIZENSHIP} ?c . ?c rdfs:label ?citizenshipEn . FILTER(LANG(?citizenshipEn) = "en") }
+          OPTIONAL { ?artist wdt:${WikiDataProperty.MOVEMENT} ?m . ?m rdfs:label ?movementEn . FILTER(LANG(?movementEn) = "en") }
+      """
+            .trimIndent()
+
+    const val ARTWORK_SELECT_LINE =
         "SELECT ?item ?itemLabel ?artistLabel ?image ?inception ?collectionLabel ?locationLabel ?width ?height ?description ?locationCoordinates ?coordinateSource"
 
-    val DETAILS =
+    val ARTWORK_DETAILS =
         """
       OPTIONAL { ?item wdt:${WikiDataProperty.COORDINATES} ?ownCoordinates . }
       OPTIONAL {
@@ -306,6 +335,11 @@ class WikiDataRepositoryRemote(
            IF(BOUND(?locationSideCoordinates), "location", ?unbound)) AS ?coordinateSource)
       """
             .trimIndent()
+
+    const val ROW_FAN_OUT = 10 // generous: observed fan-out is ~1-2 rows per artwork
+    const val MAX_ROWS = 2_000 // absolute ceiling against runaway queries
+
+    internal fun rowGuard(limit: Int): Int = minOf(limit * ROW_FAN_OUT, MAX_ROWS)
   }
 
   private fun validateLimit(limit: Int) {
@@ -314,38 +348,43 @@ class WikiDataRepositoryRemote(
     }
   }
 
+  private fun validateTypeValues(typeValues: List<ArtworkType>) {
+    if (typeValues.isEmpty()) {
+      throw AppException.InvalidInput("typeValues cannot be empty")
+    }
+    if (typeValues.distinct().size != typeValues.size) {
+      throw AppException.InvalidInput("typeValues contains duplicates")
+    }
+  }
+
+  // Removes unsupported characters and collapses whitespace. The result is plain text (no wildcards
+  // or boolean syntax), so it is safe to use for relevance ordering; use [prefixTerm] to turn it
+  // into a Wikidata search expression.
+  private fun normalizeSearchText(searchTerm: String): String {
+    // Keep Unicode letters, combining marks, numbers, and whitespace; remove other characters.
+    val sanitizedSearchTerm = UNSUPPORTED_SEARCH_CHARACTERS.replace(searchTerm, "")
+    if (sanitizedSearchTerm.isBlank()) {
+      throw AppException.InvalidInput("artworkTitle is blank or contains no supported characters")
+    }
+
+    // Split on whitespace and rejoin with single spaces to normalize the query.
+    val normalizedSearchTerm =
+        sanitizedSearchTerm.split(Regex("\\s+")).filter { it.isNotEmpty() }.joinToString(" ")
+    return normalizedSearchTerm
+  }
+
   /**
-   * Runs [query] (or serves it from cache) and post-processes the rows.
-   *
-   * The outer SPARQL LIMIT is [${rowGuard(limit)}] so that the DETAILS fan-out rows (multiple
-   * labels, widths, collections) are not truncated before parsing. Rows are therefore deduplicated
-   * by uid, optionally ordered by relevance, and capped to [limit] here. The processed list is what
-   * gets cached.
+   * Orders artist by relevance to [searchTerm], which must already be normalized (see
+   * [normalizeSearchText]).
    */
-  private suspend fun fetchArtworks(
-      query: String,
-      cacheEmptyResults: Boolean = true,
-      searchTermForOrdering: String? = null,
-      limit: Int? = null,
-  ): List<Artwork> {
-    artworkQueryCache.get(query)?.let {
-      return it
-    }
-
-    var artworks =
-        jsonResponseParser.parseArtworkResults(executeSparqlRequest(query)).distinctBy { it.uid }
-    if (searchTermForOrdering != null) {
-      artworks = artworks.orderBySearchRelevance(searchTermForOrdering)
-    }
-    if (limit != null) {
-      artworks = artworks.take(limit)
-    }
-
-    if (cacheEmptyResults || artworks.isNotEmpty()) {
-      artworkQueryCache.put(query, artworks)
-    }
-
-    return artworks
+  private fun List<Artist>.orderByNameMatch(searchTerm: String): List<Artist> {
+    val tokens = fold(searchTerm).split(WHITESPACE).filter { it.isNotEmpty() }
+    val (named, others) =
+        partition { artist ->
+          val name = fold(artist.name)
+          tokens.all { it in name }
+        }
+    return named + others
   }
 
   /**
@@ -394,31 +433,6 @@ class WikiDataRepositoryRemote(
         .map { it.third }
   }
 
-  private fun validateTypeValues(typeValues: List<ArtworkType>) {
-    if (typeValues.isEmpty()) {
-      throw AppException.InvalidInput("typeValues cannot be empty")
-    }
-    if (typeValues.distinct().size != typeValues.size) {
-      throw AppException.InvalidInput("typeValues contains duplicates")
-    }
-  }
-
-  // Removes unsupported characters and collapses whitespace. The result is plain text (no wildcards
-  // or boolean syntax), so it is safe to use for relevance ordering; use [prefixTerm] to turn it
-  // into a Wikidata search expression.
-  private fun normalizeSearchText(searchTerm: String): String {
-    // Keep Unicode letters, combining marks, numbers, and whitespace; remove other characters.
-    val sanitizedSearchTerm = UNSUPPORTED_SEARCH_CHARACTERS.replace(searchTerm, "")
-    if (sanitizedSearchTerm.isBlank()) {
-      throw AppException.InvalidInput("artworkTitle is blank or contains no supported characters")
-    }
-
-    // Split on whitespace and rejoin with single spaces to normalize the query.
-    val normalizedSearchTerm =
-        sanitizedSearchTerm.split(Regex("\\s+")).filter { it.isNotEmpty() }.joinToString(" ")
-    return normalizedSearchTerm
-  }
-
   // Lowercases and strips diacritics so comparisons are case/accent-insensitive.
   private fun fold(value: String): String =
       Normalizer.normalize(value.lowercase(Locale.ROOT), Normalizer.Form.NFD)
@@ -432,149 +446,18 @@ class WikiDataRepositoryRemote(
     return if (folded == lower) wild(lower) else "(${wild(folded)} OR ${wild(lower)})"
   }
 
-  private fun List<ArtworkType>.toSparqlValueList(): String =
-      joinToString(separator = " ") { "wd:${it.qid}" }
-
-  private suspend fun searchArtistCandidates(name: String, limit: Int = 5): List<ArtistCandidate> {
-    val text = name.trim()
-    if (text.isEmpty()) return emptyList()
-
-    val url =
-        MEDIAWIKI_API_URL.toHttpUrl()
-            .newBuilder()
-            .addQueryParameter("action", "wbsearchentities")
-            .addQueryParameter("search", text) // the builder URL-encodes it
-            .addQueryParameter("language", "en")
-            .addQueryParameter("uselang", "en")
-            .addQueryParameter("type", "item")
-            .addQueryParameter("limit", limit.toString())
-            .addQueryParameter("format", "json")
-            .build()
-
-    val body = executeGet(url, accept = "application/json")
-    return jsonResponseParser.parseArtistCandidates(body)
-  }
-
-  private suspend fun pickArtist(ids: List<ArtistId>): ArtistId? {
-    if (ids.isEmpty()) return null
-    if (ids.size == 1) return ids.first()
-
-    val query = buildArtistPickQuery(ids)
-    val artist = executeSparqlRequest(query)
-    return jsonResponseParser.parseCuratedArtistQid(artist)
-  }
-
-  private fun buildArtistPickQuery(candidateIds: List<String>): String {
-    require(candidateIds.all(ITEM_ID_REGEX::matches)) { "invalid candidate id" }
-
-    return """
-    SELECT ?artist ?sitelinks WHERE {
-      VALUES ?artist { ${candidateIds.joinToString(" ") { "wd:$it" }} }
-      ?artist wdt:${WikiDataProperty.INSTANCE_OF} wd:Q5 ;
-              wdt:P106 ?occupation ;
-              wikibase:sitelinks ?sitelinks .
-      VALUES ?occupation { ${ArtistOccupation.entries.map { it.qid }.joinToString(" ") { "wd:$it" }} }
-    }
-    ORDER BY DESC(?sitelinks)
-    LIMIT 1
-  """
-        .trimIndent()
-  }
-
-  private suspend fun getArtistProfile(qId: String, limit: Int = 5): Artist? {
-    require(qId.matches(ITEM_ID_REGEX)) { "invalid Qid" }
-
-    val query =
-        """
-        SELECT ?artist ?artistLabel ?description ?image ?birthDate ?deathDate
-        ?birthPlaceLabel ?deathPlaceLabel ?website ?wikipedia ?sitelinks
-        ?occupations ?citizenships ?movements
-        WHERE {
-            VALUES ?artist { wd:${qId} }
-            ?artist wikibase:sitelinks ?sitelinks .
-            OPTIONAL { ?artist rdfs:label ?artistLabel . FILTER(LANG(?artistLabel) = "en") }
-            OPTIONAL { ?artist schema:description ?description . FILTER(LANG(?description) = "en") }
-            OPTIONAL { ?artist wdt:P18 ?image . }
-            OPTIONAL { ?artist wdt:P569 ?birthDate . }
-            OPTIONAL { ?artist wdt:P570 ?deathDate . }
-            OPTIONAL { ?artist wdt:P19 ?birthPlace . ?birthPlace rdfs:label ?birthPlaceLabel . FILTER(LANG(?birthPlaceLabel) = "en") }
-            OPTIONAL { ?artist wdt:P20 ?deathPlace . ?deathPlace rdfs:label ?deathPlaceLabel . FILTER(LANG(?deathPlaceLabel) = "en") }
-            OPTIONAL { ?artist wdt:P856 ?website . }
-            OPTIONAL { ?wikipedia schema:about ?artist ; schema:isPartOf <https://en.wikipedia.org/> . }
-                OPTIONAL {
-                    SELECT (GROUP_CONCAT(DISTINCT ?l; separator=" | ") AS ?occupations) WHERE {
-                    wd:${qId} wdt:P106 ?o . ?o rdfs:label ?l . FILTER(LANG(?l) = "en")
-                }
-                }
-                OPTIONAL {
-                    SELECT (GROUP_CONCAT(DISTINCT ?l; separator=" | ") AS ?citizenships) WHERE {
-                    wd:${qId} wdt:P27 ?c . ?c rdfs:label ?l . FILTER(LANG(?l) = "en")
-                }
-                }
-                OPTIONAL {
-                    SELECT (GROUP_CONCAT(DISTINCT ?l; separator=" | ") AS ?movements) WHERE {
-                    wd:${qId} wdt:P135 ?m . ?m rdfs:label ?l . FILTER(LANG(?l) = "en")
-                }
-                }
-            }
-            LIMIT $limit
-           """
-            .trimIndent()
-
-    val body = executeSparqlRequest(query)
-    return jsonResponseParser.parseArtistResults(body)
-  }
-
-  private fun buildArtworkNearLocationQuery(
-      searchArea: SearchArea,
-      typeValues: List<ArtworkType>,
-      limit: Int,
-  ): String {
-    return """
-        $SELECT_LINE
-        WHERE {
-            {
-            SELECT DISTINCT ?item
-            WHERE {
-                SERVICE wikibase:around {
-                    ?location wdt:${WikiDataProperty.COORDINATES} ?locationCoordinates .
-                    bd:serviceParam wikibase:center "Point(${searchArea.longitude} ${searchArea.latitude})"^^geo:wktLiteral .
-                    bd:serviceParam wikibase:radius "${searchArea.radiusKm}" .
-            }
-            ?item wdt:${WikiDataProperty.LOCATION} ?location . 
-            VALUES ?type { ${typeValues.toSparqlValueList()} }
-            ?item wdt:${WikiDataProperty.INSTANCE_OF} ?type . 
-        }
-        LIMIT $limit
-    }
-    $DETAILS
-  }
-  LIMIT ${rowGuard(limit)}
-    """
-        .trimIndent()
-  }
-
-  private fun buildArtworkByIdQuery(uid: ArtworkId): String =
-      """
-    $SELECT_LINE
-    WHERE {
-      VALUES ?item { wd:$uid }
-      $DETAILS
-    }
-    LIMIT 1
-    """
-          .trimIndent()
-
   private fun buildArtworkSearchQuery(
       searchExpression: String,
       typeValues: List<ArtworkType>,
       limit: Int,
   ): String {
     val wikidataTypeFilter =
-        typeValues.joinToString(separator = "|") { "${WikiDataProperty.INSTANCE_OF}=${it.qid}" }
+        typeValues.joinToString(separator = "|") {
+          "${com.artista.artista.model.artwork.WikiDataProperty.INSTANCE_OF}=${it.qid}"
+        }
 
     return """
-      $SELECT_LINE
+      $ARTWORK_SELECT_LINE
       WHERE {
         {
           SELECT DISTINCT ?item ?itemLabel
@@ -592,51 +475,285 @@ class WikiDataRepositoryRemote(
           }
           LIMIT $limit
         }
-        $DETAILS
+        $ARTWORK_DETAILS
       }
-      LIMIT ${rowGuard(limit)}
+      LIMIT ${WikiDataRepositoryRemote.rowGuard(limit)}
     """
         .trimIndent()
   }
 
-  internal suspend fun executeSparqlRequest(sparqlQuery: String): String =
-      executeGet(
-          endpoint
-              .newBuilder()
-              .addQueryParameter("format", "json")
-              .addQueryParameter("query", sparqlQuery)
-              .build()
-      )
-
-  internal suspend fun executeGet(
-      url: HttpUrl,
-      accept: String = "application/sparql-results+json",
+  private fun buildArtworkNearLocationQuery(
+      searchArea: SearchArea,
+      typeValues: List<ArtworkType>,
+      limit: Int,
   ): String =
-      withContext(Dispatchers.IO) {
-        val request =
-            Request.Builder()
-                .url(url)
-                .header("Accept", accept)
-                .header("User-Agent", WIKIMEDIA_USER_AGENT)
-                .get()
-                .build()
-
-        try {
-          client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) {
-              throw AppException.Network(
-                  "Wikidata GET request failed with status ${response.code}: ${response.message}"
-              )
+      """
+        $ARTWORK_SELECT_LINE
+        WHERE {
+            {
+            SELECT DISTINCT ?item
+            WHERE {
+                SERVICE wikibase:around {
+                    ?location wdt:${WikiDataProperty.COORDINATES} ?locationCoordinates .
+                    bd:serviceParam wikibase:center "Point(${searchArea.longitude} ${searchArea.latitude})"^^geo:wktLiteral .
+                    bd:serviceParam wikibase:radius "${searchArea.radiusKm}" .
             }
-            response.body?.string()
-                ?: throw AppException.InvalidData("Wikidata GET response body was empty")
+            ?item wdt:${WikiDataProperty.LOCATION} ?location . 
+            VALUES ?type { ${typeValues.toSparqlValueList()} }
+            ?item wdt:${WikiDataProperty.INSTANCE_OF} ?type . 
+        }
+        LIMIT $limit
+    }
+    $ARTWORK_DETAILS
+  }
+  LIMIT ${rowGuard(limit)}
+    """
+          .trimIndent()
+
+  private fun buildArtistQuery(query: String, limit: Int) =
+      """
+    $ARTIST_SELECT_LINE
+    WHERE {
+      {
+        SELECT DISTINCT ?artist ?artistLabel
+        WHERE {
+          SERVICE wikibase:mwapi {
+            bd:serviceParam wikibase:endpoint "www.wikidata.org" ;
+                            wikibase:api "Generator" ;
+                            mwapi:generator "search" ;
+                            mwapi:gsrsearch "haswbstatement:${WikiDataProperty.INSTANCE_OF}=${WikiDataItems.HUMAN} $query" ;
+                            mwapi:gsrlimit "$limit" .
+            ?artist wikibase:apiOutputItem mwapi:title .
+            ?ordinal wikibase:apiOrdinal true .
           }
-        } catch (exception: AppException) {
-          throw exception
-        } catch (exception: CancellationException) {
-          throw exception
-        } catch (exception: Exception) {
-          throw AppException.Network("Unable to read Wikidata GET response", exception)
+          ?artist rdfs:label ?artistLabel .
+          FILTER(LANG(?artistLabel) = "en")
+          FILTER EXISTS {
+                  ?artist wdt:${WikiDataProperty.OCCUPATION} ?occupation .
+                  VALUES ?occupation { ${
+              ArtistOccupation.entries.map { it.qid }.joinToString(" ") { "wd:$it" }
+          } }
+      }
+      FILTER EXISTS { ?work wdt:${WikiDataProperty.ARTIST} ?artist . }
+        }
+        ORDER BY ASC(?ordinal)
+        LIMIT $limit
+      }
+      $ARTIST_DETAILS
+    }
+    GROUP BY ?artist
+    LIMIT ${rowGuard(limit)}"""
+          .trimIndent()
+
+  internal fun buildMediaWikiQuery(query: String, limit: Int): HttpUrl =
+      MEDIAWIKI_API_URL.toHttpUrl()
+          .newBuilder()
+          .addQueryParameter("action", "wbsearchentities")
+          .addQueryParameter("search", query)
+          .addQueryParameter("language", "en")
+          .addQueryParameter("uselang", "en")
+          .addQueryParameter("type", "item")
+          .addQueryParameter("limit", limit.toString())
+          .addQueryParameter("format", "json")
+          .build()
+
+  private suspend fun filterArtistCandidate(
+      candidates: List<ArtistCandidate>,
+  ): List<ArtistCandidate> {
+    if (candidates.isEmpty()) return emptyList()
+
+    val query =
+        """
+    SELECT DISTINCT ?artist WHERE {
+      VALUES ?artist { ${candidates.map { it.qid }.joinToString(" ") { "wd:$it" }} }
+      ?artist wdt:${WikiDataProperty.INSTANCE_OF} wd:${WikiDataItems.HUMAN} .
+      FILTER EXISTS {
+              ?artist wdt:${WikiDataProperty.OCCUPATION} ?occupation .
+              VALUES ?occupation { ${ArtistOccupation.entries.map { it.qid }.joinToString(" ") { "wd:$it" }} }
+      }
+    }
+  """
+            .trimIndent()
+
+    val url = buildSparqlRequest(query)
+    val body = executeRequest(url)
+    val qids = jsonResponseParser.parseFilteredArtists(body)
+
+    return candidates.filter { it.qid in qids }
+  }
+
+  private suspend fun filterArtworkCandidate(
+      candidates: List<ArtworkCandidate>,
+      typeValues: List<ArtworkType>,
+  ): List<ArtworkCandidate> {
+    if (candidates.isEmpty()) return emptyList()
+
+    if (!candidates.all { it.qid.matches(ITEM_ID_REGEX) })
+        throw AppException.InvalidInput("invalid candidate id")
+
+    val query =
+        """
+      SELECT ?artwork WHERE {
+        VALUES ?artwork { ${candidates.map{it.qid}.joinToString(" ") { "wd:$it" }} }
+        FILTER EXISTS {
+          ?artwork wdt:${WikiDataProperty.INSTANCE_OF} ?type .
+          VALUES ?type { ${typeValues.toSparqlValueList()} }
         }
       }
+  """
+            .trimIndent()
+    val url = buildSparqlRequest(query)
+    val body = executeRequest(url)
+    val qids = jsonResponseParser.parseFilteredArtworks(body)
+
+    return candidates.filter { it.qid in qids }
+  }
+
+  private fun buildSparqlRequest(sparqlQuery: String): HttpUrl =
+      WIKIDATA_SPARQL_URL.toHttpUrl()
+          .newBuilder()
+          .addQueryParameter("format", "json")
+          .addQueryParameter("query", sparqlQuery)
+          .build()
+
+  private suspend fun executeRequest(
+      url: HttpUrl,
+      accept: String = "application/sparql-results+json",
+  ): String {
+    guard.check()
+
+    return withContext(Dispatchers.IO) {
+      val request =
+          Request.Builder()
+              .url(url)
+              .header("Accept", accept)
+              .header("User-Agent", WIKIMEDIA_USER_AGENT)
+              .get()
+              .build()
+
+      try {
+        client.newCall(request).await().use { response ->
+          if (!response.isSuccessful) {
+            guard.record(response.code, response.header("Retry-After")?.toLongOrNull())
+
+            throw AppException.Network(
+                "Wikidata GET request failed with status ${response.code}: ${response.message}"
+            )
+          }
+          response.body?.string()
+              ?: throw AppException.InvalidData("Wikidata GET response body was empty")
+        }
+      } catch (exception: AppException) {
+        throw exception
+      } catch (exception: CancellationException) {
+        throw exception
+      } catch (exception: Exception) {
+        throw AppException.Network("Unable to read Wikidata GET response", exception)
+      }
+    }
+  }
+}
+
+/**
+ * Stops the app from sending requests to a rate-limited service for a while after the service asked
+ * it to slow down.
+ *
+ * Wikimedia services answer 429 (Too Many Requests) or 503 (Service Unavailable), usually with a
+ * `Retry-After` header, when a client sends too much. Clients that ignore this and keep sending
+ * requests can be banned for a long time, so after such a response the guard rejects further calls
+ * locally, with no network traffic, until the requested delay has passed.
+ *
+ * Usage: call [check] before every request, and [record] with the status code and the parsed
+ * `Retry-After` value of every response, successful or not.
+ *
+ * Behavior:
+ * - Only 429 and 503 start a block. Every other status, including 500, is ignored, and none of them
+ *   lifts a block that is already active.
+ * - A block lasts `Retry-After` seconds, or [DEFAULT_BLOCK_SECONDS] when the header is missing or
+ *   is not a number of seconds (for example an HTTP date). The value is clamped to
+ *   [MIN_BLOCK_SECONDS]..[MAX_BLOCK_SECONDS], so a bad header can neither disable the guard nor
+ *   block the app for days.
+ * - A later response never shortens an active block. A longer one extends it.
+ * - Time comes from a monotonic clock, so changing the device date or time has no effect.
+ * - It is thread safe.
+ *
+ * Each Wikimedia service enforces its own limits, so use one instance per service (for example one
+ * for the SPARQL endpoint and one for the MediaWiki API) so that a block on one does not stop calls
+ * to the other.
+ *
+ * @param clock monotonic time source in nanoseconds, replaceable in tests
+ */
+class ThrottleGuard(private val clock: () -> Long = System::nanoTime) {
+  // Guarded by `this`. Null until the first block: the origin of a monotonic clock is arbitrary
+  // (it can even be negative), so no Long constant can stand for "never blocked".
+  private var blockedUntilNanos: Long? = null
+
+  /**
+   * Fails fast while a block is active.
+   *
+   * @throws AppException.Network if the service asked the app to wait and the delay has not passed
+   */
+  @Synchronized
+  fun check() {
+    val until = blockedUntilNanos ?: return
+    // Compared by difference so the check stays correct if the clock value ever wraps around.
+    if (until - clock() > 0) {
+      throw AppException.Network("Wikidata is rate limiting this app, try again shortly")
+    }
+    blockedUntilNanos = null
+  }
+
+  /**
+   * Records the outcome of a request and starts or extends a block if the service asked for one.
+   *
+   * @param code HTTP status code of the response
+   * @param retryAfterSeconds value of the `Retry-After` header in seconds, or null if the header is
+   *   missing or could not be read as a number of seconds
+   */
+  @Synchronized
+  fun record(code: Int, retryAfterSeconds: Long?) {
+    if (code != HTTP_TOO_MANY_REQUESTS && code != HTTP_SERVICE_UNAVAILABLE) return
+
+    val seconds =
+        (retryAfterSeconds ?: DEFAULT_BLOCK_SECONDS).coerceIn(MIN_BLOCK_SECONDS, MAX_BLOCK_SECONDS)
+    val until = clock() + seconds * NANOS_PER_SECOND
+
+    val current = blockedUntilNanos
+    if (current == null || until - current > 0) blockedUntilNanos = until
+  }
+
+  companion object {
+    /** Block length used when the response has no usable `Retry-After`. */
+    internal const val DEFAULT_BLOCK_SECONDS = 60L
+
+    /** Shortest block, so `Retry-After: 0` or a negative value still pauses briefly. */
+    internal const val MIN_BLOCK_SECONDS = 1L
+
+    /** Longest block, so an absurd `Retry-After` cannot lock the app out for days. */
+    internal const val MAX_BLOCK_SECONDS = 3_600L
+
+    private const val NANOS_PER_SECOND = 1_000_000_000L
+    private const val HTTP_TOO_MANY_REQUESTS = 429
+    private const val HTTP_SERVICE_UNAVAILABLE = 503
+  }
+}
+
+/**
+ * Executes this call without blocking a thread and cancels the underlying HTTP request when the
+ * calling coroutine is cancelled.
+ */
+internal suspend fun Call.await(): Response = suspendCancellableCoroutine { continuation ->
+  continuation.invokeOnCancellation { cancel() }
+  enqueue(
+      object : Callback {
+        override fun onResponse(call: Call, response: Response) {
+          // The coroutine may have been cancelled while the response was in flight.
+          if (continuation.isCancelled) response.close() else continuation.resume(response)
+        }
+
+        override fun onFailure(call: Call, e: IOException) {
+          if (!continuation.isCancelled) continuation.resumeWithException(e)
+        }
+      }
+  )
 }

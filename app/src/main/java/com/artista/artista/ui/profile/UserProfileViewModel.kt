@@ -51,12 +51,52 @@ fun normalizeUsername(name: String): String =
  * @return true if the username can be saved, false otherwise.
  * @author Timz3rr
  */
-fun isValidUsername(name: String): Boolean {
+fun isValidUsername(name: String): Boolean =
+    normalizeUsername(name).isNotEmpty() && findUsernameIssue(name) == null
+
+/**
+ * Counts the characters of a username as the edit dialog counter shows them.
+ *
+ * Leading spaces are ignored, since they are always removed on save. Trailing spaces are counted,
+ * because while the user types, a space at the end may still be followed by a letter, and the
+ * counter should move on each keystroke. An accent typed in decomposed form counts as one
+ * character, as in [isValidUsername].
+ *
+ * @param name the username as typed by the user.
+ * @return the number of characters to display in the counter.
+ * @author krfpn
+ */
+fun countUsernameCharacters(name: String): Int =
+    Normalizer.normalize(name.trimStart(), Normalizer.Form.NFC).length
+
+/** A rule broken by a username that is not empty, so that the UI can tell the user which one. */
+enum class UsernameIssue {
+  /** The name is longer than [MAX_USERNAME_LENGTH] characters. */
+  TOO_LONG,
+
+  /** The name holds a character other than a letter, a digit or a space. */
+  INVALID_CHARACTERS,
+}
+
+/**
+ * Finds the rule a username breaks, once normalized by [normalizeUsername].
+ *
+ * An empty name is not reported: the user has simply not typed anything yet, so there is nothing to
+ * warn them about, even though [isValidUsername] rejects it. When both rules are broken, the
+ * invalid characters are reported, since removing them may also fix the length.
+ *
+ * @param name the username as typed by the user.
+ * @return the broken rule, or null when the name breaks none.
+ * @author krfpn
+ */
+fun findUsernameIssue(name: String): UsernameIssue? {
   val normalized = normalizeUsername(name)
-  // A plain space is checked instead of isWhitespace() so that tabs and line breaks are rejected.
-  return normalized.isNotEmpty() &&
-      normalized.length <= MAX_USERNAME_LENGTH &&
-      normalized.all { it.isLetterOrDigit() || it == ' ' }
+  return when {
+    // A plain space is checked instead of isWhitespace() so that tabs and line breaks are rejected.
+    !normalized.all { it.isLetterOrDigit() || it == ' ' } -> UsernameIssue.INVALID_CHARACTERS
+    normalized.length > MAX_USERNAME_LENGTH -> UsernameIssue.TOO_LONG
+    else -> null
+  }
 }
 
 /**

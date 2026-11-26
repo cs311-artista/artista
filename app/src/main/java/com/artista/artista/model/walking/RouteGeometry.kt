@@ -21,6 +21,12 @@ const val ROUTE_LOOKAHEAD_METERS = 300.0
 /** Fractions this close to a segment end are treated as the end itself. */
 private const val FRACTION_EPSILON = 1e-9
 
+/** Distance from the route beyond which a location update counts as off-route. */
+const val OFF_ROUTE_THRESHOLD_METERS = 40.0
+
+/** Consecutive off-route location updates needed before recalculation is offered. */
+const val OFF_ROUTE_UPDATES_REQUIRED = 3
+
 /**
  * The result of projecting a point onto one route segment.
  *

@@ -15,23 +15,28 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
@@ -152,7 +157,7 @@ fun SearchScreen(
       topBar = {
         SearchInput(
             textFieldState = textFieldState,
-            recommendations = uiState.recommendations,
+            recommendations = uiState.savedRecommendations,
             selectedTypeValues = uiState.typeValues,
             hasInvalidSearchInput = uiState.hasInvalidSearchInput,
             onQueryChanged = viewModel::onSearchInputChanged,
@@ -181,12 +186,14 @@ fun SearchScreen(
         )
       }
     } else if (
-        uiState.artworks.isEmpty() && uiState.hasAlreadySearched && !uiState.hasInvalidSearchInput
+        uiState.resultArtworks.isEmpty() &&
+            uiState.hasAlreadySearched &&
+            !uiState.hasInvalidSearchInput
     ) {
       EmptySearchResults(modifier = Modifier.fillMaxSize().padding(contentPadding))
     } else {
       ArtworkResults(
-          artworks = uiState.artworks,
+          artworks = uiState.resultArtworks,
           savedArtworkIds = uiState.savedArtworks.map { it.uid }.toSet(),
           onArtworkClick = onArtworkClick,
           onMapClick = onMapClick,
@@ -272,6 +279,7 @@ private fun SearchInput(
                     horizontal = Dimensions.overviewSearchBarHorizontalPadding,
                     vertical = Dimensions.overviewSearchBarVerticalPadding,
                 ),
+        horizontalArrangement = Arrangement.spacedBy(Dimensions.overviewSearchBarFilterSpacing),
         verticalAlignment = Alignment.CenterVertically,
     ) {
       SearchTextField(
@@ -322,25 +330,20 @@ private fun SearchTextField(
     onExpandedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+  // Same rounded shape and card fill as the Overview search bar.
+  val containerColor =
+      if (hasInvalidSearchInput) SearchBarPalette.invalidContainer
+      else CardDefaults.cardColors().containerColor
   SearchBarDefaults.InputField(
       state = textFieldState,
       onSearch = onSearch,
       expanded = false,
       onExpandedChange = onExpandedChange,
+      shape = MaterialTheme.shapes.extraLarge,
       colors =
           SearchBarDefaults.inputFieldColors(
-              focusedContainerColor =
-                  if (hasInvalidSearchInput) {
-                    SearchBarPalette.invalidContainer
-                  } else {
-                    SearchBarPalette.container
-                  },
-              unfocusedContainerColor =
-                  if (hasInvalidSearchInput) {
-                    SearchBarPalette.invalidContainer
-                  } else {
-                    SearchBarPalette.container
-                  },
+              focusedContainerColor = containerColor,
+              unfocusedContainerColor = containerColor,
               cursorColor =
                   if (hasInvalidSearchInput) SearchBarPalette.error else SearchBarPalette.cursor,
               focusedLeadingIconColor =
@@ -376,11 +379,20 @@ private fun ArtworkTypeFilter(
   var isFilterMenuExpanded by remember { mutableStateOf(false) }
 
   Box {
-    IconButton(onClick = { isFilterMenuExpanded = true }) {
+    // Matches the Overview filter button.
+    FilledIconButton(
+        onClick = { isFilterMenuExpanded = true },
+        modifier = Modifier.size(Dimensions.overviewFilterButtonSize),
+        shape = CircleShape,
+        colors =
+            IconButtonDefaults.filledIconButtonColors(
+                containerColor = CardDefaults.cardColors().containerColor,
+                contentColor = MaterialTheme.colorScheme.onSurface,
+            ),
+    ) {
       Icon(
           imageVector = Icons.Outlined.FilterList,
           contentDescription = stringResource(R.string.artwork_filter_open),
-          tint = MaterialTheme.colorScheme.onSurface,
       )
     }
     DropdownMenu(

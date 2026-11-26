@@ -115,6 +115,8 @@ internal object Dimensions {
 
   /** Width over height of the image in an artwork list card, close to the V2 mockup. */
   const val ARTWORK_LIST_CARD_IMAGE_ASPECT_RATIO = 1f
+  val overviewFilterButtonSize = standardControlHeight
+  val overviewSearchBarFilterSpacing = 12.dp
 
   // Search screen.
   val searchRecommendationVerticalPadding = 8.dp
@@ -145,20 +147,33 @@ internal object Dimensions {
   val preferencesSaveButtonHeight = standardControlHeight
 
   // Profile screen.
-  val profileTopBarHorizontalPadding = 16.dp
-  val profileTopBarVerticalPadding = 8.dp
-  val profileContentHorizontalPadding = 24.dp
-  val profileContentTopPadding = 16.dp
-  val profileContentBottomPadding = 45.dp
-  val profilePictureFieldsSpacing = 48.dp
-  val profileFieldSpacing = 24.dp
+  val profileContentHorizontalPadding = 20.dp
+  val profileContentTopPadding = 24.dp
+  val profileContentBottomPadding = 24.dp
+  val profileTitleSubtitleSpacing = 4.dp
+  val profileHeaderBannerSpacing = 24.dp
+  /** Width-to-height ratio of the profile picture banner. */
+  const val PROFILE_BANNER_ASPECT_RATIO = 2.1f
+  val profileBannerSectionSpacing = 20.dp
+  val profileSectionLabelCardsSpacing = 12.dp
+  val profileOptionCardSpacing = 10.dp
+  val profileOptionCardHorizontalPadding = 14.dp
+  val profileOptionCardVerticalPadding = 14.dp
+  val profileOptionIconTextSpacing = 14.dp
+  val profileOptionTitleSubtitleSpacing = 2.dp
+  val profileOptionIconBoxSize = 40.dp
+  val profileEditPhotoPadding = 10.dp
+  val profileEditPhotoHorizontalPadding = 14.dp
+  val profileEditPhotoVerticalPadding = 6.dp
+  val profileLogoutTopSpacing = 64.dp
   val logoutButtonHorizontalPadding = 20.dp
   val logoutButtonVerticalPadding = 10.dp
   val logoutButtonIconLabelSpacing = 8.dp
-  val profileFieldHorizontalPadding = 24.dp
+  val profileSheetPadding = 20.dp
+  val profileSheetSubtitleOptionsSpacing = 20.dp
+  val profileSheetCancelTopSpacing = 16.dp
+  val profileSheetCancelVerticalPadding = 14.dp
   val profileInitializationWarningPadding = 16.dp
-  /** Height of each profile field. */
-  val profileFieldHeight = 70.dp
 
   // Bottom navigation.
   val navigationBarHorizontalPadding = 16.dp

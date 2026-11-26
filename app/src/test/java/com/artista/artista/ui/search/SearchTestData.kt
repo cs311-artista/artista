@@ -3,8 +3,10 @@
 package com.artista.artista.ui.search
 
 import com.artista.artista.model.artist.Artist
+import com.artista.artista.model.artist.ArtistCandidate
 import com.artista.artista.model.artist.ArtistId
 import com.artista.artista.model.artwork.Artwork
+import com.artista.artista.model.artwork.ArtworkCandidate
 import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.ArtworkType
 import com.artista.artista.model.artwork.SavedArtworksRepository
@@ -107,7 +109,17 @@ internal class FakeWikiDataRepository(
   val searchedQueries = mutableListOf<String>()
   val searchedTypeValues = mutableListOf<List<ArtworkType>>()
 
-  override suspend fun getArtistFromName(query: String): Artist? {
+  override suspend fun getArtistCandidates(
+      query: String,
+      limit: Int,
+  ): List<ArtistCandidate> {
+    throw NotImplementedError("Should not be used in this test")
+  }
+
+  override suspend fun getArtistsFromQuery(
+      query: String,
+      limit: Int,
+  ): List<Artist> {
     throw NotImplementedError("Should not be used in this test")
   }
 
@@ -120,18 +132,22 @@ internal class FakeWikiDataRepository(
       typeValues: List<ArtworkType>,
       limit: Int,
   ): List<Artwork> {
-    throw NotImplementedError("Should not be used in this tests")
+    throw NotImplementedError("Should not be used in this test")
   }
 
-  override suspend fun getPopularArtists(): List<Artist> {
-    throw NotImplementedError("Not yet implemented")
+  override suspend fun getArtworkCandidates(
+      query: String,
+      typeValues: List<ArtworkType>,
+      limit: Int,
+  ): List<ArtworkCandidate> {
+    throw NotImplementedError("Should not be used in this test")
   }
 
   override suspend fun getArtwork(uid: ArtworkId): Artwork =
       artworks.firstOrNull { it.uid == uid }
           ?: throw NoSuchElementException("No artwork matching uid $uid was found")
 
-  override suspend fun searchArtworks(
+  override suspend fun getArtworksFromQuery(
       artworkTitle: String,
       typeValues: List<ArtworkType>,
       limit: Int,

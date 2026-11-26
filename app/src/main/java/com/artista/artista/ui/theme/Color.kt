@@ -49,6 +49,8 @@ internal object ArtistaColors {
   val Scrim = Color(0x52000000)
   val SavedArtworkMarker = Color(0xFF2196F3)
   val RemoteArtworkMarker = Color(0xFFF44336)
+  val Warning = Color(0xFF8C5E00)
+  val WarningDark = Color(0xFFFFC46B)
 
   // Artwork tiles draw on top of arbitrary images, so these colors stay the same in both themes.
   /**

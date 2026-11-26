@@ -5,6 +5,7 @@
 package com.artista.artista.model.artwork
 
 import com.artista.artista.model.artist.Artist
+import com.artista.artista.model.artist.ArtistCandidate
 import com.artista.artista.model.artist.ArtistId
 import com.artista.artista.model.error.AppException
 import com.artista.artista.model.map.Location
@@ -13,6 +14,7 @@ import java.time.LocalDate
 import java.time.ZoneOffset
 import java.util.Date
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 
@@ -145,40 +147,74 @@ open class JsonResponseParser {
    * @author IJJA3141
    */
   open fun parseArtistCandidates(responseBody: String): List<ArtistCandidate> =
+      parseCandidates(responseBody, "artist") { id, label, description ->
+        ArtistCandidate(id, label, description)
+      }
+
+  /**
+   * Parses Wikidata entity-search results into artwork candidates.
+   *
+   * @param responseBody raw JSON body returned by the Wikidata entity-search API Invalid individual
+   *   candidates are skipped; valid candidates retain Wikidata's order.
+   * @return valid candidates in the order returned by Wikidata
+   * @throws AppException.InvalidData if the response is malformed or missing its search array
+   * @author IJJA3141
+   */
+  open fun parseArtworkCandidates(responseBody: String): List<ArtworkCandidate> =
+      parseCandidates(responseBody, "artwork") { id, label, description ->
+        ArtworkCandidate(id, label, description)
+      }
+
+  /**
+   * Parses Wikidata SPARQL query results into filtered artist IDs.
+   *
+   * Extracts artist entity IDs from the `results.bindings` array, retaining only valid Wikidata
+   * entity IDs. Invalid JSON responses result in an exception.
+   *
+   * @param responseBody raw JSON body returned by the Wikidata SPARQL API
+   * @return valid artist IDs in the order returned by Wikidata
+   * @throws AppException.InvalidData if the response is malformed or missing the expected results
+   *   structure
+   * @author IJJA3141
+   */
+  open fun parseFilteredArtists(responseBody: String): List<ArtistId> =
+      parseFilteredCandidates(responseBody, "artist") { it }
+
+  /**
+   * Parses Wikidata SPARQL query results into filtered artwork IDs.
+   *
+   * Extracts artwork entity IDs from the `results.bindings` array, retaining only valid Wikidata
+   * entity IDs. Invalid JSON responses result in an exception.
+   *
+   * @param responseBody raw JSON body returned by the Wikidata SPARQL API
+   * @return valid artwork IDs in the order returned by Wikidata
+   * @throws AppException.InvalidData if the response is malformed or missing the expected results
+   *   structure
+   * @author IJJA3141
+   */
+  open fun parseFilteredArtworks(responseBody: String): List<ArtworkId> =
+      parseFilteredCandidates(responseBody, "artwork") { it }
+
+  /**
+   * Parses every artist in a SPARQL response into an [Artist], in response order.
+   *
+   * Rows without an English artist label are skipped. Rows that repeat an artist are dropped after
+   * the first one, so the list never contains the same uid twice.
+   *
+   * @param responseBody raw SPARQL JSON body returned by the endpoint
+   * @return the parsed artists, empty when the response has no bindings
+   * @throws AppException.InvalidData if the response is missing its results object or bindings
+   *   array, or a row has an invalid artist URI
+   * @author IJJA3141
+   */
+  open fun parseArtistsResults(responseBody: String): List<Artist> =
       try {
-        val json = JSONObject(responseBody)
-        val results =
-            json.optJSONArray("search")
-                ?: throw AppException.InvalidData(
-                    "Wikidata artist search response must contain a 'search' array " +
-                        "(response length=${responseBody.length})"
-                )
-        buildList {
-          for (index in 0 until results.length()) {
-            val candidate =
-                try {
-                  val result = results.getJSONObject(index)
-                  val id = result.getString("id")
-                  val label = result.getString("label").takeIf { it.isNotBlank() }
-                  if (!id.matches(WikiDataRepositoryRemote.ITEM_ID_REGEX) || label == null) {
-                    null
-                  } else {
-                    val description =
-                        if (result.has("description") && !result.isNull("description")) {
-                          result.getString("description").takeIf { it.isNotBlank() }
-                        } else {
-                          null
-                        }
-                    ArtistCandidate(id, label, description)
-                  }
-                } catch (_: JSONException) {
-                  null
-                }
-            candidate?.let(::add)
-          }
-        }
+        val bindings = artistBindings(responseBody)
+        (0 until bindings.length())
+            .mapNotNull { parseArtistBinding(bindings.getJSONObject(it)) }
+            .distinctBy { it.uid }
       } catch (exception: JSONException) {
-        throw AppException.InvalidData("Invalid Wikidata artist search response", exception)
+        throw AppException.InvalidData("Invalid artists response", exception)
       }
 
   /**
@@ -194,60 +230,41 @@ open class JsonResponseParser {
    */
   open fun parseArtistResults(responseBody: String): Artist? =
       try {
-        val json = JSONObject(responseBody)
-        val results = json.getJSONObject("results")
-        if (!results.has("bindings")) {
-          throw AppException.InvalidData("No artist found in the response")
-        }
-        val bindings = results.getJSONArray("bindings")
-        if (bindings.length() == 0) {
-          return null
-        }
-        val binding = bindings.getJSONObject(0)
-        val artistLabel = binding.optJSONObject("artistLabel")
-        val description = binding.optJSONObject("description")
-        val image = binding.optJSONObject("image")
-        val uid = binding.getJSONObject("artist").getString("value").substringAfterLast('/')
-
-        val birthDate = binding.optJSONObject("birthDate")?.getString("value")
-        val birthInstant = birthDate?.let(::parseDate)
-
-        val deathDate = binding.optJSONObject("deathDate")?.getString("value")
-        val deathInstant = deathDate?.let(::parseDate)
-
-        val birthPlace = binding.optJSONObject("birthPlaceLabel")?.getString("value")
-        val deathPlace = binding.optJSONObject("deathPlaceLabel")?.getString("value")
-
-        val citizenships = binding.optJSONObject("citizenships")?.getString("value")?.split(" | ")
-        val movements = binding.optJSONObject("movements")?.getString("value")?.split(" | ")
-
-        if (!uid.matches(WikiDataRepositoryRemote.ITEM_ID_REGEX))
-            throw AppException.InvalidData("Artist response contains an invalid artist URI")
-        val name = artistLabel?.getString("value") ?: return null
-
-        val descriptionText =
-            if (description != null) {
-
-              description.getString("value").takeIf { it.isNotBlank() }
-            } else {
-              null
-            }
-        val imageUrl = image?.optString("value")?.let(::parseImageUrl)
-        return Artist(
-            uid = uid,
-            name = name,
-            description = descriptionText,
-            imageUrl = imageUrl,
-            birthInstant = birthInstant,
-            birthPlace = birthPlace,
-            deathInstant = deathInstant,
-            deathPlace = deathPlace,
-            citizenships = citizenships,
-            movements = movements,
-        )
+        val bindings = artistBindings(responseBody)
+        if (bindings.length() == 0) null else parseArtistBinding(bindings.getJSONObject(0))
       } catch (exception: JSONException) {
         throw AppException.InvalidData("Invalid curated artist response", exception)
       }
+
+  private fun artistBindings(responseBody: String): JSONArray {
+    val results = JSONObject(responseBody).getJSONObject("results")
+    if (!results.has("bindings")) {
+      throw AppException.InvalidData("No artist found in the response")
+    }
+    return results.getJSONArray("bindings")
+  }
+
+  /** Returns the artist of one SPARQL row, or null when the row has no usable label. */
+  private fun parseArtistBinding(binding: JSONObject): Artist? {
+    val uid = binding.getJSONObject("artist").getString("value").substringAfterLast('/')
+    if (!uid.matches(WikiDataRepositoryRemote.ITEM_ID_REGEX)) {
+      throw AppException.InvalidData("Artist response contains an invalid artist URI")
+    }
+    val name = binding.optBindingValue("artistLabel")?.takeIf { it.isNotBlank() } ?: return null
+
+    return Artist(
+        uid = uid,
+        name = name,
+        description = binding.optBindingValue("description")?.takeIf { it.isNotBlank() },
+        imageUrl = binding.optBindingValue("image")?.let(::parseImageUrl),
+        birthInstant = binding.optBindingValue("birthDate")?.let(::parseDate),
+        birthPlace = binding.optBindingValue("birthPlaceLabel"),
+        deathInstant = binding.optBindingValue("deathDate")?.let(::parseDate),
+        deathPlace = binding.optBindingValue("deathPlaceLabel"),
+        citizenships = binding.optBindingValue("citizenships")?.splitPipeList(),
+        movements = binding.optBindingValue("movements")?.splitPipeList(),
+    )
+  }
 
   /**
    * Parses the selected Wikidata artist QID from a curated-artist SPARQL response.
@@ -360,6 +377,90 @@ open class JsonResponseParser {
           ?.setQueryParameter("width", THUMBNAIL_WIDTH_PX.toString())
           ?.build()
           ?.toString()
+
+  /** Value of a SPARQL binding, or null when the variable is unbound or empty. */
+  private fun JSONObject.optBindingValue(key: String): String? =
+      optJSONObject(key)?.optString("value")?.takeIf { it.isNotEmpty() }
+
+  /** Splits a `GROUP_CONCAT` value (separator " | "), or null when nothing is left. */
+  private fun String.splitPipeList(): List<String>? =
+      split(" | ").map { it.trim() }.filter { it.isNotEmpty() }.takeIf { it.isNotEmpty() }
+
+  private fun <T> parseFilteredCandidates(
+      responseBody: String,
+      bindingKey: String,
+      createId: (String) -> T,
+  ): List<T> =
+      try {
+        val json = JSONObject(responseBody)
+        val results = json.getJSONObject("results")
+        val bindings = results.getJSONArray("bindings")
+
+        buildList {
+          for (index in 0 until bindings.length()) {
+            val obj = bindings.getJSONObject(index)
+            val value = obj.getJSONObject(bindingKey).getString("value")
+            val qid = value.substringAfterLast('/')
+
+            if (qid.matches(WikiDataRepositoryRemote.ITEM_ID_REGEX)) {
+              add(createId(qid))
+            }
+          }
+        }
+      } catch (exception: JSONException) {
+        throw AppException.InvalidData(
+            "Invalid Wikidata $bindingKey search response",
+            exception,
+        )
+      }
+
+  private fun <T> parseCandidates(
+      responseBody: String,
+      entityType: String,
+      createCandidate: (String, String, String?) -> T,
+  ): List<T> =
+      try {
+        val json = JSONObject(responseBody)
+        val results =
+            json.optJSONArray("search")
+                ?: throw AppException.InvalidData(
+                    "Wikidata $entityType search response must contain a 'search' array " +
+                        "(response length=${responseBody.length})"
+                )
+
+        buildList {
+          for (index in 0 until results.length()) {
+            val candidate =
+                try {
+                  val result = results.getJSONObject(index)
+                  val id = result.getString("id")
+                  val label = result.getString("label").takeIf { it.isNotBlank() }
+
+                  if (!id.matches(WikiDataRepositoryRemote.ITEM_ID_REGEX) || label == null) {
+                    null
+                  } else {
+                    val description =
+                        if (result.has("description") && !result.isNull("description")) {
+                          result.getString("description").takeIf { it.isNotBlank() }
+                        } else {
+                          null
+                        }
+
+                    createCandidate(id, label, description)
+                  }
+                } catch (_: JSONException) {
+                  null
+                }
+
+            candidate?.let(::add)
+          }
+        }
+      } catch (exception: JSONException) {
+        throw AppException.InvalidData(
+            "Invalid Wikidata $entityType search response",
+            exception,
+        )
+      }
 
   private companion object {
     /**

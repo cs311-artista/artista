@@ -137,7 +137,10 @@ class CurrentAppUserJourneyTest {
     // Log-out through profile screen and check that it returns to log-in screen. The logout signs
     // out through the repository, so the gate, not a navigation action, brings the sign-in screen
     // back.
-    composeTestRule.onNodeWithTag(UserProfileTestTags.LOGOUT_BUTTON).assertIsDisplayed()
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.LOGOUT_BUTTON)
+        .performScrollTo()
+        .assertIsDisplayed()
     composeTestRule.onNodeWithTag(UserProfileTestTags.LOGOUT_BUTTON).performClick()
     waitUntilDisplayed(C.Tag.auth_screen_container)
   }

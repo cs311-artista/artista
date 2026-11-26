@@ -2,6 +2,9 @@
 package com.artista.artista.model.artwork
 
 import com.artista.artista.model.artist.Artist
+import com.artista.artista.model.artist.ArtistCandidate
+import com.artista.artista.model.artist.ArtistId
+import com.artista.artista.model.artist.ArtistOccupation
 import com.artista.artista.model.error.AppException
 import com.artista.artista.model.map.Location
 import java.io.IOException
@@ -56,6 +59,24 @@ class WikiDataRepositoryRemoteTest {
     override fun parseArtworkResults(responseBody: String): List<Artwork> = artworks
   }
 
+  private class ArtistListParser(private val artists: List<Artist>) : JsonResponseParser() {
+    override fun parseArtistsResults(responseBody: String): List<Artist> = artists
+  }
+
+  private class ArtworkCandidateListParser(private val candidate: List<ArtworkCandidate>) :
+      JsonResponseParser() {
+    override fun parseArtworkCandidates(responseBody: String): List<ArtworkCandidate> = candidate
+
+    override fun parseFilteredArtworks(body: String): List<ArtworkId> = candidate.map { it.qid }
+  }
+
+  private class ArtistCandidateListParser(private val candidate: List<ArtistCandidate>) :
+      JsonResponseParser() {
+    override fun parseArtistCandidates(responseBody: String): List<ArtistCandidate> = candidate
+
+    override fun parseFilteredArtists(body: String): List<ArtistId> = candidate.map { it.qid }
+  }
+
   @Ignore(
       "This test performs real network requests to the Wikidata SPARQL endpoint. It is intended to verify the correctness of the SPARQL query and the ability to fetch data from the remote API."
   )
@@ -80,7 +101,7 @@ class WikiDataRepositoryRemoteTest {
     val repository = WikiDataRepositoryRemote(jsonResponseParser = fakeParser())
 
     try {
-      repository.searchArtworks("Mona Lisa")
+      repository.getArtworksFromQuery("Mona Lisa")
     } catch (e: NotImplementedError) {
       // Handle NotImplementedError if needed
     } catch (e: Exception) {
@@ -110,12 +131,28 @@ class WikiDataRepositoryRemoteTest {
   )
   @Test
   fun runRealRequestForArtist() = runTest {
+    val repository = WikiDataRepositoryRemote(jsonResponseParser = fakeParser())
+
+    try {
+      print(repository.getArtist("Q5593"))
+    } catch (e: NotImplementedError) {
+      // Handle NotImplementedError if needed
+    } catch (e: Exception) {
+      println(e)
+    }
+  }
+
+  @Ignore(
+      "This test performs real network requests to the Wikidata SPARQL endpoint. It is intended to verify the correctness of the SPARQL query and the ability to fetch data from the remote API."
+  )
+  @Test
+  fun runRealRequestForArtistsQuery() = runTest {
     val repository = WikiDataRepositoryRemote()
 
     try {
-      println(repository.getArtistFromName("leonardo"))
-      println(repository.getArtistFromName("Picasso"))
-      println(repository.getArtistFromName("tinguely"))
+      println(repository.getArtistsFromQuery("leonardo"))
+      println(repository.getArtistsFromQuery("Picasso"))
+      println(repository.getArtistsFromQuery("tinguely"))
     } catch (e: NotImplementedError) {
       // Handle NotImplementedError if needed
     } catch (e: Exception) {
@@ -124,7 +161,7 @@ class WikiDataRepositoryRemoteTest {
   }
 
   @Test
-  fun getArtist_parsesSearchResponseWhenCalledFromRunTest() = runTest {
+  fun getArtistCandidates_parsesSearchResponseAndFiltersCandidates() = runTest {
     val requests = mutableListOf<Request>()
     val client = FakeCallClient { request ->
       requests += request
@@ -132,7 +169,7 @@ class WikiDataRepositoryRemoteTest {
           if (request.url.encodedPath.endsWith("/w/api.php")) {
             """{"search":[{"id":"Q5593","label":"Pablo Picasso","description":"Spanish painter"}]}"""
           } else {
-            """{"results":{"bindings":[]}}"""
+            """{"results":{"bindings":[{"artist":{"value":"http://www.wikidata.org/entity/Q5593"}}]}}"""
           }
       Response.Builder()
           .request(request)
@@ -142,14 +179,11 @@ class WikiDataRepositoryRemoteTest {
           .body(body.toResponseBody())
           .build()
     }
-    val parser =
-        object : JsonResponseParser() {
-          override fun parseArtistResults(responseBody: String): Artist? = null
-        }
-    val repository = WikiDataRepositoryRemote(client, jsonResponseParser = parser)
+    val repository = WikiDataRepositoryRemote(client)
 
-    assertNull(repository.getArtistFromName("Picasso"))
+    val candidates = repository.getArtistCandidates("Picasso")
 
+    assertEquals(listOf("Q5593"), candidates.map { it.qid })
     assertEquals(2, requests.size)
     assertEquals("application/json", requests[0].header("Accept"))
     assertEquals("application/sparql-results+json", requests[1].header("Accept"))
@@ -157,94 +191,80 @@ class WikiDataRepositoryRemoteTest {
   }
 
   @Test
-  fun getArtistFromName_returnsNullWhenThereAreNoCandidates() = runTest {
-    val requests = mutableListOf<Request>()
-    val client = FakeCallClient { request ->
-      requests += request
-      Response.Builder()
-          .request(request)
-          .protocol(Protocol.HTTP_1_1)
-          .code(200)
-          .message("OK")
-          .body("""{"search":[]}""".toResponseBody())
-          .build()
-    }
-    val repository = WikiDataRepositoryRemote(client)
-
-    assertNull(repository.getArtistFromName("Unknown artist"))
-    assertEquals(1, requests.size)
-  }
-
-  @Test
-  fun getArtistFromName_selectsArtistFromMultipleCandidates() = runTest {
+  fun getCandidates_parsesSearchResponseAndFiltersCandidates() = runTest {
     val requests = mutableListOf<Request>()
     val client = FakeCallClient { request ->
       requests += request
       val body =
-          when (requests.size) {
-            1 ->
-                """
-                {
-                  "search": [
-                    {"id": "Q21431120", "label": "Picasso"},
-                    {"id": "Q5593", "label": "Pablo Picasso"}
-                  ]
-                }
-                """
-            2 ->
-                """
-                {
-                  "results": {
-                    "bindings": [
-                      {
-                        "artist": {
-                          "type": "uri",
-                          "value": "http://www.wikidata.org/entity/Q5593"
-                        },
-                        "sitelinks": {
-                          "type": "literal",
-                          "value": "265"
-                        }
-                      }
-                    ]
-                  }
-                }
-                """
-            else ->
-                """
-                {
-                  "results": {
-                    "bindings": [
-                      {
-                        "artist": {
-                          "type": "uri",
-                          "value": "http://www.wikidata.org/entity/Q5593"
-                        },
-                        "artistLabel": {"type": "literal", "value": "Pablo Picasso"}
-                      }
-                    ]
-                  }
-                }
-                """
+          if (request.url.encodedPath.endsWith("/w/api.php")) {
+            """{"search":[{"id":"Q12418","label":"Mona Lisa","description":"nice art"}]}"""
+          } else {
+            """{"results":{"bindings":[{"artwork":{"value":"http://www.wikidata.org/entity/Q12418"}}]}}"""
           }
       Response.Builder()
           .request(request)
           .protocol(Protocol.HTTP_1_1)
           .code(200)
           .message("OK")
-          .body(body.trimIndent().toResponseBody())
+          .body(body.toResponseBody())
           .build()
     }
     val repository = WikiDataRepositoryRemote(client)
 
-    val artist = repository.getArtistFromName("Picasso")
+    val candidates = repository.getArtworkCandidates("Mona", ArtworkType.entries)
 
-    assertEquals(Artist(uid = "Q5593", name = "Pablo Picasso"), artist)
-    assertEquals(3, requests.size)
-    val selectionQuery = requireNotNull(requests[1].url.queryParameter("query"))
-    assertTrue(selectionQuery.contains("wd:Q21431120"))
-    assertTrue(selectionQuery.contains("wd:Q5593"))
-    assertTrue(requests[2].url.queryParameter("query")!!.contains("wd:Q5593"))
+    assertEquals(listOf("Q12418"), candidates.map { it.qid })
+    assertEquals(2, requests.size)
+    assertEquals("application/json", requests[0].header("Accept"))
+    assertEquals("application/sparql-results+json", requests[1].header("Accept"))
+    assertTrue(requests[1].url.queryParameter("query")!!.contains("wd:Q12418"))
+  }
+
+  @Test
+  fun getArtistsFromQuery_returnsEmptyListWhenThereAreNoResults() = runTest {
+    val requests = mutableListOf<Request>()
+    val client = FakeCallClient { request ->
+      requests += request
+      Response.Builder()
+          .request(request)
+          .protocol(Protocol.HTTP_1_1)
+          .code(200)
+          .message("OK")
+          .body("""{"results":{"bindings":[]}}""".toResponseBody())
+          .build()
+    }
+    val repository = WikiDataRepositoryRemote(client)
+
+    assertTrue(repository.getArtistsFromQuery("Unknown artist").isEmpty())
+    assertEquals(1, requests.size)
+  }
+
+  @Test
+  fun getArtistsFromQuery_parsesArtistResultsFromSingleQuery() = runTest {
+    val requests = mutableListOf<Request>()
+    val client = FakeCallClient { request ->
+      requests += request
+      Response.Builder()
+          .request(request)
+          .protocol(Protocol.HTTP_1_1)
+          .code(200)
+          .message("OK")
+          .body("""{"results":{"bindings":[]}}""".toResponseBody())
+          .build()
+    }
+    val artists = listOf(Artist("Q5593", "Pablo Picasso"))
+    val parser =
+        object : JsonResponseParser() {
+          override fun parseArtistsResults(responseBody: String): List<Artist> = artists
+        }
+    val repository = WikiDataRepositoryRemote(client, jsonResponseParser = parser)
+
+    val artist = repository.getArtistsFromQuery("Picasso")
+
+    assertEquals(artists, artist)
+    assertEquals(1, requests.size)
+    val query = requireNotNull(requests.single().url.queryParameter("query"))
+    assertTrue(query.contains("Picasso"))
   }
 
   @Test
@@ -308,7 +328,7 @@ class WikiDataRepositoryRemoteTest {
   fun wikidataEnums_haveValidUniqueIdentifiers() {
     val itemIds = ArtworkType.entries.map { it.qid }
     val occupationIds = ArtistOccupation.entries.map { it.qid }
-    val propertyIds = WikiDataProperty.entries.map { it.id }
+    val propertyIds = WikiDataProperty.entries.map { it.qid }
 
     itemIds.forEach { assertTrue("$it is not an item ID", it.matches(Regex("Q\\d+"))) }
     occupationIds.forEach { assertTrue("$it is not an item ID", it.matches(Regex("Q\\d+"))) }
@@ -325,15 +345,8 @@ class WikiDataRepositoryRemoteTest {
 
   @Test
   fun wikidataDetails_includeOptionalImageAndLocationFields() {
-    assertTrue(WikiDataRepositoryRemote.DETAILS.contains("?item wdt:P18 ?image"))
-    assertTrue(WikiDataRepositoryRemote.DETAILS.contains("BIND(COALESCE"))
-  }
-
-  @Test
-  fun getPopularArtists_isNotImplemented() = runTest {
-    val repository = WikiDataRepositoryRemote(testClient())
-
-    assertThrowsSuspend<NotImplementedError> { repository.getPopularArtists() }
+    assertTrue(WikiDataRepositoryRemote.ARTWORK_DETAILS.contains("?item wdt:P18 ?image"))
+    assertTrue(WikiDataRepositoryRemote.ARTWORK_DETAILS.contains("BIND(COALESCE"))
   }
 
   @Test
@@ -398,7 +411,82 @@ class WikiDataRepositoryRemoteTest {
   }
 
   @Test
-  fun searchArtworks_reusesCachedResultsForTheSameQuery() = runTest {
+  fun getArtworksCandidate_respectsLimit() = runTest {
+    val client = testClient()
+    val candidates =
+        listOf(
+            ArtworkCandidate("Q2", "Unrelated artwork", null),
+            ArtworkCandidate("Q1", "Mona Lisa", null),
+        )
+    val repository =
+        WikiDataRepositoryRemote(
+            client,
+            jsonResponseParser = ArtworkCandidateListParser(candidates),
+        )
+
+    val first = repository.getArtworkCandidates("Mona Lisa", ArtworkType.entries, 1)
+    assertEquals(1, first.size)
+  }
+
+  @Test
+  fun getArtistsCandidate_respectsLimit() = runTest {
+    val client = testClient()
+    val candidates =
+        listOf(
+            ArtistCandidate("Q2", "Unrelated artist", null),
+            ArtistCandidate("Q1", "Pablo Picasso", null),
+        )
+    val repository =
+        WikiDataRepositoryRemote(client, jsonResponseParser = ArtistCandidateListParser(candidates))
+
+    val first = repository.getArtistCandidates("Pablo Picasso", 1)
+
+    assertEquals(1, first.size)
+  }
+
+  @Test
+  fun getArtworksCandidate_reusesCachedResultsForTheSameQuery() = runTest {
+    val client = testClient()
+    val candidates =
+        listOf(
+            ArtworkCandidate("Q2", "Unrelated artwork", null),
+            ArtworkCandidate("Q1", "Mona Lisa", null),
+        )
+    val repository =
+        WikiDataRepositoryRemote(
+            client,
+            jsonResponseParser = ArtworkCandidateListParser(candidates),
+        )
+
+    val first = repository.getArtworkCandidates("Mona Lisa", ArtworkType.entries)
+    val second = repository.getArtworkCandidates("Mona Lisa", ArtworkType.entries)
+
+    assertEquals(listOf("Q2", "Q1"), first.map { it.qid })
+    assertEquals(first, second)
+    assertEquals(2, client.requestCount) // 2 since candidate resolution uses 2 request per call
+  }
+
+  @Test
+  fun getArtistsCandidate_reusesCachedResultsForTheSameQuery() = runTest {
+    val client = testClient()
+    val candidates =
+        listOf(
+            ArtistCandidate("Q2", "Unrelated artist", null),
+            ArtistCandidate("Q1", "Pablo Picasso", null),
+        )
+    val repository =
+        WikiDataRepositoryRemote(client, jsonResponseParser = ArtistCandidateListParser(candidates))
+
+    val first = repository.getArtistCandidates("Pablo Picasso")
+    val second = repository.getArtistCandidates("Pablo Picasso")
+
+    assertEquals(listOf("Q2", "Q1"), first.map { it.qid })
+    assertEquals(first, second)
+    assertEquals(2, client.requestCount) // 2 since candidate resolution uses 2 request per call
+  }
+
+  @Test
+  fun getArtworksFromQuery_reusesCachedResultsForTheSameQuery() = runTest {
     val client = testClient()
     val artworks =
         listOf(
@@ -408,8 +496,8 @@ class WikiDataRepositoryRemoteTest {
     val repository =
         WikiDataRepositoryRemote(client, jsonResponseParser = ArtworkListParser(artworks))
 
-    val first = repository.searchArtworks("Mona Lisa")
-    val second = repository.searchArtworks("Mona Lisa")
+    val first = repository.getArtworksFromQuery("Mona Lisa")
+    val second = repository.getArtworksFromQuery("Mona Lisa")
 
     assertEquals(listOf("Q1", "Q2"), first.map { it.uid })
     assertEquals(first, second)
@@ -417,7 +505,26 @@ class WikiDataRepositoryRemoteTest {
   }
 
   @Test
-  fun searchArtworks_matchesAccentedAndUnaccentedQueryAndArtworkNames() = runTest {
+  fun getArtistsFromQuery_reusesCachedResultsForTheSameQuery() = runTest {
+    val client = testClient()
+    val artists =
+        listOf(
+            Artist("Q2", "Unrelated artist", null, null, null, null, null, null),
+            Artist("Q1", "Pablo Picasso", null, null, null, null, null, null),
+        )
+    val repository =
+        WikiDataRepositoryRemote(client, jsonResponseParser = ArtistListParser(artists))
+
+    val first = repository.getArtistsFromQuery("Pablo Picasso")
+    val second = repository.getArtistsFromQuery("Pablo Picasso")
+
+    assertEquals(listOf("Q1", "Q2"), first.map { it.uid })
+    assertEquals(first, second)
+    assertEquals(1, client.requestCount)
+  }
+
+  @Test
+  fun getArtworksFromQuery_matchesAccentedAndUnaccentedQueryAndArtworkNames() = runTest {
     listOf("monet" to "Monét", "Monét" to "Monet").forEach { (query, matchingName) ->
       val repository =
           WikiDataRepositoryRemote(
@@ -431,23 +538,23 @@ class WikiDataRepositoryRemoteTest {
                   ),
           )
 
-      assertEquals("Q2", repository.searchArtworks(query).first().uid)
+      assertEquals("Q2", repository.getArtworksFromQuery(query).first().uid)
     }
   }
 
   @Test
-  fun searchArtworks_buildsAccentFoldedAndOriginalQueryExpression() = runTest {
+  fun getArtworksFromQuery_buildsAccentFoldedAndOriginalQueryExpression() = runTest {
     val client = testClient()
     val repository = WikiDataRepositoryRemote(client)
 
-    assertTrue(repository.searchArtworks("Monét").isEmpty())
+    assertTrue(repository.getArtworksFromQuery("Monét").isEmpty())
 
     val sparql = requireNotNull(client.lastRequest).url.queryParameter("query")
     assertTrue(sparql!!.contains("monet* OR monét*"))
   }
 
   @Test
-  fun searchArtworks_ordersResultsWithImagesBeforeExactTitleMatchesWithoutImages() = runTest {
+  fun getArtworksFromQuery_ordersResultsWithImagesBeforeExactTitleMatchesWithoutImages() = runTest {
     val artworks =
         listOf(
             Artwork("Q1", "Monet", null, null, null, null, null, null),
@@ -469,11 +576,11 @@ class WikiDataRepositoryRemoteTest {
             jsonResponseParser = ArtworkListParser(artworks),
         )
 
-    assertEquals(listOf("Q2", "Q1"), repository.searchArtworks("Monet").map { it.uid })
+    assertEquals(listOf("Q2", "Q1"), repository.getArtworksFromQuery("Monet").map { it.uid })
   }
 
   @Test
-  fun searchArtworks_treatsBlankImageUrlsAsMissingImages() = runTest {
+  fun getArtworksFromQuery_treatsBlankImageUrlsAsMissingImages() = runTest {
     val artworks =
         listOf(
             Artwork("Q1", "Mona Lisa", null, null, null, null, null, null),
@@ -509,12 +616,12 @@ class WikiDataRepositoryRemoteTest {
 
     assertEquals(
         listOf("Q3", "Q1", "Q2", "Q4"),
-        repository.searchArtworks("Mona Lisa").map { it.uid },
+        repository.getArtworksFromQuery("Mona Lisa").map { it.uid },
     )
   }
 
   @Test
-  fun searchArtworks_usesShortTokensAndNormalizesRepeatedWhitespace() = runTest {
+  fun getArtworksFromQuery_usesShortTokensAndNormalizesRepeatedWhitespace() = runTest {
     val client = testClient()
     val artworks =
         listOf(
@@ -545,7 +652,7 @@ class WikiDataRepositoryRemoteTest {
             jsonResponseParser = ArtworkListParser(artworks),
         )
 
-    val results = repository.searchArtworks("  A   ")
+    val results = repository.getArtworksFromQuery("  A   ")
     val sparql = requireNotNull(client.lastRequest).url.queryParameter("query")
 
     assertEquals(listOf("Q1", "Q2"), results.map { it.uid })
@@ -553,7 +660,7 @@ class WikiDataRepositoryRemoteTest {
   }
 
   @Test
-  fun searchArtworks_ranksArtworksWithTitlesAboveMissingTitles() = runTest {
+  fun getArtworksFromQuery_ranksArtworksWithTitlesAboveMissingTitles() = runTest {
     val artworks =
         listOf(
             Artwork("Q2", null, Artist("Q12", "Another artist"), null, null, null, null, null),
@@ -574,20 +681,20 @@ class WikiDataRepositoryRemoteTest {
             jsonResponseParser = ArtworkListParser(artworks),
         )
 
-    assertEquals(listOf("Q1", "Q2"), repository.searchArtworks("Monet").map { it.uid })
+    assertEquals(listOf("Q1", "Q2"), repository.getArtworksFromQuery("Monet").map { it.uid })
   }
 
   @Test
-  fun searchArtworks_handlesQueryMadeOnlyOfCombiningMarks() = runTest {
+  fun getArtworksFromQuery_handlesQueryMadeOnlyOfCombiningMarks() = runTest {
     val client = testClient()
     val repository = WikiDataRepositoryRemote(client, jsonResponseParser = EmptyParser())
 
-    assertTrue(repository.searchArtworks("\u0301").isEmpty())
+    assertTrue(repository.getArtworksFromQuery("\u0301").isEmpty())
     assertTrue(client.lastRequest?.url?.queryParameter("query")?.contains("\u0301") == true)
   }
 
   @Test
-  fun searchArtworks_ranksTitleMatchAboveArtistMatchWhenBothHaveArtists() = runTest {
+  fun getArtworksFromQuery_ranksTitleMatchAboveArtistMatchWhenBothHaveArtists() = runTest {
     val artworks =
         listOf(
             Artwork(
@@ -617,11 +724,11 @@ class WikiDataRepositoryRemoteTest {
             jsonResponseParser = ArtworkListParser(artworks),
         )
 
-    assertEquals(listOf("Q1", "Q2"), repository.searchArtworks("Monet").map { it.uid })
+    assertEquals(listOf("Q1", "Q2"), repository.getArtworksFromQuery("Monet").map { it.uid })
   }
 
   @Test
-  fun searchArtworks_preservesInputOrderForEqualRelevance() = runTest {
+  fun getArtworksFromQuery_preservesInputOrderForEqualRelevance() = runTest {
     val artworks =
         listOf(
             Artwork("Q2", "Untitled", null, null, null, null, null, null),
@@ -633,11 +740,11 @@ class WikiDataRepositoryRemoteTest {
             jsonResponseParser = ArtworkListParser(artworks),
         )
 
-    assertEquals(listOf("Q2", "Q1"), repository.searchArtworks("Monet").map { it.uid })
+    assertEquals(listOf("Q2", "Q1"), repository.getArtworksFromQuery("Monet").map { it.uid })
   }
 
   @Test
-  fun searchArtworks_ordersImageBackedResultsBeforeWeightedNoImageResults() = runTest {
+  fun getArtworksFromQuery_ordersImageBackedResultsBeforeWeightedNoImageResults() = runTest {
     val client = testClient()
     val artworks =
         listOf(
@@ -677,8 +784,8 @@ class WikiDataRepositoryRemoteTest {
     val repository =
         WikiDataRepositoryRemote(client, jsonResponseParser = ArtworkListParser(artworks))
 
-    val first = repository.searchArtworks("Mona Lisa")
-    val second = repository.searchArtworks("Mona Lisa")
+    val first = repository.getArtworksFromQuery("Mona Lisa")
+    val second = repository.getArtworksFromQuery("Mona Lisa")
 
     assertEquals(listOf("Q4", "Q2", "Q1", "Q5"), first.map { it.uid })
     assertEquals(first, second)
@@ -686,7 +793,7 @@ class WikiDataRepositoryRemoteTest {
   }
 
   @Test
-  fun searchArtworks_weightsMatchingArtistOverTitleMatchWithoutArtist() = runTest {
+  fun getArtworksFromQuery_weightsMatchingArtistOverTitleMatchWithoutArtist() = runTest {
     val artworks =
         listOf(
             Artwork(
@@ -717,13 +824,13 @@ class WikiDataRepositoryRemoteTest {
             jsonResponseParser = ArtworkListParser(artworks),
         )
 
-    val results = repository.searchArtworks("Mona Lisa")
+    val results = repository.getArtworksFromQuery("Mona Lisa")
 
     assertEquals(listOf("Q2", "Q1", "Q3"), results.map { it.uid })
   }
 
   @Test
-  fun searchArtworks_deduplicatesResultsAndAppliesLimitAfterRanking() = runTest {
+  fun getArtworksFromQuery_deduplicatesResultsAndAppliesLimitAfterRanking() = runTest {
     val artworks =
         listOf(
             Artwork(
@@ -778,13 +885,16 @@ class WikiDataRepositoryRemoteTest {
         )
 
     val results =
-        repository.searchArtworks(
+        repository.getArtworksFromQuery(
             "Mona Lisa",
             typeValues = listOf(ArtworkType.PAINTING),
             limit = 2,
         )
+
+    println(results.map { it.uid })
+
     val cachedResults =
-        repository.searchArtworks(
+        repository.getArtworksFromQuery(
             "Mona Lisa",
             typeValues = listOf(ArtworkType.PAINTING),
             limit = 2,
@@ -801,11 +911,11 @@ class WikiDataRepositoryRemoteTest {
     val client = testClient()
     val repository = WikiDataRepositoryRemote(client, jsonResponseParser = SuccessfulParser())
 
-    repository.searchArtworks("Artwork")
+    repository.getArtworksFromQuery("Artwork")
     val artwork = repository.getArtwork("Q1")
 
-    assertEquals("Q1", artwork.uid)
-    assertEquals("Artwork", artwork.name)
+    assertEquals("Q1", artwork?.uid ?: "")
+    assertEquals("Artwork", artwork?.name ?: "")
     assertEquals(1, client.requestCount)
   }
 
@@ -817,40 +927,40 @@ class WikiDataRepositoryRemoteTest {
     val first = repository.getArtwork("Q1")
     val second = repository.getArtwork("Q1")
 
-    assertEquals("Q1", first.uid)
+    assertEquals("Q1", first?.uid ?: "")
     assertEquals(first, second)
     assertEquals(1, client.requestCount)
   }
 
   @Test
-  fun searchArtworks_doesNotReuseResultsForDifferentQueries() = runTest {
+  fun getArtworksFromQuery_doesNotReuseResultsForDifferentQueries() = runTest {
     val client = testClient()
     val repository = WikiDataRepositoryRemote(client, jsonResponseParser = SuccessfulParser())
 
-    repository.searchArtworks("Mona Lisa")
-    repository.searchArtworks("The Starry Night")
+    repository.getArtworksFromQuery("Mona Lisa")
+    repository.getArtworksFromQuery("The Starry Night")
 
     assertEquals(2, client.requestCount)
   }
 
   @Test
-  fun searchArtworks_cachesEmptyResults() = runTest {
+  fun getArtworksFromQuery_cachesEmptyResults() = runTest {
     val client = testClient()
     val repository = WikiDataRepositoryRemote(client, jsonResponseParser = EmptyParser())
 
-    assertTrue(repository.searchArtworks("No matching artwork").isEmpty())
-    assertTrue(repository.searchArtworks("No matching artwork").isEmpty())
+    assertTrue(repository.getArtworksFromQuery("No matching artwork").isEmpty())
+    assertTrue(repository.getArtworksFromQuery("No matching artwork").isEmpty())
 
     assertEquals(1, client.requestCount)
   }
 
   @Test
-  fun searchArtworks_doesNotCacheFailedRequests() = runTest {
+  fun getArtworksFromQuery_doesNotCacheFailedRequests() = runTest {
     val client = testClient(statusCode = 500)
     val repository = WikiDataRepositoryRemote(client)
 
     repeat(2) {
-      assertThrowsSuspend<AppException.Network> { repository.searchArtworks("Mona Lisa") }
+      assertThrowsSuspend<AppException.Network> { repository.getArtworksFromQuery("Mona Lisa") }
     }
 
     assertEquals(2, client.requestCount)
@@ -864,62 +974,6 @@ class WikiDataRepositoryRemoteTest {
     repeat(2) { assertThrowsSuspend<AppException.NotFound> { repository.getArtwork("Q12418") } }
 
     assertEquals(2, client.requestCount)
-  }
-
-  @Test
-  fun artworkQueryCache_expiresEntriesAfterTheTtl() {
-    var nowNanos = 0L
-    val cache = ArtworkQueryCache(maxEntries = 2, ttlNanos = 10, clock = { nowNanos })
-    cache.put("query", emptyList())
-    assertEquals(emptyList<Artwork>(), cache.get("query"))
-
-    nowNanos = 10
-
-    assertNull(cache.get("query"))
-  }
-
-  @Test
-  fun artworkQueryCache_doesNotReturnMissingOrExpiredArtworks() {
-    var nowNanos = 0L
-    val cache = ArtworkQueryCache(ttlNanos = 10, clock = { nowNanos })
-    val artwork = Artwork("Q1", "Artwork", null, null, null, null, null, null)
-    cache.put("query", listOf(artwork))
-
-    assertNull(cache.findArtwork("Q2"))
-
-    nowNanos = 10
-
-    assertNull(cache.findArtwork("Q1"))
-  }
-
-  @Test
-  fun artworkQueryCache_rejectsNonPositiveCapacityAndTtl() {
-    assertThrows<IllegalArgumentException> { ArtworkQueryCache(maxEntries = 0) }
-    assertThrows<IllegalArgumentException> { ArtworkQueryCache(ttlNanos = 0) }
-  }
-
-  @Test
-  fun artworkQueryCache_keepsItsOwnCopyOfArtworkLists() {
-    val cache = ArtworkQueryCache()
-    val source = mutableListOf(Artwork("Q1", "Artwork", null, null, null, null, null, null))
-    cache.put("query", source)
-    source.clear()
-
-    assertEquals(1, cache.get("query")?.size)
-  }
-
-  @Test
-  fun artworkQueryCache_evictsLeastRecentlyUsedEntryWhenFull() {
-    val cache = ArtworkQueryCache(maxEntries = 2)
-    val artwork = Artwork("Q1", "Artwork", null, null, null, null, null, null)
-    cache.put("first", listOf(artwork))
-    cache.put("second", emptyList())
-    assertEquals(artwork, cache.findArtwork("Q1"))
-    cache.put("third", emptyList())
-
-    assertNull(cache.get("second"))
-    assertEquals(listOf(artwork), cache.get("first"))
-    assertEquals(emptyList<Artwork>(), cache.get("third"))
   }
 
   @Test
@@ -993,25 +1047,25 @@ class WikiDataRepositoryRemoteTest {
   }
 
   @Test
-  fun searchArtworks_whenQueryIsBlank_throwsInvalidInputWithoutRequest() = runTest {
+  fun getArtworksFromQuery_whenQueryIsBlank_throwsInvalidInputWithoutRequest() = runTest {
     val client = testClient()
     val repository = WikiDataRepositoryRemote(client)
 
     assertThrowsSuspend<AppException.InvalidInput> {
-      repository.searchArtworks("   ", listOf(ArtworkType.PAINTING), 50)
+      repository.getArtworksFromQuery("   ", listOf(ArtworkType.PAINTING), 50)
     }
     assertNull(client.lastRequest)
   }
 
   @Test
-  fun searchArtworks_buildsQueryWithRequestedTypesLimitAndEnglishLabels() = runTest {
+  fun getArtworksFromQuery_buildsQueryWithRequestedTypesLimitAndEnglishLabels() = runTest {
     val client = testClient()
     val repository = WikiDataRepositoryRemote(client)
 
     assertTrue(
         repository
-            .searchArtworks(
-                artworkTitle = "Mona Lisa",
+            .getArtworksFromQuery(
+                searchQuery = "Mona Lisa",
                 typeValues = listOf(ArtworkType.PAINTING, ArtworkType.SCULPTURE),
                 limit = 25,
             )
@@ -1036,11 +1090,13 @@ class WikiDataRepositoryRemoteTest {
   }
 
   @Test
-  fun searchArtworks_removesUnsupportedCharactersBeforeBuildingQuery() = runTest {
+  fun getArtworksFromQuery_removesUnsupportedCharactersBeforeBuildingQuery() = runTest {
     val client = testClient()
     val repository = WikiDataRepositoryRemote(client)
 
-    assertTrue(repository.searchArtworks("a\\b\"c", listOf(ArtworkType.PAINTING), 10).isEmpty())
+    assertTrue(
+        repository.getArtworksFromQuery("a\\b\"c", listOf(ArtworkType.PAINTING), 10).isEmpty()
+    )
 
     val query = requireNotNull(client.lastRequest).url.queryParameter("query")
     assertTrue(query!!.contains("mwapi:gsrsearch \"haswbstatement:P31=Q3305213 abc*\""))
@@ -1048,27 +1104,27 @@ class WikiDataRepositoryRemoteTest {
   }
 
   @Test
-  fun searchArtworks_whenInputContainsOnlyUnsupportedCharacters_throwsInvalidInputWithoutRequest() =
+  fun getArtworksFromQuery_whenInputContainsOnlyUnsupportedCharacters_throwsInvalidInputWithoutRequest() =
       runTest {
         val client = testClient()
         val repository = WikiDataRepositoryRemote(client)
 
         assertThrowsSuspend<AppException.InvalidInput> {
-          repository.searchArtworks("!@#$", listOf(ArtworkType.PAINTING), 50)
+          repository.getArtworksFromQuery("!@#$", listOf(ArtworkType.PAINTING), 50)
         }
         assertNull(client.lastRequest)
       }
 
   @Test
-  fun searchArtworks_rejectsEmptyOrDuplicateTypesAndInvalidLimitsWithoutRequest() = runTest {
+  fun getArtworksFromQuery_rejectsEmptyOrDuplicateTypesAndInvalidLimitsWithoutRequest() = runTest {
     val client = testClient()
     val repository = WikiDataRepositoryRemote(client)
 
     assertThrowsSuspend<AppException.InvalidInput> {
-      repository.searchArtworks("Mona Lisa", emptyList(), 50)
+      repository.getArtworksFromQuery("Mona Lisa", emptyList(), 50)
     }
     assertThrowsSuspend<AppException.InvalidInput> {
-      repository.searchArtworks(
+      repository.getArtworksFromQuery(
           "Mona Lisa",
           listOf(ArtworkType.PAINTING, ArtworkType.PAINTING),
           50,
@@ -1076,7 +1132,7 @@ class WikiDataRepositoryRemoteTest {
     }
     listOf(0, -1, WikiDataRepositoryRemote.MAX_LIMIT + 1).forEach { limit ->
       assertThrowsSuspend<AppException.InvalidInput> {
-        repository.searchArtworks("Mona Lisa", listOf(ArtworkType.PAINTING), limit)
+        repository.getArtworksFromQuery("Mona Lisa", listOf(ArtworkType.PAINTING), limit)
       }
     }
 
@@ -1084,13 +1140,13 @@ class WikiDataRepositoryRemoteTest {
   }
 
   @Test
-  fun searchArtworks_whenRequestFails_throwsNetworkWithCause() = runTest {
+  fun getArtworksFromQuery_whenRequestFails_throwsNetworkWithCause() = runTest {
     val client =
         OkHttpClient.Builder().addInterceptor { throw IOException("connection failed") }.build()
     val repository = WikiDataRepositoryRemote(client)
 
     try {
-      repository.searchArtworks("Mona Lisa", listOf(ArtworkType.PAINTING), 50)
+      repository.getArtworksFromQuery("Mona Lisa", listOf(ArtworkType.PAINTING), 50)
       throw AssertionError("Expected AppException.Network")
     } catch (exception: AppException.Network) {
       assertTrue(exception.cause != null)
@@ -1098,7 +1154,7 @@ class WikiDataRepositoryRemoteTest {
   }
 
   @Test
-  fun searchArtworks_whenResponseBodyIsMissing_throwsInvalidData() = runTest {
+  fun getArtworksFromQuery_whenResponseBodyIsMissing_throwsInvalidData() = runTest {
     val client = FakeCallClient {
       Response.Builder()
           .request(it)
@@ -1111,18 +1167,18 @@ class WikiDataRepositoryRemoteTest {
     val repository = WikiDataRepositoryRemote(client)
 
     assertThrowsSuspend<AppException.InvalidData> {
-      repository.searchArtworks("Mona Lisa", listOf(ArtworkType.PAINTING), 50)
+      repository.getArtworksFromQuery("Mona Lisa", listOf(ArtworkType.PAINTING), 50)
     }
   }
 
   @Test
-  fun searchArtworks_whenRequestIsCancelled_rethrowsCancellationException() = runTest {
+  fun getArtworksFromQuery_whenRequestIsCancelled_rethrowsCancellationException() = runTest {
     val cancellation = CancellationException("request cancelled")
     val client = FakeCallClient { throw cancellation }
     val repository = WikiDataRepositoryRemote(client)
 
     try {
-      repository.searchArtworks("Mona Lisa", listOf(ArtworkType.PAINTING), 50)
+      repository.getArtworksFromQuery("Mona Lisa", listOf(ArtworkType.PAINTING), 50)
       throw AssertionError("Expected CancellationException")
     } catch (exception: CancellationException) {
       assertEquals(cancellation.message, exception.message)
@@ -1170,7 +1226,13 @@ class WikiDataRepositoryRemoteTest {
           override fun execute(): Response = execute(request)
 
           override fun enqueue(responseCallback: Callback) {
-            throw UnsupportedOperationException("Asynchronous calls are not used in these tests")
+            try {
+              responseCallback.onResponse(this, execute(request))
+            } catch (exception: IOException) {
+              responseCallback.onFailure(this, exception)
+            } catch (exception: CancellationException) {
+              throw exception
+            }
           }
 
           override fun cancel() = Unit

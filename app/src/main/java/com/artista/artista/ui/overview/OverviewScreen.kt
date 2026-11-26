@@ -13,11 +13,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material.icons.outlined.GridView
@@ -27,8 +29,11 @@ import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -55,6 +60,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.artista.artista.R
 import com.artista.artista.model.artwork.Artwork
+import com.artista.artista.model.artwork.ArtworkFilter
 import com.artista.artista.model.artwork.ArtworkRepositoryLocal
 import com.artista.artista.model.artwork.mockArtworks
 import com.artista.artista.model.error.AppException
@@ -170,15 +176,26 @@ fun OverviewScreen(
                         horizontal = Dimensions.overviewSearchBarHorizontalPadding,
                         vertical = Dimensions.overviewSearchBarVerticalPadding,
                     ),
+            horizontalArrangement = Arrangement.spacedBy(Dimensions.overviewSearchBarFilterSpacing),
             verticalAlignment = Alignment.CenterVertically,
         ) {
           OverviewSearchBar(
               onClick = onSearchClick,
               modifier = Modifier.weight(1f),
           )
-          IconButton(
+          // Same container as the artwork cards, so the controls read as distinct shapes on the
+          // screen background instead of blending into it.
+          FilledIconButton(
               onClick = { filterDialogVisible = true },
-              modifier = Modifier.testTag(OverviewTestTags.FILTER_BUTTON),
+              modifier =
+                  Modifier.size(Dimensions.overviewFilterButtonSize)
+                      .testTag(OverviewTestTags.FILTER_BUTTON),
+              shape = CircleShape,
+              colors =
+                  IconButtonDefaults.filledIconButtonColors(
+                      containerColor = CardDefaults.cardColors().containerColor,
+                      contentColor = MaterialTheme.colorScheme.onSurface,
+                  ),
           ) {
             BadgedBox(
                 badge = {
@@ -208,7 +225,7 @@ fun OverviewScreen(
             filterDialogVisible = false
           },
           onClear = {
-            viewModel.clearFilter()
+            viewModel.applyFilter(ArtworkFilter())
             filterDialogVisible = false
           },
           onDismiss = { filterDialogVisible = false },
@@ -395,9 +412,11 @@ private fun OverviewSearchBar(
               .clickable(role = Role.Button, onClick = onClick)
               .semantics(mergeDescendants = true) {}
               .testTag(OverviewTestTags.SEARCH_BAR),
+      // Same fill as the artwork cards, but fully rounded to pair with the round filter button.
+      // No tonal elevation: it tinted the white towards the purple surface tint, which made the
+      // bar blend into the background.
       shape = MaterialTheme.shapes.extraLarge,
-      color = SearchBarPalette.container,
-      tonalElevation = Dimensions.overviewSearchBarElevation,
+      color = CardDefaults.cardColors().containerColor,
   ) {
     Row(
         modifier =
