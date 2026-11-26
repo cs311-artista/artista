@@ -1,3 +1,5 @@
+// Co-authored-by: DeepSeek Flash <noreply@deepseek.com>
+
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.theme
@@ -197,6 +199,19 @@ internal object Dimensions {
   // Map screen.
   val bottomMapToolBarPadding = 110.dp
   val topMapToolBarPadding = 24.dp
+  val mapArtworkCardImageHeight = 160.dp
+  val mapArtworkCardEmptyImageHeight = 64.dp
+  val mapArtworkCardImageSpacing = 6.dp
+  val mapArtworkCardCompactVerticalPadding = 4.dp
+
+  /** Height of Google's zoom-control strip, which is not a Compose element. */
+  val mapZoomControlsHeight = 96.dp
+  val mapRecenterButtonEndPadding = 16.dp
+  val mapRecenterButtonSpacing = 12.dp
+
+  /** Keeps the recenter button above the map's bottom content padding and the zoom controls. */
+  val mapRecenterButtonBottomPadding =
+      bottomMapToolBarPadding + mapZoomControlsHeight + mapRecenterButtonSpacing
 
   // Map route overlays.
   val mapRouteOverlayHorizontalPadding = 16.dp

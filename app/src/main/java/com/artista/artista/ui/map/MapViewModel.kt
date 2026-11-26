@@ -1,3 +1,5 @@
+// Co-authored-by: DeepSeek Flash <noreply@deepseek.com>
+
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 package com.artista.artista.ui.map
@@ -46,6 +48,7 @@ const val RECALCULATE_COOLDOWN_MS = 15_000L
  * @property remoteArtworks List of artworks fetched from remote sources.
  * @property hasLocationPermission Indicates whether the app has location permissions.
  * @property errorMsg Resource ID for the error message, or null when no error exists.
+ * @property selectedArtwork Artwork whose card is currently shown, or null when no pin is selected.
  * @author Felix Burchardt
  */
 data class MapViewUiState(
@@ -54,6 +57,7 @@ data class MapViewUiState(
     val remoteArtworks: List<Artwork> = listOf(),
     val hasLocationPermission: Boolean = false,
     @param:StringRes val errorMsg: Int? = null,
+    val selectedArtwork: Artwork? = null,
 )
 
 /**
@@ -502,12 +506,64 @@ class MapViewModel(
   }
 
   /**
+   * Selects [artwork] on the map without starting a route.
+   *
+   * The artwork the user is already routed to is a no-op: tapping a pin must not end the navigation
+   * the route card is describing. A selected artwork that is not being routed to clears on a second
+   * tap. Selecting a different artwork clears the route that belonged to the previous selection, so
+   * the card and the drawn route always describe the same artwork.
+   *
+   * @param artwork artwork whose card should be shown
+   * @author timo-by
+   */
+  fun selectArtwork(artwork: Artwork) {
+    if (isRoutingTo(artwork)) return
+    if (_uiState.value.selectedArtwork?.uid == artwork.uid) {
+      clearRoute()
+      return
+    }
+    if (_routeUiState.value != RouteUiState.Idle) {
+      clearRoute()
+    }
+    _uiState.update { it.copy(selectedArtwork = artwork) }
+  }
+
+  /**
+   * Starts a route to the currently selected artwork, when one is selected.
+   *
+   * @author timo-by
+   */
+  fun navigateToSelectedArtwork() {
+    _uiState.value.selectedArtwork?.let(::loadRouteTo)
+  }
+
+  /**
+   * Clears the selected artwork when the map background is tapped.
+   *
+   * A plain selection is cleared on its own. In the no-route, location-unavailable and error states
+   * the tap behaves like X and clears the selection with the message card, because nothing is being
+   * navigated to. A route that is loading or shown keeps its card: a stray tap must not end the
+   * navigation.
+   *
+   * @author timo-by
+   */
+  fun dismissSelectedArtwork() {
+    when (_routeUiState.value) {
+      RouteUiState.Idle -> _uiState.update { it.copy(selectedArtwork = null) }
+      RouteUiState.Loading,
+      is RouteUiState.Success -> return
+      else -> clearRoute()
+    }
+  }
+
+  /**
    * Loads a walking route from the user's current location to an artwork.
    *
    * @param artwork destination artwork
    * @author patrickmcdan
    */
   fun loadRouteTo(artwork: Artwork) {
+    _uiState.update { it.copy(selectedArtwork = artwork) }
     if (isRoutingTo(artwork)) return
     requestRoute(artwork)
   }
@@ -549,7 +605,7 @@ class MapViewModel(
   }
 
   /**
-   * Cancels any active walking route request and clears its state.
+   * Cancels any active walking route request, clears its state and clears the selected artwork.
    *
    * @author patrickmcdan
    */
@@ -563,6 +619,7 @@ class MapViewModel(
     _hasArrived.value = false
     stopLocationUpdates()
     _routeUiState.value = RouteUiState.Idle
+    _uiState.update { it.copy(selectedArtwork = null) }
   }
 
   private fun startRouteRequest(artwork: Artwork, userLocation: UserLocation) {

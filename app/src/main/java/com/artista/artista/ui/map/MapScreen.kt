@@ -1,3 +1,5 @@
+// Co-authored-by: DeepSeek Flash <noreply@deepseek.com>
+
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 package com.artista.artista.ui.map
@@ -18,8 +20,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.outlined.Image
+import androidx.compose.material.icons.outlined.MyLocation
+import androidx.compose.material.icons.outlined.NearMe
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -28,6 +34,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -38,10 +45,13 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntSize
 import androidx.lifecycle.compose.LifecycleStartEffect
@@ -56,6 +66,7 @@ import com.artista.artista.model.map.Coordinate
 import com.artista.artista.model.map.UserLocation
 import com.artista.artista.model.walking.WalkingRouteRepositoryRemote
 import com.artista.artista.resources.C
+import com.artista.artista.ui.artwork.ArtworkImage
 import com.artista.artista.ui.error.toMessageRes
 import com.artista.artista.ui.location.UserLocationPermission
 import com.artista.artista.ui.location.hasUserLocationPermissions
@@ -123,6 +134,30 @@ object MapScreenTestTags {
 
   /** Tag identifying the walking route retry button. */
   const val ROUTE_RETRY_BUTTON = "map_route_retry_button"
+
+  /** Tag identifying the selected-artwork card. */
+  const val ARTWORK_CARD = "map_artwork_card"
+
+  /** Tag identifying the selected artwork's name in the card. */
+  const val ARTWORK_CARD_NAME = "map_artwork_card_name"
+
+  /** Tag identifying the selected artwork's image in the card. */
+  const val ARTWORK_CARD_IMAGE = "map_artwork_card_image"
+
+  /** Tag identifying the fallback shown while an artwork image loads or fails. */
+  const val ARTWORK_CARD_IMAGE_FALLBACK = "map_artwork_card_image_fallback"
+
+  /** Tag identifying the compact placeholder shown when an artwork has no image URL. */
+  const val ARTWORK_CARD_IMAGE_PLACEHOLDER = "map_artwork_card_image_placeholder"
+
+  /** Tag identifying the send action on the selected-artwork card. */
+  const val ARTWORK_CARD_SEND = "map_artwork_card_send"
+
+  /** Tag identifying the dismiss action on the selected-artwork card. */
+  const val ARTWORK_CARD_DISMISS = "map_artwork_card_dismiss"
+
+  /** Tag identifying the map's recenter action. */
+  const val RECENTER_BUTTON = "map_recenter_button"
 }
 
 /**
@@ -164,7 +199,6 @@ internal fun remoteArtworksNotSaved(
 fun MapScreen(
     mapViewModel: MapViewModel,
     onNavigationBarTabSelected: (Tab) -> Unit = {},
-    onArtworkMarkerClick: (Artwork) -> Unit = {},
     hasLocationPermissions: (Context) -> Boolean = ::hasUserLocationPermissions,
 ) {
   val uiState by mapViewModel.uiStateFlow.collectAsStateWithLifecycle()
@@ -245,8 +279,14 @@ fun MapScreen(
         modifier = Modifier.fillMaxSize().testTag(MapScreenTestTags.MAP),
         cameraPositionState = cameraPositionState,
         onMapLoaded = { mapLoaded = true },
+        onMapClick = { mapViewModel.dismissSelectedArtwork() },
         properties = MapProperties(isMyLocationEnabled = uiState.hasLocationPermission),
-        uiSettings = MapUiSettings(mapToolbarEnabled = false),
+        uiSettings =
+            MapUiSettings(
+                mapToolbarEnabled = false,
+                // The app draws its own recenter control; Google's sits under the artwork card.
+                myLocationButtonEnabled = false,
+            ),
         contentPadding =
             PaddingValues(
                 bottom =
@@ -256,11 +296,11 @@ fun MapScreen(
             ),
     ) {
       uiState.savedArtworks.forEach { artwork ->
-        DisplayArtworkMarker(artwork, onArtworkMarkerClick, MarkerType.SavedArtwork)
+        DisplayArtworkMarker(artwork, mapViewModel::selectArtwork, MarkerType.SavedArtwork)
       }
       val remoteArtworks = remoteArtworksNotSaved(uiState.savedArtworks, uiState.remoteArtworks)
       remoteArtworks.forEach { artwork ->
-        DisplayArtworkMarker(artwork, onArtworkMarkerClick, MarkerType.RemoteArtwork)
+        DisplayArtworkMarker(artwork, mapViewModel::selectArtwork, MarkerType.RemoteArtwork)
       }
 
       val success = routeUiState as? RouteUiState.Success
@@ -282,16 +322,30 @@ fun MapScreen(
         ) {
           DisplayArtworkMarker(
               routeState.destination,
-              onArtworkMarkerClick,
+              mapViewModel::selectArtwork,
               MarkerType.RemoteArtwork,
           )
         }
       }
     }
 
+    if (userLocation != null) {
+      MapRecenterButton(
+          onClick = { cameraPositionState.position = cameraPositionFor(userLocation) },
+          modifier =
+              Modifier.align(Alignment.BottomEnd)
+                  .padding(
+                      end = Dimensions.mapRecenterButtonEndPadding,
+                      bottom = Dimensions.mapRecenterButtonBottomPadding,
+                  ),
+      )
+    }
+
     RouteOverlay(
         routeUiState = routeUiState,
         routeProgressUiState = routeProgressUiState,
+        selectedArtwork = uiState.selectedArtwork,
+        onNavigate = mapViewModel::navigateToSelectedArtwork,
         recalculationUiState = recalculationUiState,
         onClearRoute = mapViewModel::clearRoute,
         onRetryRoute = mapViewModel::retryRoute,
@@ -337,12 +391,15 @@ internal fun routeBounds(
 }
 
 /**
- * Displays the route summary or the current route request state.
+ * Displays the selected artwork card or the current route request state.
  *
  * @param routeUiState current walking route state
  * @param routeProgressUiState remaining part of the route; when null the full route values are
  *   shown
- * @param onClearRoute called when the route is dismissed
+ * @param selectedArtwork artwork whose card is shown while no route is active, and whose name is
+ *   shown while a route is loading
+ * @param onNavigate called when the selected artwork's send action is pressed
+ * @param onClearRoute called when the card or route is dismissed
  * @param onRetryRoute called when a retry is requested
  * @param onRecalculateRoute called when a new route from the user's location is requested, from the
  *   "Recalculate route" button or the retry action of a failed recalculation
@@ -356,6 +413,8 @@ internal fun routeBounds(
 internal fun RouteOverlay(
     routeUiState: RouteUiState,
     routeProgressUiState: RouteProgressUiState? = null,
+    selectedArtwork: Artwork? = null,
+    onNavigate: () -> Unit = {},
     onClearRoute: () -> Unit,
     onRetryRoute: () -> Unit,
     onRecalculateRoute: () -> Unit,
@@ -364,13 +423,31 @@ internal fun RouteOverlay(
     modifier: Modifier = Modifier,
 ) {
   when (routeUiState) {
-    RouteUiState.Idle -> Unit
+    RouteUiState.Idle -> {
+      selectedArtwork?.let { artwork ->
+        ArtworkCard(
+            name = artwork.name ?: stringResource(R.string.artwork_unknown_title),
+            imageUrl = artwork.imageUrl,
+            showImage = true,
+            showSend = true,
+            onNavigate = onNavigate,
+            onDismiss = onClearRoute,
+            cardTestTag = MapScreenTestTags.ARTWORK_CARD,
+            modifier = modifier,
+        )
+      }
+    }
     RouteUiState.Loading -> {
-      RouteMessageCard(
-          modifier = modifier.testTag(MapScreenTestTags.ROUTE_LOADING),
-          message = stringResource(R.string.map_route_loading),
-          showProgress = true,
-          informational = true,
+      ArtworkCard(
+          name = selectedArtwork?.let { it.name ?: stringResource(R.string.artwork_unknown_title) },
+          imageUrl = null,
+          showImage = false,
+          showSend = false,
+          onNavigate = onNavigate,
+          onDismiss = onClearRoute,
+          cardTestTag = MapScreenTestTags.ARTWORK_CARD,
+          modifier = modifier,
+          secondLine = { ArtworkCardLoadingLine() },
       )
     }
     is RouteUiState.Success -> {
@@ -378,22 +455,16 @@ internal fun RouteOverlay(
           modifier = modifier,
           verticalArrangement = Arrangement.spacedBy(Dimensions.mapRouteOverlaySpacing),
       ) {
-        Card(
-            modifier = Modifier.fillMaxWidth().testTag(MapScreenTestTags.ROUTE_SUMMARY_CARD),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        ) {
-          Row(
-              modifier = Modifier.padding(Dimensions.mapRouteOverlayContentPadding),
-              verticalAlignment = Alignment.CenterVertically,
-          ) {
-            Column(modifier = Modifier.weight(1f)) {
-              Text(
-                  text =
-                      routeUiState.destination.name
-                          ?: stringResource(R.string.artwork_unknown_title),
-                  style = MaterialTheme.typography.titleMedium,
-              )
-              Spacer(modifier = Modifier.height(Dimensions.mapRouteOverlaySpacing))
+        ArtworkCard(
+            name = routeUiState.destination.name ?: stringResource(R.string.artwork_unknown_title),
+            imageUrl = null,
+            showImage = false,
+            showSend = false,
+            showDismiss = !hasArrived,
+            onNavigate = onNavigate,
+            onDismiss = onClearRoute,
+            cardTestTag = MapScreenTestTags.ROUTE_SUMMARY_CARD,
+            secondLine = {
               Text(
                   modifier = Modifier.testTag(MapScreenTestTags.ROUTE_SUMMARY),
                   text =
@@ -411,43 +482,35 @@ internal fun RouteOverlay(
                             )
                       },
                   style = MaterialTheme.typography.bodyMedium,
+                  textAlign = TextAlign.Center,
+                  maxLines = 1,
+                  overflow = TextOverflow.Ellipsis,
               )
-              if (recalculationUiState.isAvailable && recalculationUiState.error == null) {
-                Spacer(modifier = Modifier.height(Dimensions.mapRouteOverlaySpacing))
-                Button(
-                    modifier = Modifier.testTag(MapScreenTestTags.ROUTE_RECALCULATE_BUTTON),
-                    enabled = recalculationUiState.canRequest,
-                    onClick = onRecalculateRoute,
-                ) {
-                  if (recalculationUiState.isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(Dimensions.iconSizeMedium),
-                        color = LocalContentColor.current,
-                    )
-                    Spacer(modifier = Modifier.size(Dimensions.mapRouteOverlaySpacing))
-                  }
-                  Text(text = stringResource(R.string.map_route_recalculate))
-                }
-              }
+            },
+        )
+        if (hasArrived) {
+          Button(
+              modifier = Modifier.fillMaxWidth().testTag(MapScreenTestTags.ROUTE_CLOSE_BUTTON),
+              onClick = onClearRoute,
+          ) {
+            Text(text = stringResource(R.string.map_route_arrived_close))
+          }
+        }
+        if (recalculationUiState.isAvailable && recalculationUiState.error == null) {
+          Button(
+              modifier =
+                  Modifier.fillMaxWidth().testTag(MapScreenTestTags.ROUTE_RECALCULATE_BUTTON),
+              enabled = recalculationUiState.canRequest,
+              onClick = onRecalculateRoute,
+          ) {
+            if (recalculationUiState.isLoading) {
+              CircularProgressIndicator(
+                  modifier = Modifier.size(Dimensions.iconSizeMedium),
+                  color = LocalContentColor.current,
+              )
+              Spacer(modifier = Modifier.size(Dimensions.mapRouteOverlaySpacing))
             }
-            if (hasArrived) {
-              Button(
-                  modifier = Modifier.testTag(MapScreenTestTags.ROUTE_CLOSE_BUTTON),
-                  onClick = onClearRoute,
-              ) {
-                Text(text = stringResource(R.string.map_route_arrived_close))
-              }
-            } else {
-              IconButton(
-                  modifier = Modifier.testTag(MapScreenTestTags.ROUTE_CLOSE_BUTTON),
-                  onClick = onClearRoute,
-              ) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = stringResource(R.string.map_route_close),
-                )
-              }
-            }
+            Text(text = stringResource(R.string.map_route_recalculate))
           }
         }
         recalculationUiState.error?.let { error ->
@@ -486,11 +549,187 @@ internal fun RouteOverlay(
   }
 }
 
+/**
+ * Displays the selected artwork, its route state and the actions that operate on it.
+ *
+ * The header and the image are two rounded surfaces with a small gap, so they read as one card
+ * without sharing a border. The header is compact until a second line appears, which keeps the
+ * selected state as thin as the search bar; routing makes it taller. Equal-width slots on both
+ * sides of the name keep the text centred whether the send action is present or not.
+ *
+ * @param name artwork name, or null while a route is loading without a selected artwork
+ * @param imageUrl artwork image, or null when the artwork has no image
+ * @param showImage whether the image surface is shown below the header
+ * @param showSend whether the send action is part of the header
+ * @param showDismiss whether the close action is part of the header; the arrival state hides it
+ *   because it offers an explicit close button under the card instead
+ * @param onNavigate called when the send action is pressed
+ * @param onDismiss called when the close action is pressed
+ * @param cardTestTag stable tag identifying the header in this state
+ * @param modifier modifier applied to the column containing both surfaces
+ * @param secondLine optional line under the name, such as the loading indicator or the ETA
+ */
+@Composable
+private fun ArtworkCard(
+    name: String?,
+    imageUrl: String?,
+    showImage: Boolean,
+    showSend: Boolean,
+    showDismiss: Boolean = true,
+    onNavigate: () -> Unit,
+    onDismiss: () -> Unit,
+    cardTestTag: String,
+    modifier: Modifier = Modifier,
+    secondLine: (@Composable () -> Unit)? = null,
+) {
+  val displayName = name ?: stringResource(R.string.artwork_unknown_title)
+  val verticalPadding =
+      if (secondLine == null) Dimensions.mapArtworkCardCompactVerticalPadding
+      else Dimensions.mapRouteOverlayContentPadding
+  Column(modifier = modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier.fillMaxWidth().testTag(cardTestTag),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+    ) {
+      Row(
+          modifier =
+              Modifier.padding(
+                  horizontal = Dimensions.mapRouteOverlayContentPadding,
+                  vertical = verticalPadding,
+              ),
+          verticalAlignment = Alignment.CenterVertically,
+      ) {
+        if (showSend) {
+          IconButton(
+              modifier = Modifier.testTag(MapScreenTestTags.ARTWORK_CARD_SEND),
+              onClick = onNavigate,
+          ) {
+            Icon(
+                imageVector = Icons.Outlined.NearMe,
+                contentDescription = stringResource(R.string.map_artwork_navigate),
+            )
+          }
+        } else {
+          Spacer(modifier = Modifier.size(Dimensions.standardTouchTargetSize))
+        }
+        Column(
+            modifier = Modifier.weight(1f),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+          if (name != null) {
+            Text(
+                modifier = Modifier.testTag(MapScreenTestTags.ARTWORK_CARD_NAME),
+                text = name,
+                style = MaterialTheme.typography.titleMedium,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (secondLine != null) {
+              Spacer(modifier = Modifier.height(Dimensions.mapRouteOverlaySpacing))
+            }
+          }
+          secondLine?.invoke()
+        }
+        if (showDismiss) {
+          IconButton(
+              modifier = Modifier.testTag(MapScreenTestTags.ARTWORK_CARD_DISMISS),
+              onClick = onDismiss,
+          ) {
+            Icon(
+                imageVector = Icons.Default.Close,
+                contentDescription = stringResource(R.string.map_artwork_dismiss),
+            )
+          }
+        }
+      }
+    }
+    if (showImage) {
+      Spacer(modifier = Modifier.height(Dimensions.mapArtworkCardImageSpacing))
+      if (imageUrl == null) {
+        ArtworkCardEmptyImage()
+      } else {
+        Card(
+            modifier = Modifier.fillMaxWidth().height(Dimensions.mapArtworkCardImageHeight),
+            colors =
+                CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        ) {
+          ArtworkImage(
+              imageUrl = imageUrl,
+              contentDescription =
+                  stringResource(R.string.artwork_card_image_description, displayName),
+              contentScale = ContentScale.Crop,
+              imageTestTag = MapScreenTestTags.ARTWORK_CARD_IMAGE,
+              fallbackTestTag = MapScreenTestTags.ARTWORK_CARD_IMAGE_FALLBACK,
+              modifier = Modifier.fillMaxSize(),
+          )
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Displays the compact placeholder shown when an artwork has no image URL.
+ *
+ * A missing image must not take the 160 dp banner's space, but an empty card would read as a
+ * failure. The icon and label make the empty state deliberate.
+ */
+@Composable
+private fun ArtworkCardEmptyImage() {
+  Card(
+      modifier =
+          Modifier.fillMaxWidth()
+              .height(Dimensions.mapArtworkCardEmptyImageHeight)
+              .testTag(MapScreenTestTags.ARTWORK_CARD_IMAGE_PLACEHOLDER),
+      colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+  ) {
+    Row(
+        modifier = Modifier.fillMaxSize(),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+      Icon(
+          imageVector = Icons.Outlined.Image,
+          contentDescription = null,
+          modifier = Modifier.size(Dimensions.iconSizeMedium),
+          tint = MaterialTheme.colorScheme.onSurfaceVariant,
+      )
+      Spacer(modifier = Modifier.width(Dimensions.mapRouteOverlaySpacing))
+      Text(
+          text = stringResource(R.string.map_artwork_no_image),
+          style = MaterialTheme.typography.bodyMedium,
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+          maxLines = 1,
+          overflow = TextOverflow.Ellipsis,
+      )
+    }
+  }
+}
+
+/** Displays the small progress indicator and text shown while a walking route is requested. */
+@Composable
+private fun ArtworkCardLoadingLine() {
+  Row(
+      modifier = Modifier.testTag(MapScreenTestTags.ROUTE_LOADING),
+      verticalAlignment = Alignment.CenterVertically,
+  ) {
+    CircularProgressIndicator(modifier = Modifier.size(Dimensions.iconSizeMedium))
+    Spacer(modifier = Modifier.size(Dimensions.mapRouteOverlaySpacing))
+    Text(
+        text = stringResource(R.string.map_route_loading),
+        style = MaterialTheme.typography.bodyMedium,
+        textAlign = TextAlign.Center,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+    )
+  }
+}
+
 @Composable
 private fun RouteMessageCard(
     message: String,
     modifier: Modifier = Modifier,
-    showProgress: Boolean = false,
     onDismiss: (() -> Unit)? = null,
     onRetry: (() -> Unit)? = null,
     informational: Boolean = false,
@@ -509,10 +748,6 @@ private fun RouteMessageCard(
         modifier = Modifier.padding(Dimensions.mapRouteOverlayContentPadding),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-      if (showProgress) {
-        CircularProgressIndicator(modifier = Modifier.size(Dimensions.iconSizeMedium))
-        Spacer(modifier = Modifier.size(Dimensions.mapRouteOverlaySpacing))
-      }
       Text(
           modifier = Modifier.weight(1f),
           text = message,
@@ -537,7 +772,7 @@ private fun RouteMessageCard(
         ) {
           Icon(
               imageVector = Icons.Default.Close,
-              contentDescription = stringResource(R.string.map_route_close),
+              contentDescription = stringResource(R.string.map_artwork_dismiss),
           )
         }
       }
@@ -546,17 +781,42 @@ private fun RouteMessageCard(
 }
 
 /**
+ * Draws the map control that recenters the camera on the user's location.
+ *
+ * The control is only drawn once a location is known; the caller positions it above Google's zoom
+ * controls so the two never overlap.
+ *
+ * @param onClick called when the user taps the control
+ * @param modifier modifier applied to the control, including its placement on the map
+ * @author timo-by
+ */
+@Composable
+internal fun MapRecenterButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+  SmallFloatingActionButton(
+      onClick = onClick,
+      modifier = modifier.testTag(MapScreenTestTags.RECENTER_BUTTON),
+  ) {
+    Icon(
+        imageVector = Icons.Outlined.MyLocation,
+        contentDescription = stringResource(R.string.map_recenter),
+    )
+  }
+}
+
+/**
  * Displays a map marker for an artwork.
  *
+ * Tapping the marker selects the artwork; the app card replaces the Google Maps info window.
+ *
  * @param artwork artwork represented by the marker.
- * @param onArtworkMarkerClick called when the marker's info window is clicked.
+ * @param onArtworkSelected called when the marker is tapped.
  * @param markerType source represented by the marker.
  * @author 5kyPhy
  */
 @Composable
 private fun DisplayArtworkMarker(
     artwork: Artwork,
-    onArtworkMarkerClick: (Artwork) -> Unit,
+    onArtworkSelected: (Artwork) -> Unit,
     markerType: MarkerType,
 ) {
   artwork.location?.let {
@@ -568,9 +828,10 @@ private fun DisplayArtworkMarker(
     Marker(
         tag = markerTag(markerType),
         state = artworkMarkerState,
-        title = artwork.name,
-        snippet = stringResource(R.string.map_marker_navigate_to),
-        onInfoWindowClick = { onArtworkMarkerClick(artwork) },
+        onClick = { _ ->
+          onArtworkSelected(artwork)
+          true
+        },
         icon = icon,
     )
   }

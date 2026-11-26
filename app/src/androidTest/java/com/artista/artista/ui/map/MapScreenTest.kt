@@ -1,3 +1,5 @@
+// Co-authored-by: DeepSeek Flash <noreply@deepseek.com>
+
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.map
@@ -236,7 +238,7 @@ class MapScreenTest {
     composeTestRule
         .onNodeWithTag(MapScreenTestTags.ROUTE_SUMMARY)
         .assertTextEquals("12 min · 850 m")
-    composeTestRule.onNodeWithTag(MapScreenTestTags.ROUTE_CLOSE_BUTTON).performClick()
+    composeTestRule.onNodeWithTag(MapScreenTestTags.ARTWORK_CARD_DISMISS).performClick()
     assertEquals(true, cleared)
   }
 
