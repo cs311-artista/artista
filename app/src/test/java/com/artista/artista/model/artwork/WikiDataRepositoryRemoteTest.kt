@@ -171,6 +171,36 @@ class WikiDataRepositoryRemoteTest {
   }
 
   @Test
+  fun getCandidates_parsesSearchResponseAndFiltersCandidates() = runTest {
+    val requests = mutableListOf<Request>()
+    val client = FakeCallClient { request ->
+      requests += request
+      val body =
+          if (request.url.encodedPath.endsWith("/w/api.php")) {
+            """{"search":[{"id":"Q12418","label":"Mona Lisa","description":"nice art"}]}"""
+          } else {
+            """{"results":{"bindings":[{"artwork":{"value":"http://www.wikidata.org/entity/Q12418"}}]}}"""
+          }
+      Response.Builder()
+          .request(request)
+          .protocol(Protocol.HTTP_1_1)
+          .code(200)
+          .message("OK")
+          .body(body.toResponseBody())
+          .build()
+    }
+    val repository = WikiDataRepositoryRemote(client)
+
+    val candidates = repository.getArtworkCandidates("Mona", ArtworkType.entries)
+
+    assertEquals(listOf("Q12418"), candidates.map { it.qid })
+    assertEquals(2, requests.size)
+    assertEquals("application/json", requests[0].header("Accept"))
+    assertEquals("application/sparql-results+json", requests[1].header("Accept"))
+    assertTrue(requests[1].url.queryParameter("query")!!.contains("wd:Q12418"))
+  }
+
+  @Test
   fun getArtistsFromQuery_returnsEmptyListWhenThereAreNoResults() = runTest {
     val requests = mutableListOf<Request>()
     val client = FakeCallClient { request ->
