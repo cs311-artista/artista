@@ -85,8 +85,9 @@
     <string name="saved_artworks_empty">You have no saved artworks yet.</string>
     <string name="saved_artworks_loading">Loading saved artworks...</string>
     <string name="saved_artworks_load_error_state">Your saved artworks couldn\'t be loaded.</string>
-    <string name="saved_artworks_unsave">Remove %1$s from saved artworks</string>
-    <string name="saved_artworks_show_on_map">Show %1$s on the map</string>
+    <string name="artwork_save">Save %1$s</string>
+    <string name="artwork_unsave">Remove %1$s from saved artworks</string>
+    <string name="artwork_show_on_map">Show %1$s on the map</string>
     <string name="artwork_filter_open">Filter artworks</string>
     <string name="artwork_filter_title">Filter artworks</string>
     <string name="artwork_filter_artist">Artist</string>
@@ -112,6 +113,11 @@
     <string name="overview_load_error">Unable to load nearby artworks.</string>
     <string name="overview_saved_artworks_action">Saved artworks</string>
     <string name="overview_search_placeholder">Search artworks or artists</string>
+    <string name="overview_nearby_artworks_title">Nearby artworks you might like.</string>
+    <string name="overview_show_as_list">Show artworks as a list</string>
+    <string name="overview_show_as_grid">Show artworks as a grid</string>
+    <string name="overview_empty_filter_results">No artwork was found.\nTry to lessen the filters.</string>
+    <string name="overview_clear_filters">Clear filters</string>
     <string name="search_placeholder">Search artworks</string>
     <string name="search_loading">Loading artworks</string>
     <string name="search_empty_results_title">No artworks found</string>

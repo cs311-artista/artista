@@ -274,27 +274,6 @@ object SavedArtworksTestTags {
   const val LOADING_STATE = "saved_artworks_loading_state"
   const val LOAD_ERROR_STATE = "saved_artworks_load_error_state"
   const val RETRY_BUTTON = "saved_artworks_retry_button"
-
-  /** Tag of the clickable tile showing [artwork]. */
-  fun card(artwork: Artwork): String = "saved_artwork_tile_${artwork.uid}"
-
-  /** Tag of the bookmark button that unsaves [artwork]. */
-  fun unsaveButton(artwork: Artwork): String = "saved_artwork_unsave_button_${artwork.uid}"
-
-  /** Tag of the map button of [artwork]'s tile. */
-  fun mapButton(artwork: Artwork): String = "saved_artwork_map_button_${artwork.uid}"
-
-  /** Tag of the title text of [artwork]'s tile. */
-  fun title(artwork: Artwork): String = "saved_artwork_title_${artwork.uid}"
-
-  /** Tag of the artist text of [artwork]'s tile. */
-  fun artist(artwork: Artwork): String = "saved_artwork_artist_${artwork.uid}"
-
-  /** Tag of the image of [artwork]'s tile. */
-  fun image(artwork: Artwork): String = "saved_artwork_image_${artwork.uid}"
-
-  /** Tag of the icon shown instead of [artwork]'s image while it is missing or loading. */
-  fun imageFallback(artwork: Artwork): String = "saved_artwork_image_fallback_${artwork.uid}"
 }
 
 /**
@@ -401,10 +380,12 @@ private fun SavedArtworksGrid(
       verticalArrangement = Arrangement.spacedBy(Dimensions.savedArtworksItemSpacing),
   ) {
     items(artworks, key = { it.uid }) { artwork ->
-      SavedArtworkTile(
+      // Every artwork of this screen is saved, so the bookmark always unsaves it.
+      ArtworkTile(
           artwork = artwork,
+          isSaved = true,
           onClick = onArtworkDetailsClick,
-          onUnsaveClick = onArtworkUnsave,
+          onSaveClick = onArtworkUnsave,
           onMapClick = onMapClick,
       )
     }

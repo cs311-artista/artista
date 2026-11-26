@@ -22,8 +22,9 @@ import com.artista.artista.model.location.FakeLocationProvider
 import com.artista.artista.model.map.FakeAddressRepository
 import com.artista.artista.model.walking.WalkingRouteRepositoryRemote
 import com.artista.artista.resources.C
-import com.artista.artista.ui.artwork.ArtworkCardTestTag
 import com.artista.artista.ui.artwork.ArtworkTestTags
+import com.artista.artista.ui.artwork.ArtworkTileTestTags
+import com.artista.artista.ui.hasTestTagStartingWith
 import com.artista.artista.ui.location.USER_LOCATION_PERMISSIONS
 import com.artista.artista.ui.map.MapScreenTestTags
 import com.artista.artista.ui.navigation.Screen
@@ -134,9 +135,10 @@ class OverviewScreenNavigationTest {
 
       composeTestRule
           .onNodeWithTag(OverviewTestTags.ARTWORK_LIST)
-          .performScrollToNode(hasTestTag(ArtworkCardTestTag.ARTWORK_CARD_MAP_BUTTON))
-      val mapButtons = composeTestRule.onAllNodesWithTag(ArtworkCardTestTag.ARTWORK_CARD_MAP_BUTTON)
-      mapButtons[0].performClick()
+          .performScrollToNode(hasTestTagStartingWith(ArtworkTileTestTags.MAP_BUTTON_PREFIX))
+      composeTestRule
+          .onAllNodes(hasTestTagStartingWith(ArtworkTileTestTags.MAP_BUTTON_PREFIX))[0]
+          .performClick()
 
       composeTestRule.onNodeWithTag(MapScreenTestTags.MAP).assertIsDisplayed()
       composeTestRule.runOnIdle {
