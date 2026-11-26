@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.NearMe
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Checkbox
@@ -232,7 +233,6 @@ fun SearchScreen(
     SearchScreenContent(
         uiState = uiState,
         textFieldState = textFieldState,
-        artistSuggestions = emptyList(),
         onQueryChanged = viewModel::onSearchInputChanged,
         onSearchSubmitted = viewModel::onSearchSubmitted,
         onSuggestingChange = viewModel::onSuggestingChange,
@@ -275,7 +275,6 @@ fun SearchScreen(
 internal fun SearchScreenContent(
     uiState: SearchScreenUiState,
     textFieldState: TextFieldState,
-    artistSuggestions: List<ArtistCandidate>,
     onSearchTabSelected: (SearchTab) -> Unit = {},
     onSuggestingChange: (Boolean) -> Unit = {},
     onQueryChanged: (String, TextRange) -> Unit = { _, _ -> },
@@ -338,7 +337,7 @@ internal fun SearchScreenContent(
                 SuggestionsPane(
                     selectedTab = uiState.selectedTab,
                     artworkSuggestions = artworkSuggestions,
-                    artistSuggestions = artistSuggestions,
+                    artistSuggestions = uiState.artistRecommendations,
                     onArtworkSuggestionClick = { candidate ->
                         onRecommendationSelected(candidate)
                         onSuggestingChange(false)
@@ -724,7 +723,7 @@ private fun SuggestionsPane(
                 SearchTab.ARTISTS ->
                     items(artistSuggestions) { candidate ->
                         ArtistSuggestionRow(
-                            candidate = candidate,
+                            suggestion = candidate,
                             onClick = { onArtistSuggestionClick(candidate) },
                         )
                     }
@@ -790,22 +789,47 @@ private fun ArtworkSuggestionRow(
         )}
 }
 
-// TODO(search-ui): replace this placeholder with the artist suggestion bubble from the design:
-//  person icon and the artist name.
 @Composable
 private fun ArtistSuggestionRow(
-    candidate: ArtistCandidate,
+    suggestion: ArtistCandidate,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    ListItem(
-        headlineContent = { Text(candidate.toString()) },
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .clickable(onClick = onClick)
-                .testTag(SearchScreenTestTags.ARTIST_RECOMMENDATION),
-    )
+    Surface(
+        modifier.fillMaxWidth()
+            .clickable { onClick() }
+            .padding(horizontal = Dimensions.searchRecommendationHorizontalPadding)
+            .testTag(SearchScreenTestTags.SEARCH_RECOMMENDATION),
+        shape = MaterialTheme.shapes.extraLarge,
+    ){
+        ListItem(
+            headlineContent = {
+                Column{
+                    Text(
+                        suggestion.label,
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                    if(suggestion.description != null)
+                        Text(
+                            suggestion.description,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                }
+            },
+            leadingContent = {
+                Icon(
+                    imageVector =
+                       Icons.Filled.Person,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+            },
+            modifier =
+                Modifier.fillMaxWidth()
+                    .clickable { onClick() }
+                    .padding(horizontal = Dimensions.searchRecommendationHorizontalPadding)
+                    .testTag(SearchScreenTestTags.SEARCH_RECOMMENDATION),
+        )}
 }
 
 @StringRes
@@ -873,7 +897,6 @@ internal fun SearchScreenPreview() {
                         listOf(ArtworkCandidate("Q1", "Mona Lisa (copy)", null)),
                 ),
             textFieldState = rememberTextFieldState(initialText = "Mona Li"),
-            artistSuggestions = emptyList(),
         )
     }
 }
@@ -886,8 +909,6 @@ internal fun SearchScreenArtistsPreview() {
         SearchScreenContent(
             uiState = SearchScreenUiState(query = "Carl"),
             textFieldState = rememberTextFieldState(initialText = "Carl"),
-            // TODO: add sample ArtistCandidate values once the constructor is known.
-            artistSuggestions = emptyList(),
         )
     }
 }

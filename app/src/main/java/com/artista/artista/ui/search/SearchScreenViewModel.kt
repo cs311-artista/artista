@@ -2,11 +2,14 @@
 // Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.ui.search
 
+import android.util.Log
 import androidx.annotation.StringRes
 import androidx.compose.ui.text.TextRange
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.artista.artista.model.artist.Artist
+import com.artista.artista.model.artist.ArtistCandidate
 import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkCandidate
 import com.artista.artista.model.artwork.ArtworkId
@@ -61,6 +64,8 @@ data class SearchScreenUiState(
     val nearRecommendations: List<ArtworkCandidate> = emptyList(),
     val wikiDataRecommendations: List<ArtworkCandidate> = emptyList(),
     val resultArtworks: List<Artwork> = emptyList(),
+    val artistRecommendations: List<ArtistCandidate> = emptyList(),
+    val resultArtist: List<Artist> = emptyList(),
     val isLoading: Boolean = false,
     val hasInvalidSearchInput: Boolean = false,
     val hasAlreadySearched: Boolean = false,
@@ -151,25 +156,35 @@ class SearchScreenViewModel(
         val queryChanged = query != _uiState.value.query
         val tooShort = query.trim().length < MIN_SUGGESTION_LENGTH
 
-        _uiState.update {
-            it.copy(
-                query = query,
-                selection = selection,
-                savedRecommendations =
-                    if (queryChanged) recommendationsFor(query, it.savedArtworks)
-                    else it.savedRecommendations,
-                nearRecommendations =
-                    if (queryChanged) recommendationsFor(query, it.nearArtworks)
-                    else it.nearRecommendations,
-                wikiDataRecommendations =
-                    if (queryChanged && tooShort) emptyList() else it.wikiDataRecommendations,
-                isLoading = !queryChanged && it.isLoading,
-                fetchErrorMessageResId = null,
-                hasInvalidSearchInput = false,
-            )
+        if (!queryChanged) {
+            _uiState.update {
+                it.copy(
+                    query = query,
+                    selection = selection,
+                    fetchErrorMessageResId = null,
+                    hasInvalidSearchInput = false,
+                    isLoading = it.isLoading,
+                )
+            }
+
+            return // cursor moves must not restart anything
         }
 
-        if (!queryChanged) return // cursor moves must not restart anything
+        if(_uiState.value.selectedTab == SearchTab.ARTWORKS) {
+            _uiState.update {
+                it.copy(
+                    query = query,
+                    selection = selection,
+                    savedRecommendations = recommendationsFor( query, it.savedArtworks ),
+                    nearRecommendations = recommendationsFor( query, it.nearArtworks ),
+                    wikiDataRecommendations = if(tooShort) emptyList() else it.wikiDataRecommendations,
+                    artistRecommendations =if(tooShort) emptyList() else it.artistRecommendations,
+                    fetchErrorMessageResId = null,
+                    hasInvalidSearchInput = false,
+                    isLoading = false,
+                )
+            }
+        }
 
         searchRequestId++ // invalidates a running submit and any pending suggestion
         searchJob?.cancel()
@@ -193,6 +208,7 @@ class SearchScreenViewModel(
                 query = query,
                 savedRecommendations = emptyList(),
                 resultArtworks = if (query.isBlank()) emptyList() else _uiState.value.resultArtworks,
+                resultArtist = if (query.isBlank()) emptyList() else _uiState.value.resultArtist,
                 isLoading = query.isNotBlank(),
                 fetchErrorMessageResId = null,
                 hasInvalidSearchInput = false,
@@ -208,6 +224,7 @@ class SearchScreenViewModel(
                         _uiState.update {
                             it.copy(
                                 resultArtworks = emptyList(),
+                                resultArtist = emptyList(),
                                 isLoading = false,
                                 fetchErrorMessageResId = error.toMessageRes(),
                                 hasInvalidSearchInput = error is AppException.InvalidInput,
@@ -216,15 +233,31 @@ class SearchScreenViewModel(
                     }
                 },
             ) {
-                val results = wikiDataRepository.getArtworksFromQuery(query, typeValues)
-                if (requestId == searchRequestId) {
-                    _uiState.update {
-                        it.copy(
-                            resultArtworks = results,
-                            isLoading = false,
-                            fetchErrorMessageResId = null,
-                            hasInvalidSearchInput = false,
-                        )
+                if(_uiState.value.selectedTab == SearchTab.ARTWORKS) {
+                    val results = wikiDataRepository.getArtworksFromQuery(query, typeValues)
+
+                    if (requestId == searchRequestId) {
+                        _uiState.update {
+                            it.copy(
+                                resultArtworks = results,
+                                isLoading = false,
+                                fetchErrorMessageResId = null,
+                                hasInvalidSearchInput = false,
+                            )
+                        }
+                    }
+                } else {
+                    val results = wikiDataRepository.getArtistsFromQuery(query)
+
+                    if (requestId == searchRequestId) {
+                        _uiState.update {
+                            it.copy(
+                                resultArtist = results,
+                                isLoading = false,
+                                fetchErrorMessageResId = null,
+                                hasInvalidSearchInput = false,
+                            )
+                        }
                     }
                 }
             }
@@ -307,9 +340,20 @@ class SearchScreenViewModel(
                 onError = { /*TODO(best effort: keep the previous suggestions)*/ },
             ) {
                 delay(SUGGESTION_DEBOUNCE_MS.milliseconds)
-                val candidates = wikiDataRepository.getArtworkCandidates(query, _uiState.value.typeValues)
-                if (requestId == searchRequestId) {
-                    _uiState.update { it.copy(wikiDataRecommendations = candidates) }
+                if(_uiState.value.selectedTab == SearchTab.ARTWORKS) {
+                    val candidates =
+                        wikiDataRepository.getArtworkCandidates(query, _uiState.value.typeValues)
+
+                    if (requestId == searchRequestId) {
+                        _uiState.update { it.copy(wikiDataRecommendations = candidates) }
+                    }
+                }
+                else {
+                 val candidates =    wikiDataRepository.getArtistCandidates(query)
+
+                    if (requestId == searchRequestId) {
+                        _uiState.update { it.copy(artistRecommendations = candidates) }
+                    }
                 }
             }
     }
@@ -318,8 +362,10 @@ class SearchScreenViewModel(
     {
         if(_uiState.value.selectedTab == tab) return
 
-        _uiState.update { it.copy(selectedTab = tab) }
-        // might cancel requests
+        _uiState.update { it.copy(selectedTab = tab ) }
+        searchRequestId++ // invalidates a running submit and any pending suggestion
+        searchJob?.cancel()
+        scheduleSuggestions(_uiState.value.query.trim())
     }
 
     fun onSuggestingChange(isSuggesting: Boolean)
