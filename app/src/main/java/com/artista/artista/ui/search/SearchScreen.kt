@@ -83,6 +83,7 @@ import com.artista.artista.model.artwork.ArtworkType
 import com.artista.artista.ui.artwork.ArtworkCard
 import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
+import com.artista.artista.ui.search.SearchScreenTestTags.SEARCH_BACK_BUTTON
 import com.artista.artista.ui.theme.ArtistaTheme
 import com.artista.artista.ui.theme.Dimensions
 import com.artista.artista.ui.theme.SearchBarPalette
@@ -93,7 +94,12 @@ object SearchScreenTestTags {
   const val SEARCH_INPUT = "search_input"
 
   /** Tag of each artwork recommendation in the suggestions list. */
-  const val SEARCH_RECOMMENDATION = "search_recommendation"
+  const val SEARCH_ARTWORK_RECOMMENDATION = "search_artwork_recommendation"
+
+  const val SEARCH_BACK_BUTTON = "search_back_button"
+
+  /** Tag of each artist recommendation in the suggestions list. */
+  const val SEARCH_ARTIST_RECOMMENDATION = "search_artist_recommendation"
 
   /** Tag of each artist recommendation in the suggestions list. */
   const val ARTIST_RECOMMENDATION = "search_artist_recommendation"
@@ -605,7 +611,10 @@ private fun SearchTextField(
       placeholder = { Text(stringResource(R.string.search_placeholder)) },
       leadingIcon = {
         if (expanded) {
-          IconButton(onClick = { onExpandedChange(false) }) {
+          IconButton(
+              onClick = { onExpandedChange(false) },
+              modifier = Modifier.testTag(SEARCH_BACK_BUTTON),
+          ) {
             Icon(
                 Icons.AutoMirrored.Filled.ArrowBack,
                 contentDescription = stringResource(R.string.arrow_back_description),
@@ -810,8 +819,7 @@ private fun ArtworkSuggestionRow(
       modifier
           .fillMaxWidth()
           .clickable { onClick() }
-          .padding(horizontal = Dimensions.searchRecommendationHorizontalPadding)
-          .testTag(SearchScreenTestTags.SEARCH_RECOMMENDATION),
+          .padding(horizontal = Dimensions.searchRecommendationHorizontalPadding),
       shape = MaterialTheme.shapes.extraLarge,
   ) {
     ListItem(
@@ -844,7 +852,7 @@ private fun ArtworkSuggestionRow(
             Modifier.fillMaxWidth()
                 .clickable { onClick() }
                 .padding(horizontal = Dimensions.searchRecommendationHorizontalPadding)
-                .testTag(SearchScreenTestTags.SEARCH_RECOMMENDATION),
+                .testTag(SearchScreenTestTags.SEARCH_ARTWORK_RECOMMENDATION),
     )
   }
 }
@@ -860,7 +868,7 @@ private fun ArtistSuggestionRow(
           .fillMaxWidth()
           .clickable { onClick() }
           .padding(horizontal = Dimensions.searchRecommendationHorizontalPadding)
-          .testTag(SearchScreenTestTags.SEARCH_RECOMMENDATION),
+          .testTag(SearchScreenTestTags.SEARCH_ARTIST_RECOMMENDATION),
       shape = MaterialTheme.shapes.extraLarge,
   ) {
     ListItem(
@@ -888,7 +896,7 @@ private fun ArtistSuggestionRow(
             Modifier.fillMaxWidth()
                 .clickable { onClick() }
                 .padding(horizontal = Dimensions.searchRecommendationHorizontalPadding)
-                .testTag(SearchScreenTestTags.SEARCH_RECOMMENDATION),
+                .testTag(SearchScreenTestTags.SEARCH_ARTIST_RECOMMENDATION),
     )
   }
 }

@@ -163,22 +163,24 @@ class SearchScreenTest {
     assertEquals(collapsedSearchBounds.height, expandedSearchBounds.height, 0f)
 
     composeTestRule
-        .onAllNodesWithTag(SearchScreenTestTags.SEARCH_RECOMMENDATION)
+        .onAllNodesWithTag(SearchScreenTestTags.SEARCH_ARTWORK_RECOMMENDATION)
         .assertCountEquals(1)
     composeTestRule
-        .onNodeWithTag(SearchScreenTestTags.SEARCH_RECOMMENDATION)
+        .onNodeWithTag(SearchScreenTestTags.SEARCH_ARTWORK_RECOMMENDATION)
         .assert(hasText("The Starry Night"))
-    composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_RECOMMENDATION).assertIsDisplayed()
+    composeTestRule
+        .onNodeWithTag(SearchScreenTestTags.SEARCH_ARTWORK_RECOMMENDATION)
+        .assertIsDisplayed()
 
     composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT).performTextClearance()
     composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT).performTextInput("pearl")
     advanceUntilIdle()
 
     composeTestRule
-        .onAllNodesWithTag(SearchScreenTestTags.SEARCH_RECOMMENDATION)
+        .onAllNodesWithTag(SearchScreenTestTags.SEARCH_ARTWORK_RECOMMENDATION)
         .assertCountEquals(1)
     composeTestRule
-        .onNodeWithTag(SearchScreenTestTags.SEARCH_RECOMMENDATION)
+        .onNodeWithTag(SearchScreenTestTags.SEARCH_ARTWORK_RECOMMENDATION)
         .assert(hasText("Girl with a Pearl Earring"))
         .assertIsDisplayed()
 
@@ -187,7 +189,7 @@ class SearchScreenTest {
     advanceUntilIdle()
 
     composeTestRule
-        .onAllNodesWithTag(SearchScreenTestTags.SEARCH_RECOMMENDATION)
+        .onAllNodesWithTag(SearchScreenTestTags.SEARCH_ARTWORK_RECOMMENDATION)
         .assertCountEquals(0)
   }
 
@@ -211,9 +213,11 @@ class SearchScreenTest {
     advanceUntilIdle()
 
     composeTestRule
-        .onAllNodesWithTag(SearchScreenTestTags.SEARCH_RECOMMENDATION)
+        .onAllNodesWithTag(SearchScreenTestTags.SEARCH_ARTWORK_RECOMMENDATION)
         .assertCountEquals(1)
-    composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_RECOMMENDATION).assertIsDisplayed()
+    composeTestRule
+        .onNodeWithTag(SearchScreenTestTags.SEARCH_ARTWORK_RECOMMENDATION)
+        .assertIsDisplayed()
     assertTrue(wikiRepository.searchedQueries.isEmpty())
 
     composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT).performImeAction()
@@ -221,7 +225,7 @@ class SearchScreenTest {
 
     assertEquals(listOf("star"), wikiRepository.searchedQueries)
     composeTestRule
-        .onAllNodesWithTag(SearchScreenTestTags.SEARCH_RECOMMENDATION)
+        .onAllNodesWithTag(SearchScreenTestTags.SEARCH_ARTWORK_RECOMMENDATION)
         .assertCountEquals(0)
   }
 

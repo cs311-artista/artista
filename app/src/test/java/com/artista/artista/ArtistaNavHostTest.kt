@@ -5,6 +5,8 @@ package com.artista.artista
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performImeAction
@@ -22,6 +24,7 @@ import com.artista.artista.ui.artwork.ArtworkTestTags
 import com.artista.artista.ui.navigation.Screen
 import com.artista.artista.ui.overview.OverviewTestTags
 import com.artista.artista.ui.search.SearchScreenTestTags
+import com.artista.artista.ui.search.SearchScreenTestTags.SEARCH_BACK_BUTTON
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Before
@@ -80,7 +83,7 @@ class ArtistaNavHostTest {
     composeTestRule
         .onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT)
         .performTextInput(checkNotNull(artwork.name))
-    composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_RECOMMENDATION).performClick()
+    composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_ARTWORK_RECOMMENDATION).performClick()
 
     assertArtworkDetailsOf(artwork.uid)
   }
@@ -102,8 +105,18 @@ class ArtistaNavHostTest {
     // Selected through the card's click semantics rather than by tapping it: once the keyboard
     // submission has collapsed the search bar, Robolectric lays the result list out below the
     // window, where a synthetic touch would land outside the screen and be dropped.
+
+    composeTestRule.waitUntil(5_000) {
+      composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_BACK_BUTTON).performClick()
+      composeTestRule
+          .onAllNodesWithTag(ArtworkCardTestTag.ARTWORK_CARD)
+          .fetchSemanticsNodes()
+          .isNotEmpty()
+    }
+
     composeTestRule
-        .onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD)
+        .onAllNodesWithTag(ArtworkCardTestTag.ARTWORK_CARD)
+        .onFirst()
         .performSemanticsAction(SemanticsActions.OnClick)
 
     assertArtworkDetailsOf(artwork.uid)

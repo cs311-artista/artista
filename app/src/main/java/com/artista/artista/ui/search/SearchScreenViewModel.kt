@@ -225,6 +225,7 @@ class SearchScreenViewModel(
    * @param isSuggesting whether the pane should be visible
    */
   fun onSuggestingChange(isSuggesting: Boolean) {
+    Throwable("onSuggestingChange($isSuggesting)").printStackTrace()
     if (_uiState.value.isSuggesting == isSuggesting) return
 
     updateState { it.copy(isSuggesting = isSuggesting) }
@@ -460,6 +461,8 @@ class SearchScreenViewModel(
           hasInvalidSearchInput = next.selectedTab in next.invalidInputTabs,
       )
     }
+
+    println(_uiState.value.isSuggesting)
   }
 
   private fun SearchScreenUiState.withoutResults(tab: SearchTab): SearchScreenUiState =
