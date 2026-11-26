@@ -3,7 +3,6 @@
 package com.artista.artista.ui.preferences
 
 import android.widget.Toast
-import androidx.annotation.StringRes
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -60,6 +59,8 @@ import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artwork.ArtworkRepositoryProvider
 import com.artista.artista.model.authentication.AuthRepository
 import com.artista.artista.model.authentication.AuthUser
+import com.artista.artista.model.user.User
+import com.artista.artista.model.user.UserPreference
 import com.artista.artista.model.user.UserRepositoryLocal
 import com.artista.artista.ui.artwork.ArtworkImage
 import com.artista.artista.ui.navigation.BackButton
@@ -70,22 +71,24 @@ import com.artista.artista.ui.theme.ArtistaTheme
 import com.artista.artista.ui.theme.Dimensions
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.runBlocking
 
 private val PillShape = RoundedCornerShape(percent = 50)
 
 /**
- * Displays the popular artists the user can select as favorites to personalize their
- * recommendations.
+ * Displays the artists the user saved as favorites; the user untoggles the ones to remove, then
+ * taps Save to effectively remove.
  *
  * The callbacks have no default value, so that integrating the screen without wiring one of them
  * fails to compile instead of leaving a button that silently does nothing.
  *
- * Saving keeps the user on the screen: the Save button is enabled only when the selection differs
- * from the saved one, and a toast tells whether the save succeeded.
+ * Saving keeps the user on the screen: the removed cards disappear at once, and come back with a
+ * toast if an error happens. The Save button is enabled only once at least one artist is untoggled.
  *
  * @param onBackClick Callback invoked when the user leaves the screen.
  * @param onTabSelected Callback invoked with the destination selected in the bottom navigation.
- * @param artistPreferencesViewModel ViewModel providing the artists and the current selection.
+ * @param artistPreferencesViewModel ViewModel providing the saved artists and functions to remove
+ *   them.
  * @author Timz3rr, krfpn
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -100,7 +103,7 @@ fun ArtistPreferencesScreen(
   val message = uiState.messageResId?.let { stringResource(it) }
 
   // A toast does not block the screen, so the user can keep editing or retry at once.
-  // LaunchedEffect runs only when the message changes, so the toast is shown once per save.
+  // LaunchedEffect runs only when the message changes, so the toast is shown once per failure.
   LaunchedEffect(message) {
     message?.let {
       Toast.makeText(context, it, Toast.LENGTH_LONG).show()
@@ -155,35 +158,18 @@ fun ArtistPreferencesScreen(
           onQueryChange = artistPreferencesViewModel::onSearchQueryChange,
           enabled = uiState.canSearch,
       )
-      Text(
-          text = stringResource(R.string.artist_preferences_popular_artists),
-          modifier = Modifier.testTag(ArtistPreferencesTestTags.POPULAR_ARTISTS_TITLE),
-          style = MaterialTheme.typography.titleLarge,
-          color = MaterialTheme.colorScheme.primary,
-      )
-      // The loading and error states take the grid's place with the same weight, so the save
-      // button does not move. Only one of them is shown, whichever load it comes from, and the
-      // loading state comes first, so a retry replaces the error state at once.
       if (uiState.isLoading) {
-        // Without it, the grid stays empty during a slow load, and the saved artists would appear
-        // selected only after the cards were shown.
-        PopularArtistsLoadingState(modifier = Modifier.weight(1f).fillMaxWidth())
+        SavedArtistsLoadingView(modifier = Modifier.weight(1f).fillMaxWidth())
       } else if (uiState.hasLoadFailed) {
-        PopularArtistsLoadErrorState(
-            // The saved artists' failure is shown first: it is the one that locks the selection.
-            messageResId =
-                if (uiState.hasSavedArtistsLoadFailed) {
-                  R.string.artist_preferences_saved_artists_load_error
-                } else {
-                  R.string.artist_preferences_load_error_state
-                },
-            onRetry = artistPreferencesViewModel::retryFailedLoads,
+        SavedArtistsLoadErrorView(
+            onRetry = artistPreferencesViewModel::retryLoad,
             modifier = Modifier.weight(1f).fillMaxWidth(),
         )
+      } else if (uiState.hasNoSavedArtists) {
+        SavedArtistsEmptyView(modifier = Modifier.weight(1f).fillMaxWidth())
       } else {
-        // The weight keeps the save button above the bottom bar; the grid scrolls when it
-        // overflows. A lazy grid needs a bounded height: making this column scrollable would crash
-        // it.
+        // The weight keeps the grid above the save button; it scrolls when it overflows. A lazy
+        // grid needs a bounded height: making this column scrollable would crash it.
         LazyVerticalGrid(
             columns = GridCells.Fixed(3),
             modifier =
@@ -196,16 +182,15 @@ fun ArtistPreferencesScreen(
           items(uiState.displayedArtists, key = { it.uid }) { artist ->
             ArtistCard(
                 artist = artist,
-                selected = artist.uid in uiState.selectedArtists,
+                selected = artist.uid !in uiState.deselectedArtists,
                 onToggle = { artistPreferencesViewModel.toggleArtist(artist.uid) },
             )
           }
         }
       }
       Button(
-          onClick = artistPreferencesViewModel::saveSelectedArtists,
-          // Disabled when there is nothing new to save, and while saving so a double tap does not
-          // start a second write.
+          onClick = artistPreferencesViewModel::saveChanges,
+          // Disabled until some artist is untoggled, and in the loading, error and empty states.
           enabled = uiState.canSave,
           modifier =
               Modifier.fillMaxWidth()
@@ -228,13 +213,13 @@ fun ArtistPreferencesScreen(
 }
 
 /**
- * Displays a spinner while the popular artists or the saved artists are loading.
+ * Displays a spinner while the saved artists are loading.
  *
  * @param modifier modifier applied to the loading-state container
  * @author krfpn
  */
 @Composable
-private fun PopularArtistsLoadingState(modifier: Modifier = Modifier) {
+private fun SavedArtistsLoadingView(modifier: Modifier = Modifier) {
   Box(
       modifier = modifier.testTag(ArtistPreferencesTestTags.LOADING_STATE),
       contentAlignment = Alignment.Center,
@@ -246,14 +231,12 @@ private fun PopularArtistsLoadingState(modifier: Modifier = Modifier) {
 /**
  * Displays a load error with a Try again button, so the user can retry after the toast is gone.
  *
- * @param messageResId string resource of the message explaining what could not be loaded
  * @param onRetry called when the user taps Try again
  * @param modifier modifier applied to the error-state container
  * @author krfpn
  */
 @Composable
-private fun PopularArtistsLoadErrorState(
-    @StringRes messageResId: Int,
+private fun SavedArtistsLoadErrorView(
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -263,7 +246,7 @@ private fun PopularArtistsLoadErrorState(
       horizontalAlignment = Alignment.CenterHorizontally,
   ) {
     Text(
-        text = stringResource(messageResId),
+        text = stringResource(R.string.artist_preferences_saved_artists_load_error),
         style = MaterialTheme.typography.bodyLarge,
         color = MaterialTheme.colorScheme.error,
         textAlign = TextAlign.Center,
@@ -280,6 +263,26 @@ private fun PopularArtistsLoadErrorState(
     ) {
       Text(text = stringResource(R.string.try_again))
     }
+  }
+}
+
+/**
+ * Displays a message telling the user they have no saved artist.
+ *
+ * @param modifier modifier applied to the empty-state container
+ */
+@Composable
+private fun SavedArtistsEmptyView(modifier: Modifier = Modifier) {
+  Box(
+      modifier = modifier.testTag(ArtistPreferencesTestTags.EMPTY_STATE),
+      contentAlignment = Alignment.Center,
+  ) {
+    Text(
+        text = stringResource(R.string.artist_preferences_empty_state),
+        style = MaterialTheme.typography.bodyLarge,
+        color = MaterialTheme.colorScheme.primary,
+        textAlign = TextAlign.Center,
+    )
   }
 }
 
@@ -321,10 +324,12 @@ private fun SearchField(query: String, onQueryChange: (String) -> Unit, enabled:
 }
 
 /**
- * Card of a popular artist, which the user can click to select or deselect the artist.
+ * Card of a saved artist, which the user can click to untoggle, or toggle it back.
+ *
+ * The card is checked while the artist is kept; an unchecked card is removed on the next save.
  *
  * @param artist Artist displayed by the card.
- * @param selected Whether the artist is currently selected.
+ * @param selected Whether the artist is kept, i.e. not untoggled.
  * @param onToggle Callback invoked when the card is clicked.
  */
 @Composable
@@ -420,20 +425,43 @@ private fun SelectionIndicator(selected: Boolean, modifier: Modifier = Modifier)
   }
 }
 
-/** Previews the artist preferences screen with two selected artists in Android Studio. */
+/** Previews the artist preferences screen with two saved artists in Android Studio. */
 @Preview(showBackground = true)
 @Composable
 internal fun ArtistPreferencesScreenPreview() {
+  val previewUserId = "preview-user"
   val viewModel = remember {
-    ArtistPreferencesViewModel(
-            artworkRepository = ArtworkRepositoryProvider.mockRepository,
-            authRepository = PreviewAuthRepository,
-            userRepository = UserRepositoryLocal(),
-        )
-        .apply {
-          toggleArtist("mock-artist-002")
-          toggleArtist("mock-artist-004")
+    val userRepository = UserRepositoryLocal()
+    // The local repository answers at once, so blocking here does not slow the preview down.
+    runBlocking {
+      userRepository.createUser(
+          User(
+              uid = previewUserId,
+              preference = UserPreference(artists = listOf("mock-artist-002", "mock-artist-004")),
+          )
+      )
+    }
+    // Declared here rather than at the top level, so that it only exists for this preview. It
+    // always answers that the preview user is signed in, since the preview cannot reach Firebase.
+    val previewAuthRepository =
+        object : AuthRepository {
+          override val authState: Flow<AuthUser?> =
+              flowOf(
+                  object : AuthUser {
+                    override val uid: String = previewUserId
+                  }
+              )
+
+          override suspend fun signIn(idToken: String): Result<AuthUser> =
+              Result.failure(UnsupportedOperationException("Sign-in is not available in previews"))
+
+          override suspend fun signOut(): Result<Unit> = Result.success(Unit)
         }
+    ArtistPreferencesViewModel(
+        wikiDataRepository = ArtworkRepositoryProvider.mockRepository,
+        authRepository = previewAuthRepository,
+        userRepository = userRepository,
+    )
   }
   ArtistaTheme {
     ArtistPreferencesScreen(
@@ -442,19 +470,4 @@ internal fun ArtistPreferencesScreenPreview() {
         artistPreferencesViewModel = viewModel,
     )
   }
-}
-
-/**
- * Signed-out [AuthRepository] for the preview.
- *
- * [ArtistPreferencesViewModel] needs an [AuthRepository] to know who is signed in, but the preview
- * cannot reach Firebase. This one always answers that nobody is signed in, so saves nothing.
- */
-private object PreviewAuthRepository : AuthRepository {
-  override val authState: Flow<AuthUser?> = flowOf(null)
-
-  override suspend fun signIn(idToken: String): Result<AuthUser> =
-      Result.failure(UnsupportedOperationException("Sign-in is not available in previews"))
-
-  override suspend fun signOut(): Result<Unit> = Result.success(Unit)
 }

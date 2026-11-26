@@ -7,6 +7,14 @@ import com.google.android.gms.maps.model.LatLng
 
 // Like R, but C
 object C {
+  object NotificationChannels {
+    const val NEARBY_ARTWORKS = "nearby_artworks"
+  }
+
+  object Geofence {
+    const val GEOFENCE_RADIUS = 100f
+  }
+
   object Tag {
     const val auth_screen_container = "auth_screen_container"
     const val auth_hero_image = "auth_hero_image"

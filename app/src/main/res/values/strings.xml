@@ -48,12 +48,10 @@
     <string name="profile_username_cancel">Cancel</string>
     <!-- Artist preferences screen -->
     <string name="artist_preferences_title">Artist Preferences</string>
-    <string name="artist_preferences_description">Select your favorite artists to personalize your recommendations</string>
+    <string name="artist_preferences_description">Untoggle the artists to remove from your favorites, then save</string>
     <string name="artist_preferences_search_placeholder">Search artists…</string>
-    <string name="artist_preferences_popular_artists">Popular Artists</string>
-    <string name="artist_preferences_save">Save Preferences</string>
-    <string name="artist_preferences_saved">Your favorite artists have been saved.</string>
-    <string name="artist_preferences_load_error_state">Popular artists couldn\'t be loaded.</string>
+    <string name="artist_preferences_save">Save</string>
+    <string name="artist_preferences_empty_state">You have no favorite artists yet.</string>
     <string name="artist_preferences_saved_artists_load_error">Your saved artists couldn\'t be loaded.</string>
     <string name="artist_preferences_artist_picture_description">Picture of %1$s</string>
     <!-- Map screen -->
@@ -114,6 +112,20 @@
     <string name="search_filter_type_oil_painting">Oil painting</string>
     <string name="search_filter_type_watercolor_painting">Watercolor painting</string>
     <string name="search_filter_type_mosaic">Mosaic</string>
+
+    <!-- Notifications -->
+    <string name="notification_proximity_title">Nearby: %s</string>
+    <string name="notification_proximity_text">You\'re close to %s. Go check it out!</string>
+    <string name="artwork_notifications">Enable notifications for nearby saved artworks.</string>
+
+    <!-- Notification Permissions -->
+    <string name="nearby_alerts_permissions_background_title">Allow background location</string>
+    <string name="nearby_alerts_permissions_background_message">In order to get notifications when near a saved artwork, you need to allow background location services for the app. For the feature to work correctly, set to \"Allow all the time\".</string>
+    <string name="nearby_alerts_permissions_continue">Go to settings.</string>
+
+    <!-- Notification Channels -->
+    <string name="nearby_alerts_channel_name">Nearby alerts</string>
+    <string name="nearby_alerts_channel_description">Alerts when you are close to an artwork that interests you.</string>
 
     <!-- Default error messages, one per AppException type (RateLimit has 2 variants) -->
     <string name="error_not_found">This item no longer exists.</string>
