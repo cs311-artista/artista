@@ -349,6 +349,8 @@ fun ArtistaNavHost(
         MapScreen(
             mapViewModel = mapViewModel,
             onNavigationBarTabSelected = { tab -> navigationActions.navigateTo(tab.destination) },
+            // The actual behaviour of onDetailsButtonClicked CANNOT be properly tested. Any change
+            // to this callback requires extensive manual testing.
             onDetailsButtonClicked = { artwork ->
               navController.navigate(Screen.ArtworkDetails.createRoute(artwork.uid))
             },
