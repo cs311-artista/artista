@@ -71,8 +71,6 @@ internal object Dimensions {
   val artworkCardElevation = shallowElevation
 
   // Saved artworks screen.
-  val savedArtworksTitleHorizontalPadding = 20.dp
-  val savedArtworksTitleVerticalPadding = 8.dp
   val savedArtworksErrorHorizontalPadding = 24.dp
   val savedArtworksRetryButtonSpacing = 16.dp
   val savedArtworksListHorizontalPadding = 16.dp
