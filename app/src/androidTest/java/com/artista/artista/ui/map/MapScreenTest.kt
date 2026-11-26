@@ -402,6 +402,7 @@ class MapScreenTest {
       onClearRoute: () -> Unit = {},
       onRetryRoute: () -> Unit = {},
       onRecalculateRoute: () -> Unit = {},
+      onDetailsClicked: (Artwork) -> Unit = {},
   ) {
     composeTestRule.setContent {
       ArtistaTheme {
@@ -412,6 +413,7 @@ class MapScreenTest {
             onRetryRoute = onRetryRoute,
             onRecalculateRoute = onRecalculateRoute,
             hasArrived = arrived,
+            onDetailsButtonClicked = onDetailsClicked,
         )
       }
     }

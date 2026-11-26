@@ -207,7 +207,7 @@ internal fun remoteArtworksNotSaved(
 fun MapScreen(
     mapViewModel: MapViewModel,
     onNavigationBarTabSelected: (Tab) -> Unit = {},
-    onDetailsButtonClicked: (Artwork) -> Unit,
+    onDetailsButtonClicked: (Artwork) -> Unit = {},
     hasLocationPermissions: (Context) -> Boolean = ::hasUserLocationPermissions,
 ) {
   val uiState by mapViewModel.uiStateFlow.collectAsStateWithLifecycle()
