@@ -23,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.outlined.People
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.ViewAgenda
 import androidx.compose.material3.AlertDialog
@@ -80,7 +81,8 @@ private val CardShape = RoundedCornerShape(Dimensions.cornerRadiusMedium)
 private val IconBoxShape = RoundedCornerShape(Dimensions.cornerRadiusSmall)
 
 /**
- * Displays the profile of the current user with access to their preferences and saved artworks.
+ * Displays the profile of the current user with access to their preferences, saved artworks and
+ * friends.
  *
  * [onLogoutClick] has no default value, so that integrating the screen without wiring it fails to
  * compile instead of leaving a logout button that silently does nothing.
@@ -92,6 +94,7 @@ private val IconBoxShape = RoundedCornerShape(Dimensions.cornerRadiusSmall)
  *   [com.artista.artista.ArtistaApp].
  * @param onPreferencesClick Callback invoked when the user opens their artist preferences.
  * @param onSavedArtworkClick Callback invoked when the user opens their saved artworks.
+ * @param onFriendsClick Callback invoked when the user opens their friend list.
  * @param onTabSelected Callback invoked with the destination selected in the bottom navigation.
  * @author Timz3rr, krfpn
  */
@@ -101,6 +104,7 @@ fun UserProfileScreen(
     userProfileViewModel: UserProfileViewModel,
     onPreferencesClick: () -> Unit = {},
     onSavedArtworkClick: () -> Unit = {},
+    onFriendsClick: () -> Unit = {},
     onTabSelected: (Tab) -> Unit = {},
 ) {
   val uiState by userProfileViewModel.uiState.collectAsStateWithLifecycle()
@@ -134,6 +138,7 @@ fun UserProfileScreen(
         onUsernameSave = userProfileViewModel::updateUsername,
         onPreferencesClick = onPreferencesClick,
         onSavedArtworkClick = onSavedArtworkClick,
+        onFriendsClick = onFriendsClick,
         onLogoutClick = onLogoutClick,
         modifier = Modifier.padding(innerPadding),
     )
@@ -150,6 +155,7 @@ fun UserProfileScreen(
  * @param onUsernameSave Callback invoked with the username saved from the edit dialog.
  * @param onPreferencesClick Callback invoked when the artist preferences card is clicked.
  * @param onSavedArtworkClick Callback invoked when the saved artwork card is clicked.
+ * @param onFriendsClick Callback invoked when the friends card is clicked.
  * @param onLogoutClick Callback invoked when the logout button is clicked.
  * @param modifier Modifier applied to the content, used to apply the padding of the Scaffold.
  */
@@ -160,6 +166,7 @@ private fun ProfileContent(
     onUsernameSave: (String) -> Unit,
     onPreferencesClick: () -> Unit,
     onSavedArtworkClick: () -> Unit,
+    onFriendsClick: () -> Unit,
     onLogoutClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -231,6 +238,14 @@ private fun ProfileContent(
           icon = Icons.Filled.Bookmark,
           onClick = onSavedArtworkClick,
           modifier = Modifier.testTag(UserProfileTestTags.SAVED_ARTWORK_BUTTON),
+      )
+      // Friends button
+      ProfileOptionCard(
+          title = stringResource(R.string.profile_friends),
+          subtitle = stringResource(R.string.profile_friends_subtitle),
+          icon = Icons.Outlined.People,
+          onClick = onFriendsClick,
+          modifier = Modifier.testTag(UserProfileTestTags.FRIENDS_BUTTON),
       )
     }
     Spacer(modifier = Modifier.height(Dimensions.profileLogoutTopSpacing))
