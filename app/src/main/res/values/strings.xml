@@ -86,6 +86,9 @@
     <string name="map_route_recalculate">Recalculate route</string>
     <string name="map_route_arrived">You\'ve arrived</string>
     <string name="map_route_arrived_close">Close</string>
+    <!-- Friend list screen -->
+    <string name="friends_title">Friends</string>
+    <string name="friends_empty_message">Connect with your friends</string>
     <!-- Saved artworks screen -->
     <string name="saved_artworks_title">Saved Artworks</string>
     <string name="saved_artworks_empty">You have no saved artworks yet.</string>
