@@ -36,7 +36,7 @@ import com.artista.artista.model.artwork.WikiDataRepository
 import com.artista.artista.model.error.AppException
 import com.artista.artista.model.location.FakeLocationProvider
 import com.artista.artista.model.map.Location
-import com.artista.artista.ui.artwork.ArtworkCardTestTag
+import com.artista.artista.ui.artwork.ArtworkTileTestTags
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -245,7 +245,10 @@ class SearchScreenTest {
         .onAllNodesWithTag(SearchScreenTestTags.SEARCH_LOADING_INDICATOR)
         .assertCountEquals(0)
     composeTestRule
-        .onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD_TITLE, useUnmergedTree = true)
+        .onNodeWithTag(
+            ArtworkTileTestTags.title(SearchTestData.starryNight),
+            useUnmergedTree = true,
+        )
         .assert(hasText("The Starry Night"))
   }
 
@@ -277,10 +280,16 @@ class SearchScreenTest {
     closeSuggestions(viewModel)
 
     composeTestRule
-        .onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD_TITLE, useUnmergedTree = true)
+        .onNodeWithTag(
+            ArtworkTileTestTags.title(SearchTestData.untitledStudy),
+            useUnmergedTree = true,
+        )
         .assert(hasText("Untitled study"))
     composeTestRule
-        .onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD_ARTIST, useUnmergedTree = true)
+        .onNodeWithTag(
+            ArtworkTileTestTags.artist(SearchTestData.untitledStudy),
+            useUnmergedTree = true,
+        )
         .assert(hasText("Unknown Artist"))
   }
 
@@ -331,7 +340,7 @@ class SearchScreenTest {
 
     // Semantic click: performClick() does not reach the button in this Robolectric window.
     composeTestRule
-        .onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD_MAP_BUTTON)
+        .onNodeWithTag(ArtworkTileTestTags.mapButton(artwork))
         .performSemanticsAction(SemanticsActions.OnClick)
 
     assertEquals(artwork, mappedArtwork)
@@ -382,19 +391,28 @@ class SearchScreenTest {
     showSearchScreen(viewModel)
     closeSuggestions(viewModel)
     composeTestRule
-        .onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD_TITLE, useUnmergedTree = true)
+        .onNodeWithTag(
+            ArtworkTileTestTags.title(SearchTestData.starryNight),
+            useUnmergedTree = true,
+        )
         .assert(hasText("The Starry Night"))
 
     selectTab(SearchTab.ARTISTS)
 
     composeTestRule
-        .onAllNodesWithTag(ArtworkCardTestTag.ARTWORK_CARD_TITLE, useUnmergedTree = true)
+        .onAllNodesWithTag(
+            ArtworkTileTestTags.title(SearchTestData.starryNight),
+            useUnmergedTree = true,
+        )
         .assertCountEquals(0)
 
     selectTab(SearchTab.ARTWORKS)
 
     composeTestRule
-        .onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD_TITLE, useUnmergedTree = true)
+        .onNodeWithTag(
+            ArtworkTileTestTags.title(SearchTestData.starryNight),
+            useUnmergedTree = true,
+        )
         .assert(hasText("The Starry Night"))
   }
 
@@ -425,7 +443,10 @@ class SearchScreenTest {
     composeTestRule.waitForIdle()
 
     composeTestRule
-        .onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD_TITLE, useUnmergedTree = true)
+        .onNodeWithTag(
+            ArtworkTileTestTags.title(SearchTestData.starryNight),
+            useUnmergedTree = true,
+        )
         .assert(hasText("The Starry Night"))
   }
 

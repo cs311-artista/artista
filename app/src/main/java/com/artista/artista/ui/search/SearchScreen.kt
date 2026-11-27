@@ -128,6 +128,8 @@ object SearchScreenTestTags {
   /** Tag of the hint indicating that artwork types can be scrolled. */
   const val FILTER_SCROLL_HINT = "search_filter_scroll_hint"
 
+  const val ARTWORK_TILE = "artwork_tile"
+
   /**
    * Returns the stable tag of an artwork-type filter.
    *
@@ -309,7 +311,6 @@ internal fun SearchScreenContent(
               onArtworkTypeToggle = onArtworkTypeToggle,
           )
           SearchTabSwitch(
-              textFieldState = textFieldState,
               selectedTab = uiState.selectedTab,
               onTabSelected = onSearchTabSelected,
               modifier =
@@ -673,7 +674,6 @@ private fun SearchTextField(
  */
 @Composable
 private fun SearchTabSwitch(
-    textFieldState: TextFieldState,
     selectedTab: SearchTab,
     onTabSelected: (SearchTab) -> Unit,
     modifier: Modifier = Modifier,
@@ -690,10 +690,7 @@ private fun SearchTabSwitch(
             modifier =
                 Modifier.weight(1f)
                     .fillMaxHeight()
-                    .selectable(selected = selected, role = Role.Tab) {
-                      onTabSelected(tab)
-                      if (!selected) textFieldState.clearText()
-                    }
+                    .selectable(selected = selected, role = Role.Tab) { onTabSelected(tab) }
                     .testTag(SearchScreenTestTags.tab(tab)),
             shape = MaterialTheme.shapes.extraLarge,
             color = if (selected) MaterialTheme.colorScheme.surface else Color.Transparent,
@@ -1012,6 +1009,7 @@ private fun ArtworkResults(
           onClick = onArtworkClick,
           onMapClick = onMapClick,
           onSaveClick = onSaveClick,
+          modifier = Modifier.testTag(SearchScreenTestTags.ARTWORK_TILE),
       )
     }
   }
