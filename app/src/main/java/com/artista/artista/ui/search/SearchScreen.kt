@@ -303,6 +303,7 @@ internal fun SearchScreenContent(
               onArtworkTypeToggle = onArtworkTypeToggle,
           )
           SearchTabSwitch(
+              textFieldState = textFieldState,
               selectedTab = uiState.selectedTab,
               onTabSelected = onSearchTabSelected,
               modifier =
@@ -384,12 +385,16 @@ private fun ArtistSearchBody(
                   }
           )
         }
-    uiState.resultArtist.isEmpty() &&
-        uiState.hasAlreadySearched &&
-        !uiState.hasInvalidSearchInput ->
+    uiState.resultArtist.isEmpty() && !uiState.hasInvalidSearchInput ->
         EmptySearchResults(
-            stringResource(R.string.search_empty_artist_results_title),
-            stringResource(R.string.search_empty_artist_results_message),
+            stringResource(
+                if (uiState.hasAlreadySearched) R.string.search_empty_artist_results_title
+                else R.string.search_empty_query_title
+            ),
+            stringResource(
+                if (uiState.hasAlreadySearched) R.string.search_empty_artist_results_message
+                else R.string.search_empty_query_message
+            ),
             modifier = modifier,
         )
     else ->
@@ -452,12 +457,16 @@ private fun ArtworkSearchBody(
                   }
           )
         }
-    uiState.resultArtworks.isEmpty() &&
-        uiState.hasAlreadySearched &&
-        !uiState.hasInvalidSearchInput ->
+    uiState.resultArtworks.isEmpty() && !uiState.hasInvalidSearchInput ->
         EmptySearchResults(
-            stringResource(R.string.search_empty_artwork_results_title),
-            stringResource(R.string.search_empty_artwork_results_message),
+            stringResource(
+                if (uiState.hasAlreadySearched) R.string.search_empty_artwork_results_title
+                else R.string.search_empty_query_title
+            ),
+            stringResource(
+                if (uiState.hasAlreadySearched) R.string.search_empty_artwork_results_message
+                else R.string.search_empty_query_message
+            ),
             modifier = modifier,
         )
     else ->
@@ -657,6 +666,7 @@ private fun SearchTextField(
  */
 @Composable
 private fun SearchTabSwitch(
+    textFieldState: TextFieldState,
     selectedTab: SearchTab,
     onTabSelected: (SearchTab) -> Unit,
     modifier: Modifier = Modifier,
@@ -673,7 +683,10 @@ private fun SearchTabSwitch(
             modifier =
                 Modifier.weight(1f)
                     .fillMaxHeight()
-                    .selectable(selected = selected, role = Role.Tab) { onTabSelected(tab) }
+                    .selectable(selected = selected, role = Role.Tab) {
+                      onTabSelected(tab)
+                      if (!selected) textFieldState.clearText()
+                    }
                     .testTag(SearchScreenTestTags.tab(tab)),
             shape = MaterialTheme.shapes.extraLarge,
             color = if (selected) MaterialTheme.colorScheme.surface else Color.Transparent,

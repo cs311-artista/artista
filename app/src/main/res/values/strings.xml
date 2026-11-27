@@ -148,6 +148,8 @@
     <string name="search_filter_type_oil_painting">Oil painting</string>
     <string name="search_filter_type_watercolor_painting">Watercolor painting</string>
     <string name="search_filter_type_mosaic">Mosaic</string>
+    <string name="search_empty_query_title">Empty query!?</string>
+    <string name="search_empty_query_message">Try to look for something more specific.</string>
 
     <!-- Search screen -->
     <string name="search_tab_artworks">Artworks</string>
