@@ -78,6 +78,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
 import com.artista.artista.R
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artist.ArtistCandidate
@@ -162,6 +163,8 @@ enum class SuggestionSource {
  * @property source list the suggestion came from
  */
 data class ArtworkSuggestion(val candidate: ArtworkCandidate, val source: SuggestionSource)
+
+private const val ARTWORK_GRID_COLUMN = 2
 
 /**
  * Merges the three suggestion lists into the single list shown under the search field.
@@ -337,6 +340,7 @@ internal fun SearchScreenContent(
       uiState.isSuggesting ->
           SuggestionsPane(
               selectedTab = uiState.selectedTab,
+              isLoading = uiState.isRecommendationLoading,
               artworkSuggestions = artworkSuggestions,
               artistSuggestions = uiState.artistRecommendations,
               onArtworkSuggestionClick = { candidate ->
@@ -792,6 +796,7 @@ private fun ArtworkTypeFilter(
 @Composable
 private fun SuggestionsPane(
     selectedTab: SearchTab,
+    isLoading: Boolean,
     artworkSuggestions: List<ArtworkSuggestion>,
     artistSuggestions: List<ArtistCandidate>,
     onArtworkSuggestionClick: (ArtworkCandidate) -> Unit,
@@ -808,6 +813,9 @@ private fun SuggestionsPane(
             ),
         verticalArrangement = Arrangement.spacedBy(Dimensions.searchResultItemSpacing),
     ) {
+      if (isLoading) {
+        item(key = "loading") { LoadingSuggestionRow() }
+      }
       when (selectedTab) {
         SearchTab.ARTWORKS ->
             items(artworkSuggestions) { suggestion ->
@@ -835,6 +843,34 @@ private fun SuggestionsPane(
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurface,
         textAlign = TextAlign.Center,
+    )
+  }
+}
+
+@Composable
+private fun LoadingSuggestionRow(modifier: Modifier = Modifier) {
+  Surface(
+      modifier.fillMaxWidth(),
+      shape = MaterialTheme.shapes.extraLarge,
+  ) {
+    ListItem(
+        headlineContent = {
+          Text(
+              stringResource(R.string.search_query_loading),
+              style = MaterialTheme.typography.bodyLarge,
+          )
+        },
+        leadingContent = {
+          // Same footprint as the 24dp suggestion icons so the rows line up.
+          CircularProgressIndicator(
+              modifier = Modifier.size(24.dp),
+              strokeWidth = 2.dp,
+              color = MaterialTheme.colorScheme.primary,
+          )
+        },
+        modifier =
+            Modifier.fillMaxWidth()
+                .padding(horizontal = Dimensions.searchRecommendationHorizontalPadding),
     )
   }
 }
@@ -955,7 +991,7 @@ private fun ArtworkResults(
     modifier: Modifier = Modifier,
 ) {
   LazyVerticalGrid(
-      columns = GridCells.Fixed(2),
+      columns = GridCells.Fixed(ARTWORK_GRID_COLUMN),
       modifier = modifier.testTag(SearchScreenTestTags.SEARCH_RESULT),
       contentPadding =
           PaddingValues(
