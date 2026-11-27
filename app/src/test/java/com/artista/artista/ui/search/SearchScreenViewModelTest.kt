@@ -100,6 +100,304 @@ class SearchScreenViewModelTest {
 
   // endregion
 
+  // region Recommendation loading
+
+  @Test
+  fun onSearchInputChanged_exposesRecommendationLoadingUntilSuggestionsArrive() = runTest {
+    val candidates = CompletableDeferred<List<ArtworkCandidate>>()
+    val viewModel =
+        createViewModel(
+            wikiDataRepository =
+                FakeWikiDataRepository(onArtworkCandidates = { candidates.await() })
+        )
+
+    advanceUntilIdle()
+    assertFalse(viewModel.uiState.value.isRecommendationLoading)
+
+    viewModel.onSearchInputChanged("mo", TextRange(2))
+    // Set immediately, so it also covers the debounce pause.
+    assertTrue(viewModel.uiState.value.isRecommendationLoading)
+
+    advanceUntilIdle()
+    // The debounce has elapsed, but the request is still pending.
+    assertTrue(viewModel.uiState.value.isRecommendationLoading)
+
+    candidates.complete(listOf(ArtworkCandidate("Q1", "Mona Lisa (copy)", null)))
+    advanceUntilIdle()
+
+    assertFalse(viewModel.uiState.value.isRecommendationLoading)
+    assertEquals(
+        listOf("Mona Lisa (copy)"),
+        viewModel.uiState.value.wikiDataRecommendations.map { it.label },
+    )
+  }
+
+  @Test
+  fun onSearchInputChanged_withTooShortQuery_doesNotLoadRecommendations() = runTest {
+    val viewModel = createViewModel(wikiDataRepository = wikiRepositoryWithArtworkCandidates())
+
+    advanceUntilIdle()
+    viewModel.onSearchInputChanged("m", TextRange(1))
+
+    assertFalse(viewModel.uiState.value.isRecommendationLoading)
+  }
+
+  @Test
+  fun onSearchInputChanged_whenQueryBecomesTooShort_stopsRecommendationLoading() = runTest {
+    val candidates = CompletableDeferred<List<ArtworkCandidate>>()
+    val viewModel =
+        createViewModel(
+            wikiDataRepository =
+                FakeWikiDataRepository(onArtworkCandidates = { candidates.await() })
+        )
+
+    advanceUntilIdle()
+    viewModel.onSearchInputChanged("mo", TextRange(2))
+    advanceUntilIdle()
+    assertTrue(viewModel.uiState.value.isRecommendationLoading)
+
+    viewModel.onSearchInputChanged("m", TextRange(1))
+
+    assertFalse(viewModel.uiState.value.isRecommendationLoading)
+
+    // The cancelled request must not bring suggestions back.
+    candidates.complete(listOf(ArtworkCandidate("Q1", "Mona Lisa (copy)", null)))
+    advanceUntilIdle()
+
+    assertFalse(viewModel.uiState.value.isRecommendationLoading)
+    assertTrue(viewModel.uiState.value.wikiDataRecommendations.isEmpty())
+  }
+
+  @Test
+  fun suggestionFailure_stopsLoadingAndKeepsPreviousSuggestions() = runTest {
+    var shouldFail = false
+    val viewModel =
+        createViewModel(
+            wikiDataRepository =
+                FakeWikiDataRepository(
+                    onArtworkCandidates = {
+                      if (shouldFail) throw AppException.Network("Suggestions failed")
+                      listOf(ArtworkCandidate("Q1", "Mona Lisa (copy)", null))
+                    }
+                )
+        )
+
+    advanceUntilIdle()
+    viewModel.onSearchInputChanged("mo", TextRange(2))
+    advanceUntilIdle()
+
+    shouldFail = true
+    viewModel.onSearchInputChanged("mon", TextRange(3))
+    assertTrue(viewModel.uiState.value.isRecommendationLoading)
+    advanceUntilIdle()
+
+    assertFalse(viewModel.uiState.value.isRecommendationLoading)
+    // Suggestions are best effort: no error message, previous suggestions stay.
+    assertEquals(null, viewModel.uiState.value.fetchErrorMessageResId)
+    assertEquals(
+        listOf("Mona Lisa (copy)"),
+        viewModel.uiState.value.wikiDataRecommendations.map { it.label },
+    )
+  }
+
+  @Test
+  fun onSearchInputChanged_whenSuperseded_keepsLoadingUntilLatestRequestFinishes() = runTest {
+    val moResults = CompletableDeferred<List<ArtworkCandidate>>()
+    val monResults = CompletableDeferred<List<ArtworkCandidate>>()
+    val viewModel =
+        createViewModel(
+            wikiDataRepository =
+                FakeWikiDataRepository(
+                    onArtworkCandidates = { query ->
+                      when (query) {
+                        "mo" -> moResults.await()
+                        "mon" -> monResults.await()
+                        else -> emptyList()
+                      }
+                    }
+                )
+        )
+
+    advanceUntilIdle()
+    viewModel.onSearchInputChanged("mo", TextRange(2))
+    advanceUntilIdle()
+    viewModel.onSearchInputChanged("mon", TextRange(3))
+    advanceUntilIdle()
+
+    // The stale request finishing must neither apply its result nor clear the flag.
+    moResults.complete(listOf(ArtworkCandidate("Q1", "Mona Lisa (copy)", null)))
+    advanceUntilIdle()
+
+    assertTrue(viewModel.uiState.value.isRecommendationLoading)
+    assertTrue(viewModel.uiState.value.wikiDataRecommendations.isEmpty())
+
+    monResults.complete(listOf(ArtworkCandidate("Q2", "Monet's Garden", null)))
+    advanceUntilIdle()
+
+    assertFalse(viewModel.uiState.value.isRecommendationLoading)
+    assertEquals(
+        listOf("Monet's Garden"),
+        viewModel.uiState.value.wikiDataRecommendations.map { it.label },
+    )
+  }
+
+  @Test
+  fun onSearchSubmitted_cancelsRecommendationLoading() = runTest {
+    val candidates = CompletableDeferred<List<ArtworkCandidate>>()
+    val viewModel =
+        createViewModel(
+            wikiDataRepository =
+                FakeWikiDataRepository(onArtworkCandidates = { candidates.await() })
+        )
+
+    advanceUntilIdle()
+    viewModel.onSearchInputChanged("mo", TextRange(2))
+    advanceUntilIdle()
+    assertTrue(viewModel.uiState.value.isRecommendationLoading)
+
+    viewModel.onSearchSubmitted("mo")
+
+    assertFalse(viewModel.uiState.value.isRecommendationLoading)
+
+    candidates.complete(listOf(ArtworkCandidate("Q1", "Mona Lisa (copy)", null)))
+    advanceUntilIdle()
+
+    assertFalse(viewModel.uiState.value.isRecommendationLoading)
+    assertTrue(viewModel.uiState.value.wikiDataRecommendations.isEmpty())
+  }
+
+  @Test
+  fun onSuggestingChange_whenOpened_loadsRecommendationsForCurrentQuery() = runTest {
+    val viewModel = createViewModel(wikiDataRepository = wikiRepositoryWithArtworkCandidates())
+
+    advanceUntilIdle()
+    viewModel.onSearchInputChanged("mo", TextRange(2))
+    advanceUntilIdle()
+    assertFalse(viewModel.uiState.value.isRecommendationLoading)
+
+    viewModel.onSuggestingChange(true)
+
+    assertTrue(viewModel.uiState.value.isRecommendationLoading)
+
+    advanceUntilIdle()
+
+    assertFalse(viewModel.uiState.value.isRecommendationLoading)
+  }
+
+  @Test
+  fun onSuggestingChange_whenClosed_cancelsRecommendationLoading() = runTest {
+    val candidates = CompletableDeferred<List<ArtworkCandidate>>()
+    val viewModel =
+        createViewModel(
+            wikiDataRepository =
+                FakeWikiDataRepository(onArtworkCandidates = { candidates.await() })
+        )
+
+    advanceUntilIdle()
+    viewModel.onSuggestingChange(true)
+    viewModel.onSearchInputChanged("mo", TextRange(2))
+    advanceUntilIdle()
+    assertTrue(viewModel.uiState.value.isRecommendationLoading)
+
+    viewModel.onSuggestingChange(false)
+
+    assertFalse(viewModel.uiState.value.isRecommendationLoading)
+
+    candidates.complete(listOf(ArtworkCandidate("Q1", "Mona Lisa (copy)", null)))
+    advanceUntilIdle()
+
+    assertFalse(viewModel.uiState.value.isRecommendationLoading)
+    assertTrue(viewModel.uiState.value.wikiDataRecommendations.isEmpty())
+  }
+
+  @Test
+  fun onSearchTabSelected_withPaneClosed_cancelsRecommendationLoading() = runTest {
+    val candidates = CompletableDeferred<List<ArtworkCandidate>>()
+    val viewModel =
+        createViewModel(
+            wikiDataRepository =
+                FakeWikiDataRepository(onArtworkCandidates = { candidates.await() })
+        )
+
+    advanceUntilIdle()
+    viewModel.onSearchInputChanged("mo", TextRange(2))
+    advanceUntilIdle()
+    assertTrue(viewModel.uiState.value.isRecommendationLoading)
+
+    viewModel.onSearchTabSelected(SearchTab.ARTISTS)
+
+    assertFalse(viewModel.uiState.value.isRecommendationLoading)
+  }
+
+  @Test
+  fun onSearchTabSelected_withPaneOpen_loadsRecommendationsOfTheNewTab() = runTest {
+    val artworkCandidates = CompletableDeferred<List<ArtworkCandidate>>()
+    val artistCandidates = CompletableDeferred<List<ArtistCandidate>>()
+    val viewModel =
+        createViewModel(
+            wikiDataRepository =
+                FakeWikiDataRepository(
+                    onArtworkCandidates = { artworkCandidates.await() },
+                    onArtistCandidates = { artistCandidates.await() },
+                )
+        )
+
+    advanceUntilIdle()
+    viewModel.onSuggestingChange(true)
+    viewModel.onSearchInputChanged("mo", TextRange(2))
+    advanceUntilIdle()
+
+    viewModel.onSearchTabSelected(SearchTab.ARTISTS)
+
+    // The artwork request was dropped and an artist request started in its place.
+    assertTrue(viewModel.uiState.value.isRecommendationLoading)
+
+    artworkCandidates.complete(listOf(ArtworkCandidate("Q1", "Mona Lisa (copy)", null)))
+    advanceUntilIdle()
+
+    assertTrue(viewModel.uiState.value.isRecommendationLoading)
+    assertTrue(viewModel.uiState.value.wikiDataRecommendations.isEmpty())
+
+    artistCandidates.complete(emptyList())
+    advanceUntilIdle()
+
+    assertFalse(viewModel.uiState.value.isRecommendationLoading)
+  }
+
+  @Test
+  fun toggleArtworkType_onArtworksTab_reloadsRecommendations() = runTest {
+    val viewModel = createViewModel(wikiDataRepository = wikiRepositoryWithArtworkCandidates())
+
+    advanceUntilIdle()
+    viewModel.onSearchInputChanged("mo", TextRange(2))
+    advanceUntilIdle()
+    assertFalse(viewModel.uiState.value.isRecommendationLoading)
+
+    viewModel.toggleArtworkType(ArtworkType.entries.last())
+
+    assertTrue(viewModel.uiState.value.isRecommendationLoading)
+
+    advanceUntilIdle()
+
+    assertFalse(viewModel.uiState.value.isRecommendationLoading)
+  }
+
+  @Test
+  fun toggleArtworkType_onArtistsTab_doesNotLoadRecommendations() = runTest {
+    val viewModel = createViewModel(wikiDataRepository = wikiRepositoryWithArtworkCandidates())
+
+    advanceUntilIdle()
+    viewModel.onSearchTabSelected(SearchTab.ARTISTS)
+    viewModel.onSearchInputChanged("mo", TextRange(2))
+    advanceUntilIdle()
+
+    viewModel.toggleArtworkType(ArtworkType.entries.last())
+
+    assertFalse(viewModel.uiState.value.isRecommendationLoading)
+  }
+
+  // endregion
+
   // region Suggestions
 
   @Test
@@ -571,6 +869,7 @@ class SearchScreenViewModelTest {
       private val onArtworksFromQuery: (suspend (String) -> List<Artwork>)? = null,
       private val onArtistsFromQuery: suspend (String) -> List<Artist> = { emptyList() },
       private val onArtworkCandidates: suspend (String) -> List<ArtworkCandidate> = { emptyList() },
+      private val onArtistCandidates: suspend (String) -> List<ArtistCandidate> = { emptyList() },
   ) : WikiDataRepository by base {
 
     override suspend fun getArtworksNearLocation(
@@ -585,9 +884,6 @@ class SearchScreenViewModelTest {
         limit: Int,
     ): List<ArtworkCandidate> = onArtworkCandidates(query)
 
-    override suspend fun getArtistCandidates(query: String, limit: Int): List<ArtistCandidate> =
-        emptyList()
-
     override suspend fun getArtistsFromQuery(query: String, limit: Int): List<Artist> =
         onArtistsFromQuery(query)
 
@@ -600,6 +896,9 @@ class SearchScreenViewModelTest {
     ): List<Artwork> =
         onArtworksFromQuery?.invoke(artworkTitle)
             ?: base.getArtworksFromQuery(artworkTitle, typeValues, limit)
+
+    override suspend fun getArtistCandidates(query: String, limit: Int): List<ArtistCandidate> =
+        onArtistCandidates(query)
   }
 
   private class OtherViewModel : ViewModel()

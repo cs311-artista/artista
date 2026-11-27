@@ -36,7 +36,7 @@ import com.artista.artista.model.artwork.WikiDataRepository
 import com.artista.artista.model.error.AppException
 import com.artista.artista.model.location.FakeLocationProvider
 import com.artista.artista.model.map.Location
-import com.artista.artista.ui.artwork.ArtworkCardTestTag
+import com.artista.artista.ui.artwork.ArtworkTileTestTags
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -245,7 +245,10 @@ class SearchScreenTest {
         .onAllNodesWithTag(SearchScreenTestTags.SEARCH_LOADING_INDICATOR)
         .assertCountEquals(0)
     composeTestRule
-        .onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD_TITLE, useUnmergedTree = true)
+        .onNodeWithTag(
+            ArtworkTileTestTags.title(SearchTestData.starryNight),
+            useUnmergedTree = true,
+        )
         .assert(hasText("The Starry Night"))
   }
 
@@ -277,10 +280,16 @@ class SearchScreenTest {
     closeSuggestions(viewModel)
 
     composeTestRule
-        .onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD_TITLE, useUnmergedTree = true)
+        .onNodeWithTag(
+            ArtworkTileTestTags.title(SearchTestData.untitledStudy),
+            useUnmergedTree = true,
+        )
         .assert(hasText("Untitled study"))
     composeTestRule
-        .onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD_ARTIST, useUnmergedTree = true)
+        .onNodeWithTag(
+            ArtworkTileTestTags.artist(SearchTestData.untitledStudy),
+            useUnmergedTree = true,
+        )
         .assert(hasText("Unknown Artist"))
   }
 
@@ -331,7 +340,7 @@ class SearchScreenTest {
 
     // Semantic click: performClick() does not reach the button in this Robolectric window.
     composeTestRule
-        .onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD_MAP_BUTTON)
+        .onNodeWithTag(ArtworkTileTestTags.mapButton(artwork))
         .performSemanticsAction(SemanticsActions.OnClick)
 
     assertEquals(artwork, mappedArtwork)
@@ -382,19 +391,28 @@ class SearchScreenTest {
     showSearchScreen(viewModel)
     closeSuggestions(viewModel)
     composeTestRule
-        .onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD_TITLE, useUnmergedTree = true)
+        .onNodeWithTag(
+            ArtworkTileTestTags.title(SearchTestData.starryNight),
+            useUnmergedTree = true,
+        )
         .assert(hasText("The Starry Night"))
 
     selectTab(SearchTab.ARTISTS)
 
     composeTestRule
-        .onAllNodesWithTag(ArtworkCardTestTag.ARTWORK_CARD_TITLE, useUnmergedTree = true)
+        .onAllNodesWithTag(
+            ArtworkTileTestTags.title(SearchTestData.starryNight),
+            useUnmergedTree = true,
+        )
         .assertCountEquals(0)
 
     selectTab(SearchTab.ARTWORKS)
 
     composeTestRule
-        .onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD_TITLE, useUnmergedTree = true)
+        .onNodeWithTag(
+            ArtworkTileTestTags.title(SearchTestData.starryNight),
+            useUnmergedTree = true,
+        )
         .assert(hasText("The Starry Night"))
   }
 
@@ -425,7 +443,10 @@ class SearchScreenTest {
     composeTestRule.waitForIdle()
 
     composeTestRule
-        .onNodeWithTag(ArtworkCardTestTag.ARTWORK_CARD_TITLE, useUnmergedTree = true)
+        .onNodeWithTag(
+            ArtworkTileTestTags.title(SearchTestData.starryNight),
+            useUnmergedTree = true,
+        )
         .assert(hasText("The Starry Night"))
   }
 
@@ -544,6 +565,181 @@ class SearchScreenTest {
     composeTestRule
         .onAllNodesWithTag(SearchScreenTestTags.SEARCH_ARTIST_RECOMMENDATION)
         .assertCountEquals(0)
+  }
+
+  // endregion
+
+  // region Suggestion loading row
+
+  @Test
+  fun suggestionLoading_isShownOnArtworksTabWhileRecommendationsLoad() {
+    showContent(
+        SearchScreenUiState(
+            selectedTab = SearchTab.ARTWORKS,
+            isSuggesting = true,
+            isRecommendationLoading = true,
+        )
+    )
+
+    composeTestRule
+        .onNodeWithTag(SearchScreenTestTags.SUGGESTION_LOADING_INDICATOR)
+        .assertIsDisplayed()
+  }
+
+  @Test
+  fun suggestionLoading_isShownOnArtistsTabWhileRecommendationsLoad() {
+    showContent(
+        SearchScreenUiState(
+            selectedTab = SearchTab.ARTISTS,
+            isSuggesting = true,
+            isRecommendationLoading = true,
+        )
+    )
+
+    composeTestRule
+        .onNodeWithTag(SearchScreenTestTags.SUGGESTION_LOADING_INDICATOR)
+        .assertIsDisplayed()
+  }
+
+  @Test
+  fun suggestionLoading_isHiddenWhenRecommendationsAreNotLoading() {
+    showContent(
+        SearchScreenUiState(
+            selectedTab = SearchTab.ARTWORKS,
+            isSuggesting = true,
+            isRecommendationLoading = false,
+        )
+    )
+
+    composeTestRule
+        .onAllNodesWithTag(SearchScreenTestTags.SUGGESTION_LOADING_INDICATOR)
+        .assertCountEquals(0)
+  }
+
+  @Test
+  fun suggestionLoading_isHiddenWhenSuggestionsPaneIsClosed() {
+    showContent(
+        SearchScreenUiState(
+            selectedTab = SearchTab.ARTWORKS,
+            isSuggesting = false,
+            isRecommendationLoading = true,
+        )
+    )
+
+    composeTestRule
+        .onAllNodesWithTag(SearchScreenTestTags.SUGGESTION_LOADING_INDICATOR)
+        .assertCountEquals(0)
+  }
+
+  @Test
+  fun suggestionLoading_isShownAboveArtworkSuggestionsAndIsNotCountedAsOne() {
+    showContent(
+        SearchScreenUiState(
+            selectedTab = SearchTab.ARTWORKS,
+            isSuggesting = true,
+            isRecommendationLoading = true,
+            wikiDataRecommendations = listOf(artworkCandidate(id = "Q1", label = "Mona Lisa")),
+        )
+    )
+
+    // The spinner row must not be mistaken for a suggestion by tests that count them.
+    composeTestRule
+        .onAllNodesWithTag(SearchScreenTestTags.SEARCH_ARTWORK_RECOMMENDATION)
+        .assertCountEquals(1)
+
+    val loadingTop =
+        composeTestRule
+            .onNodeWithTag(SearchScreenTestTags.SUGGESTION_LOADING_INDICATOR)
+            .fetchSemanticsNode()
+            .boundsInRoot
+            .top
+    val suggestionTop =
+        composeTestRule
+            .onNodeWithTag(SearchScreenTestTags.SEARCH_ARTWORK_RECOMMENDATION)
+            .fetchSemanticsNode()
+            .boundsInRoot
+            .top
+
+    assertTrue("Loading row should be above the first suggestion", loadingTop < suggestionTop)
+  }
+
+  @Test
+  fun suggestionLoading_isShownAboveArtistSuggestionsAndIsNotCountedAsOne() {
+    showContent(
+        SearchScreenUiState(
+            selectedTab = SearchTab.ARTISTS,
+            isSuggesting = true,
+            isRecommendationLoading = true,
+            artistRecommendations =
+                listOf(
+                    artistCandidate(id = "Q5582", label = "Vincent van Gogh", description = null)
+                ),
+        )
+    )
+
+    composeTestRule
+        .onAllNodesWithTag(SearchScreenTestTags.SEARCH_ARTIST_RECOMMENDATION)
+        .assertCountEquals(1)
+
+    val loadingTop =
+        composeTestRule
+            .onNodeWithTag(SearchScreenTestTags.SUGGESTION_LOADING_INDICATOR)
+            .fetchSemanticsNode()
+            .boundsInRoot
+            .top
+    val suggestionTop =
+        composeTestRule
+            .onNodeWithTag(SearchScreenTestTags.SEARCH_ARTIST_RECOMMENDATION)
+            .fetchSemanticsNode()
+            .boundsInRoot
+            .top
+
+    assertTrue("Loading row should be above the first suggestion", loadingTop < suggestionTop)
+  }
+
+  @Test
+  fun suggestionLoading_appearsWhileTypingAndDisappearsWhenSuggestionsArrive() = runTest {
+    val gate = CompletableDeferred<Unit>()
+    val base = WithoutRemoteSuggestions(SearchTestData.wikiDataRepository())
+    val wikiRepository =
+        object : WikiDataRepository by base {
+          override suspend fun getArtworkCandidates(
+              query: String,
+              typeValues: List<ArtworkType>,
+              limit: Int,
+          ): List<ArtworkCandidate> {
+            gate.await()
+            return listOf(artworkCandidate(id = "Q12418", label = "Mona Lisa"))
+          }
+        }
+    val viewModel =
+        SearchScreenViewModel(
+            SearchTestData.savedArtworksRepository(),
+            wikiRepository,
+            FakeLocationProvider(),
+        )
+
+    showSearchScreen(viewModel)
+    composeTestRule.waitForIdle()
+    advanceUntilIdle()
+    composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT).performTextInput("mo")
+    advanceUntilIdle()
+    composeTestRule.waitForIdle()
+
+    composeTestRule
+        .onNodeWithTag(SearchScreenTestTags.SUGGESTION_LOADING_INDICATOR)
+        .assertIsDisplayed()
+
+    gate.complete(Unit)
+    advanceUntilIdle()
+    composeTestRule.waitForIdle()
+
+    composeTestRule
+        .onAllNodesWithTag(SearchScreenTestTags.SUGGESTION_LOADING_INDICATOR)
+        .assertCountEquals(0)
+    composeTestRule
+        .onNodeWithTag(SearchScreenTestTags.SEARCH_ARTWORK_RECOMMENDATION)
+        .assert(hasText("Mona Lisa"))
   }
 
   // endregion
@@ -671,6 +867,19 @@ class SearchScreenTest {
             textFieldState = TextFieldState(),
             onArtistRecommendationSelected = onArtistRecommendationSelected,
             onSuggestingChange = onSuggestingChange,
+        )
+      }
+    }
+    composeTestRule.waitForIdle()
+  }
+
+  /** Renders the stateless screen with the given state. */
+  private fun showContent(uiState: SearchScreenUiState) {
+    composeTestRule.setContent {
+      MaterialTheme {
+        SearchScreenContent(
+            uiState = uiState,
+            textFieldState = TextFieldState(),
         )
       }
     }

@@ -20,6 +20,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
@@ -75,6 +78,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
 import com.artista.artista.R
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artist.ArtistCandidate
@@ -82,7 +86,7 @@ import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkCandidate
 import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.ArtworkType
-import com.artista.artista.ui.artwork.ArtworkCard
+import com.artista.artista.ui.artwork.ArtworkTile
 import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.search.SearchScreenTestTags.SEARCH_BACK_BUTTON
@@ -106,6 +110,9 @@ object SearchScreenTestTags {
   /** Tag of the suggestions list shown while the user is typing. */
   const val SUGGESTION_LIST = "search_suggestion_list"
 
+  /** Tag of the loading row shown at the top of the suggestions list while suggestions load. */
+  const val SUGGESTION_LOADING_INDICATOR = "search_suggestion_loading_indicator"
+
   /** Tag of the "Powered by Wikidata" attribution. */
   const val WIKIDATA_ATTRIBUTION = "search_wikidata_attribution"
 
@@ -120,6 +127,8 @@ object SearchScreenTestTags {
 
   /** Tag of the hint indicating that artwork types can be scrolled. */
   const val FILTER_SCROLL_HINT = "search_filter_scroll_hint"
+
+  const val ARTWORK_TILE = "artwork_tile"
 
   /**
    * Returns the stable tag of an artwork-type filter.
@@ -159,6 +168,8 @@ enum class SuggestionSource {
  * @property source list the suggestion came from
  */
 data class ArtworkSuggestion(val candidate: ArtworkCandidate, val source: SuggestionSource)
+
+private const val ARTWORK_GRID_COLUMN = 2
 
 /**
  * Merges the three suggestion lists into the single list shown under the search field.
@@ -333,6 +344,7 @@ internal fun SearchScreenContent(
       uiState.isSuggesting ->
           SuggestionsPane(
               selectedTab = uiState.selectedTab,
+              isLoading = uiState.isRecommendationLoading,
               artworkSuggestions = artworkSuggestions,
               artistSuggestions = uiState.artistRecommendations,
               onArtworkSuggestionClick = { candidate ->
@@ -381,12 +393,16 @@ private fun ArtistSearchBody(
                   }
           )
         }
-    uiState.resultArtist.isEmpty() &&
-        uiState.hasAlreadySearched &&
-        !uiState.hasInvalidSearchInput ->
+    uiState.resultArtist.isEmpty() && !uiState.hasInvalidSearchInput ->
         EmptySearchResults(
-            stringResource(R.string.search_empty_artist_results_title),
-            stringResource(R.string.search_empty_artist_results_message),
+            stringResource(
+                if (uiState.hasAlreadySearched) R.string.search_empty_artist_results_title
+                else R.string.search_empty_query_title
+            ),
+            stringResource(
+                if (uiState.hasAlreadySearched) R.string.search_empty_artist_results_message
+                else R.string.search_empty_query_message
+            ),
             modifier = modifier,
         )
     else ->
@@ -449,12 +465,16 @@ private fun ArtworkSearchBody(
                   }
           )
         }
-    uiState.resultArtworks.isEmpty() &&
-        uiState.hasAlreadySearched &&
-        !uiState.hasInvalidSearchInput ->
+    uiState.resultArtworks.isEmpty() && !uiState.hasInvalidSearchInput ->
         EmptySearchResults(
-            stringResource(R.string.search_empty_artwork_results_title),
-            stringResource(R.string.search_empty_artwork_results_message),
+            stringResource(
+                if (uiState.hasAlreadySearched) R.string.search_empty_artwork_results_title
+                else R.string.search_empty_query_title
+            ),
+            stringResource(
+                if (uiState.hasAlreadySearched) R.string.search_empty_artwork_results_message
+                else R.string.search_empty_query_message
+            ),
             modifier = modifier,
         )
     else ->
@@ -776,6 +796,7 @@ private fun ArtworkTypeFilter(
 @Composable
 private fun SuggestionsPane(
     selectedTab: SearchTab,
+    isLoading: Boolean,
     artworkSuggestions: List<ArtworkSuggestion>,
     artistSuggestions: List<ArtistCandidate>,
     onArtworkSuggestionClick: (ArtworkCandidate) -> Unit,
@@ -792,6 +813,9 @@ private fun SuggestionsPane(
             ),
         verticalArrangement = Arrangement.spacedBy(Dimensions.searchResultItemSpacing),
     ) {
+      if (isLoading) {
+        item(key = "loading") { LoadingSuggestionRow() }
+      }
       when (selectedTab) {
         SearchTab.ARTWORKS ->
             items(artworkSuggestions) { suggestion ->
@@ -819,6 +843,35 @@ private fun SuggestionsPane(
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurface,
         textAlign = TextAlign.Center,
+    )
+  }
+}
+
+@Composable
+private fun LoadingSuggestionRow(modifier: Modifier = Modifier) {
+  Surface(
+      modifier.fillMaxWidth(),
+      shape = MaterialTheme.shapes.extraLarge,
+  ) {
+    ListItem(
+        headlineContent = {
+          Text(
+              stringResource(R.string.search_query_loading),
+              style = MaterialTheme.typography.bodyLarge,
+          )
+        },
+        leadingContent = {
+          // Same footprint as the 24dp suggestion icons so the rows line up.
+          CircularProgressIndicator(
+              modifier = Modifier.size(24.dp),
+              strokeWidth = 2.dp,
+              color = MaterialTheme.colorScheme.primary,
+          )
+        },
+        modifier =
+            Modifier.fillMaxWidth()
+                .padding(horizontal = Dimensions.searchRecommendationHorizontalPadding)
+                .testTag(SearchScreenTestTags.SUGGESTION_LOADING_INDICATOR),
     )
   }
 }
@@ -938,22 +991,25 @@ private fun ArtworkResults(
     onSaveClick: (Artwork) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-  LazyColumn(
+  LazyVerticalGrid(
+      columns = GridCells.Fixed(ARTWORK_GRID_COLUMN),
       modifier = modifier.testTag(SearchScreenTestTags.SEARCH_RESULT),
       contentPadding =
           PaddingValues(
               horizontal = Dimensions.searchResultsHorizontalPadding,
               vertical = Dimensions.searchResultsVerticalPadding,
           ),
+      horizontalArrangement = Arrangement.spacedBy(Dimensions.searchResultItemSpacing),
       verticalArrangement = Arrangement.spacedBy(Dimensions.searchResultItemSpacing),
   ) {
     items(artworks) { artwork ->
-      ArtworkCard(
+      ArtworkTile(
           artwork = artwork,
           isSaved = artwork.uid in savedArtworkIds,
-          onArtworkClick = onArtworkClick,
+          onClick = onArtworkClick,
           onMapClick = onMapClick,
           onSaveClick = onSaveClick,
+          modifier = Modifier.testTag(SearchScreenTestTags.ARTWORK_TILE),
       )
     }
   }

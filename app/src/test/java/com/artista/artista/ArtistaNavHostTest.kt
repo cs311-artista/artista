@@ -19,7 +19,6 @@ import com.artista.artista.model.artwork.ArtworkRepositoryLocal
 import com.artista.artista.model.artwork.mockArtworks
 import com.artista.artista.model.map.FakeAddressRepository
 import com.artista.artista.model.walking.WalkingRouteRepositoryRemote
-import com.artista.artista.ui.artwork.ArtworkCardTestTag
 import com.artista.artista.ui.artwork.ArtworkTestTags
 import com.artista.artista.ui.navigation.Screen
 import com.artista.artista.ui.overview.OverviewTestTags
@@ -107,13 +106,13 @@ class ArtistaNavHostTest {
 
     composeTestRule.waitUntil(5_000) {
       composeTestRule
-          .onAllNodesWithTag(ArtworkCardTestTag.ARTWORK_CARD)
+          .onAllNodesWithTag(SearchScreenTestTags.ARTWORK_TILE)
           .fetchSemanticsNodes()
           .isNotEmpty()
     }
 
     composeTestRule
-        .onAllNodesWithTag(ArtworkCardTestTag.ARTWORK_CARD)
+        .onAllNodesWithTag(SearchScreenTestTags.ARTWORK_TILE)
         .onFirst()
         .performSemanticsAction(SemanticsActions.OnClick)
 

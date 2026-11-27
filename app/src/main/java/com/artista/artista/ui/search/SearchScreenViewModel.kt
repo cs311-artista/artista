@@ -46,6 +46,8 @@ import kotlinx.coroutines.flow.update
  * @property resultArtworks artwork results returned for the last submitted artwork query
  * @property resultArtist artist results returned for the last submitted artist query
  * @property isLoading whether a search is running on the selected tab (derived from [loadingTabs])
+ * @property isRecommendationLoading whether a remote (Wikidata) suggestion request is running for
+ *   the selected tab
  * @property hasInvalidSearchInput whether the last search on the selected tab failed because its
  *   input was invalid (derived from [invalidInputTabs])
  * @property searchedTabs tabs on which a search has completed, successfully or not
@@ -72,6 +74,7 @@ data class SearchScreenUiState(
     val resultArtworks: List<Artwork> = emptyList(),
     val resultArtist: List<Artist> = emptyList(),
     val isLoading: Boolean = false,
+    val isRecommendationLoading: Boolean = false,
     val hasInvalidSearchInput: Boolean = false,
     val searchedTabs: Set<SearchTab> = emptySet(),
     @param:StringRes val fetchErrorMessageResId: Int? = null,
@@ -166,7 +169,7 @@ class SearchScreenViewModel(
     val tab = state.selectedTab
     val typeValues = state.typeValues
 
-    suggestionSlot.cancel()
+    cancelSuggestions()
     val slot = searchSlots.getValue(tab)
     val requestId = slot.cancel()
 
@@ -212,7 +215,7 @@ class SearchScreenViewModel(
   fun onSearchTabSelected(tab: SearchTab) {
     if (_uiState.value.selectedTab == tab) return
 
-    suggestionSlot.cancel()
+    cancelSuggestions()
     updateState { it.copy(selectedTab = tab) }
     if (_uiState.value.isSuggesting) refreshSuggestions(debounce = false)
   }
@@ -230,7 +233,7 @@ class SearchScreenViewModel(
     if (_uiState.value.isSuggesting == isSuggesting) return
 
     updateState { it.copy(isSuggesting = isSuggesting) }
-    if (isSuggesting) refreshSuggestions(debounce = false) else suggestionSlot.cancel()
+    if (isSuggesting) refreshSuggestions(debounce = false) else cancelSuggestions()
   }
 
   /**
@@ -381,15 +384,22 @@ class SearchScreenViewModel(
     val tab = state.selectedTab
     val typeValues = state.typeValues
 
+    updateState { it.copy(isRecommendationLoading = true) }
+
     suggestionSlot.track(
         viewModelScope.launchCatching(
             tag = TAG,
-            onError = { /* best effort: keep the previous suggestions */ },
+            onError = {
+              /* best effort: keep the previous suggestions */
+              if (suggestionSlot.isCurrent(requestId)) {
+                updateState { it.copy(isRecommendationLoading = false) }
+              }
+            },
         ) {
           if (debounce) delay(SUGGESTION_DEBOUNCE_MS.milliseconds)
 
           val applySuggestions = fetchSuggestions(tab, query, typeValues)
-          if (suggestionSlot.isCurrent(requestId)) updateState(applySuggestions)
+          finishSuggestions(requestId, applySuggestions)
         }
     )
   }
@@ -409,6 +419,22 @@ class SearchScreenViewModel(
               { state: SearchScreenUiState -> state.copy(artistRecommendations = candidates) }
             }
       }
+
+  /** Applies a finished suggestion request and clears the loading flag, unless it is stale. */
+  private fun finishSuggestions(
+      requestId: Int,
+      transform: (SearchScreenUiState) -> SearchScreenUiState,
+  ) {
+    if (!suggestionSlot.isCurrent(requestId)) return
+
+    updateState { transform(it).copy(isRecommendationLoading = false) }
+  }
+
+  /** Cancels the pending suggestion request and clears its loading flag. */
+  private fun cancelSuggestions() {
+    suggestionSlot.cancel()
+    updateState { it.copy(isRecommendationLoading = false) }
+  }
 
   // endregion
 
@@ -477,6 +503,7 @@ class SearchScreenViewModel(
       tabs: Collection<SearchTab> = SearchTab.entries
   ): SearchScreenUiState =
       copy(
+          isRecommendationLoading = false,
           wikiDataRecommendations =
               if (SearchTab.ARTWORKS in tabs) emptyList() else wikiDataRecommendations,
           artistRecommendations =
