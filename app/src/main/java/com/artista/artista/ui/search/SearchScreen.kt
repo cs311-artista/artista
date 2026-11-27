@@ -20,6 +20,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
@@ -82,7 +85,7 @@ import com.artista.artista.model.artwork.Artwork
 import com.artista.artista.model.artwork.ArtworkCandidate
 import com.artista.artista.model.artwork.ArtworkId
 import com.artista.artista.model.artwork.ArtworkType
-import com.artista.artista.ui.artwork.ArtworkCard
+import com.artista.artista.ui.artwork.ArtworkTile
 import com.artista.artista.ui.navigation.BottomNavigationMenu
 import com.artista.artista.ui.navigation.Tab
 import com.artista.artista.ui.search.SearchScreenTestTags.SEARCH_BACK_BUTTON
@@ -938,20 +941,22 @@ private fun ArtworkResults(
     onSaveClick: (Artwork) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-  LazyColumn(
+  LazyVerticalGrid(
+      columns = GridCells.Fixed(2),
       modifier = modifier.testTag(SearchScreenTestTags.SEARCH_RESULT),
       contentPadding =
           PaddingValues(
               horizontal = Dimensions.searchResultsHorizontalPadding,
               vertical = Dimensions.searchResultsVerticalPadding,
           ),
+      horizontalArrangement = Arrangement.spacedBy(Dimensions.searchResultItemSpacing),
       verticalArrangement = Arrangement.spacedBy(Dimensions.searchResultItemSpacing),
   ) {
     items(artworks) { artwork ->
-      ArtworkCard(
+      ArtworkTile(
           artwork = artwork,
           isSaved = artwork.uid in savedArtworkIds,
-          onArtworkClick = onArtworkClick,
+          onClick = onArtworkClick,
           onMapClick = onMapClick,
           onSaveClick = onSaveClick,
       )
