@@ -548,6 +548,181 @@ class SearchScreenTest {
 
   // endregion
 
+  // region Suggestion loading row
+
+  @Test
+  fun suggestionLoading_isShownOnArtworksTabWhileRecommendationsLoad() {
+    showContent(
+        SearchScreenUiState(
+            selectedTab = SearchTab.ARTWORKS,
+            isSuggesting = true,
+            isRecommendationLoading = true,
+        )
+    )
+
+    composeTestRule
+        .onNodeWithTag(SearchScreenTestTags.SUGGESTION_LOADING_INDICATOR)
+        .assertIsDisplayed()
+  }
+
+  @Test
+  fun suggestionLoading_isShownOnArtistsTabWhileRecommendationsLoad() {
+    showContent(
+        SearchScreenUiState(
+            selectedTab = SearchTab.ARTISTS,
+            isSuggesting = true,
+            isRecommendationLoading = true,
+        )
+    )
+
+    composeTestRule
+        .onNodeWithTag(SearchScreenTestTags.SUGGESTION_LOADING_INDICATOR)
+        .assertIsDisplayed()
+  }
+
+  @Test
+  fun suggestionLoading_isHiddenWhenRecommendationsAreNotLoading() {
+    showContent(
+        SearchScreenUiState(
+            selectedTab = SearchTab.ARTWORKS,
+            isSuggesting = true,
+            isRecommendationLoading = false,
+        )
+    )
+
+    composeTestRule
+        .onAllNodesWithTag(SearchScreenTestTags.SUGGESTION_LOADING_INDICATOR)
+        .assertCountEquals(0)
+  }
+
+  @Test
+  fun suggestionLoading_isHiddenWhenSuggestionsPaneIsClosed() {
+    showContent(
+        SearchScreenUiState(
+            selectedTab = SearchTab.ARTWORKS,
+            isSuggesting = false,
+            isRecommendationLoading = true,
+        )
+    )
+
+    composeTestRule
+        .onAllNodesWithTag(SearchScreenTestTags.SUGGESTION_LOADING_INDICATOR)
+        .assertCountEquals(0)
+  }
+
+  @Test
+  fun suggestionLoading_isShownAboveArtworkSuggestionsAndIsNotCountedAsOne() {
+    showContent(
+        SearchScreenUiState(
+            selectedTab = SearchTab.ARTWORKS,
+            isSuggesting = true,
+            isRecommendationLoading = true,
+            wikiDataRecommendations = listOf(artworkCandidate(id = "Q1", label = "Mona Lisa")),
+        )
+    )
+
+    // The spinner row must not be mistaken for a suggestion by tests that count them.
+    composeTestRule
+        .onAllNodesWithTag(SearchScreenTestTags.SEARCH_ARTWORK_RECOMMENDATION)
+        .assertCountEquals(1)
+
+    val loadingTop =
+        composeTestRule
+            .onNodeWithTag(SearchScreenTestTags.SUGGESTION_LOADING_INDICATOR)
+            .fetchSemanticsNode()
+            .boundsInRoot
+            .top
+    val suggestionTop =
+        composeTestRule
+            .onNodeWithTag(SearchScreenTestTags.SEARCH_ARTWORK_RECOMMENDATION)
+            .fetchSemanticsNode()
+            .boundsInRoot
+            .top
+
+    assertTrue("Loading row should be above the first suggestion", loadingTop < suggestionTop)
+  }
+
+  @Test
+  fun suggestionLoading_isShownAboveArtistSuggestionsAndIsNotCountedAsOne() {
+    showContent(
+        SearchScreenUiState(
+            selectedTab = SearchTab.ARTISTS,
+            isSuggesting = true,
+            isRecommendationLoading = true,
+            artistRecommendations =
+                listOf(
+                    artistCandidate(id = "Q5582", label = "Vincent van Gogh", description = null)
+                ),
+        )
+    )
+
+    composeTestRule
+        .onAllNodesWithTag(SearchScreenTestTags.SEARCH_ARTIST_RECOMMENDATION)
+        .assertCountEquals(1)
+
+    val loadingTop =
+        composeTestRule
+            .onNodeWithTag(SearchScreenTestTags.SUGGESTION_LOADING_INDICATOR)
+            .fetchSemanticsNode()
+            .boundsInRoot
+            .top
+    val suggestionTop =
+        composeTestRule
+            .onNodeWithTag(SearchScreenTestTags.SEARCH_ARTIST_RECOMMENDATION)
+            .fetchSemanticsNode()
+            .boundsInRoot
+            .top
+
+    assertTrue("Loading row should be above the first suggestion", loadingTop < suggestionTop)
+  }
+
+  @Test
+  fun suggestionLoading_appearsWhileTypingAndDisappearsWhenSuggestionsArrive() = runTest {
+    val gate = CompletableDeferred<Unit>()
+    val base = WithoutRemoteSuggestions(SearchTestData.wikiDataRepository())
+    val wikiRepository =
+        object : WikiDataRepository by base {
+          override suspend fun getArtworkCandidates(
+              query: String,
+              typeValues: List<ArtworkType>,
+              limit: Int,
+          ): List<ArtworkCandidate> {
+            gate.await()
+            return listOf(artworkCandidate(id = "Q12418", label = "Mona Lisa"))
+          }
+        }
+    val viewModel =
+        SearchScreenViewModel(
+            SearchTestData.savedArtworksRepository(),
+            wikiRepository,
+            FakeLocationProvider(),
+        )
+
+    showSearchScreen(viewModel)
+    composeTestRule.waitForIdle()
+    advanceUntilIdle()
+    composeTestRule.onNodeWithTag(SearchScreenTestTags.SEARCH_INPUT).performTextInput("mo")
+    advanceUntilIdle()
+    composeTestRule.waitForIdle()
+
+    composeTestRule
+        .onNodeWithTag(SearchScreenTestTags.SUGGESTION_LOADING_INDICATOR)
+        .assertIsDisplayed()
+
+    gate.complete(Unit)
+    advanceUntilIdle()
+    composeTestRule.waitForIdle()
+
+    composeTestRule
+        .onAllNodesWithTag(SearchScreenTestTags.SUGGESTION_LOADING_INDICATOR)
+        .assertCountEquals(0)
+    composeTestRule
+        .onNodeWithTag(SearchScreenTestTags.SEARCH_ARTWORK_RECOMMENDATION)
+        .assert(hasText("Mona Lisa"))
+  }
+
+  // endregion
+
   // region Suggestion merging
 
   @Test
@@ -671,6 +846,19 @@ class SearchScreenTest {
             textFieldState = TextFieldState(),
             onArtistRecommendationSelected = onArtistRecommendationSelected,
             onSuggestingChange = onSuggestingChange,
+        )
+      }
+    }
+    composeTestRule.waitForIdle()
+  }
+
+  /** Renders the stateless screen with the given state. */
+  private fun showContent(uiState: SearchScreenUiState) {
+    composeTestRule.setContent {
+      MaterialTheme {
+        SearchScreenContent(
+            uiState = uiState,
+            textFieldState = TextFieldState(),
         )
       }
     }

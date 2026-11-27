@@ -150,7 +150,7 @@
     <string name="search_filter_type_mosaic">Mosaic</string>
     <string name="search_empty_query_title">Empty query!?</string>
     <string name="search_empty_query_message">Try to look for something more specific.</string>
-    <string name="search_query_loading">Loading…</string>
+    <string name="search_query_loading">Reading your mind・・・</string>
 
     <!-- Search screen -->
     <string name="search_tab_artworks">Artworks</string>

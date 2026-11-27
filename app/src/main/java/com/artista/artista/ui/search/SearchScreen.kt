@@ -110,6 +110,9 @@ object SearchScreenTestTags {
   /** Tag of the suggestions list shown while the user is typing. */
   const val SUGGESTION_LIST = "search_suggestion_list"
 
+  /** Tag of the loading row shown at the top of the suggestions list while suggestions load. */
+  const val SUGGESTION_LOADING_INDICATOR = "search_suggestion_loading_indicator"
+
   /** Tag of the "Powered by Wikidata" attribution. */
   const val WIKIDATA_ATTRIBUTION = "search_wikidata_attribution"
 
@@ -870,7 +873,8 @@ private fun LoadingSuggestionRow(modifier: Modifier = Modifier) {
         },
         modifier =
             Modifier.fillMaxWidth()
-                .padding(horizontal = Dimensions.searchRecommendationHorizontalPadding),
+                .padding(horizontal = Dimensions.searchRecommendationHorizontalPadding)
+                .testTag(SearchScreenTestTags.SUGGESTION_LOADING_INDICATOR),
     )
   }
 }
