@@ -24,6 +24,7 @@ import com.artista.artista.model.map.FakeAddressRepository
 import com.artista.artista.model.walking.WalkingRouteRepositoryRemote
 import com.artista.artista.resources.C
 import com.artista.artista.ui.artwork.SavedArtworksTestTags
+import com.artista.artista.ui.friends.FriendListTestTags
 import com.artista.artista.ui.navigation.NavigationTestTags
 import com.artista.artista.ui.navigation.Screen
 import com.artista.artista.ui.navigation.Tab
@@ -139,6 +140,46 @@ class UserProfileScreenNavigationTest {
     composeTestRule.runOnIdle {
       assertEquals(Screen.SavedArtworks.route, navController.currentDestination?.route)
     }
+  }
+
+  /**
+   * Verifies that tapping the friends card opens the friend list, and that its back arrow returns
+   * to the profile.
+   *
+   * @author hixeum
+   */
+  @Test
+  fun friendsButton_opensFriendList_andBackReturnsToProfile() {
+    lateinit var navController: NavHostController
+    composeTestRule.setContent {
+      navController = rememberNavController()
+      ArtistaNavHost(
+          onLogout = {},
+          wikiDataRepository = artworkRepository,
+          savedArtworksRepository = artworkRepository,
+          walkingRouteRepository = WalkingRouteRepositoryRemote(),
+          addressRepository = FakeAddressRepository(),
+          navController = navController,
+          startDestination = C.Constants.PROFILE_GRAPH_ROUTE,
+      )
+    }
+
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.FRIENDS_BUTTON)
+        .performScrollTo()
+        .performClick()
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.runOnUiThread { navController.currentDestination?.route } ==
+          Screen.FriendList.route
+    }
+    composeTestRule.onNodeWithTag(FriendListTestTags.SCREEN).assertIsDisplayed()
+
+    composeTestRule.onNodeWithTag(FriendListTestTags.BACK_BUTTON).performClick()
+    composeTestRule.waitUntil(timeoutMillis = 5_000) {
+      composeTestRule.runOnUiThread { navController.currentDestination?.route } ==
+          Screen.Profile.route
+    }
+    composeTestRule.onNodeWithTag(UserProfileTestTags.SCREEN).assertIsDisplayed()
   }
 
   /**

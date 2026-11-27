@@ -64,6 +64,7 @@ import com.artista.artista.ui.authentication.AuthSession
 import com.artista.artista.ui.authentication.AuthViewModel
 import com.artista.artista.ui.authentication.GoogleCredentialProvider
 import com.artista.artista.ui.authentication.rememberGoogleCredentialProvider
+import com.artista.artista.ui.friends.FriendListScreen
 import com.artista.artista.ui.map.MapScreen
 import com.artista.artista.ui.map.MapViewModel
 import com.artista.artista.ui.navigation.NavigationActions
@@ -384,6 +385,13 @@ fun ArtistaNavHost(
             onLogoutClick = onLogout,
             onPreferencesClick = { navController.navigate(Screen.ArtistPreferences.route) },
             onSavedArtworkClick = { navController.navigate(Screen.SavedArtworks.route) },
+            onFriendsClick = { navController.navigate(Screen.FriendList.route) },
+            onTabSelected = { tab -> navigationActions.navigateTo(tab.destination) },
+        )
+      }
+      composable(Screen.FriendList.route) {
+        FriendListScreen(
+            onBackClick = { navigationActions.goBack() },
             onTabSelected = { tab -> navigationActions.navigateTo(tab.destination) },
         )
       }

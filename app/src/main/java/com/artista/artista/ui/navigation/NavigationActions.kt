@@ -1,3 +1,4 @@
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 // Co-authored-by: DeepSeek Flash
 package com.artista.artista.ui.navigation
@@ -36,6 +37,9 @@ sealed class Screen(
 
   /** The artwork search screen. */
   data object Search : Screen("search", "Search")
+
+  /** The screen listing the friends of the user. */
+  data object FriendList : Screen("friend_list", "Friends")
 
   /** The artist preferences screen. */
   data object ArtistPreferences : Screen("artist_preferences", "Artist Preferences")
