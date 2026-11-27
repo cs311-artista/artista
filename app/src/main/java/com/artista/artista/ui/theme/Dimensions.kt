@@ -187,14 +187,14 @@ internal object Dimensions {
   val profileSectionLabelCardsSpacing = 12.dp
   val profileOptionCardSpacing = 10.dp
   val profileOptionCardHorizontalPadding = 14.dp
-  val profileOptionCardVerticalPadding = 14.dp
+  val profileOptionCardVerticalPadding = 12.dp
   val profileOptionIconTextSpacing = 14.dp
   val profileOptionTitleSubtitleSpacing = 2.dp
   val profileOptionIconBoxSize = 40.dp
   val profileEditPhotoPadding = 10.dp
   val profileEditPhotoHorizontalPadding = 14.dp
   val profileEditPhotoVerticalPadding = 6.dp
-  val profileLogoutTopSpacing = 64.dp
+  val profileLogoutTopSpacing = 24.dp
   val logoutButtonHorizontalPadding = 20.dp
   val logoutButtonVerticalPadding = 10.dp
   val logoutButtonIconLabelSpacing = 8.dp
