@@ -204,6 +204,14 @@ internal object Dimensions {
   val profileSheetCancelVerticalPadding = 14.dp
   val profileInitializationWarningPadding = 16.dp
 
+  // Friend list screen.
+  val friendSearchHorizontalPadding = 16.dp
+  val friendSearchVerticalPadding = 8.dp
+  /** Height of the area revealed above the content when the search bar is fully pulled down. */
+  val friendSearchRevealHeight = standardControlHeight + friendSearchVerticalPadding * 2
+  /** How far the landing hint pulls the content down, enough to show part of the search bar. */
+  val friendSearchHintOffset = 32.dp
+
   // Bottom navigation.
   val navigationBarHorizontalPadding = 16.dp
   val navigationBarVerticalPadding = 16.dp

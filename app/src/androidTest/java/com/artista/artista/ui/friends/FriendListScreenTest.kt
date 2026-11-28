@@ -2,13 +2,22 @@
 package com.artista.artista.ui.friends
 
 import androidx.activity.ComponentActivity
+import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performCustomAccessibilityActionWithLabel
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeDown
+import androidx.compose.ui.test.swipeUp
+import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.artista.artista.R
 import com.artista.artista.ui.navigation.NavigationTestTags
@@ -80,6 +89,121 @@ class FriendListScreenTest {
     composeTestRule.onNodeWithTag(NavigationTestTags.getTabTestTag(Tab.Map)).performClick()
 
     composeTestRule.runOnIdle { assertEquals(Tab.Map, selectedTab) }
+  }
+
+  /** Verifies that, on landing, the search bar peeks out by itself and then hides again. */
+  @Test
+  fun landing_hintRevealsSearchBarThenHidesIt() {
+    composeTestRule.mainClock.autoAdvance = false
+    setContent()
+
+    composeTestRule.onNodeWithTag(FriendListTestTags.SEARCH_FIELD).assertDoesNotExist()
+
+    // Halfway through the hold, the content is pulled down and part of the bar is visible.
+    composeTestRule.mainClock.advanceTimeBy(
+        SEARCH_HINT_START_DELAY_MS + SEARCH_REVEAL_ANIMATION_MS + SEARCH_HINT_HOLD_MS / 2
+    )
+    composeTestRule.onNodeWithTag(FriendListTestTags.SEARCH_FIELD).assertExists()
+
+    composeTestRule.mainClock.advanceTimeBy(SEARCH_HINT_HOLD_MS + SEARCH_REVEAL_ANIMATION_MS * 2L)
+    composeTestRule.onNodeWithTag(FriendListTestTags.SEARCH_FIELD).assertDoesNotExist()
+  }
+
+  /** Verifies that the hint is not replayed when the screen is recreated, e.g. on rotation. */
+  @Test
+  fun landing_hintIsNotReplayedAfterRestore() {
+    val restorationTester = StateRestorationTester(composeTestRule)
+    restorationTester.setContent { ArtistaTheme { FriendListScreen(onBackClick = {}) } }
+    composeTestRule.waitForIdle()
+
+    composeTestRule.mainClock.autoAdvance = false
+    restorationTester.emulateSavedInstanceStateRestore()
+    composeTestRule.mainClock.advanceTimeBy(
+        SEARCH_HINT_START_DELAY_MS + SEARCH_REVEAL_ANIMATION_MS + SEARCH_HINT_HOLD_MS / 2
+    )
+
+    composeTestRule.onNodeWithTag(FriendListTestTags.SEARCH_FIELD).assertDoesNotExist()
+  }
+
+  /** Verifies that pulling the content down opens the focused search bar with its placeholder. */
+  @Test
+  fun pullDown_opensSearchBar() {
+    setContent()
+
+    pullDown()
+
+    composeTestRule
+        .onNodeWithTag(FriendListTestTags.SEARCH_FIELD)
+        .assertIsDisplayed()
+        .assertIsFocused()
+    composeTestRule
+        .onNodeWithText(string(R.string.friends_search_placeholder), useUnmergedTree = true)
+        .assertIsDisplayed()
+  }
+
+  /** Verifies that a pull shorter than half of the bar lets it slide back up. */
+  @Test
+  fun shortPull_doesNotOpenSearchBar() {
+    setContent()
+
+    composeTestRule.onNodeWithTag(FriendListTestTags.CONTENT).performTouchInput {
+      val distance = 8.dp.toPx()
+      swipeDown(startY = centerY, endY = centerY + distance)
+    }
+
+    composeTestRule.onNodeWithTag(FriendListTestTags.SEARCH_FIELD).assertDoesNotExist()
+  }
+
+  /** Verifies that pulling the content back up closes the search bar. */
+  @Test
+  fun pullUp_closesSearchBar() {
+    setContent()
+    pullDown()
+
+    composeTestRule.onNodeWithTag(FriendListTestTags.EMPTY_MESSAGE).performTouchInput {
+      swipeUp(startY = centerY, endY = top)
+    }
+
+    composeTestRule.onNodeWithTag(FriendListTestTags.SEARCH_FIELD).assertDoesNotExist()
+  }
+
+  /** Verifies that the system back closes the search bar instead of leaving the screen. */
+  @Test
+  fun back_closesSearchBar() {
+    var backClicked = false
+    setContent(onBackClick = { backClicked = true })
+    pullDown()
+
+    composeTestRule.runOnUiThread {
+      composeTestRule.activity.onBackPressedDispatcher.onBackPressed()
+    }
+
+    composeTestRule.onNodeWithTag(FriendListTestTags.SEARCH_FIELD).assertDoesNotExist()
+    composeTestRule.runOnIdle { assertEquals(false, backClicked) }
+  }
+
+  /** Verifies that screen reader users can open and close the search without dragging. */
+  @OptIn(ExperimentalTestApi::class)
+  @Test
+  fun accessibilityActions_openAndCloseSearchBar() {
+    setContent()
+
+    composeTestRule
+        .onNodeWithTag(FriendListTestTags.EMPTY_MESSAGE)
+        .performCustomAccessibilityActionWithLabel(string(R.string.friends_search_placeholder))
+    composeTestRule.onNodeWithTag(FriendListTestTags.SEARCH_FIELD).assertIsDisplayed()
+
+    composeTestRule
+        .onNodeWithTag(FriendListTestTags.EMPTY_MESSAGE)
+        .performCustomAccessibilityActionWithLabel(string(R.string.friends_search_close))
+    composeTestRule.onNodeWithTag(FriendListTestTags.SEARCH_FIELD).assertDoesNotExist()
+  }
+
+  /** Pulls the content down far enough to open the search bar. */
+  private fun pullDown() {
+    composeTestRule.onNodeWithTag(FriendListTestTags.CONTENT).performTouchInput {
+      swipeDown(startY = top + 1f, endY = centerY)
+    }
   }
 
   private fun setContent(onBackClick: () -> Unit = {}, onTabSelected: (Tab) -> Unit = {}) {

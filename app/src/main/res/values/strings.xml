@@ -89,6 +89,8 @@
     <!-- Friend list screen -->
     <string name="friends_title">Friends</string>
     <string name="friends_empty_message">Connect with your friends</string>
+    <string name="friends_search_placeholder">Search for friends</string>
+    <string name="friends_search_close">Close friend search</string>
     <!-- Saved artworks screen -->
     <string name="saved_artworks_title">Saved Artworks</string>
     <string name="saved_artworks_empty">You have no saved artworks yet.</string>
