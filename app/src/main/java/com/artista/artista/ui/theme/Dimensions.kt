@@ -187,14 +187,14 @@ internal object Dimensions {
   val profileSectionLabelCardsSpacing = 12.dp
   val profileOptionCardSpacing = 10.dp
   val profileOptionCardHorizontalPadding = 14.dp
-  val profileOptionCardVerticalPadding = 14.dp
+  val profileOptionCardVerticalPadding = 12.dp
   val profileOptionIconTextSpacing = 14.dp
   val profileOptionTitleSubtitleSpacing = 2.dp
   val profileOptionIconBoxSize = 40.dp
   val profileEditPhotoPadding = 10.dp
   val profileEditPhotoHorizontalPadding = 14.dp
   val profileEditPhotoVerticalPadding = 6.dp
-  val profileLogoutTopSpacing = 64.dp
+  val profileLogoutTopSpacing = 24.dp
   val logoutButtonHorizontalPadding = 20.dp
   val logoutButtonVerticalPadding = 10.dp
   val logoutButtonIconLabelSpacing = 8.dp
@@ -203,6 +203,26 @@ internal object Dimensions {
   val profileSheetCancelTopSpacing = 16.dp
   val profileSheetCancelVerticalPadding = 14.dp
   val profileInitializationWarningPadding = 16.dp
+
+  // Friend list screen.
+  val friendSearchHorizontalPadding = 16.dp
+  val friendSearchVerticalPadding = 8.dp
+  /** Height of the area revealed above the content when the search bar is fully pulled down. */
+  val friendSearchRevealHeight = standardControlHeight + friendSearchVerticalPadding * 2
+  /** How far the landing hint pulls the content down, enough to show part of the search bar. */
+  val friendSearchHintOffset = 32.dp
+
+  // Friend card.
+  val friendCardContentPadding = 12.dp
+  val friendCardPictureSize = 56.dp
+  val friendCardPictureNameSpacing = 16.dp
+  /** Size of the slot holding the card's action button, centered on the card's top-end border. */
+  val friendCardActionSize = 40.dp
+  /**
+   * Side margin of the friend cards in a list, larger than the search bar's so that the cards are
+   * narrower than the bar above them, as in the mocks.
+   */
+  val friendCardListHorizontalPadding = friendSearchHorizontalPadding * 2
 
   // Bottom navigation.
   val navigationBarHorizontalPadding = 16.dp

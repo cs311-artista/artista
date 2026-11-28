@@ -47,6 +47,8 @@
     <string name="profile_preferences_subtitle">Shape your next discoveries</string>
     <string name="profile_saved_artwork">Saved Artwork</string>
     <string name="profile_saved_artwork_subtitle">Revisit the works you love</string>
+    <string name="profile_friends">Friends</string>
+    <string name="profile_friends_subtitle">Explore what your friends like</string>
     <string name="profile_change_photo_title">Change profile photo</string>
     <string name="profile_change_photo_subtitle">Choose where your photo comes from.</string>
     <string name="profile_change_photo_library">Choose from library</string>
@@ -84,6 +86,14 @@
     <string name="map_route_recalculate">Recalculate route</string>
     <string name="map_route_arrived">You\'ve arrived</string>
     <string name="map_route_arrived_close">Close</string>
+    <!-- Friend list screen -->
+    <string name="friends_title">Friends</string>
+    <string name="friends_empty_message">Connect with your friends</string>
+    <string name="friends_search_placeholder">Search for friends</string>
+    <string name="friends_search_close">Close friend search</string>
+    <!-- Friend card -->
+    <string name="friend_card_unnamed">Unnamed user</string>
+    <string name="friend_card_picture_description">Profile picture of %1$s</string>
     <!-- Saved artworks screen -->
     <string name="saved_artworks_title">Saved Artworks</string>
     <string name="saved_artworks_empty">You have no saved artworks yet.</string>

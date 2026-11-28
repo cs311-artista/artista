@@ -68,4 +68,7 @@ object UserProfileTestTags {
 
   /** Tag identifying the button opening the user's saved artworks. */
   const val SAVED_ARTWORK_BUTTON = "user_profile_saved_artwork_button"
+
+  /** Tag identifying the button opening the user's friend list. */
+  const val FRIENDS_BUTTON = "user_profile_friends_button"
 }

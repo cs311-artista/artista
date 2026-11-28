@@ -1,3 +1,4 @@
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 // Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 package com.artista.artista.ui.profile
 
@@ -120,6 +121,10 @@ class UserProfileScreenTest {
         .performScrollTo()
         .assertIsDisplayed()
     composeTestRule
+        .onNodeWithTag(UserProfileTestTags.FRIENDS_BUTTON)
+        .performScrollTo()
+        .assertIsDisplayed()
+    composeTestRule
         .onNodeWithTag(UserProfileTestTags.LOGOUT_BUTTON)
         .performScrollTo()
         .assertIsDisplayed()
@@ -139,7 +144,7 @@ class UserProfileScreenTest {
         .assertEditableTextEquals("Bob")
   }
 
-  /** Verifies that the preferences and saved artwork cards display their titles. */
+  /** Verifies that the preferences, saved artwork and friends cards display their titles. */
   @Test
   fun userProfileScreen_displaysButtonLabels() {
     setProfileContent()
@@ -150,6 +155,9 @@ class UserProfileScreenTest {
     composeTestRule
         .onNodeWithTag(UserProfileTestTags.SAVED_ARTWORK_BUTTON)
         .assertTextContains(composeTestRule.activity.getString(R.string.profile_saved_artwork))
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.FRIENDS_BUTTON)
+        .assertTextContains(composeTestRule.activity.getString(R.string.profile_friends))
   }
 
   /** Verifies that the header shows the title and subtitle of the screen. */
@@ -186,6 +194,9 @@ class UserProfileScreenTest {
     composeTestRule
         .onNodeWithTag(UserProfileTestTags.SAVED_ARTWORK_BUTTON)
         .assertTextContains(string(R.string.profile_saved_artwork_subtitle))
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.FRIENDS_BUTTON)
+        .assertTextContains(string(R.string.profile_friends_subtitle))
   }
 
   /** Verifies that the Name card shows the username as its subtitle instead of the prompt. */
@@ -355,6 +366,7 @@ class UserProfileScreenTest {
         onLogoutClick = { callbackInvoked = true },
         onPreferencesClick = { callbackInvoked = true },
         onSavedArtworkClick = { callbackInvoked = true },
+        onFriendsClick = { callbackInvoked = true },
         onTabSelected = { callbackInvoked = true },
     )
 
@@ -402,6 +414,20 @@ class UserProfileScreenTest {
         .performClick()
 
     assertTrue(savedArtworkOpened)
+  }
+
+  /** Verifies that clicking the friends button invokes the friends callback. */
+  @Test
+  fun friendsButton_click_invokesOnFriendsClick() {
+    var friendsOpened = false
+    setProfileContent(onFriendsClick = { friendsOpened = true })
+
+    composeTestRule
+        .onNodeWithTag(UserProfileTestTags.FRIENDS_BUTTON)
+        .performScrollTo()
+        .performClick()
+
+    assertTrue(friendsOpened)
   }
 
   /**
@@ -938,6 +964,7 @@ class UserProfileScreenTest {
       onLogoutClick: () -> Unit = {},
       onPreferencesClick: () -> Unit = {},
       onSavedArtworkClick: () -> Unit = {},
+      onFriendsClick: () -> Unit = {},
       onTabSelected: (Tab) -> Unit = {},
   ) {
     composeTestRule.setContent {
@@ -947,6 +974,7 @@ class UserProfileScreenTest {
             userProfileViewModel = viewModel,
             onPreferencesClick = onPreferencesClick,
             onSavedArtworkClick = onSavedArtworkClick,
+            onFriendsClick = onFriendsClick,
             onTabSelected = onTabSelected,
         )
       }
