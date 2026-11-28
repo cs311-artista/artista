@@ -96,7 +96,7 @@ class FirestoreRulesTest {
     assertFalse(profile(ownerId).get().await().exists())
   }
 
-  /** Checks that a user cannot create their profile with a uid field naming someone else. */
+  /** Checks that a user cannot create their profile with an uid field naming someone else. */
   @Test
   fun ownerCannotCreateTheirProfileWithAnotherUid() = runTest {
     assertPermissionDenied { profile(ownerId).set(profileData(OTHER_USER_ID)).await() }
@@ -110,12 +110,12 @@ class FirestoreRulesTest {
     assertPermissionDenied { profile(ownerId).set(profileData(OTHER_USER_ID)).await() }
   }
 
-  /** Checks that a signed-in user cannot read another user's profile. */
+  /** Checks that a signed-in user can read another user's profile, e.g. to view a friend. */
   @Test
-  fun signedInUserCannotReadAnotherProfile() = runTest {
+  fun signedInUserCanReadAnotherProfile() = runTest {
     seedOtherUserProfile()
 
-    assertPermissionDenied { profile(OTHER_USER_ID).get().await() }
+    assertEquals(OTHER_USER_ID, profile(OTHER_USER_ID).get().await().getString("uid"))
   }
 
   /** Checks that a signed-in user cannot write another user's profile, even with its own uid. */
@@ -168,10 +168,29 @@ class FirestoreRulesTest {
     assertFalse(savedArtwork(ownerId).get().await().exists())
   }
 
-  /** Checks that a signed-in user cannot read another user's saved artworks. */
+  /** Checks that a signed-in user can read and list another user's saved artworks. */
   @Test
-  fun signedInUserCannotReadAnotherUsersSavedArtworks() = runTest {
+  fun signedInUserCanReadAnotherUsersSavedArtworks() = runTest {
     seedOtherUserSavedArtwork()
+
+    assertTrue(savedArtwork(OTHER_USER_ID).get().await().exists())
+    val listed = savedArtwork(OTHER_USER_ID).parent.get().await().documents.map { it.id }
+    assertEquals(listOf(ARTWORK_ID), listed)
+  }
+
+  /** Checks that a signed-in user cannot delete another user's saved artwork. */
+  @Test
+  fun signedInUserCannotDeleteAnotherUsersSavedArtwork() = runTest {
+    seedOtherUserSavedArtwork()
+
+    assertPermissionDenied { savedArtwork(OTHER_USER_ID).delete().await() }
+  }
+
+  /** Checks that a signed-out user cannot read any saved artworks. */
+  @Test
+  fun signedOutUserCannotReadSavedArtworks() = runTest {
+    seedOtherUserSavedArtwork()
+    auth.signOut()
 
     assertPermissionDenied { savedArtwork(OTHER_USER_ID).get().await() }
   }
@@ -259,10 +278,10 @@ class FirestoreRulesTest {
   }
 
   private companion object {
-    /** Id of a user who is never signed in; only its documents exist. */
+    /** ID of a user who is never signed in; only its documents exist. */
     const val OTHER_USER_ID = "other-user"
 
-    /** Id of the saved artwork used in the subcollection tests. */
+    /** ID of the saved artwork used in the subcollection tests. */
     const val ARTWORK_ID = "artwork-1"
 
     /** A collection that has no rule in `firestore.rules`. */

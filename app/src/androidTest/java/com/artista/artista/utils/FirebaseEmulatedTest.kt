@@ -16,7 +16,7 @@ import org.junit.rules.Timeout
  *
  * It creates the repository against the local emulator and isolates each test by clearing the user
  * database before and after execution. Each test runs signed in to a fresh account, because the
- * security rules only open `Users/{uid}` to its owner.
+ * security rules only let the owner of `Users/{uid}` write it.
  *
  * @author krfpn
  */

@@ -6,17 +6,26 @@ service cloud.firestore {
     // There is no catch-all rule, so Firestore denies every path not matched below.
     // A new collection needs its own rule here before the app can use it.
 
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
     function isOwner(uid) {
-      return request.auth != null && request.auth.uid == uid;
+      return isSignedIn() && request.auth.uid == uid;
     }
 
     match /Users/{uid} {
-      allow read, delete: if isOwner(uid);
+      // Friendship is one-way, so anyone who knows a uid may view that user's profile.
+      // Only get is allowed, not list, so nobody can download every profile at once.
+      allow get: if isSignedIn();
+      allow delete: if isOwner(uid);
       // The app reads the uid field as the user's identity, so it must match the document id.
       allow create, update: if isOwner(uid) && request.resource.data.uid == uid;
 
       match /saved_artworks/{artworkId} {
-        allow read, write: if isOwner(uid);
+        // Readable by any signed-in user, so friends can see what the owner saved.
+        allow read: if isSignedIn();
+        allow write: if isOwner(uid);
       }
     }
   }
