@@ -226,6 +226,32 @@ class SavedArtworksRepositoryFirestoreTest {
     assertThrowsSuspend<AppException.Unauthorized> { repository.getSavedArtwork("artwork-1") }
     assertThrowsSuspend<AppException.Unauthorized> { repository.getCachedSavedArtwork("artwork-1") }
     assertThrowsSuspend<AppException.Unauthorized> { repository.getCachedSavedArtworks() }
+    assertThrowsSuspend<AppException.Unauthorized> { repository.getSavedArtworksOf(userId) }
+  }
+
+  /** Checks that a user can read the artworks another user saved, e.g. those of a friend. */
+  @Test
+  fun getSavedArtworksOfReadsAnotherUsersArtworks() = runBlocking {
+    // The user signed in by setUp is the friend who saved an artwork.
+    val friendId = userId
+    val artwork = completeArtwork()
+    repository.saveArtwork(artwork)
+
+    // Creating an account signs it in, so the viewer replaces the friend as the signed-in user.
+    val viewerEmail = "saved-artworks-${UUID.randomUUID()}@example.com"
+    val viewerId =
+        checkNotNull(auth.createUserWithEmailAndPassword(viewerEmail, TEST_PASSWORD).await().user)
+            .uid
+    // Checks that the current signed-in user is the viewer that we just created
+    assertEquals(viewerId, auth.currentUser?.uid)
+    // Checks that the current signed-in user (= viewer) can see the artwork that the friend saved
+    assertEquals(listOf(artwork), repository.getSavedArtworksOf(friendId))
+  }
+
+  /** Checks that reading the saved artworks of a blank user id is rejected before any query. */
+  @Test
+  fun getSavedArtworksOfRejectsABlankUserId() = runBlocking {
+    assertThrowsSuspend<AppException.InvalidInput> { repository.getSavedArtworksOf(" ") }
   }
 
   @Test

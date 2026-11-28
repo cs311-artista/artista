@@ -221,6 +221,26 @@ class ArtworkRepositoryLocalTest {
   }
 
   @Test
+  fun getSavedArtworksOf_returnsOnlyThatUsersArtworks() = runTest {
+    val repository = ArtworkRepositoryLocal()
+    val ownArtwork = artwork("own", "Own Artwork")
+    val friendArtwork = artwork("friend-artwork", "Friend Artwork")
+    repository.saveArtwork(ownArtwork)
+    repository.putSavedArtworksOfUser("friend", listOf(friendArtwork))
+
+    assertEquals(listOf(friendArtwork), repository.getSavedArtworksOf("friend"))
+    assertTrue(repository.getSavedArtworksOf("stranger").isEmpty())
+    assertEquals(listOf(ownArtwork), repository.getSavedArtworks())
+  }
+
+  @Test
+  fun getSavedArtworksOf_whenUserIdIsBlank_throwsInvalidInput() = runTest {
+    val repository = ArtworkRepositoryLocal()
+
+    assertThrowsSuspend<AppException.InvalidInput> { repository.getSavedArtworksOf(" ") }
+  }
+
+  @Test
   fun getSavedArtwork_whenUidIsBlank_throwsInvalidInput() = runTest {
     val repository = ArtworkRepositoryLocal()
 

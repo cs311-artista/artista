@@ -3,9 +3,11 @@
 package com.artista.artista.model.artwork
 
 import com.artista.artista.model.error.AppException
+import com.artista.artista.model.user.UserId
 
 /**
- * Contract defining persistent storage operations for artworks saved by the user.
+ * Contract defining persistent storage operations for artworks saved by the user, and reading the
+ * artworks saved by other users.
  *
  * ViewModels interact with this abstraction rather than concrete implementations to maintain clean
  * separation between UI state management and persistence.
@@ -54,6 +56,18 @@ interface SavedArtworksRepository {
    * @author IJJA3141
    */
   suspend fun getSavedArtworks(): List<Artwork>
+
+  /**
+   * Retrieves the artworks saved by any user, not only the signed-in one, e.g. to show a friend's
+   * saved artworks.
+   *
+   * @param userId identifier of the user whose saved artworks are read
+   * @return the user's saved artworks, empty if they have saved none
+   * @throws AppException.InvalidInput if [userId] is blank
+   * @throws AppException.Unauthorized if nobody is signed in
+   * @author krfpn
+   */
+  suspend fun getSavedArtworksOf(userId: UserId): List<Artwork>
 
   /**
    * Retrieves the current user's saved artworks from the copy kept on the device only, without

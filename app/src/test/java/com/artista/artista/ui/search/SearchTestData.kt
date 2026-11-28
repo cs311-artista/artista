@@ -108,6 +108,8 @@ internal class FakeSavedArtworksRepository(
   override suspend fun getCachedSavedArtwork(uid: ArtworkId): Artwork? = getSavedArtwork(uid)
 
   override suspend fun getCachedSavedArtworks(): List<Artwork> = getSavedArtworks()
+
+  override suspend fun getSavedArtworksOf(userId: String): List<Artwork> = emptyList()
 }
 
 /** In-memory Wikidata repository that searches the shared artwork samples. */

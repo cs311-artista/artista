@@ -693,5 +693,7 @@ class SavedArtworksScreenTest {
 
     // No local copy, so the screen tests keep observing the loading state through [loadGate].
     override suspend fun getCachedSavedArtworks(): List<Artwork> = emptyList()
+
+    override suspend fun getSavedArtworksOf(userId: String): List<Artwork> = emptyList()
   }
 }

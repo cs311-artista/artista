@@ -289,6 +289,8 @@ class ArtworkScreenViewModelTest {
               override suspend fun getCachedSavedArtwork(uid: ArtworkId): Artwork? = null
 
               override suspend fun getCachedSavedArtworks(): List<Artwork> = emptyList()
+
+              override suspend fun getSavedArtworksOf(userId: String): List<Artwork> = emptyList()
             }
         viewModel =
             ArtworkScreenViewModel(

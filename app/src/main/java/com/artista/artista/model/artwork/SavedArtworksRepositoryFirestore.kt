@@ -7,6 +7,7 @@ import com.artista.artista.model.error.AppException
 import com.artista.artista.model.error.translateFirestoreErrors
 import com.artista.artista.model.map.Location
 import com.artista.artista.model.user.USER_COLLECTION_PATH
+import com.artista.artista.model.user.UserId
 import com.artista.artista.resources.C
 import com.google.firebase.Firebase
 import com.google.firebase.Timestamp
@@ -21,7 +22,8 @@ import java.util.Date
 import kotlinx.coroutines.tasks.await
 
 /**
- * Stores saved artworks in the current user's Firestore subcollection.
+ * Stores saved artworks in the current user's Firestore subcollection, and reads those of any other
+ * user.
  *
  * Firestore's default local cache keeps these documents available offline and synchronizes writes
  * when connectivity returns.
@@ -55,7 +57,7 @@ class SavedArtworksRepositoryFirestore(
    * @param artwork artwork to persist
    * @throws AppException.InvalidInput if [artwork]'s identifier is blank
    * @throws AppException.Unauthorized if no user is authenticated
-   * @throws AppException if Firestore cannot complete the write
+   * @throws AppException if Firestore cannot complete the save
    */
   override suspend fun saveArtwork(artwork: Artwork): Unit = translateFirestoreErrors {
     requireArtworkId(artwork.uid)
@@ -69,7 +71,7 @@ class SavedArtworksRepositoryFirestore(
    * @throws AppException.InvalidInput if [uid] is blank
    * @throws AppException.NotFound if the artwork is not saved
    * @throws AppException.Unauthorized if no user is authenticated
-   * @throws AppException if Firestore cannot complete the delete
+   * @throws AppException if Firestore cannot complete the deletion
    */
   override suspend fun removeArtworkFromSaved(uid: ArtworkId): Unit = translateFirestoreErrors {
     requireArtworkId(uid)
@@ -91,6 +93,26 @@ class SavedArtworksRepositoryFirestore(
   override suspend fun getSavedArtworks(): List<Artwork> = translateFirestoreErrors {
     savedArtworksCollection(currentUserId()).get().await().documents.map(::documentToArtwork)
   }
+
+  /**
+   * Loads and validates every artwork saved by any user, e.g. a friend of the current user.
+   *
+   * @param userId identifier of the user whose saved artworks are read
+   * @return the user's saved artworks, empty if they have saved none
+   * @throws AppException.InvalidInput if [userId] is blank
+   * @throws AppException.Unauthorized if no user is authenticated
+   * @throws AppException.InvalidData if a saved artwork document is malformed
+   * @throws AppException if Firestore cannot complete the query
+   */
+  override suspend fun getSavedArtworksOf(userId: UserId): List<Artwork> =
+      translateFirestoreErrors {
+        if (userId.isBlank()) throw AppException.InvalidInput("User uid is blank")
+        // Checking first if the user who wants to see the saved artworks is signed-in gives the
+        // same error as the
+        // other operations but without a round trip to the server !
+        currentUserId()
+        savedArtworksCollection(userId).get().await().documents.map(::documentToArtwork)
+      }
 
   /**
    * Loads the current user's saved artworks from Firestore's local cache only, never waiting for
@@ -173,7 +195,7 @@ class SavedArtworksRepositoryFirestore(
     if (uid.isBlank()) throw AppException.InvalidInput("Artwork uid is blank")
   }
 
-  /** Returns the current user's saved-artworks collection. */
+  /** Returns the saved-artworks collection of the specified user. */
   private fun savedArtworksCollection(userId: String) =
       db.collection(USER_COLLECTION_PATH)
           .document(userId)
