@@ -152,6 +152,21 @@ class ArtistPreferencesViewModelTest {
     assertFalse(viewModel.uiState.value.hasLoadFailed)
   }
 
+  /**
+   * Verifies that an artist the catalog reports as not found, which the contract of getArtist
+   * allows instead of returning null, is hidden without failing the load.
+   */
+  @Test
+  fun signIn_artistReportedNotFound_isHidden() = runTest {
+    artworkRepository.failures[KLIMT.uid] = AppException.NotFound("No such artist")
+    userRepository.store(userWithArtists(listOf(KLIMT.uid, MONET.uid)))
+
+    signIn()
+
+    assertEquals(listOf(MONET.uid), viewModel.uiState.value.savedArtists.map { it.uid })
+    assertFalse(viewModel.uiState.value.hasLoadFailed)
+  }
+
   /** Verifies that a user whose saved artists all cannot be resolved sees the empty state. */
   @Test
   fun signIn_onlyUnknownArtists_hasNoSavedArtists() = runTest {

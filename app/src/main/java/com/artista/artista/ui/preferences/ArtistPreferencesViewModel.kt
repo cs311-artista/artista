@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artist.ArtistId
+import com.artista.artista.model.artist.getArtistsFromList
 import com.artista.artista.model.artwork.WikiDataRepository
 import com.artista.artista.model.authentication.AuthRepository
 import com.artista.artista.model.authentication.AuthUser
@@ -17,9 +18,6 @@ import com.artista.artista.model.user.UserRepository
 import com.artista.artista.ui.error.launchCatching
 import com.artista.artista.ui.error.toMessageRes
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -195,42 +193,9 @@ class ArtistPreferencesViewModel(
             },
         ) {
           val ids = findUser(uid)?.preference?.artists.orEmpty().distinct()
-          val artists = resolveAllArtists(ids)
+          val artists = wikiDataRepository.getArtistsFromList(ids)
           _uiState.update { it.copy(savedArtists = artists, isLoading = false) }
         }
-  }
-
-  /**
-   * Fetches the details of the given artists, all at once rather than one after the other.
-   *
-   * @param ids identifiers of the artists, in the order they are returned
-   * @return the artists that could be resolved, in the same order; the others are left out
-   */
-  private suspend fun resolveAllArtists(ids: List<ArtistId>): List<Artist> = coroutineScope {
-    ids.map { id -> async { resolveArtist(id) } }.awaitAll().filterNotNull()
-  }
-
-  /**
-   * Fetches the details of an artist.
-   *
-   * An artist the catalog does not know or whose identifier it rejects is left out of the screen,
-   * so one bad identifier does not prevent the others from showing. Network failures are not
-   * caught: they fail the whole load, which the user can retry.
-   *
-   * @param id identifier of the artist
-   * @return the artist, or null when it cannot be resolved
-   */
-  private suspend fun resolveArtist(id: ArtistId): Artist? {
-    val artist =
-        try {
-          wikiDataRepository.getArtist(id)
-        } catch (_: AppException.InvalidInput) {
-          // An identifier that is not a Wikidata QID, such as a mock ID saved before the screen
-          // used Wikidata. Failing would lock the user on the error state, so it is only skipped.
-          null
-        }
-    if (artist == null) Log.w(TAG, "Skipped saved artist $id, which could not be resolved.")
-    return artist
   }
 
   /**

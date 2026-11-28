@@ -6,6 +6,7 @@ import com.artista.artista.model.artist.Artist
 import com.artista.artista.model.artist.ArtistCandidate
 import com.artista.artista.model.artist.ArtistId
 import com.artista.artista.model.error.AppException
+import com.artista.artista.model.user.UserId
 
 /**
  * In-memory repository for artwork data used during local app development and testing.
@@ -22,6 +23,9 @@ class ArtworkRepositoryLocal : SavedArtworksRepository, WikiDataRepository {
 
   /** Stores the artworks currently saved by the user. */
   private val artworksSaved: HashMap<ArtworkId, Artwork> = hashMapOf()
+
+  /** Stores the artworks saved by other users, e.g. friends, per user. */
+  private val otherUsersSavedArtworks: HashMap<UserId, List<Artwork>> = hashMapOf()
 
   /** Returns the artworks populated in the local repository. */
   override suspend fun getArtworksNearLocation(
@@ -115,6 +119,25 @@ class ArtworkRepositoryLocal : SavedArtworksRepository, WikiDataRepository {
 
   override suspend fun getCachedSavedArtworks(): List<Artwork> = getSavedArtworks()
 
+  override suspend fun getSavedArtworksOf(userId: UserId): List<Artwork> {
+    if (userId.isBlank()) throw AppException.InvalidInput("userId is empty")
+    return otherUsersSavedArtworks[userId].orEmpty()
+  }
+
+  /**
+   * Sets the artworks another user has saved, so tests and previews can show a friend's artworks.
+   *
+   * Like [putArtworkInRepositoryUnsavedSection], it is a test/demo helper that is not part of the
+   * repository interface.
+   *
+   * @param userId identifier of the user who saved the artworks
+   * @param artworks the artworks that user has saved, replacing any set before
+   * @author krfpn
+   */
+  fun putSavedArtworksOfUser(userId: UserId, artworks: List<Artwork>) {
+    otherUsersSavedArtworks[userId] = artworks
+  }
+
   /**
    * This function is a helper to instantiate a test/demo environment. It accesses parts of the
    * Repository which would not be accessible like it in production code. Its purpose is to set up
@@ -140,5 +163,6 @@ class ArtworkRepositoryLocal : SavedArtworksRepository, WikiDataRepository {
   fun clear() {
     artworks.clear()
     artworksSaved.clear()
+    otherUsersSavedArtworks.clear()
   }
 }

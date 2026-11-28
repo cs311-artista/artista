@@ -1,6 +1,11 @@
+// Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 package com.artista.artista.model.artist
 
+import android.util.Log
 import com.artista.artista.model.error.AppException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 
 /**
  * A matching artist returned as a recommendation for search.
@@ -65,3 +70,34 @@ interface RemoteArtistRepository {
    */
   suspend fun getArtist(qid: ArtistId): Artist?
 }
+
+/** Log tag identifying messages emitted while resolving artists. */
+private const val TAG = "RemoteArtistRepository"
+
+/**
+ * Fetches the details of the given artists, all at once rather than one after the other.
+ *
+ * @param ids identifiers of the artists, in the order they are returned
+ * @return the artists that could be resolved, in the same order; the others are left out
+ * @throws AppException if the catalog cannot be reached or refuses the request
+ * @author krfpn
+ */
+suspend fun RemoteArtistRepository.getArtistsFromList(ids: List<ArtistId>): List<Artist> =
+    coroutineScope {
+      ids.map { id ->
+            async {
+              val artist =
+                  try {
+                    getArtist(id)
+                  } catch (_: AppException.InvalidInput) {
+                    null
+                  } catch (_: AppException.NotFound) {
+                    null
+                  }
+              if (artist == null) Log.w(TAG, "Skipped artist $id, which could not be resolved.")
+              artist
+            }
+          }
+          .awaitAll()
+          .filterNotNull()
+    }

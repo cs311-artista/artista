@@ -431,5 +431,7 @@ class SavedArtworksViewModelTest {
       cacheFailure?.let { throw it }
       return cachedList
     }
+
+    override suspend fun getSavedArtworksOf(userId: String): List<Artwork> = emptyList()
   }
 }
