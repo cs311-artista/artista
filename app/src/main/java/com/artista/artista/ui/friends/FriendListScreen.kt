@@ -141,31 +141,51 @@ private fun FriendListContent(modifier: Modifier = Modifier) {
   val focusManager = LocalFocusManager.current
   val scope = rememberCoroutineScope()
 
+  // How the pull-down works: everything is driven by revealPx, the height in pixels of the strip
+  // shown above the message. 0 means the bar is hidden, revealHeightPx means it is fully visible.
+  // The finger (draggable below) and the animations (animateRevealTo) both only write revealPx, and
+  // the layout only reads it, so the bar always follows whichever of them moved last.
+  //
+  // isSearchOpen is the settled state the bar rests in once nobody is moving it: it decides where
+  // a released drag snaps to, whether back closes the search, and which accessibility action is
+  // offered. While a drag or an animation runs, revealPx is between the two and isSearchOpen keeps
+  // the last settled value.
+  //
   // Saveable so that a rotation neither closes the search nor replays the hint.
   var isSearchOpen by rememberSaveable { mutableStateOf(false) }
   var hasShownHint by rememberSaveable { mutableStateOf(false) }
+  // Not saveable: it is rebuilt from isSearchOpen, so a rotation mid-drag lands on a settled state.
   var revealPx by remember { mutableFloatStateOf(if (isSearchOpen) revealHeightPx else 0f) }
   val queryState = rememberTextFieldState()
   val focusRequester = remember { FocusRequester() }
   // A new animation or a drag cancels the running one, so the hint never fights the user's finger.
   val animationMutex = remember { MutatorMutex() }
 
+  // Animates revealPx towards target. Run inside the mutex, so starting it cancels the hint or a
+  // previous settle, and a drag starting (see onDragStarted) cancels it in turn.
   suspend fun animateRevealTo(target: Float) = animationMutex.mutate {
     animate(revealPx, target, animationSpec = tween(SEARCH_REVEAL_ANIMATION_MS)) { value, _ ->
       revealPx = value
     }
   }
 
+  // Single entry point to open or close the search, shared by the end of a drag, the back press
+  // and the accessibility actions, so they all behave the same way.
   fun setSearchOpen(open: Boolean) {
     isSearchOpen = open
     // Cleared before the field leaves the composition, so the keyboard does not stay up.
     if (!open) focusManager.clearFocus()
     scope.launch {
       animateRevealTo(if (open) revealHeightPx else 0f)
+      // Focused only once fully shown: focusing earlier would pop the keyboard up while the bar
+      // is still sliding in. If a drag interrupts the animation, this line is never reached.
       if (open) focusRequester.requestFocus()
     }
   }
 
+  // Landing hint: pulls the content down a little, holds it, and lets it go back up, like a user
+  // starting a pull and giving up, so the user discovers the gesture without any extra text. It
+  // goes through animateRevealTo, so a user who starts dragging during it simply takes over.
   LaunchedEffect(Unit) {
     if (hasShownHint || isSearchOpen) return@LaunchedEffect
     // Marked first: if the screen is rotated during the hint, it is not worth replaying.
@@ -176,6 +196,7 @@ private fun FriendListContent(modifier: Modifier = Modifier) {
     animateRevealTo(0f)
   }
 
+  // Only enabled while the search is open: otherwise back must keep leaving the screen.
   BackHandler(enabled = isSearchOpen) { setSearchOpen(false) }
 
   val openLabel = stringResource(R.string.friends_search_placeholder)
@@ -186,19 +207,29 @@ private fun FriendListContent(modifier: Modifier = Modifier) {
           modifier
               .fillMaxSize()
               .testTag(FriendListTestTags.CONTENT)
+              // Placed on the whole content, not only on the bar, because the bar is hidden at
+              // first: the user starts the pull anywhere below the top bar.
               .draggable(
                   orientation = Orientation.Vertical,
                   state =
                       rememberDraggableState { delta ->
+                        // delta is positive when the finger moves down. Clamped so the bar
+                        // neither goes above hidden nor stretches the strip past its full height.
                         revealPx = (revealPx + delta).coerceIn(0f, revealHeightPx)
                       },
                   // An empty mutation only cancels the hint or settle animation still running.
                   onDragStarted = { animationMutex.mutate {} },
+                  // On release the bar snaps to whichever end is closer: past half it opens,
+                  // otherwise it closes. This works the same whether the drag started from the
+                  // hidden or the open state, so pulling up an open bar closes it.
                   onDragStopped = { setSearchOpen(revealPx >= revealHeightPx / 2) },
               )
   ) {
+    // Not composed at all while hidden, so the empty field cannot be focused or announced.
     if (revealPx > 0f) {
-      // Clipped so that the bar seems to slide in from behind the top bar as it is revealed.
+      // The strip grows with revealPx and pushes the message down, which is what makes the content
+      // look pulled. Clipped so that the bar seems to slide in from behind the top bar as it is
+      // revealed.
       Box(
           modifier =
               Modifier.fillMaxWidth().height(with(density) { revealPx.toDp() }).clipToBounds(),
@@ -208,7 +239,9 @@ private fun FriendListContent(modifier: Modifier = Modifier) {
             state = queryState,
             modifier =
                 Modifier
-                    // Keeps the bar at full size while only part of it is revealed.
+                    // Keeps the bar at full size while only part of it is revealed. Without it,
+                    // the strip would squash the bar instead of hiding its top part; aligned to the
+                    // bottom so the part showing first is the lower edge, as if pulled from above.
                     .wrapContentHeight(align = Alignment.Bottom, unbounded = true)
                     .padding(
                         horizontal = Dimensions.friendSearchHorizontalPadding,
