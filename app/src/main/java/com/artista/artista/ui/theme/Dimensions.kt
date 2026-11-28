@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.sp
  * @author hixeum
  */
 internal object Dimensions {
+
   // Shared shapes and control dimensions.
   val cornerRadiusSmall = 12.dp
   val cornerRadiusMedium = 20.dp
@@ -132,6 +133,7 @@ internal object Dimensions {
   val artworkListCardFooterHorizontalPadding = 16.dp
   val artworkListCardFooterVerticalPadding = 12.dp
   val artworkListCardFooterTextSpacing = 4.dp
+  val artworkMapTileActionsPadding = 4.dp
 
   /** Width over height of the image in an artwork list card, close to the V2 mockup. */
   const val ARTWORK_LIST_CARD_IMAGE_ASPECT_RATIO = 1f

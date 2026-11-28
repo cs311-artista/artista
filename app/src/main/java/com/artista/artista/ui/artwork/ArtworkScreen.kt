@@ -6,7 +6,6 @@ package com.artista.artista.ui.artwork
 
 import android.util.Log
 import android.widget.Toast
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,11 +16,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.outlined.Adjust
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.NearMe
 import androidx.compose.material3.Button
@@ -34,6 +33,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
@@ -47,6 +47,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -90,6 +91,7 @@ object ArtworkTestTags {
   const val ARTWORK_TITLE = "artwork_title"
   const val ARTWORK_TOP_BAR_TITLE = "artwork_top_bar_title"
   const val ARTWORK_MAP_RECENTER_BUTTON = "artwork_map_recenter_button"
+  const val ARTWORK_MAP_SHOW_ON_MAPSCREEN_BUTTON = "artwork_map_show_on_mapscreen_button"
   const val ARTWORK_MAP_HEADER = "artwork_map_header"
   const val ARTWORK_MAP_TILE = "artwork_map_tile"
   const val ARTWORK_MAP_MARKER = "artwork_map_marker"
@@ -445,22 +447,50 @@ fun MapTile(
     // Only drawn for now: recentering is a follow-up, so the button is not clickable yet rather
     // than doing nothing on tap. Unlike the top bar buttons, it keeps a circle behind it so the
     // icon stays readable over the map.
-    Box(
+    Column(
         modifier =
             Modifier.align(Alignment.BottomEnd)
                 .padding(Dimensions.artworkMapRecenterButtonPadding)
-                .size(Dimensions.artworkMapRecenterButtonSize)
-                .background(MaterialTheme.colorScheme.surface, CircleShape)
                 .testTag(ArtworkTestTags.ARTWORK_MAP_RECENTER_BUTTON),
-        contentAlignment = Alignment.Center,
     ) {
-      Icon(
+      MapTileActionButton(
+          testTag = ArtworkTestTags.ARTWORK_MAP_SHOW_ON_MAPSCREEN_BUTTON,
+          onClick = {},
           imageVector = Icons.Outlined.NearMe,
+          contentDescription = stringResource(R.string.artwork_map_show_on_mapscreen),
+      )
+      MapTileActionButton(
+          testTag = ArtworkTestTags.ARTWORK_MAP_RECENTER_BUTTON,
+          onClick = {},
+          imageVector = Icons.Outlined.Adjust,
           contentDescription = stringResource(R.string.artwork_map_recenter),
-          tint = MaterialTheme.colorScheme.onSurface,
-          modifier = Modifier.size(Dimensions.iconSizeMedium),
       )
     }
+  }
+}
+
+@Composable
+private fun MapTileActionButton(
+    modifier: Modifier = Modifier,
+    testTag: String,
+    onClick: () -> Unit,
+    imageVector: ImageVector,
+    contentDescription: String? = null,
+) {
+  SmallFloatingActionButton(
+      modifier =
+          modifier
+              .testTag(testTag)
+              .padding(Dimensions.artworkMapTileActionsPadding)
+              .size(Dimensions.artworkMapRecenterButtonSize),
+      onClick = onClick,
+  ) {
+    Icon(
+        imageVector = imageVector,
+        contentDescription = contentDescription,
+        tint = MaterialTheme.colorScheme.onSurface,
+        modifier = Modifier.size(Dimensions.iconSizeMedium),
+    )
   }
 }
 
@@ -492,6 +522,32 @@ internal fun ArtworkPreview() {
             },
         modifier = Modifier,
         onBackClick = {},
+    )
+  }
+}
+
+@Preview
+@Composable
+internal fun MapTilePreview() {
+  val artwork = mockArtworks.first()
+  artwork.location!!
+  val cameraPositionState = rememberCameraPositionState {
+    position =
+        CameraPosition.fromLatLngZoom(
+            LatLng(artwork.location.latitude, artwork.location.longitude),
+            C.Constants.DEFAULT_MAP_ZOOM,
+        )
+  }
+  val mapTileMarkerState =
+      remember(key1 = artwork.uid) {
+        MarkerState(position = artwork.location.let { LatLng(it.latitude, it.longitude) })
+      }
+  ArtistaTheme {
+    MapTile(
+        cameraPositionState = cameraPositionState,
+        markerState = mapTileMarkerState,
+        artworkName = artwork.name,
+        onMapPressChanged = {},
     )
   }
 }
