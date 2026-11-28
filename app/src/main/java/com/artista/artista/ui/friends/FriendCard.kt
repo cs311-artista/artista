@@ -197,19 +197,19 @@ internal fun FriendCardPreview() {
           },
       )
       FriendCard(
-        name = "Claude Monet",
-        photoUrl = null,
-        action = {
+          name = "Claude Monet",
+          photoUrl = null,
+          action = {
             IconButton(onClick = {}) {
-                Icon(
-                    imageVector = Icons.Filled.RemoveCircle,
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize(),
-                    tint = MaterialTheme.colorScheme.primary,
-                )
+              Icon(
+                  imageVector = Icons.Filled.RemoveCircle,
+                  contentDescription = null,
+                  modifier = Modifier.fillMaxSize(),
+                  tint = MaterialTheme.colorScheme.primary,
+              )
             }
-        },
-    )
+          },
+      )
       FriendCard(name = "Berthe Morisot", photoUrl = null)
     }
   }
