@@ -2,7 +2,7 @@
 package com.artista.artista.ui.friends
 
 import androidx.activity.ComponentActivity
-import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotSelected
@@ -13,7 +13,6 @@ import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performCustomAccessibilityActionWithLabel
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeDown
 import androidx.compose.ui.test.swipeUp
@@ -114,10 +113,15 @@ class FriendListScreenTest {
   fun landing_hintIsNotReplayedAfterRestore() {
     val restorationTester = StateRestorationTester(composeTestRule)
     restorationTester.setContent { ArtistaTheme { FriendListScreen(onBackClick = {}) } }
-    composeTestRule.waitForIdle()
+    // Waiting for idle does not run the hint's delays, so the first hint is played to its end
+    // explicitly; otherwise it would still be pending and show the bar after the restore.
+    composeTestRule.mainClock.advanceTimeBy(FULL_HINT_DURATION_MS)
+    composeTestRule.onNodeWithTag(FriendListTestTags.SEARCH_FIELD).assertDoesNotExist()
 
-    composeTestRule.mainClock.autoAdvance = false
+    // Restored while the clock still advances by itself: without frames, the screen would not be
+    // rebuilt and the test would check nothing.
     restorationTester.emulateSavedInstanceStateRestore()
+    // Halfway through where a replayed hint would hold the bar down.
     composeTestRule.mainClock.advanceTimeBy(
         SEARCH_HINT_START_DELAY_MS + SEARCH_REVEAL_ANIMATION_MS + SEARCH_HINT_HOLD_MS / 2
     )
@@ -183,20 +187,34 @@ class FriendListScreenTest {
   }
 
   /** Verifies that screen reader users can open and close the search without dragging. */
-  @OptIn(ExperimentalTestApi::class)
   @Test
   fun accessibilityActions_openAndCloseSearchBar() {
     setContent()
 
-    composeTestRule
-        .onNodeWithTag(FriendListTestTags.EMPTY_MESSAGE)
-        .performCustomAccessibilityActionWithLabel(string(R.string.friends_search_placeholder))
+    performCustomAction(string(R.string.friends_search_placeholder))
     composeTestRule.onNodeWithTag(FriendListTestTags.SEARCH_FIELD).assertIsDisplayed()
 
-    composeTestRule
-        .onNodeWithTag(FriendListTestTags.EMPTY_MESSAGE)
-        .performCustomAccessibilityActionWithLabel(string(R.string.friends_search_close))
+    performCustomAction(string(R.string.friends_search_close))
     composeTestRule.onNodeWithTag(FriendListTestTags.SEARCH_FIELD).assertDoesNotExist()
+  }
+
+  /**
+   * Runs the accessibility action with the given label on the message area, on the main thread.
+   *
+   * Screen readers run actions on the main thread. performCustomAccessibilityActionWithLabel runs
+   * them on the test thread instead, where closing the search crashes, since clearing the focus
+   * touches the Android views.
+   *
+   * @param label label of the action to run
+   */
+  private fun performCustomAction(label: String) {
+    val action =
+        composeTestRule
+            .onNodeWithTag(FriendListTestTags.EMPTY_MESSAGE)
+            .fetchSemanticsNode()
+            .config[SemanticsActions.CustomActions]
+            .single { it.label == label }
+    composeTestRule.runOnUiThread { action.action() }
   }
 
   /** Pulls the content down far enough to open the search bar. */
@@ -213,4 +231,10 @@ class FriendListScreenTest {
   }
 
   private fun string(resId: Int): String = composeTestRule.activity.getString(resId)
+
+  private companion object {
+    /** Time for the landing hint to play entirely, with a margin for the last frames. */
+    const val FULL_HINT_DURATION_MS =
+        SEARCH_HINT_START_DELAY_MS + SEARCH_HINT_HOLD_MS + SEARCH_REVEAL_ANIMATION_MS * 2L + 100L
+  }
 }
