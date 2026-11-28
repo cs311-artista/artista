@@ -212,6 +212,18 @@ internal object Dimensions {
   /** How far the landing hint pulls the content down, enough to show part of the search bar. */
   val friendSearchHintOffset = 32.dp
 
+  // Friend card.
+  val friendCardContentPadding = 12.dp
+  val friendCardPictureSize = 56.dp
+  val friendCardPictureNameSpacing = 16.dp
+  /** Size of the slot holding the card's action button, centered on the card's top-end border. */
+  val friendCardActionSize = 40.dp
+  /**
+   * Side margin of the friend cards in a list, larger than the search bar's so that the cards are
+   * narrower than the bar above them, as in the mocks.
+   */
+  val friendCardListHorizontalPadding = friendSearchHorizontalPadding * 2
+
   // Bottom navigation.
   val navigationBarHorizontalPadding = 16.dp
   val navigationBarVerticalPadding = 16.dp

@@ -91,6 +91,9 @@
     <string name="friends_empty_message">Connect with your friends</string>
     <string name="friends_search_placeholder">Search for friends</string>
     <string name="friends_search_close">Close friend search</string>
+    <!-- Friend card -->
+    <string name="friend_card_unnamed">Unnamed user</string>
+    <string name="friend_card_picture_description">Profile picture of %1$s</string>
     <!-- Saved artworks screen -->
     <string name="saved_artworks_title">Saved Artworks</string>
     <string name="saved_artworks_empty">You have no saved artworks yet.</string>
