@@ -129,6 +129,22 @@ class FriendListScreenTest {
     composeTestRule.onNodeWithTag(FriendListTestTags.SEARCH_FIELD).assertDoesNotExist()
   }
 
+  /**
+   * Verifies that opening the search while the landing hint is still waiting cancels the hint, so
+   * that it does not pull the open search bar back out of sight afterwards.
+   */
+  @Test
+  fun openingDuringHint_keepsSearchOpen() {
+    composeTestRule.mainClock.autoAdvance = false
+    setContent()
+
+    // Opened before the hint starts moving, while it is still in its initial wait.
+    performCustomAction(string(R.string.friends_search_placeholder))
+    composeTestRule.mainClock.advanceTimeBy(FULL_HINT_DURATION_MS * 2)
+
+    composeTestRule.onNodeWithTag(FriendListTestTags.SEARCH_FIELD).assertIsDisplayed()
+  }
+
   /** Verifies that pulling the content down opens the focused search bar with its placeholder. */
   @Test
   fun pullDown_opensSearchBar() {

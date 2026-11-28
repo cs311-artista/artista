@@ -161,12 +161,17 @@ private fun FriendListContent(modifier: Modifier = Modifier) {
   // A new animation or a drag cancels the running one, so the hint never fights the user's finger.
   val animationMutex = remember { MutatorMutex() }
 
+  // Animates revealPx towards target, without taking the mutex: only for callers already holding
+  // it, since the mutex is not reentrant.
+  suspend fun animateRevealUnlocked(target: Float) =
+      animate(revealPx, target, animationSpec = tween(SEARCH_REVEAL_ANIMATION_MS)) { value, _ ->
+        revealPx = value
+      }
+
   // Animates revealPx towards target. Run inside the mutex, so starting it cancels the hint or a
   // previous settle, and a drag starting (see onDragStarted) cancels it in turn.
   suspend fun animateRevealTo(target: Float) = animationMutex.mutate {
-    animate(revealPx, target, animationSpec = tween(SEARCH_REVEAL_ANIMATION_MS)) { value, _ ->
-      revealPx = value
-    }
+    animateRevealUnlocked(target)
   }
 
   // Single entry point to open or close the search, shared by the end of a drag, the back press
@@ -184,16 +189,20 @@ private fun FriendListContent(modifier: Modifier = Modifier) {
   }
 
   // Landing hint: pulls the content down a little, holds it, and lets it go back up, like a user
-  // starting a pull and giving up, so the user discovers the gesture without any extra text. It
-  // goes through animateRevealTo, so a user who starts dragging during it simply takes over.
+  // starting a pull and giving up, so the user discovers the gesture without any extra text.
   LaunchedEffect(Unit) {
     if (hasShownHint || isSearchOpen) return@LaunchedEffect
     // Marked first: if the screen is rotated during the hint, it is not worth replaying.
     hasShownHint = true
-    delay(SEARCH_HINT_START_DELAY_MS)
-    animateRevealTo(hintOffsetPx)
-    delay(SEARCH_HINT_HOLD_MS)
-    animateRevealTo(0f)
+    // The mutex is held for the whole hint, waits included, so a drag or an open or close at any
+    // moment cancels what is left of it. Taken only around each animation, a hint still waiting
+    // would wake up afterwards and pull a search the user just opened back out of sight.
+    animationMutex.mutate {
+      delay(SEARCH_HINT_START_DELAY_MS)
+      animateRevealUnlocked(hintOffsetPx)
+      delay(SEARCH_HINT_HOLD_MS)
+      animateRevealUnlocked(0f)
+    }
   }
 
   // Only enabled while the search is open: otherwise back must keep leaving the screen.
